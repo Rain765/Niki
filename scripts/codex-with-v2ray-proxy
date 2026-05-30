@@ -1,0 +1,13 @@
+#!/bin/zsh
+export HTTP_PROXY="${HTTP_PROXY:-http://127.0.0.1:10808}"
+export HTTPS_PROXY="${HTTPS_PROXY:-http://127.0.0.1:10808}"
+export http_proxy="${http_proxy:-http://127.0.0.1:10808}"
+export https_proxy="${https_proxy:-http://127.0.0.1:10808}"
+export ALL_PROXY="${ALL_PROXY:-socks5h://127.0.0.1:10808}"
+export all_proxy="${all_proxy:-socks5h://127.0.0.1:10808}"
+export NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,::1}"
+export no_proxy="${no_proxy:-localhost,127.0.0.1,::1}"
+
+unset CODEX_SANDBOX_NETWORK_DISABLED
+
+exec /Applications/Codex.app/Contents/Resources/codex "$@"

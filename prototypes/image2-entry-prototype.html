@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Image2 Case Library Entry Prototype</title>
+    <style>
+      :root {
+        --bg: #f6f3ee;
+        --panel: #fffaf2;
+        --panel-2: #ffffff;
+        --ink: #151515;
+        --muted: #68615a;
+        --line: #ded7cc;
+        --brand: #e8502f;
+        --brand-2: #096a66;
+        --blue: #2e67d1;
+        --yellow: #f5b43a;
+        --shadow: 0 18px 44px rgba(42, 31, 20, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(90deg, rgba(21, 21, 21, 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+          linear-gradient(rgba(21, 21, 21, 0.035) 1px, transparent 1px) 0 0 / 32px 32px,
+          var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 248px minmax(0, 1fr) 360px;
+        min-height: 100vh;
+      }
+
+      .rail {
+        border-right: 1px solid var(--line);
+        background: rgba(255, 250, 242, 0.86);
+        padding: 22px 16px;
+      }
+
+      .brand {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 26px;
+        font-weight: 760;
+      }
+
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        border: 1px solid #1d1d1d;
+        background: var(--yellow);
+        font-size: 17px;
+      }
+
+      .section-label {
+        margin: 22px 10px 8px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 720;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 38px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        color: #312d28;
+        font-size: 14px;
+      }
+
+      .nav-item .glyph {
+        display: grid;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        border: 1px solid #2b2722;
+        background: #fff;
+        font-size: 11px;
+        line-height: 1;
+      }
+
+      .nav-item.active {
+        border-color: #151515;
+        background: #fff;
+        box-shadow: 4px 4px 0 #151515;
+        font-weight: 760;
+      }
+
+      .nav-item.new {
+        margin-top: 8px;
+        background: #fff3d8;
+      }
+
+      .main {
+        padding: 28px;
+        overflow: hidden;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 780px;
+        font-size: clamp(36px, 5.4vw, 72px);
+        line-height: 0.92;
+        letter-spacing: 0;
+      }
+
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .chip {
+        border: 1px solid #171717;
+        background: #fff;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 38px;
+        border: 1px solid #111;
+        background: #111;
+        color: #fff;
+        padding: 0 14px;
+        font-weight: 760;
+        text-decoration: none;
+      }
+
+      .button.secondary {
+        background: #fff;
+        color: #111;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 26px;
+      }
+
+      .module {
+        position: relative;
+        border: 1px solid #171717;
+        background: var(--panel-2);
+        box-shadow: 6px 6px 0 #171717;
+        padding: 18px;
+      }
+
+      .module.highlight {
+        min-height: 260px;
+        background:
+          radial-gradient(circle at 84% 18%, rgba(245, 180, 58, 0.45), transparent 18%),
+          linear-gradient(135deg, #fff, #fff7e6 48%, #f0fff8);
+      }
+
+      .module h2,
+      .module h3 {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      .module h2 {
+        max-width: 460px;
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .module h3 {
+        font-size: 18px;
+      }
+
+      .module p {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .mini-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .case-strip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .case-thumb {
+        min-height: 96px;
+        border: 1px solid #171717;
+        padding: 10px;
+        color: #111;
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .case-thumb:nth-child(1) {
+        background: linear-gradient(135deg, #f05b35, #ffd26a);
+      }
+
+      .case-thumb:nth-child(2) {
+        background: linear-gradient(135deg, #0f766e, #c8fff1);
+      }
+
+      .case-thumb:nth-child(3) {
+        background: linear-gradient(135deg, #315fd6, #ebf1ff);
+      }
+
+      .lane {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .small-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px solid var(--line);
+        background: #fff;
+        padding: 12px;
+      }
+
+      .small-card strong {
+        font-size: 14px;
+      }
+
+      .small-card span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .detail {
+        border-left: 1px solid var(--line);
+        background: #121212;
+        color: #f8f3ea;
+        padding: 24px 18px;
+      }
+
+      .detail-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .detail h2 {
+        margin: 0;
+        font-size: 24px;
+        letter-spacing: 0;
+      }
+
+      .panel {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: #1c1c1c;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
+
+      .panel.accent {
+        background: #f7efe1;
+        color: #151515;
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        margin-bottom: 12px;
+      }
+
+      .tab {
+        padding: 10px 6px;
+        text-align: center;
+        color: #a8a29a;
+        font-size: 12px;
+        font-weight: 720;
+      }
+
+      .tab.active {
+        background: #f8f3ea;
+        color: #111;
+      }
+
+      .prompt-box {
+        border: 1px dashed rgba(255, 255, 255, 0.34);
+        color: #d7d0c7;
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .token {
+        color: #ffd06a;
+      }
+
+      .flow {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .flow-step {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        padding: 10px;
+        min-height: 72px;
+      }
+
+      .flow-step strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+      }
+
+      .flow-step span {
+        color: #aaa39b;
+        font-size: 12px;
+      }
+
+      @media (max-width: 1100px) {
+        .app {
+          grid-template-columns: 220px 1fr;
+        }
+
+        .detail {
+          grid-column: 1 / -1;
+          border-top: 1px solid var(--line);
+          border-left: 0;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .app,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .rail {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .case-strip,
+        .flow {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="rail">
+        <div class="brand">
+          <div class="mark">OD</div>
+          <div>Open Design</div>
+        </div>
+
+        <div class="section-label">Create</div>
+        <div class="nav-item active"><span class="glyph">+</span> New project</div>
+        <div class="nav-item"><span class="glyph">D</span> Design systems</div>
+        <div class="nav-item new"><span class="glyph">I2</span> Image2 cases</div>
+
+        <div class="section-label">Library</div>
+        <div class="nav-item"><span class="glyph">S</span> Skills</div>
+        <div class="nav-item"><span class="glyph">T</span> Templates</div>
+        <div class="nav-item"><span class="glyph">P</span> Projects</div>
+
+        <div class="section-label">Reasoning</div>
+        <div class="nav-item"><span class="glyph">R</span> Remix history</div>
+        <div class="nav-item"><span class="glyph">Q</span> Quality checks</div>
+      </aside>
+
+      <main class="main">
+        <div class="topbar">
+          <div>
+            <h1>把案例库变成可执行的视觉生产入口</h1>
+            <div class="chip-row">
+              <span class="chip">390+ cases</span>
+              <span class="chip">Prompt variables</span>
+              <span class="chip">PPT / Poster / UI</span>
+              <span class="chip">Source-aware</span>
+            </div>
+          </div>
+          <a class="button" href="#case-library">Open Image2</a>
+        </div>
+
+        <section class="grid">
+          <article class="module highlight" id="case-library">
+            <h2>首页主入口：Image2 Case Library</h2>
+            <p>
+              放在 Create 区域第三位，和 New project、Design systems 同层。它不是普通资源页，
+              而是从案例直接发起生成任务的入口。
+            </p>
+            <div class="mini-toolbar">
+              <a class="button" href="#">Explore cases</a>
+              <a class="button secondary" href="#">Import URL</a>
+              <a class="button secondary" href="#">Create template</a>
+            </div>
+            <div class="case-strip">
+              <div class="case-thumb">UI screenshot<br />to app skin</div>
+              <div class="case-thumb">Infographic<br />to slide</div>
+              <div class="case-thumb">Product hero<br />to deck cover</div>
+            </div>
+          </article>
+
+          <article class="module">
+            <h3>入口二：新建项目面板里的快捷动作</h3>
+            <p>
+              用户点 New project 时，第一排提供 “Start from Image2 case”。适合已经明确要做 PPT、
+              海报或 UI 改版的人。
+            </p>
+            <div class="lane">
+              <div class="small-card">
+                <strong>Start from prompt</strong>
+                <span>blank task</span>
+              </div>
+              <div class="small-card">
+                <strong>Start from Image2 case</strong>
+                <span>recommended</span>
+              </div>
+              <div class="small-card">
+                <strong>Import PPT / PDF</strong>
+                <span>convert</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="module">
+            <h3>入口三：Templates 标签下的筛选入口</h3>
+            <p>
+              对已有 Open Design 用户，案例库也出现在 Templates 里，用 “Case-driven” 筛选，
+              不破坏原有模板浏览心智。
+            </p>
+            <div class="chip-row">
+              <span class="chip">All</span>
+              <span class="chip">Deck</span>
+              <span class="chip">Prototype</span>
+              <span class="chip">Case-driven</span>
+            </div>
+          </article>
+
+          <article class="module">
+            <h3>入口四：右侧 Composer 的引用按钮</h3>
+            <p>
+              在聊天输入区加 “Attach case”。用户可以边描述任务边挂一个参考案例，让 Agent 自动 remix。
+            </p>
+            <div class="lane">
+              <div class="small-card">
+                <strong>Attach case</strong>
+                <span>prompt + preview + source</span>
+              </div>
+              <div class="small-card">
+                <strong>Remix as PPT</strong>
+                <span>deck workflow</span>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+
+      <aside class="detail">
+        <div class="detail-header">
+          <h2>案例详情抽屉</h2>
+          <a class="button secondary" href="#">Use case</a>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active">Overview</div>
+          <div class="tab">Prompt</div>
+          <div class="tab">Outputs</div>
+        </div>
+
+        <div class="panel accent">
+          <strong>建议主入口</strong>
+          <p>
+            左侧导航新增 Image2 cases；首页 hero 下方放一张大卡；新建项目弹窗里放快捷动作。
+          </p>
+        </div>
+
+        <div class="panel">
+          <strong>Prompt 模板化</strong>
+          <div class="prompt-box">
+            Create a <span class="token">{visual_type}</span> for
+            <span class="token">{topic}</span>, using
+            <span class="token">{brand_style}</span>, aspect ratio
+            <span class="token">{ratio}</span>, output for
+            <span class="token">{destination}</span>.
+          </div>
+        </div>
+
+        <div class="panel">
+          <strong>一键生成路径</strong>
+          <div class="flow">
+            <div class="flow-step">
+              <strong>1. Pick case</strong>
+              <span>浏览或导入两个站的案例链接</span>
+            </div>
+            <div class="flow-step">
+              <strong>2. Fill variables</strong>
+              <span>主题、品牌、比例、语言</span>
+            </div>
+            <div class="flow-step">
+              <strong>3. Choose output</strong>
+              <span>PPT、海报、UI、信息图</span>
+            </div>
+            <div class="flow-step">
+              <strong>4. Agent check</strong>
+              <span>文字、构图、版权来源检查</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>
