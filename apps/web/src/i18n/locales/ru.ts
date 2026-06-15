@@ -820,6 +820,7 @@ export const ru: Dict = {
   'misc.primary': 'Основной',
   'misc.designSystem': 'Дизайн-система',
 
+  'workspace.canvas': 'Холст',
   'workspace.designFiles': 'Файлы дизайна',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

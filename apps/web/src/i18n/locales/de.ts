@@ -687,6 +687,7 @@ export const de: Dict = {
   'misc.primary': 'Primär',
   'misc.designSystem': 'Designsystem',
 
+  'workspace.canvas': 'Leinwand',
   'workspace.designFiles': 'Design-Dateien',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

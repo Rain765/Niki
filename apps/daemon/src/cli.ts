@@ -57,6 +57,14 @@ const MEDIA_GENERATE_BOOLEAN_FLAGS = new Set([
   'loop',
 ]);
 
+// Defined before the top-level SUBCOMMAND_MAP dispatch so `od canvas` does not
+// hit a temporal-dead-zone error referencing these from runCanvas.
+const CANVAS_STRING_FLAGS = new Set([
+  'daemon-url', 'project', 'node', 'src', 'alt', 'text', 'prompt-file',
+  'color', 'x', 'y', 'w', 'h', 'size', 'z',
+]);
+const CANVAS_BOOLEAN_FLAGS = new Set(['json', 'help', 'h']);
+
 const MCP_STRING_FLAGS = new Set([
   'daemon-url',
 ]);
@@ -204,6 +212,7 @@ const PLUGIN_LIST_BOOLEAN_FLAGS = new Set([
 const SUBCOMMAND_MAP = {
   artifacts: runArtifacts,
   media: runMedia,
+  canvas: runCanvas,
   mcp: runMcp,
   research: runResearch,
   plugin: runPlugin,
@@ -331,6 +340,11 @@ function printRootHelp() {
       Generate a media artifact and write it into the active project.
       Designed to be invoked by a code agent - picks up OD_DAEMON_URL
       and OD_PROJECT_ID from the env that the daemon injected on spawn.
+
+  od canvas <list|add-image|add-text|move|remove> [args]
+      Drive the project's Lovart-style design canvas headlessly. Images
+      and text nodes share one infinite space the web tldraw editor also
+      renders, so an external agent can compose a canvas without the UI.
 
   od mcp [--daemon-url <url>]
       Run a stdio MCP server that proxies project tool calls to a
@@ -557,6 +571,235 @@ async function runMediaWait(rawArgs) {
     ? Number(flags.since)
     : 0;
   await pollUntilDoneOrBudget(daemonUrl, taskId, since);
+}
+
+// ---------- od canvas … ----------
+// Mirrors the web canvas surface against /api/projects/:id/canvas*. Same
+// endpoints the tldraw editor and AI image generation use, so external agents
+// can place images/text onto a project's design canvas headlessly.
+
+async function runCanvas(args) {
+  const sub = args.find((a) => !a.startsWith('-')) || '';
+  if (sub === 'help' || sub === '-h' || sub === '--help' || sub === '') {
+    printCanvasHelp();
+    return;
+  }
+  const known = new Set(['list', 'add-image', 'add-text', 'move', 'remove']);
+  if (!known.has(sub)) {
+    console.error(`unknown subcommand: od canvas ${sub}`);
+    printCanvasHelp();
+    process.exit(1);
+  }
+  const idx = args.indexOf(sub);
+  const rawArgs = [...args.slice(0, idx), ...args.slice(idx + 1)];
+  let flags;
+  try {
+    flags = parseFlags(rawArgs, { string: CANVAS_STRING_FLAGS, boolean: CANVAS_BOOLEAN_FLAGS });
+  } catch (err) {
+    console.error(err.message);
+    printCanvasHelp();
+    process.exit(2);
+  }
+
+  const base = await cliDaemonBaseUrl(flags);
+  const projectId = flags.project || process.env.OD_PROJECT_ID;
+  if (!projectId) {
+    console.error('project id required. Pass --project <id> or set OD_PROJECT_ID.');
+    process.exit(2);
+  }
+  const asJson = flags.json === true;
+
+  if (sub === 'list') {
+    const data = await canvasFetch(base, flags, `/api/projects/${encodeURIComponent(projectId)}/canvas`);
+    const nodes = data?.canvas?.nodes ?? [];
+    if (asJson) {
+      console.log(JSON.stringify({ ok: true, nodes }, null, 2));
+    } else if (nodes.length === 0) {
+      console.error('canvas is empty');
+    } else {
+      for (const n of nodes) {
+        const label = n.type === 'text' ? JSON.stringify(n.content?.text ?? '') : n.content?.src ?? '';
+        console.log(`${n.id}\t${n.type}\t(${Math.round(n.x)},${Math.round(n.y)})\t${label}`);
+      }
+    }
+    return;
+  }
+
+  if (sub === 'add-image') {
+    const src = flags.src;
+    if (!src) {
+      console.error('--src <path|url> required');
+      process.exit(2);
+    }
+    const content = { src };
+    if (flags.alt) content.alt = flags.alt;
+    const node = await canvasPost(base, flags, projectId, {
+      type: 'image',
+      x: numOr(flags.x, 64),
+      y: numOr(flags.y, 64),
+      w: flags.w != null ? Number(flags.w) : 360,
+      h: flags.h != null ? Number(flags.h) : 360,
+      content,
+    });
+    reportCanvasNode(node, asJson);
+    return;
+  }
+
+  if (sub === 'add-text') {
+    const text = await readPromptFromFlags({ prompt: flags.text, 'prompt-file': flags['prompt-file'] });
+    if (!text) {
+      console.error('--text "..." or --prompt-file <path|-> required');
+      process.exit(2);
+    }
+    const content = { text };
+    if (flags.color) content.color = flags.color;
+    if (flags.size != null) content.size = Number(flags.size);
+    const node = await canvasPost(base, flags, projectId, {
+      type: 'text',
+      x: numOr(flags.x, 64),
+      y: numOr(flags.y, 64),
+      content,
+    });
+    reportCanvasNode(node, asJson);
+    return;
+  }
+
+  if (sub === 'move') {
+    const nodeId = flags.node;
+    if (!nodeId) {
+      console.error('--node <id> required');
+      process.exit(2);
+    }
+    const patch = {};
+    if (flags.x != null) patch.x = Number(flags.x);
+    if (flags.y != null) patch.y = Number(flags.y);
+    if (flags.w != null) patch.w = Number(flags.w);
+    if (flags.h != null) patch.h = Number(flags.h);
+    if (flags.z != null) patch.z = Number(flags.z);
+    const node = await canvasPatch(base, flags, projectId, nodeId, patch);
+    reportCanvasNode(node, asJson);
+    return;
+  }
+
+  if (sub === 'remove') {
+    const nodeId = flags.node;
+    if (!nodeId) {
+      console.error('--node <id> required');
+      process.exit(2);
+    }
+    await canvasDelete(base, flags, projectId, nodeId);
+    if (asJson) console.log(JSON.stringify({ ok: true, removed: nodeId }));
+    else console.error(`removed ${nodeId}`);
+    return;
+  }
+}
+
+function numOr(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+async function canvasFetch(base, flags, pathPart) {
+  let resp;
+  try {
+    resp = await fetch(`${base}${pathPart}`);
+  } catch (err) {
+    surfaceFetchError(err, base);
+    process.exit(3);
+  }
+  if (!resp.ok) {
+    console.error(`daemon ${resp.status}: ${await resp.text()}`);
+    process.exit(4);
+  }
+  return resp.json();
+}
+
+async function canvasPost(base, flags, projectId, body) {
+  let resp;
+  try {
+    resp = await fetch(`${base}/api/projects/${encodeURIComponent(projectId)}/canvas/nodes`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    surfaceFetchError(err, base);
+    process.exit(3);
+  }
+  if (!resp.ok) {
+    console.error(`daemon ${resp.status}: ${await resp.text()}`);
+    process.exit(4);
+  }
+  return (await resp.json()).node;
+}
+
+async function canvasPatch(base, flags, projectId, nodeId, patch) {
+  let resp;
+  try {
+    resp = await fetch(
+      `${base}/api/projects/${encodeURIComponent(projectId)}/canvas/nodes/${encodeURIComponent(nodeId)}`,
+      {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(patch),
+      },
+    );
+  } catch (err) {
+    surfaceFetchError(err, base);
+    process.exit(3);
+  }
+  if (resp.status === 404) {
+    console.error(`canvas node ${nodeId} not found`);
+    process.exit(4);
+  }
+  if (!resp.ok) {
+    console.error(`daemon ${resp.status}: ${await resp.text()}`);
+    process.exit(4);
+  }
+  return (await resp.json()).node;
+}
+
+async function canvasDelete(base, flags, projectId, nodeId) {
+  let resp;
+  try {
+    resp = await fetch(
+      `${base}/api/projects/${encodeURIComponent(projectId)}/canvas/nodes/${encodeURIComponent(nodeId)}`,
+      { method: 'DELETE' },
+    );
+  } catch (err) {
+    surfaceFetchError(err, base);
+    process.exit(3);
+  }
+  if (resp.status === 404) {
+    console.error(`canvas node ${nodeId} not found`);
+    process.exit(4);
+  }
+  if (!resp.ok) {
+    console.error(`daemon ${resp.status}: ${await resp.text()}`);
+    process.exit(4);
+  }
+}
+
+function reportCanvasNode(node, asJson) {
+  if (asJson) {
+    console.log(JSON.stringify({ ok: true, node }, null, 2));
+  } else {
+    console.error(`${node.id} (${node.type}) at (${Math.round(node.x)},${Math.round(node.y)})`);
+  }
+}
+
+function printCanvasHelp() {
+  console.log(`Usage:
+  od canvas list       --project <id> [--json]
+  od canvas add-image  --project <id> --src <path|url> [--alt <text>] [--x <n>] [--y <n>] [--w <n>] [--h <n>] [--json]
+  od canvas add-text   --project <id> (--text "..." | --prompt-file <path|->) [--color <css>] [--size <n>] [--x <n>] [--y <n>] [--json]
+  od canvas move       --project <id> --node <id> [--x <n>] [--y <n>] [--w <n>] [--h <n>] [--z <n>] [--json]
+  od canvas remove     --project <id> --node <id> [--json]
+
+  Manage the Lovart-style design canvas for a project. Images and text nodes
+  share one infinite space; the web tldraw editor renders the same nodes.
+
+  --daemon-url <url>   Open Design daemon HTTP base (default OD_DAEMON_URL, OD_SIDECAR_IPC_PATH discovery, or http://127.0.0.1:7456).`);
 }
 
 async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart, options = {}) {

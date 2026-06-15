@@ -686,6 +686,7 @@ export const ja: Dict = {
   'misc.primary': 'プライマリ',
   'misc.designSystem': 'デザインシステム',
 
+  'workspace.canvas': 'キャンバス',
   'workspace.designFiles': 'デザインファイル',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

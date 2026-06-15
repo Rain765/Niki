@@ -1,4 +1,6 @@
 import type { Express } from 'express';
+
+import { appendImageNodes } from './canvas-store.js';
 import type { RouteDeps } from './server-context.js';
 
 export interface RegisterMediaRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'ids' | 'media' | 'appConfig' | 'orbit' | 'nativeDialogs' | 'projectStore' | 'projectFiles' | 'conversations' | 'research'> {}
@@ -197,6 +199,27 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           task.endedAt = Date.now();
           persistMediaTask(task);
           notifyTaskWaiters(task);
+          // Drop generated images onto the project canvas. The canvas store
+          // emits a `node-added` SSE event so an open canvas surface shows the
+          // image live; if the canvas isn't open the node is simply persisted
+          // and appears next time the canvas is opened.
+          try {
+            const kind = typeof meta?.kind === 'string' ? meta.kind : '';
+            const mime = typeof meta?.mime === 'string' ? meta.mime : '';
+            const name = typeof meta?.name === 'string' ? meta.name : '';
+            const isImage = kind === 'image' || mime.startsWith('image/');
+            if (isImage && name) {
+              const src = `/api/projects/${encodeURIComponent(projectId)}/files/${name
+                .split('/')
+                .map((seg: string) => encodeURIComponent(seg))
+                .join('/')}`;
+              appendImageNodes(db, projectId, [{ src, alt: name }]);
+            }
+          } catch (canvasErr) {
+            console.error(
+              `[task ${taskId.slice(0, 8)}] canvas append skipped: ${String(canvasErr)}`,
+            );
+          }
           console.error(
             `[task ${taskId.slice(0, 8)}] done size=${meta?.size} mime=${meta?.mime} ` +
               `elapsed=${Math.round((task.endedAt - task.startedAt) / 1000)}s`,

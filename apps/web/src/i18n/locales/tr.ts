@@ -788,6 +788,7 @@ export const tr: Dict = {
   'misc.primary': 'Birincil',
   'misc.designSystem': 'Tasarım sistemi',
 
+  'workspace.canvas': 'Tuval',
   'workspace.designFiles': 'Tasarım Dosyaları',
   'workspace.closeTab': 'Sekmeyi kapat',
   'workspace.deleteFileConfirm': '"{name}"ı proje klasöründen sil?',

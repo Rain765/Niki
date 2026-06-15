@@ -874,6 +874,7 @@ export const zhTW: Dict = {
   'misc.primary': '主系統',
   'misc.designSystem': '設計系統',
 
+  'workspace.canvas': '畫布',
   'workspace.designFiles': '設計檔案',
   'workspace.focusMode': '專注工作區',
   'workspace.showChat': '顯示聊天',

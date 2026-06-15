@@ -8,6 +8,7 @@ import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { migrateCanvas } from './canvas-store.js';
 import { migrateCritique } from './critique/persistence.js';
 import { migrateMediaTasks } from './media-tasks.js';
 import { migratePlugins } from './plugins/persistence.js';
@@ -270,6 +271,7 @@ function migrate(db: SqliteDb): void {
   }
   migrateCritique(db);
   migrateMediaTasks(db);
+  migrateCanvas(db);
   migratePlugins(db);
 }
 

@@ -799,6 +799,7 @@ export const ko: Dict = {
   'misc.primary': '기본색 (Primary)',
   'misc.designSystem': '디자인 시스템',
 
+  'workspace.canvas': '캔버스',
   'workspace.designFiles': '디자인 파일',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

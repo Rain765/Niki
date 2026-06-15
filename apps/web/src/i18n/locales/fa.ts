@@ -821,6 +821,7 @@ export const fa: Dict = {
   'misc.primary': 'اصلی',
   'misc.designSystem': 'سیستم طراحی',
 
+  'workspace.canvas': 'بوم',
   'workspace.designFiles': 'فایل‌های طراحی',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

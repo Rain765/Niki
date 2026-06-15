@@ -1263,6 +1263,7 @@ export const en: Dict = {
   'misc.primary': 'Primary',
   'misc.designSystem': 'Design system',
 
+  'workspace.canvas': 'Canvas',
   'workspace.designFiles': 'Design Files',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

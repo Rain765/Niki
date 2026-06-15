@@ -799,6 +799,7 @@ export const hu: Dict = {
   'misc.primary': 'Elsődleges',
   'misc.designSystem': 'Designrendszer',
 
+  'workspace.canvas': 'Vászon',
   'workspace.designFiles': 'Designfájlok',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

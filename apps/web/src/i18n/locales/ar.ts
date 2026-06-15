@@ -799,6 +799,7 @@ export const ar: Dict = {
   'misc.primary': 'أساسي',
   'misc.designSystem': 'نظام تصميم',
 
+  'workspace.canvas': 'لوحة الرسم',
   'workspace.designFiles': 'ملفات التصميم',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

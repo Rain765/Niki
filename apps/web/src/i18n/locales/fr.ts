@@ -799,6 +799,7 @@ export const fr: Dict = {
   'misc.primary': 'Primaire',
   'misc.designSystem': 'Système de design',
 
+  'workspace.canvas': 'Canevas',
   'workspace.designFiles': 'Fichiers de design',
   'workspace.focusMode': 'Espace de travail focalisé',
   'workspace.showChat': 'Afficher le chat',

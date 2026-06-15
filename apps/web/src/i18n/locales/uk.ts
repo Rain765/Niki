@@ -821,6 +821,7 @@ export const uk: Dict = {
   'misc.primary': 'Основна',
   'misc.designSystem': 'Система дизайну',
 
+  'workspace.canvas': 'Полотно',
   'workspace.designFiles': 'Файли дизайну',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

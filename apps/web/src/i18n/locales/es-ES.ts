@@ -688,6 +688,7 @@ export const esES: Dict = {
   'misc.primary': 'Principal',
   'misc.designSystem': 'Sistema de diseño',
 
+  'workspace.canvas': 'Lienzo',
   'workspace.designFiles': 'Archivos de diseño',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

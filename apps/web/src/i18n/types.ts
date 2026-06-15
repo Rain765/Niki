@@ -1552,6 +1552,7 @@ export interface Dict {
   'misc.designSystem': string;
 
   // Workspace / file viewer / design files panel
+  'workspace.canvas': string;
   'workspace.designFiles': string;
   'workspace.focusMode': string;
   'workspace.showChat': string;

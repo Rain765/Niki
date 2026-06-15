@@ -11,6 +11,10 @@
  */
 import type { AgentEvent, ChatCommentAttachment, ChatMessage } from '../types';
 import type {
+  CanvasEvent,
+  CanvasNode,
+  CanvasNodeInput,
+  CanvasSnapshot,
   ChatRunCreateResponse,
   ChatRunListResponse,
   ChatRunStatus,
@@ -682,4 +686,59 @@ export async function saveArtifact(
   } catch {
     return null;
   }
+}
+
+// ---------- design canvas (Lovart-style infinite space) ----------
+
+/** Load the project's canvas nodes. The semantic node list is canonical. */
+export async function fetchCanvas(projectId: string): Promise<CanvasNode[]> {
+  try {
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/canvas`);
+    if (!resp.ok) return [];
+    const data = (await resp.json()) as { canvas: CanvasSnapshot };
+    return data.canvas?.nodes ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Bulk-replace the canvas with the editor's current nodes. The web editor is
+ * the source of truth while open, so a debounced full snapshot is simpler and
+ * race-free compared with per-node diffing.
+ */
+export async function saveCanvas(
+  projectId: string,
+  nodes: CanvasNodeInput[],
+): Promise<boolean> {
+  try {
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/canvas`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nodes }),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Subscribe to live canvas mutations (AI-generated images, out-of-band CLI
+ * edits) while the canvas surface is open. Returns an unsubscribe function.
+ */
+export function subscribeCanvasEvents(
+  projectId: string,
+  onEvent: (event: CanvasEvent) => void,
+): () => void {
+  const es = new EventSource(`/api/projects/${encodeURIComponent(projectId)}/canvas/events`);
+  es.addEventListener('canvas', (raw) => {
+    try {
+      const event = JSON.parse((raw as MessageEvent).data) as CanvasEvent;
+      if (event && event.type) onEvent(event);
+    } catch {
+      // Malformed — ignore.
+    }
+  });
+  return () => es.close();
 }

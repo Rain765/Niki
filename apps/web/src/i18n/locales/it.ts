@@ -717,6 +717,7 @@ export const it: Dict = {
   'misc.primary': 'Primario',
   'misc.designSystem': 'Design system',
 
+  'workspace.canvas': 'Tela',
   'workspace.designFiles': 'File di design',
   'workspace.focusMode': 'Spazio di lavoro focus',
   'workspace.showChat': 'Mostra chat',

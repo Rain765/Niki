@@ -746,6 +746,7 @@ export const th: Dict = {
   'misc.primary': 'หลัก',
   'misc.designSystem': 'ระบบการออกแบบ',
 
+  'workspace.canvas': 'แคนวาส',
   'workspace.designFiles': 'ไฟล์งานดีไซน์',
   'workspace.focusMode': 'โหมดโฟกัส',
   'workspace.showChat': 'เปิดแชท',

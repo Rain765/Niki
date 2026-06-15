@@ -47,6 +47,7 @@ import {
 } from '../types';
 import { DesignFilesPanel } from './DesignFilesPanel';
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
+import { CanvasView } from './CanvasView';
 import { FileViewer, LiveArtifactViewer } from './FileViewer';
 import { Icon } from './Icon';
 import { LiveArtifactBadges } from './LiveArtifactBadges';
@@ -118,6 +119,7 @@ interface SketchState {
 
 const DESIGN_FILES_TAB = '__design_files__';
 const DESIGN_SYSTEM_TAB = '__design_system__';
+const CANVAS_TAB = '__canvas__';
 type TabDropEdge = 'before' | 'after';
 type DesignSystemReviewDecision =
   NonNullable<ProjectMetadata['designSystemReview']>[string]['decision'];
@@ -831,6 +833,21 @@ export function FileWorkspace({
             clearTabDragState();
           }}
         >
+          <button
+            type="button"
+            className={`ws-tab canvas-tab ${activeTab === CANVAS_TAB ? 'active' : ''}`}
+            role="tab"
+            aria-selected={activeTab === CANVAS_TAB}
+            tabIndex={0}
+            data-testid="canvas-tab"
+            onClick={() => setActiveTab(CANVAS_TAB)}
+            title={t('workspace.canvas')}
+          >
+            <span className="tab-icon" aria-hidden>
+              <Icon name="draw" size={13} />
+            </span>
+            <span className="ws-tab-label">{t('workspace.canvas')}</span>
+          </button>
           {designSystemProject ? (
             <button
               type="button"
@@ -945,7 +962,9 @@ export function FileWorkspace({
             </button>
           </div>
         ) : null}
-        {activeTab === DESIGN_SYSTEM_TAB && designSystemProject ? (
+        {activeTab === CANVAS_TAB ? (
+          <CanvasView projectId={projectId} />
+        ) : activeTab === DESIGN_SYSTEM_TAB && designSystemProject ? (
           <DesignSystemProjectPanel
             projectId={projectId}
             system={designSystemProject}

@@ -913,6 +913,7 @@ export const id: Dict = {
   'misc.primary': 'Utama',
   'misc.designSystem': 'Sistem desain',
 
+  'workspace.canvas': 'Kanvas',
   'workspace.designFiles': 'File desain',
   'workspace.focusMode': 'Fokus workspace',
   'workspace.showChat': 'Tampilkan chat',
