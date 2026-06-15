@@ -97,8 +97,11 @@ export function registerCanvasRoutes(app: Express, ctx: RegisterCanvasRoutesDeps
   app.get('/api/projects/:id/canvas/events', (req, res) => {
     const projectId = req.params.id;
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    // Disable proxy buffering so events flush immediately (mirrors the chat
+    // SSE route; without this the Next dev rewrite buffers the stream).
+    res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders?.();
     // Initial comment keeps proxies from buffering the idle stream open.
     res.write(': canvas-stream-open\n\n');
