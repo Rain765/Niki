@@ -800,6 +800,7 @@ export const hu: Dict = {
   'misc.designSystem': 'Designrendszer',
 
   'workspace.canvas': 'Vászon',
+  'canvas.addText': 'Szöveg hozzáadása',
   'workspace.designFiles': 'Designfájlok',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

@@ -23,7 +23,10 @@ import type {
   CanvasTextContent,
 } from '@open-design/contracts';
 
+import { useT } from '../i18n';
 import { fetchCanvas, saveCanvas, subscribeCanvasEvents } from '../providers/daemon';
+
+import { Icon } from './Icon';
 
 const SAVE_DEBOUNCE_MS = 600;
 const DEFAULT_IMAGE_SIZE = 360;
@@ -39,9 +42,28 @@ const DEFAULT_IMAGE_SIZE = 360;
  * debounced snapshot keeps sync race-free without per-node diffing.
  */
 export function CanvasView({ projectId }: { projectId: string }) {
+  const t = useT();
   const editorRef = useRef<Editor | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disposers = useRef<Array<() => void>>([]);
+
+  // Drop an empty text box at the centre of the current viewport and enter
+  // edit mode so the user can start typing immediately.
+  const addTextNode = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const center = editor.getViewportPageBounds().center;
+    const id = createShapeId();
+    editor.createShape<TLTextShape>({
+      id,
+      type: 'text',
+      x: center.x - 100,
+      y: center.y - 16,
+      props: { richText: toRichText('') },
+    });
+    editor.select(id);
+    editor.setEditingShape(id);
+  }, []);
 
   const scheduleSave = useCallback(() => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -115,6 +137,12 @@ export function CanvasView({ projectId }: { projectId: string }) {
   return (
     <div className="canvas-surface" style={{ position: 'relative', width: '100%', height: '100%' }}>
       <Tldraw onMount={handleMount} />
+      <div className="canvas-add-toolbar">
+        <button type="button" className="canvas-add-text-btn" onClick={addTextNode}>
+          <Icon name="edit" size={14} />
+          <span>{t('canvas.addText')}</span>
+        </button>
+      </div>
     </div>
   );
 }

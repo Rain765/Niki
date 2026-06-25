@@ -26170,3 +26170,52 @@ body.desktop-pet-shell .pet-task-item {
   font-size: 12px;
   max-width: 48ch;
 }
+
+/* ---------- Design canvas (tldraw) ---------- */
+
+/* The embedded tldraw editor ships its own button styling. The app's global
+   `button:hover` / `:focus-visible` rules outrank tldraw's class selectors and,
+   in dark mode, painted a near-opaque dark panel over the toolbar / style-panel
+   icons on hover — hiding them. Keep a hover affordance but drop the opacity
+   right down so the controls stay legible. tldraw keeps its own active/selected
+   states (higher-specificity rules) intact. */
+.tl-container button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: transparent;
+  box-shadow: none;
+}
+.tl-container button:focus-visible {
+  outline: none;
+}
+
+/* Floating "add text" affordance over the canvas. Positioned top-centre to
+   avoid tldraw's own chrome (menu top-left, style panel top-right, toolbar
+   bottom-centre). */
+.canvas-add-toolbar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  pointer-events: none;
+}
+.canvas-add-toolbar .canvas-add-text-btn {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  transition: background 200ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.canvas-add-toolbar .canvas-add-text-btn:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+}

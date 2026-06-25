@@ -800,6 +800,7 @@ export const ko: Dict = {
   'misc.designSystem': '디자인 시스템',
 
   'workspace.canvas': '캔버스',
+  'canvas.addText': '텍스트 추가',
   'workspace.designFiles': '디자인 파일',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

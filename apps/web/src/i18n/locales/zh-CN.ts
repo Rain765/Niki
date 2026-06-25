@@ -1256,6 +1256,7 @@ export const zhCN: Dict = {
   'misc.designSystem': '设计体系',
 
   'workspace.canvas': '画布',
+  'canvas.addText': '添加文字',
   'workspace.designFiles': '设计文件',
   'workspace.focusMode': '专注工作区',
   'workspace.showChat': '显示聊天',

@@ -800,6 +800,7 @@ export const pl: Dict = {
   'misc.designSystem': 'System projektowania',
 
   'workspace.canvas': 'Płótno',
+  'canvas.addText': 'Dodaj tekst',
   'workspace.designFiles': 'Pliki projektu',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

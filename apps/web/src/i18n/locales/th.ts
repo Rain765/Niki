@@ -747,6 +747,7 @@ export const th: Dict = {
   'misc.designSystem': 'ระบบการออกแบบ',
 
   'workspace.canvas': 'แคนวาส',
+  'canvas.addText': 'เพิ่มข้อความ',
   'workspace.designFiles': 'ไฟล์งานดีไซน์',
   'workspace.focusMode': 'โหมดโฟกัส',
   'workspace.showChat': 'เปิดแชท',

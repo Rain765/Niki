@@ -821,6 +821,7 @@ export const ptBR: Dict = {
   'misc.designSystem': 'Sistema de design',
 
   'workspace.canvas': 'Tela',
+  'canvas.addText': 'Adicionar texto',
   'workspace.designFiles': 'Arquivos de design',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

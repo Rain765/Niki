@@ -914,6 +914,7 @@ export const id: Dict = {
   'misc.designSystem': 'Sistem desain',
 
   'workspace.canvas': 'Kanvas',
+  'canvas.addText': 'Tambah teks',
   'workspace.designFiles': 'File desain',
   'workspace.focusMode': 'Fokus workspace',
   'workspace.showChat': 'Tampilkan chat',

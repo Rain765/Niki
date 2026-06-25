@@ -800,6 +800,7 @@ export const ar: Dict = {
   'misc.designSystem': 'نظام تصميم',
 
   'workspace.canvas': 'لوحة الرسم',
+  'canvas.addText': 'إضافة نص',
   'workspace.designFiles': 'ملفات التصميم',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

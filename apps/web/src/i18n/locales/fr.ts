@@ -800,6 +800,7 @@ export const fr: Dict = {
   'misc.designSystem': 'Système de design',
 
   'workspace.canvas': 'Canevas',
+  'canvas.addText': 'Ajouter du texte',
   'workspace.designFiles': 'Fichiers de design',
   'workspace.focusMode': 'Espace de travail focalisé',
   'workspace.showChat': 'Afficher le chat',
