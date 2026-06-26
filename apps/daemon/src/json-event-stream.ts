@@ -266,26 +266,52 @@ function handleCursorEvent(obj: unknown, onEvent: StreamEventHandler, state: Par
   return false;
 }
 
+function isRecoverableCodexReconnect(message: string): boolean {
+  return /^Reconnecting\.\.\. \d+\/\d+ \(.+\)$/.test(message);
+}
+
+function isRecoverableCodexItemError(message: string): boolean {
+  return (
+    isRecoverableCodexReconnect(message) ||
+    message.includes('Falling back from WebSockets to HTTPS transport') ||
+    message.includes('Skill descriptions were shortened to fit the 2% skills context budget')
+  );
+}
+
 function handleCodexEvent(obj: unknown, onEvent: StreamEventHandler, state: ParserState): boolean {
   if (!isRecord(obj)) return false;
 
-if (obj.type === 'error') {
-  const message = extractErrorMessage(obj.message ?? obj.error, 'Codex error');
-  // Reconnecting events are recoverable — treat as status warning, not fatal
-  if (
-    typeof message === 'string' &&
-    message.includes('Reconnecting...') &&
-    message.includes('timeout waiting for child process to exit')
-  ) {
-    onEvent({ type: 'status', label: message });
+  if (obj.type === 'error') {
+    const message = extractErrorMessage(obj.message ?? obj.error, 'Codex error');
+    // Reconnecting events are recoverable; Codex emits different root causes
+    // here before falling back from WebSockets to HTTPS.
+    if (isRecoverableCodexReconnect(message)) {
+      onEvent({ type: 'status', label: message });
+      return true;
+    }
+    if (!state.codexErrorEmitted) {
+      state.codexErrorEmitted = true;
+      onEvent({ type: 'error', message });
+    }
     return true;
   }
-  if (!state.codexErrorEmitted) {
-    state.codexErrorEmitted = true;
-    onEvent({ type: 'error', message });
+
+  if (
+    obj.type === 'item.completed' &&
+    isRecord(obj.item) &&
+    obj.item.type === 'error'
+  ) {
+    const message = extractErrorMessage(obj.item.message ?? obj.item.error, 'Codex error');
+    if (isRecoverableCodexItemError(message)) {
+      onEvent({ type: 'status', label: message });
+      return true;
+    }
+    if (!state.codexErrorEmitted) {
+      state.codexErrorEmitted = true;
+      onEvent({ type: 'error', message });
+    }
+    return true;
   }
-  return true;
-}
 
   if (obj.type === 'turn.failed') {
     if (!state.codexErrorEmitted) {

@@ -462,7 +462,10 @@ test('codex json stream treats reconnect errors as status warnings not fatal (re
   handler.feed(
     JSON.stringify({ type: 'thread.started', thread_id: 'thr-1' }) + '\n' +
     JSON.stringify({ type: 'turn.started' }) + '\n' +
-    JSON.stringify({ type: 'error', message: 'Reconnecting... 2/5 (timeout waiting for child process to exit)' }) + '\n' +
+    JSON.stringify({ type: 'item.completed', item: { id: 'item-0', type: 'error', message: 'Skill descriptions were shortened to fit the 2% skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.' } }) + '\n' +
+    JSON.stringify({ type: 'error', message: 'Reconnecting... 2/5 (stream disconnected before completion: Connection refused (os error 61))' }) + '\n' +
+    JSON.stringify({ type: 'error', message: 'Reconnecting... 3/5 (request timed out)' }) + '\n' +
+    JSON.stringify({ type: 'item.completed', item: { id: 'item-0', type: 'error', message: 'Falling back from WebSockets to HTTPS transport. request timed out' } }) + '\n' +
     JSON.stringify({ type: 'item.completed', item: { id: 'item-0', type: 'agent_message', text: 'OK' } }) + '\n' +
     JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 5, output_tokens: 2, cached_input_tokens: 0 } }) + '\n',
   );
@@ -470,7 +473,10 @@ test('codex json stream treats reconnect errors as status warnings not fatal (re
   assert.deepEqual(events, [
     { type: 'status', label: 'initializing' },
     { type: 'status', label: 'running' },
-    { type: 'status', label: 'Reconnecting... 2/5 (timeout waiting for child process to exit)' },
+    { type: 'status', label: 'Skill descriptions were shortened to fit the 2% skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.' },
+    { type: 'status', label: 'Reconnecting... 2/5 (stream disconnected before completion: Connection refused (os error 61))' },
+    { type: 'status', label: 'Reconnecting... 3/5 (request timed out)' },
+    { type: 'status', label: 'Falling back from WebSockets to HTTPS transport. request timed out' },
     { type: 'text_delta', delta: 'OK' },
     { type: 'usage', usage: { input_tokens: 5, output_tokens: 2, cached_read_tokens: 0 } },
   ]);
