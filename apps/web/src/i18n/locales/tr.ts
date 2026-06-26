@@ -790,6 +790,8 @@ export const tr: Dict = {
 
   'workspace.canvas': 'Tuval',
   'canvas.addText': 'Metin ekle',
+  'canvas.sendToChat': 'Sohbete gönder',
+  'designFiles.addToCanvas': 'Tuvale ekle',
   'workspace.designFiles': 'Tasarım Dosyaları',
   'workspace.closeTab': 'Sekmeyi kapat',
   'workspace.deleteFileConfirm': '"{name}"ı proje klasöründen sil?',

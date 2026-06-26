@@ -823,6 +823,8 @@ export const fa: Dict = {
 
   'workspace.canvas': 'بوم',
   'canvas.addText': 'افزودن متن',
+  'canvas.sendToChat': 'ارسال به گفتگو',
+  'designFiles.addToCanvas': 'افزودن به بوم',
   'workspace.designFiles': 'فایل‌های طراحی',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

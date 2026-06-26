@@ -689,6 +689,8 @@ export const de: Dict = {
 
   'workspace.canvas': 'Leinwand',
   'canvas.addText': 'Text hinzufügen',
+  'canvas.sendToChat': 'An Chat senden',
+  'designFiles.addToCanvas': 'Zur Leinwand',
   'workspace.designFiles': 'Design-Dateien',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

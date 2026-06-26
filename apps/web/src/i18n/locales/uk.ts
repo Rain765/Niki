@@ -823,6 +823,8 @@ export const uk: Dict = {
 
   'workspace.canvas': 'Полотно',
   'canvas.addText': 'Додати текст',
+  'canvas.sendToChat': 'Надіслати в чат',
+  'designFiles.addToCanvas': 'Додати на полотно',
   'workspace.designFiles': 'Файли дизайну',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

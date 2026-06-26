@@ -801,6 +801,8 @@ export const ar: Dict = {
 
   'workspace.canvas': 'لوحة الرسم',
   'canvas.addText': 'إضافة نص',
+  'canvas.sendToChat': 'إرسال إلى المحادثة',
+  'designFiles.addToCanvas': 'إضافة إلى اللوحة',
   'workspace.designFiles': 'ملفات التصميم',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

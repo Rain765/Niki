@@ -876,6 +876,8 @@ export const zhTW: Dict = {
 
   'workspace.canvas': '畫布',
   'canvas.addText': '加入文字',
+  'canvas.sendToChat': '傳送到對話',
+  'designFiles.addToCanvas': '加入畫布',
   'workspace.designFiles': '設計檔案',
   'workspace.focusMode': '專注工作區',
   'workspace.showChat': '顯示聊天',

@@ -915,6 +915,8 @@ export const id: Dict = {
 
   'workspace.canvas': 'Kanvas',
   'canvas.addText': 'Tambah teks',
+  'canvas.sendToChat': 'Kirim ke obrolan',
+  'designFiles.addToCanvas': 'Tambah ke kanvas',
   'workspace.designFiles': 'File desain',
   'workspace.focusMode': 'Fokus workspace',
   'workspace.showChat': 'Tampilkan chat',

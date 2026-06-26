@@ -690,6 +690,8 @@ export const esES: Dict = {
 
   'workspace.canvas': 'Lienzo',
   'canvas.addText': 'Añadir texto',
+  'canvas.sendToChat': 'Enviar al chat',
+  'designFiles.addToCanvas': 'Añadir al lienzo',
   'workspace.designFiles': 'Archivos de diseño',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

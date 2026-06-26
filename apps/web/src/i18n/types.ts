@@ -1554,6 +1554,8 @@ export interface Dict {
   // Workspace / file viewer / design files panel
   'workspace.canvas': string;
   'canvas.addText': string;
+  'canvas.sendToChat': string;
+  'designFiles.addToCanvas': string;
   'workspace.designFiles': string;
   'workspace.focusMode': string;
   'workspace.showChat': string;

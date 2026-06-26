@@ -703,6 +703,38 @@ export async function fetchCanvas(projectId: string): Promise<CanvasNode[]> {
 }
 
 /**
+ * Append a single image node to the canvas (e.g. "add to canvas" from the
+ * design-files panel). The daemon emits a `node-added` SSE event so an open
+ * canvas surface shows it live; otherwise it is persisted and appears next
+ * time the canvas opens.
+ */
+export async function addCanvasImageNode(
+  projectId: string,
+  src: string,
+  alt?: string,
+): Promise<boolean> {
+  try {
+    // Small random offset so several adds don't stack perfectly on top.
+    const jitter = () => Math.round(Math.random() * 220);
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/canvas/nodes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'image',
+        x: 80 + jitter(),
+        y: 80 + jitter(),
+        w: 360,
+        h: 360,
+        content: alt ? { src, alt } : { src },
+      } satisfies CanvasNodeInput),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Bulk-replace the canvas with the editor's current nodes. The web editor is
  * the source of truth while open, so a debounced full snapshot is simpler and
  * race-free compared with per-node diffing.

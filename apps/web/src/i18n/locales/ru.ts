@@ -822,6 +822,8 @@ export const ru: Dict = {
 
   'workspace.canvas': 'Холст',
   'canvas.addText': 'Добавить текст',
+  'canvas.sendToChat': 'Отправить в чат',
+  'designFiles.addToCanvas': 'Добавить на холст',
   'workspace.designFiles': 'Файлы дизайна',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

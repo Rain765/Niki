@@ -719,6 +719,8 @@ export const it: Dict = {
 
   'workspace.canvas': 'Tela',
   'canvas.addText': 'Aggiungi testo',
+  'canvas.sendToChat': 'Invia alla chat',
+  'designFiles.addToCanvas': 'Aggiungi alla tela',
   'workspace.designFiles': 'File di design',
   'workspace.focusMode': 'Spazio di lavoro focus',
   'workspace.showChat': 'Mostra chat',

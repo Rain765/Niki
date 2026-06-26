@@ -822,6 +822,8 @@ export const ptBR: Dict = {
 
   'workspace.canvas': 'Tela',
   'canvas.addText': 'Adicionar texto',
+  'canvas.sendToChat': 'Enviar para o chat',
+  'designFiles.addToCanvas': 'Adicionar à tela',
   'workspace.designFiles': 'Arquivos de design',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

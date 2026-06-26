@@ -1265,6 +1265,8 @@ export const en: Dict = {
 
   'workspace.canvas': 'Canvas',
   'canvas.addText': 'Add text',
+  'canvas.sendToChat': 'Send to chat',
+  'designFiles.addToCanvas': 'Add to canvas',
   'workspace.designFiles': 'Design Files',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

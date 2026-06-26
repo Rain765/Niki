@@ -27,6 +27,7 @@ import { useT } from '../i18n';
 import { fetchCanvas, saveCanvas, subscribeCanvasEvents } from '../providers/daemon';
 
 import { Icon } from './Icon';
+import { ANNOTATION_EVENT, type AnnotationEventDetail } from './PreviewDrawOverlay';
 
 const SAVE_DEBOUNCE_MS = 600;
 const DEFAULT_IMAGE_SIZE = 360;
@@ -63,6 +64,31 @@ export function CanvasView({ projectId }: { projectId: string }) {
     });
     editor.select(id);
     editor.setEditingShape(id);
+  }, []);
+
+  // Export the canvas (image + annotations the user drew with tldraw's tools)
+  // as a PNG and hand it to the chat composer as a staged visual mark, so the
+  // user can describe the change and send it to the agent. Reuses the same
+  // ANNOTATION_EVENT bridge the HTML-preview draw overlay uses.
+  const sendToChat = useCallback(async () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const ids = [...editor.getCurrentPageShapeIds()];
+    if (ids.length === 0) return;
+    const { blob } = await editor.toImage(ids, { format: 'png' });
+    if (!blob) return;
+    const file = new File([blob], `canvas-annotation-${Date.now()}.png`, { type: 'image/png' });
+    const pageBounds = editor.getCurrentPageBounds();
+    const detail: AnnotationEventDetail = {
+      file,
+      note: '',
+      action: 'queue',
+      markKind: 'stroke',
+      bounds: pageBounds
+        ? { x: 0, y: 0, width: Math.max(1, Math.round(pageBounds.w)), height: Math.max(1, Math.round(pageBounds.h)) }
+        : { x: 0, y: 0, width: 1, height: 1 },
+    };
+    window.dispatchEvent(new CustomEvent(ANNOTATION_EVENT, { detail }));
   }, []);
 
   const scheduleSave = useCallback(() => {
@@ -141,6 +167,10 @@ export function CanvasView({ projectId }: { projectId: string }) {
         <button type="button" className="canvas-add-text-btn" onClick={addTextNode}>
           <Icon name="edit" size={14} />
           <span>{t('canvas.addText')}</span>
+        </button>
+        <button type="button" className="canvas-add-text-btn" onClick={() => void sendToChat()}>
+          <Icon name="send" size={14} />
+          <span>{t('canvas.sendToChat')}</span>
         </button>
       </div>
     </div>

@@ -801,6 +801,8 @@ export const ko: Dict = {
 
   'workspace.canvas': '캔버스',
   'canvas.addText': '텍스트 추가',
+  'canvas.sendToChat': '채팅으로 보내기',
+  'designFiles.addToCanvas': '캔버스에 추가',
   'workspace.designFiles': '디자인 파일',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

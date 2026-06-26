@@ -1257,6 +1257,8 @@ export const zhCN: Dict = {
 
   'workspace.canvas': '画布',
   'canvas.addText': '添加文字',
+  'canvas.sendToChat': '发送到对话',
+  'designFiles.addToCanvas': '加到画布',
   'workspace.designFiles': '设计文件',
   'workspace.focusMode': '专注工作区',
   'workspace.showChat': '显示聊天',

@@ -801,6 +801,8 @@ export const hu: Dict = {
 
   'workspace.canvas': 'Vászon',
   'canvas.addText': 'Szöveg hozzáadása',
+  'canvas.sendToChat': 'Küldés a csevegésbe',
+  'designFiles.addToCanvas': 'Hozzáadás a vászonhoz',
   'workspace.designFiles': 'Designfájlok',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',

@@ -748,6 +748,8 @@ export const th: Dict = {
 
   'workspace.canvas': 'แคนวาส',
   'canvas.addText': 'เพิ่มข้อความ',
+  'canvas.sendToChat': 'ส่งไปแชท',
+  'designFiles.addToCanvas': 'เพิ่มลงแคนวาส',
   'workspace.designFiles': 'ไฟล์งานดีไซน์',
   'workspace.focusMode': 'โหมดโฟกัส',
   'workspace.showChat': 'เปิดแชท',

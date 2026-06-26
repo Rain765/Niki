@@ -4,6 +4,7 @@ import { trackFileManagerClick } from '../analytics/events';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
 import { projectFileUrl } from '../providers/registry';
+import { addCanvasImageNode } from '../providers/daemon';
 import type { LiveArtifactWorkspaceEntry, ProjectFile, ProjectFileKind } from '../types';
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
 import { getPluginFolderCandidates } from './design-files/pluginFolders';
@@ -1235,6 +1236,20 @@ export function DesignFilesPanel({
           >
             {t('designFiles.openInTab')}
           </button>
+          {files.find((f) => f.name === menuPos.name)?.kind === 'image' ? (
+            <button
+              type="button"
+              data-testid={`design-file-add-to-canvas-${menuPos.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const name = menuPos.name;
+                setMenuPos(null);
+                void addCanvasImageNode(projectId, projectFileUrl(projectId, name), name);
+              }}
+            >
+              {t('designFiles.addToCanvas')}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={(e) => {

@@ -801,6 +801,8 @@ export const fr: Dict = {
 
   'workspace.canvas': 'Canevas',
   'canvas.addText': 'Ajouter du texte',
+  'canvas.sendToChat': 'Envoyer au chat',
+  'designFiles.addToCanvas': 'Ajouter au canevas',
   'workspace.designFiles': 'Fichiers de design',
   'workspace.focusMode': 'Espace de travail focalisé',
   'workspace.showChat': 'Afficher le chat',

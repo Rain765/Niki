@@ -688,6 +688,8 @@ export const ja: Dict = {
 
   'workspace.canvas': 'キャンバス',
   'canvas.addText': 'テキストを追加',
+  'canvas.sendToChat': 'チャットに送信',
+  'designFiles.addToCanvas': 'キャンバスに追加',
   'workspace.designFiles': 'デザインファイル',
   'workspace.focusMode': 'Focus workspace',
   'workspace.showChat': 'Show chat',
