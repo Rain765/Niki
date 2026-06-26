@@ -45,7 +45,7 @@ import { execFile as execFileCb, spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { Agent as UndiciAgent } from 'undici';
+import { EnvHttpProxyAgent } from 'undici';
 import {
   AUDIO_DURATIONS_SEC,
   type AudioKind,
@@ -688,7 +688,13 @@ function defaultAspectFor(surface: MediaSurface): string | undefined {
 const AZURE_DEFAULT_API_VERSION = '2024-02-01';
 const OPENAI_IMAGE_HEADERS_TIMEOUT_MS = 10 * 60 * 1000;
 const OPENAI_IMAGE_BODY_TIMEOUT_MS = 10 * 60 * 1000;
-const openAIImageDispatcher = new UndiciAgent({
+// Honor HTTP(S)_PROXY / NO_PROXY from the daemon's environment. Users in
+// regions that can only reach api.openai.com through a local proxy (e.g.
+// Clash) otherwise hit a connection timeout here — the chat agent has its own
+// proxy wrapper, but this image request previously used a proxy-blind Agent.
+// EnvHttpProxyAgent reads the proxy env when present and connects directly
+// when it is not, so it is inert for users without a proxy.
+const openAIImageDispatcher = new EnvHttpProxyAgent({
   headersTimeout: OPENAI_IMAGE_HEADERS_TIMEOUT_MS,
   bodyTimeout: OPENAI_IMAGE_BODY_TIMEOUT_MS,
 });
