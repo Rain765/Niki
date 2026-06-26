@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Tldraw,
   AssetRecordType,
@@ -9,6 +9,7 @@ import {
   renderPlaintextFromRichText,
   toRichText,
   type Editor,
+  type TLGeoShape,
   type TLImageShape,
   type TLShapePartial,
   type TLTextShape,
@@ -42,11 +43,92 @@ const DEFAULT_IMAGE_SIZE = 360;
  * web editor is authoritative only while it is the active surface, so a full
  * debounced snapshot keeps sync race-free without per-node diffing.
  */
+interface AnnotationRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export function CanvasView({ projectId }: { projectId: string }) {
   const t = useT();
   const editorRef = useRef<Editor | null>(null);
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disposers = useRef<Array<() => void>>([]);
+  // Region annotation box (screen-space, relative to .canvas-surface).
+  const [annotation, setAnnotation] = useState<AnnotationRect | null>(null);
+  const [annotationNote, setAnnotationNote] = useState('');
+  const [sendingAnnotation, setSendingAnnotation] = useState(false);
+
+  // Drop a draggable/resizable annotation box over the centre of the canvas.
+  const startAnnotation = useCallback(() => {
+    const rect = surfaceRef.current?.getBoundingClientRect();
+    const w = 340;
+    const h = 220;
+    const x = rect ? Math.max(16, (rect.width - w) / 2) : 80;
+    const y = rect ? Math.max(56, (rect.height - h) / 2) : 80;
+    setAnnotationNote('');
+    setAnnotation({ x, y, w, h });
+  }, []);
+
+  // Send the region annotation: draw a matching rectangle onto the canvas,
+  // export the whole thing to PNG (so the agent sees the full image with the
+  // marked region), then hand it to the composer via ANNOTATION_EVENT.
+  const sendAnnotation = useCallback(async () => {
+    const editor = editorRef.current;
+    const surf = surfaceRef.current;
+    const box = annotation;
+    if (!editor || !surf || !box) return;
+    setSendingAnnotation(true);
+    let rectId: TLShapeId | null = null;
+    try {
+      const container = (surf.querySelector('.tl-container') as HTMLElement) ?? surf;
+      const crect = container.getBoundingClientRect();
+      const srect = surf.getBoundingClientRect();
+      const toScreen = (px: number, py: number) => ({
+        x: srect.left + px - crect.left,
+        y: srect.top + py - crect.top,
+      });
+      const pageTL = editor.screenToPage(toScreen(box.x, box.y));
+      const pageBR = editor.screenToPage(toScreen(box.x + box.w, box.y + box.h));
+      const w = Math.max(1, Math.abs(pageBR.x - pageTL.x));
+      const h = Math.max(1, Math.abs(pageBR.y - pageTL.y));
+      rectId = createShapeId();
+      editor.createShape<TLGeoShape>({
+        id: rectId,
+        type: 'geo',
+        x: Math.min(pageTL.x, pageBR.x),
+        y: Math.min(pageTL.y, pageBR.y),
+        props: { geo: 'rectangle', w, h, color: 'red', fill: 'none', dash: 'solid', size: 'm' },
+      });
+      const ids = [...editor.getCurrentPageShapeIds()];
+      const { blob } = await editor.toImage(ids, { format: 'png' });
+      if (rectId) editor.deleteShape(rectId);
+      rectId = null;
+      if (!blob) return;
+      const file = new File([blob], `canvas-annotation-${Date.now()}.png`, { type: 'image/png' });
+      const detail: AnnotationEventDetail = {
+        file,
+        note: annotationNote.trim(),
+        action: 'queue',
+        markKind: 'stroke',
+        bounds: { x: 0, y: 0, width: Math.round(w), height: Math.round(h) },
+      };
+      window.dispatchEvent(new CustomEvent(ANNOTATION_EVENT, { detail }));
+      setAnnotation(null);
+      setAnnotationNote('');
+    } finally {
+      if (rectId) {
+        try {
+          editor.deleteShape(rectId);
+        } catch {
+          // ignore
+        }
+      }
+      setSendingAnnotation(false);
+    }
+  }, [annotation, annotationNote]);
 
   // Drop an empty text box at the centre of the current viewport and enter
   // edit mode so the user can start typing immediately.
@@ -161,18 +243,173 @@ export function CanvasView({ projectId }: { projectId: string }) {
   }, []);
 
   return (
-    <div className="canvas-surface" style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div
+      ref={surfaceRef}
+      className="canvas-surface"
+      style={{ position: 'relative', width: '100%', height: '100%' }}
+    >
       <Tldraw onMount={handleMount} />
       <div className="canvas-add-toolbar">
         <button type="button" className="canvas-add-text-btn" onClick={addTextNode}>
           <Icon name="edit" size={14} />
           <span>{t('canvas.addText')}</span>
         </button>
+        <button
+          type="button"
+          className="canvas-add-text-btn"
+          onClick={startAnnotation}
+          aria-pressed={annotation !== null}
+        >
+          <Icon name="comment" size={14} />
+          <span>{t('canvas.annotate')}</span>
+        </button>
         <button type="button" className="canvas-add-text-btn" onClick={() => void sendToChat()}>
           <Icon name="send" size={14} />
           <span>{t('canvas.sendToChat')}</span>
         </button>
       </div>
+      {annotation ? (
+        <AnnotationOverlay
+          rect={annotation}
+          note={annotationNote}
+          sending={sendingAnnotation}
+          onRectChange={setAnnotation}
+          onNoteChange={setAnnotationNote}
+          onSend={() => void sendAnnotation()}
+          onCancel={() => {
+            setAnnotation(null);
+            setAnnotationNote('');
+          }}
+          t={t}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ---------- annotation box overlay ----------
+
+type Handle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+const HANDLES: Handle[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+const MIN_BOX = 48;
+
+function AnnotationOverlay({
+  rect,
+  note,
+  sending,
+  onRectChange,
+  onNoteChange,
+  onSend,
+  onCancel,
+  t,
+}: {
+  rect: AnnotationRect;
+  note: string;
+  sending: boolean;
+  onRectChange: (r: AnnotationRect) => void;
+  onNoteChange: (v: string) => void;
+  onSend: () => void;
+  onCancel: () => void;
+  t: ReturnType<typeof useT>;
+}) {
+  // Pointer drag/resize. We keep the live rect in a ref so the window move
+  // handler reads the latest start values without re-binding listeners.
+  const drag = useRef<{
+    mode: 'move' | Handle;
+    startX: number;
+    startY: number;
+    start: AnnotationRect;
+  } | null>(null);
+
+  const onPointerDown = useCallback(
+    (mode: 'move' | Handle) => (e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      drag.current = { mode, startX: e.clientX, startY: e.clientY, start: { ...rect } };
+      const onMove = (ev: PointerEvent) => {
+        const d = drag.current;
+        if (!d) return;
+        const dx = ev.clientX - d.startX;
+        const dy = ev.clientY - d.startY;
+        const s = d.start;
+        let { x, y, w, h } = s;
+        if (d.mode === 'move') {
+          x = s.x + dx;
+          y = s.y + dy;
+        } else {
+          if (d.mode.includes('e')) w = Math.max(MIN_BOX, s.w + dx);
+          if (d.mode.includes('s')) h = Math.max(MIN_BOX, s.h + dy);
+          if (d.mode.includes('w')) {
+            w = Math.max(MIN_BOX, s.w - dx);
+            x = s.x + (s.w - w);
+          }
+          if (d.mode.includes('n')) {
+            h = Math.max(MIN_BOX, s.h - dy);
+            y = s.y + (s.h - h);
+          }
+        }
+        onRectChange({ x, y, w, h });
+      };
+      const onUp = () => {
+        drag.current = null;
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    },
+    [rect, onRectChange],
+  );
+
+  return (
+    <div
+      className="canvas-annot-box"
+      style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+      onPointerDown={onPointerDown('move')}
+    >
+      <div className="canvas-annot-panel" onPointerDown={(e) => e.stopPropagation()}>
+        <input
+          className="canvas-annot-input"
+          autoFocus
+          value={note}
+          placeholder={t('canvas.annotationPlaceholder')}
+          onChange={(e) => onNoteChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              onSend();
+            } else if (e.key === 'Escape') {
+              onCancel();
+            }
+          }}
+        />
+        <button
+          type="button"
+          className="canvas-annot-send"
+          disabled={sending}
+          onClick={onSend}
+          title={t('canvas.sendToChat')}
+          aria-label={t('canvas.sendToChat')}
+        >
+          <Icon name="send" size={13} />
+        </button>
+        <button
+          type="button"
+          className="canvas-annot-close"
+          onClick={onCancel}
+          title={t('common.close')}
+          aria-label={t('common.close')}
+        >
+          <Icon name="close" size={12} />
+        </button>
+      </div>
+      {HANDLES.map((hdl) => (
+        <span
+          key={hdl}
+          className={`canvas-annot-handle canvas-annot-handle-${hdl}`}
+          onPointerDown={onPointerDown(hdl)}
+        />
+      ))}
     </div>
   );
 }

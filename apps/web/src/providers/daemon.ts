@@ -714,6 +714,10 @@ export async function addCanvasImageNode(
   alt?: string,
 ): Promise<boolean> {
   try {
+    // Use the image's real aspect ratio (capped to a sane on-canvas size) so
+    // it isn't squashed into a square. Falls back to a square only if the
+    // image can't be measured.
+    const { w, h } = await measureImage(src);
     // Small random offset so several adds don't stack perfectly on top.
     const jitter = () => Math.round(Math.random() * 220);
     const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/canvas/nodes`, {
@@ -723,8 +727,8 @@ export async function addCanvasImageNode(
         type: 'image',
         x: 80 + jitter(),
         y: 80 + jitter(),
-        w: 360,
-        h: 360,
+        w,
+        h,
         content: alt ? { src, alt } : { src },
       } satisfies CanvasNodeInput),
     });
@@ -732,6 +736,26 @@ export async function addCanvasImageNode(
   } catch {
     return false;
   }
+}
+
+/** Measure an image URL's natural size, scaled so the longest side ≤ 1600. */
+function measureImage(src: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve) => {
+    if (typeof Image === 'undefined') {
+      resolve({ w: 360, h: 360 });
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const nw = img.naturalWidth || 360;
+      const nh = img.naturalHeight || 360;
+      const longest = Math.max(nw, nh);
+      const scale = longest > 1600 ? 1600 / longest : 1;
+      resolve({ w: Math.round(nw * scale), h: Math.round(nh * scale) });
+    };
+    img.onerror = () => resolve({ w: 360, h: 360 });
+    img.src = src;
+  });
 }
 
 /**

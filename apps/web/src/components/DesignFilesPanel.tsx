@@ -14,6 +14,26 @@ import { isRenderableSketchJson, SketchPreview } from './SketchPreview';
 
 type TranslateFn = (key: keyof Dict, vars?: Record<string, string | number>) => string;
 
+/**
+ * Copy a design file to the clipboard. Image files are copied as image data
+ * (so they can be pasted straight onto the canvas or into other apps); other
+ * files fall back to copying their served URL as text.
+ */
+async function copyFileToClipboard(projectId: string, name: string, isImage: boolean): Promise<void> {
+  const url = projectFileUrl(projectId, name);
+  try {
+    if (isImage && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+      const blob = await (await fetch(url)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+      return;
+    }
+    await navigator.clipboard?.writeText(url);
+  } catch {
+    // Clipboard can reject without a user gesture or in insecure contexts;
+    // best-effort, so swallow.
+  }
+}
+
 interface Props {
   projectId: string;
   files: ProjectFile[];
@@ -1250,6 +1270,19 @@ export function DesignFilesPanel({
               {t('designFiles.addToCanvas')}
             </button>
           ) : null}
+          <button
+            type="button"
+            data-testid={`design-file-copy-${menuPos.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              const name = menuPos.name;
+              const isImage = files.find((f) => f.name === name)?.kind === 'image';
+              setMenuPos(null);
+              void copyFileToClipboard(projectId, name, isImage);
+            }}
+          >
+            {t('designFiles.copy')}
+          </button>
           <button
             type="button"
             onClick={(e) => {

@@ -26219,3 +26219,85 @@ body.desktop-pet-shell .pet-task-item {
   background: var(--bg-subtle);
   border-color: var(--border-strong);
 }
+
+/* Region annotation box: a semi-transparent, draggable/resizable rectangle
+   with an inline note input + send button at its top-left. */
+.canvas-annot-box {
+  position: absolute;
+  z-index: 320;
+  border: 2px solid var(--red, #e5484d);
+  background: rgba(229, 72, 77, 0.1);
+  border-radius: 4px;
+  cursor: move;
+  touch-action: none;
+}
+.canvas-annot-panel {
+  position: absolute;
+  top: -38px;
+  left: -2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  cursor: default;
+}
+.canvas-annot-input {
+  width: 220px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+}
+.canvas-annot-input:focus {
+  border-color: var(--accent);
+}
+.canvas-annot-send,
+.canvas-annot-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.canvas-annot-send {
+  color: #fff;
+  background: var(--accent);
+}
+.canvas-annot-send:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.canvas-annot-close {
+  color: var(--text-muted, var(--text));
+  background: transparent;
+}
+.canvas-annot-close:hover {
+  background: var(--bg-subtle);
+}
+.canvas-annot-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #fff;
+  border: 1.5px solid var(--red, #e5484d);
+  border-radius: 50%;
+}
+.canvas-annot-handle-n { top: -6px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+.canvas-annot-handle-s { bottom: -6px; left: 50%; margin-left: -5px; cursor: ns-resize; }
+.canvas-annot-handle-e { right: -6px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+.canvas-annot-handle-w { left: -6px; top: 50%; margin-top: -5px; cursor: ew-resize; }
+.canvas-annot-handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.canvas-annot-handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.canvas-annot-handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.canvas-annot-handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }

@@ -1555,7 +1555,10 @@ export interface Dict {
   'workspace.canvas': string;
   'canvas.addText': string;
   'canvas.sendToChat': string;
+  'canvas.annotate': string;
+  'canvas.annotationPlaceholder': string;
   'designFiles.addToCanvas': string;
+  'designFiles.copy': string;
   'workspace.designFiles': string;
   'workspace.focusMode': string;
   'workspace.showChat': string;
