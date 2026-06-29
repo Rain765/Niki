@@ -193,6 +193,10 @@ export function CanvasView({ projectId }: { projectId: string }) {
           for (const node of nodes) createShapeForNode(editor, node);
         });
         editor.zoomToFit({ animation: { duration: 0 } });
+        // Then drop any image whose source actually fails to load, so a
+        // broken/stale src doesn't linger as an empty outlined box. Slow but
+        // valid images are kept (the check times out optimistically).
+        void pruneBrokenImageShapes(() => editorRef.current, nodes);
       });
 
       // Persist user edits (move/resize/add/delete/text) on a debounce.
@@ -207,14 +211,19 @@ export function CanvasView({ projectId }: { projectId: string }) {
         const ed = editorRef.current;
         if (!ed) return;
         if (event.type === 'node-added' || event.type === 'node-updated') {
-          const shapeId = nodeShapeId(event.node.id);
+          const node = event.node;
+          const shapeId = nodeShapeId(node.id);
           ed.store.mergeRemoteChanges(() => {
             if (ed.getShape(shapeId)) {
-              applyNodeGeometry(ed, shapeId, event.node);
+              applyNodeGeometry(ed, shapeId, node);
             } else {
-              createShapeForNode(ed, event.node);
+              createShapeForNode(ed, node);
             }
           });
+          // Remove it again if its image turns out not to load.
+          if (node.type === 'image') {
+            void pruneBrokenImageShapes(() => editorRef.current, [node]);
+          }
         } else if (event.type === 'node-removed') {
           const shapeId = nodeShapeId(event.nodeId);
           if (ed.getShape(shapeId)) {
@@ -418,6 +427,55 @@ function AnnotationOverlay({
 
 function nodeShapeId(nodeId: string): TLShapeId {
   return createShapeId(nodeId);
+}
+
+/**
+ * Resolve `false` only when an image URL explicitly errors (e.g. 404). A
+ * successful load resolves `true`; a slow load that hasn't resolved by the
+ * timeout also resolves `true` so we never drop a valid-but-large image.
+ */
+function imageLoads(src: string, timeoutMs = 10000): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!src || typeof Image === 'undefined') {
+      resolve(true);
+      return;
+    }
+    const img = new Image();
+    let done = false;
+    const finish = (value: boolean) => {
+      if (!done) {
+        done = true;
+        resolve(value);
+      }
+    };
+    img.onload = () => finish(true);
+    img.onerror = () => finish(false);
+    setTimeout(() => finish(true), timeoutMs);
+    img.src = src;
+  });
+}
+
+/**
+ * After shapes are created, remove any image shape whose source fails to load
+ * so a broken/stale src does not linger on the canvas as an empty outlined
+ * box. Shapes are looked up live via `getEditor` so a unmounted editor is a
+ * no-op.
+ */
+async function pruneBrokenImageShapes(
+  getEditor: () => Editor | null,
+  nodes: CanvasNode[],
+): Promise<void> {
+  for (const node of nodes) {
+    if (node.type !== 'image') continue;
+    const ok = await imageLoads((node.content as CanvasImageContent).src);
+    if (ok) continue;
+    const editor = getEditor();
+    if (!editor) return;
+    const shapeId = nodeShapeId(node.id);
+    if (editor.getShape(shapeId)) {
+      editor.store.mergeRemoteChanges(() => editor.deleteShape(shapeId));
+    }
+  }
 }
 
 function createShapeForNode(editor: Editor, node: CanvasNode): void {
