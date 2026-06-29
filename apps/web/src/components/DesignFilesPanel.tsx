@@ -1392,7 +1392,11 @@ function DfPreview({
             onClick={onOpen}
             title={openPreviewLabel}
             aria-label={openPreviewLabel}
-          />
+          >
+            <span className="df-preview-thumb-eye" aria-hidden>
+              <Icon name="eye" size={18} />
+            </span>
+          </button>
         ) : null}
       </div>
       <div className="df-preview-meta" data-testid="design-file-preview">
