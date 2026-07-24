@@ -11,8 +11,9 @@
 // composition, not during snapshot apply.
 //
 // The returned record mirrors the shape `composeDaemonSystemPrompt`
-// already consumes for global skills (`body`, `name`, `dir`) so the
-// override is a drop-in.
+// already consumes for global skills (`body`, `name`, `dir`) so it can
+// occupy the active slot for plugin-only runs or a separate scenario
+// slot when a functional skill was explicitly selected.
 
 import path from 'node:path';
 import { promises as fsp } from 'node:fs';
@@ -28,6 +29,50 @@ export interface PluginLocalSkill {
   // Relative path inside the plugin folder, kept for debugging /
   // logging. Always normalised (no leading './').
   relpath: string;
+}
+
+export interface PromptSkillSource {
+  body: string;
+  name: string;
+  dir: string;
+}
+
+export interface LayeredPromptSkills {
+  active: PromptSkillSource | null;
+  scenario: PromptSkillSource | null;
+  dirs: string[];
+}
+
+/**
+ * Keep an explicitly selected functional skill authoritative while still
+ * exposing a plugin-local skill as scenario orchestration. Plugin-only runs
+ * retain the legacy behavior where the local skill occupies the active slot.
+ */
+export function layerPluginLocalSkill(
+  active: PromptSkillSource | null,
+  local: PluginLocalSkill | null,
+): LayeredPromptSkills {
+  if (!local) {
+    return {
+      active,
+      scenario: null,
+      dirs: active ? [active.dir] : [],
+    };
+  }
+
+  if (!active) {
+    return {
+      active: local,
+      scenario: null,
+      dirs: [local.dir],
+    };
+  }
+
+  return {
+    active,
+    scenario: local,
+    dirs: Array.from(new Set([active.dir, local.dir])),
+  };
 }
 
 export async function loadPluginLocalSkill(

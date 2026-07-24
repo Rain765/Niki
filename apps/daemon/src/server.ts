@@ -2488,6 +2488,11 @@ const pluginUpload = multer({
 // into the right project root, including folder-imported projects whose
 // files live under metadata.baseDir.
 let projectMetadataLookup: ((id: string) => Record<string, unknown> | null) | null = null;
+const INTERNAL_PROJECT_INPUT_DIR = '.od-inputs';
+
+function isInternalProjectUpload(req) {
+  return req.query?.visibility === 'internal';
+}
 
 const projectUpload = multer({
   storage: multer.diskStorage({
@@ -2501,7 +2506,11 @@ const projectUpload = multer({
         // .od/projects/<id>/ behavior for non-imported projects.
         const meta = projectMetadataLookup?.(req.params.id) ?? null;
         const dir = await ensureProject(PROJECTS_DIR, req.params.id, meta);
-        cb(null, dir);
+        const destination = isInternalProjectUpload(req)
+          ? path.join(dir, INTERNAL_PROJECT_INPUT_DIR)
+          : dir;
+        await fs.promises.mkdir(destination, { recursive: true });
+        cb(null, destination);
       } catch (err) {
         cb(err, '');
       }
@@ -8506,9 +8515,12 @@ export async function startServer({
         for (const f of incoming) {
           try {
             const stat = await fs.promises.stat(f.path);
+            const projectPath = isInternalProjectUpload(req)
+              ? `${INTERNAL_PROJECT_INPUT_DIR}/${f.filename}`
+              : f.filename;
             out.push({
               name: f.filename,
-              path: f.filename,
+              path: projectPath,
               size: stat.size,
               mtime: stat.mtimeMs,
               originalName: f.originalname,
@@ -8558,11 +8570,11 @@ export async function startServer({
         : project?.designSystemId;
     const metadata = project?.metadata;
 
-    let skillBody;
-    let skillName;
+    let activeSkill = null;
+    let scenarioSkill = null;
     let skillMode;
     let skillCraftRequires = [];
-    let activeSkillDir = null;
+    let activeSkillDirs = [];
     // Per-skill Critique Theater override sourced from
     // `od.critique.policy` in the resolved skill's SKILL.md frontmatter.
     // `null` means the skill has no opinion and the lower-priority tiers
@@ -8577,22 +8589,24 @@ export async function startServer({
         effectiveSkillId,
       );
       if (skill) {
-        skillBody = skill.body;
-        skillName = skill.name;
+        activeSkill = {
+          body: skill.body,
+          name: skill.name,
+          dir: skill.dir,
+        };
         skillMode = skill.mode;
-        activeSkillDir = skill.dir;
+        activeSkillDirs = [skill.dir];
         skillCritiquePolicy = skill.critiquePolicy;
         if (Array.isArray(skill.craftRequires))
           skillCraftRequires = skill.craftRequires;
       }
     }
 
-    // Stage A of plugin-driven-flow-plan: when the run is bound to a
-    // plugin snapshot, prefer the plugin's local SKILL.md (declared via
-    // `od.context.skills[{ path: './SKILL.md' }]`) over the global
-    // skill. Without this override the agent loses the plugin's
-    // template / token / layout rules and falls back to generic prompt
-    // behaviour even though the user explicitly applied the plugin.
+    // Stage A of plugin-driven-flow-plan: a plugin-local SKILL.md supplies
+    // scenario orchestration. Plugin-only runs retain the legacy behavior
+    // where that local skill occupies the active slot. When the caller also
+    // selected a functional skill, keep it authoritative and layer the local
+    // skill separately so domain rules and plugin execution flow both survive.
     if (
       typeof appliedPluginSnapshotId === 'string'
       && appliedPluginSnapshotId.length > 0
@@ -8602,12 +8616,16 @@ export async function startServer({
         if (snap?.pluginId) {
           const plugin = getInstalledPlugin(db, snap.pluginId);
           if (plugin) {
-            const { loadPluginLocalSkill } = await import('./plugins/local-skill.js');
+            const {
+              layerPluginLocalSkill,
+              loadPluginLocalSkill,
+            } = await import('./plugins/local-skill.js');
             const local = await loadPluginLocalSkill(plugin);
             if (local) {
-              skillBody = local.body;
-              skillName = local.name;
-              activeSkillDir = local.dir;
+              const layered = layerPluginLocalSkill(activeSkill, local);
+              activeSkill = layered.active;
+              scenarioSkill = layered.scenario;
+              activeSkillDirs = layered.dirs;
             }
           }
         }
@@ -8861,9 +8879,11 @@ export async function startServer({
     const prompt = composeSystemPrompt({
       agentId,
       includeCodexImagegenOverride: false,
-      skillBody,
-      skillName,
+      skillBody: activeSkill?.body,
+      skillName: activeSkill?.name,
       skillMode,
+      scenarioSkillBody: scenarioSkill?.body,
+      scenarioSkillName: scenarioSkill?.name,
       designSystemBody,
       designSystemTitle,
       designSystemUsageMd,
@@ -8900,13 +8920,13 @@ export async function startServer({
       userInstructions,
       projectInstructions,
     });
-    // The chat handler also needs to know where the active skill lives
-    // on disk so it can stage a per-project copy of its side files
+    // The chat handler also needs to know where the active skill layers live
+    // on disk so it can stage per-project copies of their side files
     // before spawning the agent. Returning that here avoids a second
     // `listSkills()` scan in `startChatRun`. critiqueShouldRun threads
     // the same panel-eligibility decision down to the spawn-path
     // orchestrator gate so prompt and orchestrator stay in lockstep.
-    return { prompt, activeSkillDir, critiqueShouldRun };
+    return { prompt, activeSkillDirs, critiqueShouldRun };
   };
 
   // Plan §3.I1 / §3.D / spec §10.1: fire the pipeline schedule on a
@@ -9230,7 +9250,7 @@ export async function startServer({
       .filter((s) => typeof oauthTokensForSpawn[s.id] === 'string')
       .map((s) => ({ id: s.id, label: s.label }));
 
-    const { prompt: daemonSystemPrompt, activeSkillDir, critiqueShouldRun } =
+    const { prompt: daemonSystemPrompt, activeSkillDirs, critiqueShouldRun } =
       await composeDaemonSystemPrompt({
         agentId,
         projectId,
@@ -9271,17 +9291,19 @@ export async function startServer({
     // daemon and folded into the system prompt directly (see
     // `readDesignSystem`), so an agent never has to open them via the
     // filesystem.
-    if (cwd && activeSkillDir) {
-      const result = await stageActiveSkill(
-        cwd,
-        path.basename(activeSkillDir),
-        activeSkillDir,
-        (msg) => console.warn(msg),
-      );
-      if (!result.staged) {
-        console.warn(
-          `[od] skill-stage skipped: ${result.reason ?? 'unknown reason'}; falling back to absolute paths`,
+    if (cwd && Array.isArray(activeSkillDirs)) {
+      for (const activeSkillDir of activeSkillDirs) {
+        const result = await stageActiveSkill(
+          cwd,
+          path.basename(activeSkillDir),
+          activeSkillDir,
+          (msg) => console.warn(msg),
         );
+        if (!result.staged) {
+          console.warn(
+            `[od] skill-stage skipped: ${result.reason ?? 'unknown reason'}; falling back to absolute paths`,
+          );
+        }
       }
     }
     // Resolve the agent's effective working directory once and use it

@@ -53,6 +53,18 @@ import {
   PLUGIN_AUTHORING_PROMPT_TEMPLATE,
   type HomePromptHandoff,
 } from './home-hero/plugin-authoring';
+import {
+  AUTO_POSTER_DEFAULT_ASPECT_RATIO,
+  AUTO_POSTER_DEFAULT_BRAND,
+  autoPosterBrandLabel,
+  buildLoanPosterPrompt,
+  LOAN_POSTER_SKILL_ID,
+  loadZambiaPosterReference,
+  normalizeZambiaPosterCount,
+  type AutoPosterAspectRatio,
+  type AutoPosterBrand,
+  ZAMBIA_POSTER_DEFAULT_COUNT,
+} from './home-hero/zambia-posters';
 import { PluginDetailsModal } from './PluginDetailsModal';
 import { PluginsHomeSection } from './PluginsHomeSection';
 import type { PluginLoopSubmit } from './PluginLoopHome';
@@ -182,6 +194,14 @@ export function HomeView({
   const [selectedMcpContexts, setSelectedMcpContexts] = useState<SelectedMcpContext[]>([]);
   const [selectedConnectorContexts, setSelectedConnectorContexts] = useState<SelectedConnectorContext[]>([]);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [autoPosterCount, setAutoPosterCount] = useState(ZAMBIA_POSTER_DEFAULT_COUNT);
+  const [autoPosterAspectRatio, setAutoPosterAspectRatio] = useState<AutoPosterAspectRatio>(
+    AUTO_POSTER_DEFAULT_ASPECT_RATIO,
+  );
+  const [autoPosterBrand, setAutoPosterBrand] = useState<AutoPosterBrand>(
+    AUTO_POSTER_DEFAULT_BRAND,
+  );
+  const [autoPosterPending, setAutoPosterPending] = useState(false);
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>([]);
   const [mcpLoading, setMcpLoading] = useState(true);
   const [prompt, setPrompt] = useState('');
@@ -993,6 +1013,71 @@ export function HomeView({
     });
   }
 
+  async function generateLoanPosters() {
+    if (autoPosterPending) return;
+    const mediaPlugin = plugins.find((plugin) => plugin.id === 'od-media-generation');
+    if (!mediaPlugin) {
+      setError(t('homeHero.autoPosterError'));
+      return;
+    }
+
+    const count = normalizeZambiaPosterCount(autoPosterCount);
+    const brandLabel = autoPosterBrandLabel(autoPosterBrand);
+    const composer = buildHomeMediaComposer(
+      'image',
+      promptTemplates,
+      {
+        mediaKind: 'image',
+        subject: `${count} unified ${brandLabel} Zambia loan posters`,
+        style: `premium realistic commercial photography with consistent ${brandLabel} red brand art direction`,
+        aspect: autoPosterAspectRatio,
+        ratio: autoPosterAspectRatio,
+      },
+    );
+
+    setAutoPosterPending(true);
+    setError(null);
+    trackHomeChatComposerClick(analytics.track, {
+      page_name: 'home',
+      area: 'chat_composer',
+      element: 'auto_poster_button',
+    });
+
+    try {
+      const [applyResult, referenceFile] = await Promise.all([
+        applyPlugin(mediaPlugin.id, { locale, inputs: composer.inputs }),
+        loadZambiaPosterReference(),
+      ]);
+      if (!applyResult) {
+        setError(t('homeHero.autoPosterError'));
+        return;
+      }
+
+      onSubmit({
+        prompt: buildLoanPosterPrompt({
+          count,
+          aspectRatio: autoPosterAspectRatio,
+          brand: autoPosterBrand,
+        }),
+        projectName: `${brandLabel} ${t('homeHero.autoPosterProjectName')}`,
+        pluginId: mediaPlugin.id,
+        skillId: LOAN_POSTER_SKILL_ID,
+        appliedPluginSnapshotId: applyResult.appliedPlugin?.snapshotId ?? null,
+        pluginTitle: mediaPlugin.title,
+        taskKind: applyResult.appliedPlugin?.taskKind ?? null,
+        pluginInputs: composer.inputs,
+        projectKind: composer.projectKind,
+        projectMetadata: metadataForHomeMediaComposer('image', composer.inputs, promptTemplates),
+        attachments: [referenceFile],
+        attachmentVisibility: 'internal',
+      });
+    } catch {
+      setError(t('homeHero.autoPosterError'));
+    } finally {
+      setAutoPosterPending(false);
+    }
+  }
+
   return (
     <div className="home-view" data-testid="home-view">
       <HomeHero
@@ -1024,6 +1109,15 @@ export function HomeView({
         stagedFiles={stagedFiles}
         onAddFiles={stageFiles}
         onRemoveFile={removeStagedFile}
+        autoPosterCount={autoPosterCount}
+        autoPosterAspectRatio={autoPosterAspectRatio}
+        autoPosterBrand={autoPosterBrand}
+        autoPosterPending={autoPosterPending}
+        autoPosterDisabled={pluginsLoading || Boolean(pendingApplyId) || Boolean(pendingAuthoringChipId)}
+        onAutoPosterCountChange={(count) => setAutoPosterCount(normalizeZambiaPosterCount(count))}
+        onAutoPosterAspectRatioChange={setAutoPosterAspectRatio}
+        onAutoPosterBrandChange={setAutoPosterBrand}
+        onAutoPoster={() => void generateLoanPosters()}
         pluginOptions={plugins}
         pluginsLoading={pluginsLoading}
         skillOptions={selectableSkills}

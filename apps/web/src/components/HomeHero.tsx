@@ -29,6 +29,14 @@ import {
   type InlineMentionEntity,
 } from '../utils/inlineMentions';
 import { useT } from '../i18n';
+import {
+  AUTO_POSTER_DEFAULT_ASPECT_RATIO,
+  AUTO_POSTER_DEFAULT_BRAND,
+  type AutoPosterAspectRatio,
+  type AutoPosterBrand,
+  ZAMBIA_POSTER_DEFAULT_COUNT,
+} from './home-hero/zambia-posters';
+import { AutoPosterControls } from './AutoPosterControls';
 
 export interface HomeHeroSubmitHandler {
   (): void;
@@ -58,6 +66,15 @@ interface Props {
   stagedFiles?: File[];
   onAddFiles?: (files: File[]) => void;
   onRemoveFile?: (index: number) => void;
+  autoPosterCount?: number;
+  autoPosterAspectRatio?: AutoPosterAspectRatio;
+  autoPosterBrand?: AutoPosterBrand;
+  autoPosterPending?: boolean;
+  autoPosterDisabled?: boolean;
+  onAutoPosterCountChange?: (count: number) => void;
+  onAutoPosterAspectRatioChange?: (aspectRatio: AutoPosterAspectRatio) => void;
+  onAutoPosterBrandChange?: (brand: AutoPosterBrand) => void;
+  onAutoPoster?: () => void;
   pluginOptions: InstalledPluginRecord[];
   pluginsLoading: boolean;
   skillOptions?: SkillSummary[];
@@ -121,6 +138,15 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     stagedFiles = [],
     onAddFiles = () => undefined,
     onRemoveFile = () => undefined,
+    autoPosterCount = ZAMBIA_POSTER_DEFAULT_COUNT,
+    autoPosterAspectRatio = AUTO_POSTER_DEFAULT_ASPECT_RATIO,
+    autoPosterBrand = AUTO_POSTER_DEFAULT_BRAND,
+    autoPosterPending = false,
+    autoPosterDisabled = false,
+    onAutoPosterCountChange = () => undefined,
+    onAutoPosterAspectRatioChange = () => undefined,
+    onAutoPosterBrandChange = () => undefined,
+    onAutoPoster = () => undefined,
     pluginOptions,
     pluginsLoading,
     skillOptions = [],
@@ -148,10 +174,21 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
   const [promptScrollTop, setPromptScrollTop] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [openInlineInputName, setOpenInlineInputName] = useState<string | null>(null);
+  const [sendActionsOpen, setSendActionsOpen] = useState(false);
   const composingRef = useRef(false);
   const inputElementRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const canSubmit = (prompt.trim().length > 0 || stagedFiles.length > 0) && !submitDisabled;
+  const sendActionsRef = useRef<HTMLDivElement | null>(null);
+  const hasManualSubmission = prompt.trim().length > 0 || stagedFiles.length > 0;
+  const canAutoPoster = !autoPosterPending && !autoPosterDisabled;
+  const canSubmit = !submitDisabled && (hasManualSubmission || canAutoPoster);
+  const submitPrimaryAction = useCallback(() => {
+    if (!hasManualSubmission) {
+      onAutoPoster();
+      return;
+    }
+    onSubmit();
+  }, [hasManualSubmission, onAutoPoster, onSubmit]);
   const placeholder = activePluginTitle || activeSkillTitle
     ? t('homeHero.placeholderActive')
     : t('homeHero.placeholder');
@@ -335,6 +372,17 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     setPromptScrollTop(inputElementRef.current?.scrollTop ?? 0);
   }, [prompt, promptOverlayParts]);
 
+  useEffect(() => {
+    if (!sendActionsOpen) return;
+    function closeSendActions(event: PointerEvent) {
+      if (!sendActionsRef.current?.contains(event.target as Node)) {
+        setSendActionsOpen(false);
+      }
+    }
+    document.addEventListener('pointerdown', closeSendActions);
+    return () => document.removeEventListener('pointerdown', closeSendActions);
+  }, [sendActionsOpen]);
+
   const setInputRef = useCallback(
     (node: HTMLTextAreaElement | null) => {
       inputElementRef.current = node;
@@ -403,6 +451,20 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     handleFiles(files);
   }
 
+  function openContextPicker() {
+    const spacer = prompt.length > 0 && !/\s$/.test(prompt) ? ' ' : '';
+    const nextPrompt = `${prompt}${spacer}@`;
+    onPromptChange(nextPrompt);
+    setSelectedIndex(0);
+    setSendActionsOpen(false);
+    requestAnimationFrame(() => {
+      const input = inputElementRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(nextPrompt.length, nextPrompt.length);
+    });
+  }
+
   function openActivePluginDetails() {
     if (activePluginRecord) onOpenPluginDetails(activePluginRecord);
   }
@@ -411,10 +473,22 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
 
   return (
     <section className="home-hero" data-testid="home-hero">
-      <h1 className="home-hero__title">{t('homeHero.title')}</h1>
-      <p className="home-hero__subtitle">
-        {t('homeHero.subtitlePrefix')} <kbd>Enter</kbd>.
-      </p>
+      <div className="home-hero__backdrop" aria-hidden>
+        <span className="home-hero__backdrop-grid" />
+        <span className="home-hero__backdrop-scan" />
+      </div>
+      <div className="home-hero__copy">
+        <div className="home-hero__eyebrow">
+          <span aria-hidden />
+          NIKI / VISUAL AGENT
+        </div>
+        <h1 className="home-hero__title">{t('homeHero.title')}</h1>
+        <p className="home-hero__subtitle">
+          {t('homeHero.subtitlePrefix')} <kbd>Enter</kbd> {t('homeHero.toRun')}
+          {' · '}
+          <kbd>Shift</kbd>+<kbd>Enter</kbd> {t('homeHero.forNewLine')}.
+        </p>
+      </div>
 
       <div
         className={`home-hero__input-card${dragActive ? ' is-drag-active' : ''}`}
@@ -433,6 +507,13 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
         }}
         onDrop={handleDrop}
       >
+        <div className="home-hero__command-bar" aria-hidden>
+          <span className="home-hero__command-status">
+            <span />
+            DESIGN AGENT READY
+          </span>
+          <span>CMD / NIKI</span>
+        </div>
         {activePluginTitle || activeSkillTitle || selectedPluginContexts.length > 0 ? (
           <div className="home-hero__active">
             {selectedPluginContexts.map((plugin) => (
@@ -617,7 +698,7 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
                     if (selected && !selected.disabled) selected.onPick();
                     return;
                   }
-                  if (canSubmit) onSubmit();
+                  if (canSubmit) submitPrimaryAction();
                 }
               }}
               placeholder={placeholder}
@@ -800,57 +881,103 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
             }}
           />
           <div className="home-hero__foot-left">
-            <button
-              type="button"
-              className="home-hero__attach"
-              data-testid="home-hero-attach"
-              onClick={() => fileInputRef.current?.click()}
-              title={t('chat.attachAria')}
-              aria-label={t('chat.attachAria')}
-            >
-              <Icon name="attach" size={14} />
-            </button>
-            <span className="home-hero__hint">
-              <kbd>↵</kbd> {t('homeHero.toRun')} · <kbd>Shift</kbd>+<kbd>↵</kbd> {t('homeHero.forNewLine')}
-            </span>
+            <AutoPosterControls
+              count={autoPosterCount}
+              aspectRatio={autoPosterAspectRatio}
+              brand={autoPosterBrand}
+              pending={autoPosterPending}
+              disabled={autoPosterDisabled}
+              testIdPrefix="home-hero-auto-poster"
+              onCountChange={onAutoPosterCountChange}
+              onAspectRatioChange={onAutoPosterAspectRatioChange}
+              onBrandChange={onAutoPosterBrandChange}
+            />
+            <div className="home-hero__rail-shell">
+              <div
+                className="home-hero__rail"
+                role="toolbar"
+                aria-label={t('homeHero.railAria')}
+                data-testid="home-hero-rail"
+              >
+                <RailGroup
+                  group="create"
+                  activeChipId={activeChipId}
+                  pendingChipId={pendingChipId}
+                  pendingPluginId={pendingPluginId}
+                  pluginsLoading={pluginsLoading}
+                  onPickChip={onPickChip}
+                />
+                <span className="home-hero__rail-divider" aria-hidden />
+                <RailGroup
+                  group="migrate"
+                  activeChipId={activeChipId}
+                  pendingChipId={pendingChipId}
+                  pendingPluginId={pendingPluginId}
+                  pluginsLoading={pluginsLoading}
+                  onPickChip={onPickChip}
+                />
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            className="home-hero__submit"
-            data-testid="home-hero-submit"
-            onClick={onSubmit}
-            disabled={!canSubmit}
-            title={canSubmit ? t('homeHero.run') : t('homeHero.typeSomethingToRun')}
-            aria-label={t('homeHero.run')}
+          <div
+            ref={sendActionsRef}
+            className="composer-send-wrap home-hero__send-wrap"
           >
-            <Icon name="arrow-up" size={18} />
-          </button>
+            {sendActionsOpen ? (
+              <div
+                className="composer-send-menu home-hero__send-menu"
+                role="menu"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="home-hero-resource-picker"
+                  onClick={openContextPicker}
+                >
+                  <span className="composer-tools-at" aria-hidden>@</span>
+                  <span>{t('homeHero.contextSurfaces')}</span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-testid="home-hero-attach"
+                  onClick={() => {
+                    setSendActionsOpen(false);
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  <Icon name="attach" size={17} />
+                  <span>{t('chat.attachAria')}</span>
+                </button>
+              </div>
+            ) : null}
+            <div className="composer-send-split home-hero__send-split">
+              <button
+                type="button"
+                className="composer-send composer-send-primary home-hero__submit"
+                data-testid="home-hero-submit"
+                onClick={submitPrimaryAction}
+                disabled={!canSubmit}
+                title={canSubmit ? t('chat.send') : t('homeHero.typeSomethingToRun')}
+                aria-label={t('chat.send')}
+              >
+                <Icon name="send" size={18} />
+              </button>
+              <button
+                type="button"
+                className="composer-send-chevron home-hero__send-chevron"
+                data-testid="home-hero-send-menu"
+                onClick={() => setSendActionsOpen((open) => !open)}
+                title={t('homeHero.contextSurfaces')}
+                aria-label={t('homeHero.contextSurfaces')}
+                aria-haspopup="menu"
+                aria-expanded={sendActionsOpen}
+              >
+                <Icon name="chevron-down" size={15} />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div
-        className="home-hero__rail"
-        role="toolbar"
-        aria-label={t('homeHero.railAria')}
-        data-testid="home-hero-rail"
-      >
-        <RailGroup
-          group="create"
-          activeChipId={activeChipId}
-          pendingChipId={pendingChipId}
-          pendingPluginId={pendingPluginId}
-          pluginsLoading={pluginsLoading}
-          onPickChip={onPickChip}
-        />
-        <span className="home-hero__rail-divider" aria-hidden />
-        <RailGroup
-          group="migrate"
-          activeChipId={activeChipId}
-          pendingChipId={pendingChipId}
-          pendingPluginId={pendingPluginId}
-          pluginsLoading={pluginsLoading}
-          onPickChip={onPickChip}
-        />
       </div>
 
       {error ? (

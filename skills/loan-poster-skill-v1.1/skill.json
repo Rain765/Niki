@@ -1,0 +1,28 @@
+{
+  "name": "loan-poster-skill-v1.1",
+  "version": "1.1.0",
+  "description": "Generate Zamloan or BiuMoney Zambia mobile loan advertising posters.",
+  "inputs": {
+    "brand": "string",
+    "market": "string",
+    "campaign": "string",
+    "quantity": "number",
+    "format": "string"
+  },
+  "resources": [
+    "system_prompt.md",
+    "template_rules.md",
+    "config.json",
+    "prompt_template.md",
+    "negative_prompt.md",
+    "output_format.md",
+    "library/scene_library.json",
+    "library/character_library.json",
+    "library/color_library.json",
+    "library/headline_library.json",
+    "library/benefit_library.json"
+  ],
+  "outputs": [
+    "poster_png_files"
+  ]
+}

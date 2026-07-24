@@ -135,6 +135,25 @@ function changeInputValue(input: HTMLInputElement, value: string) {
 }
 
 describe('FileWorkspace upload input', () => {
+  it('places Design Files before Canvas in the workspace tabs', () => {
+    const markup = renderToStaticMarkup(
+      <FileWorkspace
+        projectId="project-1"
+        projectKind="prototype"
+        files={[]}
+        liveArtifacts={[]}
+        onRefreshFiles={vi.fn()}
+        isDeck={false}
+        tabsState={{ tabs: [], active: null }}
+        onTabsStateChange={vi.fn()}
+      />,
+    );
+
+    expect(markup.indexOf('data-testid="design-files-tab"')).toBeLessThan(
+      markup.indexOf('data-testid="canvas-tab"'),
+    );
+  });
+
   it('keeps the Design Files picker aligned with drag-and-drop file support', () => {
     const markup = renderToStaticMarkup(
       <FileWorkspace
@@ -153,7 +172,7 @@ describe('FileWorkspace upload input', () => {
     expect(markup).not.toContain('accept=');
   });
 
-  it('hides upload failure details during in-panel preview and restores them after closing preview', async () => {
+  it('hides upload failure details while the persistent in-panel image preview is active', async () => {
     mockedUploadProjectFiles.mockRejectedValueOnce(new Error('storage offline'));
 
     render(
@@ -186,18 +205,7 @@ describe('FileWorkspace upload input', () => {
 
     expect(screen.getByTestId('design-file-preview')).toBeTruthy();
     expect(screen.queryByTestId('upload-error-banner')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close preview' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('upload-error-banner').textContent).toContain(
-        'storage offline',
-      );
-    });
-
-    fireEvent.click(screen.getByTestId('upload-error-dismiss'));
-
-    expect(screen.queryByTestId('upload-error-banner')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Close preview' })).toBeNull();
   });
 
   it('keeps partial upload failures visible after a successful file opens', async () => {

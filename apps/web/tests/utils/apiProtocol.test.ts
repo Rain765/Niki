@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { apiProtocolLabel, apiProtocolModelLabel } from '../../src/utils/apiProtocol';
+import {
+  apiProtocolLabel,
+  apiProtocolModelLabel,
+  apiProtocolWireProtocol,
+} from '../../src/utils/apiProtocol';
 import {
   agentDisplayName,
   agentModelDisplayName,
@@ -10,7 +14,15 @@ describe('api protocol labels', () => {
   it('labels the selected API protocol instead of assuming Anthropic', () => {
     expect(apiProtocolLabel('openai')).toBe('OpenAI API');
     expect(apiProtocolLabel('google')).toBe('Google Gemini');
+    expect(apiProtocolLabel('kimi')).toBe('Kimi API');
+    expect(apiProtocolLabel('deepseek')).toBe('DeepSeek API');
     expect(apiProtocolLabel(undefined)).toBe('Anthropic API');
+  });
+
+  it('routes provider-specific profiles through the OpenAI-compatible wire protocol', () => {
+    expect(apiProtocolWireProtocol('kimi')).toBe('openai');
+    expect(apiProtocolWireProtocol('deepseek')).toBe('openai');
+    expect(apiProtocolWireProtocol('google')).toBe('google');
   });
 
   it('includes the selected model when labeling API assistant messages', () => {

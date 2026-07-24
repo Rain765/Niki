@@ -59,6 +59,92 @@ afterEach(() => {
 });
 
 describe('HomeView context picker', () => {
+  it('creates a branded image project with the selected count and aspect ratio without typed input', async () => {
+    const mediaPlugin = makePlugin('od-media-generation', 'Media Generation');
+    const fetchMock = vi.fn<typeof fetch>(async (url) => {
+      const value = String(url);
+      if (value === '/api/plugins') {
+        return new Response(JSON.stringify({ plugins: [mediaPlugin] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (value === '/api/mcp/servers') {
+        return new Response(JSON.stringify({ servers: [], templates: [] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (value === '/brand/zambia-support/z-reference.png') {
+        return new Response(new Blob(['z-reference'], { type: 'image/png' }), { status: 200 });
+      }
+      if (value === '/api/plugins/od-media-generation/apply') {
+        return new Response(JSON.stringify({
+          ok: true,
+          appliedPlugin: {
+            snapshotId: 'zambia-media-snapshot',
+            taskKind: 'media-generation',
+          },
+          contextItems: [],
+          inputs: [],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      throw new Error(`unexpected fetch ${value}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const onSubmit = vi.fn();
+
+    render(
+      <HomeView
+        projects={[]}
+        onSubmit={onSubmit}
+        onOpenProject={() => undefined}
+        onViewAllProjects={() => undefined}
+      />,
+    );
+
+    const button = await screen.findByTestId('home-hero-submit');
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.change(screen.getByTestId('home-hero-auto-poster-count'), {
+      target: { value: '3' },
+    });
+    fireEvent.change(screen.getByTestId('home-hero-auto-poster-size'), {
+      target: { value: '1:1' },
+    });
+    fireEvent.change(screen.getByTestId('home-hero-auto-poster-brand'), {
+      target: { value: 'biumoney' },
+    });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    const payload = onSubmit.mock.calls[0]?.[0];
+    expect(payload).toMatchObject({
+      projectName: 'BiuMoney Loan Posters',
+      pluginId: 'od-media-generation',
+      skillId: 'loan-poster-skill-v1.1',
+      appliedPluginSnapshotId: 'zambia-media-snapshot',
+      projectKind: 'image',
+      projectMetadata: {
+        kind: 'image',
+        imageAspect: '1:1',
+      },
+      pluginInputs: {
+        mediaKind: 'image',
+        aspect: '1:1',
+        ratio: '1:1',
+      },
+      attachmentVisibility: 'internal',
+    });
+    expect(payload.prompt).toContain('Generate exactly 3 BiuMoney Zambia loan posters now.');
+    expect(payload.prompt).toContain('The active functional skill is `loan-poster-skill-v1.1`');
+    expect(payload.prompt).toContain('--aspect 1:1');
+    expect(payload.attachments).toHaveLength(1);
+    expect(payload.attachments[0].name).toBe('loan-poster-z-reference.png');
+  });
+
   it('stages pasted files on Home and submits them as first-turn context', async () => {
     const fetchMock = vi.fn<typeof fetch>(async (url) => {
       if (typeof url === 'string' && url === '/api/plugins') {
@@ -93,6 +179,8 @@ describe('HomeView context picker', () => {
     );
 
     const input = await screen.findByTestId('home-hero-input');
+    expect(screen.queryByTestId('home-hero-attach')).toBeNull();
+    fireEvent.click(screen.getByTestId('home-hero-send-menu'));
     expect(screen.getByTestId('home-hero-attach')).toBeTruthy();
     fireEvent.paste(input, {
       clipboardData: {

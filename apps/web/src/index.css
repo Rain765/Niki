@@ -480,27 +480,37 @@ code {
 /* -------- App shell ------------------------------------------------- */
 .app {
   display: grid;
-  /* Three rows: chrome header (auto, fixed at 40px), optional
-   * project-actions toolbar (auto — collapses to 0 when hidden),
-   * and the chat/workspace split (1fr — fills the remaining
-   * viewport). The split gets explicit `grid-row: 3` below so the
-   * layout works whether the toolbar is rendered or returns null
-   * (workspace-focused mode). */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: minmax(0, 1fr);
   height: 100vh;
   background: var(--bg-app);
   overflow: hidden;
 }
 .app > .split {
-  grid-row: 3;
+  grid-row: 1;
 }
 
 .workspace-shell {
+  --ndesign-content-max: 1880px;
+  --ndesign-page-gutter: clamp(16px, 3.75vw, 96px);
   height: 100vh;
   min-height: 0;
   display: grid;
   grid-template-rows: 40px minmax(0, 1fr);
+  background: var(--bg-app);
+}
+.workspace-shell--without-tabs {
+  grid-template-rows: minmax(0, 1fr);
+}
+.workspace-shell--without-tabs .workspace-shell__body {
+  padding-inline: max(
+    var(--ndesign-page-gutter),
+    calc((100vw - var(--ndesign-content-max)) / 2)
+  );
+}
+.workspace-shell--without-tabs,
+.workspace-shell--without-tabs .workspace-shell__body,
+.workspace-shell--without-tabs .workspace-shell__body > .app {
   background: var(--bg-app);
 }
 .workspace-shell__body {
@@ -511,6 +521,12 @@ code {
 .workspace-shell__body > .entry-shell {
   height: 100%;
   min-height: 0;
+}
+
+@media (max-width: 680px) {
+  .workspace-shell {
+    --ndesign-page-gutter: 14px;
+  }
 }
 
 .workspace-tabs-chrome.app-chrome-header {
@@ -1114,6 +1130,18 @@ code {
   width: 100%;
   overflow: hidden;
 }
+.project-chat-chrome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 68px;
+  min-height: 68px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-app);
+  flex: 0 0 auto;
+}
 .app-project-title-line {
   display: flex;
   align-items: baseline;
@@ -1583,6 +1611,7 @@ a.avatar-item:visited {
 }
 .split-chat-slot {
   display: flex;
+  flex-direction: column;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -2033,6 +2062,32 @@ a.avatar-item:visited {
   gap: 6px;
   padding-top: 4px;
 }
+.composer-auto-poster {
+  max-width: calc(100% - 72px);
+  min-width: 0;
+  box-shadow: none;
+}
+.composer-auto-poster .home-hero__auto-poster-button {
+  padding-inline: 8px;
+}
+.composer-auto-poster .home-hero__auto-poster-select-wrap--count {
+  width: 58px;
+}
+.composer-auto-poster .home-hero__auto-poster-select-wrap--aspect {
+  width: 60px;
+}
+.composer-auto-poster .home-hero__auto-poster-select-wrap--brand {
+  width: 88px;
+}
+@media (max-width: 680px) {
+  .composer-row {
+    flex-wrap: wrap;
+  }
+  .composer-auto-poster {
+    order: 3;
+    max-width: 100%;
+  }
+}
 .composer-row .icon-btn {
   width: 28px; height: 28px;
   padding: 0;
@@ -2091,9 +2146,114 @@ a.avatar-item:visited {
   padding: 4px 14px;
   font-size: 12.5px;
 }
+.composer-send:not(.stop) {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  justify-content: center;
+  padding: 0;
+}
+.composer-send:not(.stop) span {
+  display: none;
+}
 .composer-send:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
-.composer-send.stop { background: var(--text); border-color: var(--text); color: var(--bg); }
-.composer-send.stop:hover { background: var(--text-strong); border-color: var(--text-strong); color: var(--bg); }
+.composer-send.stop {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  justify-content: center;
+  padding: 0;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.composer-send.stop:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+.composer-stop-glyph {
+  width: 11px;
+  height: 11px;
+  border-radius: 1px;
+  background: currentColor;
+  display: block;
+}
+.composer-send-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.composer-send-split {
+  display: inline-flex;
+  align-items: stretch;
+  height: 30px;
+  overflow: hidden;
+  border: 1px solid var(--accent);
+  border-radius: 9px;
+  background: var(--accent);
+}
+.composer-send-split .composer-send-primary {
+  width: 30px;
+  height: 28px;
+  min-height: 28px;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.composer-send-chevron {
+  width: 24px;
+  min-width: 24px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 0;
+  background: var(--accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.composer-send-chevron:hover {
+  background: var(--accent-hover);
+}
+.composer-send-chevron:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -3px;
+}
+.composer-send-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 32;
+  min-width: 190px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+}
+.composer-send-menu > button {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+}
+.composer-send-menu > button:hover:not(:disabled) {
+  background: var(--bg-subtle);
+}
+.composer-send-menu > button:disabled {
+  color: var(--text-faint);
+}
 .composer-hint {
   font-size: 11px;
   color: var(--text-faint);
@@ -8882,26 +9042,6 @@ button.connector-action.is-loading {
 .project-thumb-html {
   background: var(--bg-subtle);
 }
-.project-thumb-image .project-thumb-glyph,
-.project-thumb-video .project-thumb-glyph,
-.project-thumb-html .project-thumb-glyph {
-  display: none;
-}
-.project-thumb-glyph {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  color: var(--text-strong);
-  background: var(--bg-panel);
-  border: 1px solid var(--border-strong);
-  box-shadow: var(--shadow-xs);
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1;
-  text-transform: uppercase;
-}
 .live-artifact-thumb {
   background:
     radial-gradient(circle at 32% 28%, rgba(116, 92, 255, 0.18), transparent 36%),
@@ -9974,12 +10114,12 @@ button.connector-action.is-loading {
   transition: color 120ms ease;
 }
 .df-th-sortable:hover { color: var(--text); }
-.df-th-check, .df-cell-check { width: 28px; padding: 10px 0 10px 20px; }
-.df-th-icon, .df-cell-icon { width: 36px; padding: 10px 0; }
+.df-th-check, .df-cell-check { width: 44px; padding: 10px 0 10px 12px; }
+.df-th-icon, .df-cell-icon { width: 72px; padding: 10px 0; }
 .df-th-name { width: auto; }
 .df-th-kind { width: 110px; }
 .df-th-time { width: 100px; }
-.df-th-menu, .df-cell-menu { width: 32px; padding: 10px 20px 10px 0; }
+.df-th-menu, .df-cell-menu { width: 108px; padding: 8px 12px 8px 0; }
 .df-sort-arrow { font-size: 10px; }
 
 .df-file-row {
@@ -9999,8 +10139,18 @@ button.connector-action.is-loading {
   text-align: center;
   vertical-align: middle;
 }
+.df-row-thumbnail {
+  display: block;
+  width: 60px;
+  height: 42px;
+  object-fit: contain;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  box-shadow: var(--shadow-xs);
+}
 .df-cell-name {
-  padding: 10px 12px 10px 0;
+  padding: 10px 12px 10px 10px;
   vertical-align: middle;
 }
 .df-cell-openable {
@@ -10219,13 +10369,49 @@ button.connector-action.is-loading {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0;
+  line-height: 1;
   color: var(--text-muted);
   user-select: none;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  position: relative;
   transition: background 120ms ease, color 120ms ease;
+}
+.df-row-check::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+}
+.df-row-check[aria-checked="true"]::before {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.df-row-check[aria-checked="true"]::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 4px;
+  margin-top: -2px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg);
+}
+.df-row-check[aria-checked="mixed"]::before {
+  border-color: var(--accent);
+}
+.df-row-check[aria-checked="mixed"]::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
 }
 .df-row-check:hover { background: var(--border); color: var(--text); }
 .df-row-check[aria-checked="true"] { color: var(--accent-strong); }
@@ -10302,19 +10488,46 @@ button.connector-action.is-loading {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.df-row-menu {
+.df-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  width: 100%;
+}
+.df-row-action {
+  appearance: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   background: transparent;
   border: none;
-  padding: 4px 6px;
   color: var(--text-muted);
-  font-size: 16px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 120ms ease;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
-.df-row:hover .df-row-menu { opacity: 1; }
-.df-row-menu:focus { opacity: 1; }
-.df-row-menu:hover { background: var(--border); color: var(--text); }
+.df-row-action:hover {
+  background: var(--border);
+  color: var(--text);
+}
+.df-row-action.danger:hover {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.df-row-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.df-row-menu {
+  opacity: 1;
+}
 .df-section-more {
   margin: 6px 20px 10px;
   width: auto;
@@ -10468,59 +10681,24 @@ button.connector-action.is-loading {
   flex-shrink: 0;
   position: relative;
 }
-.df-preview-thumb.is-openable {
-  cursor: pointer;
-}
-.df-preview-thumb-open {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-.df-preview-thumb-open:hover {
-  /* Plain rgba — the build's CSS processor downlevels color-mix() with a
-     transparent stop to an opaque fallback, which turned this into a solid
-     black wash over the image. */
-  background: rgba(0, 0, 0, 0.1);
-}
-.df-preview-thumb-open:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -3px;
-}
-.df-preview-thumb-eye {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.9);
+.df-preview-thumb.is-image {
+  aspect-ratio: auto;
+  max-height: min(58vh, 620px);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 160ms cubic-bezier(0.23, 1, 0.32, 1),
-    transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-.df-preview-thumb-open:hover .df-preview-thumb-eye,
-.df-preview-thumb-open:focus-visible .df-preview-thumb-eye {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
 }
 .df-preview-thumb iframe,
 .df-preview-thumb img,
 .df-preview-thumb video {
   width: 100%; height: 100%; border: none; background: white; object-fit: cover; display: block;
+}
+.df-preview-thumb.is-image img {
+  width: 100%;
+  height: auto;
+  max-height: min(58vh, 620px);
+  object-fit: contain;
+  background: var(--bg);
 }
 .df-preview-thumb .sketch-preview,
 .df-preview-thumb .sketch-preview svg {
@@ -10574,27 +10752,95 @@ button.connector-action.is-loading {
   background: var(--bg-subtle);
   border-color: var(--border-strong);
 }
-.df-preview-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 4;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
-  color: var(--text-muted);
-  display: inline-flex;
+.df-preview-actions button.danger {
+  color: var(--red);
+}
+.df-preview-actions button.danger:hover {
+  color: var(--red);
+  background: var(--red-bg);
+  border-color: color-mix(in srgb, var(--red) 42%, var(--border));
+}
+.df-image-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  padding: clamp(18px, 4vw, 56px);
+  background: rgba(0, 0, 0, 0.76);
+  backdrop-filter: blur(10px);
+  display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-xs);
 }
-.df-preview-close:hover {
+.df-image-modal-content {
+  width: min(1280px, 96vw);
+  max-height: 92vh;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+}
+.df-image-modal-header {
+  min-height: 48px;
+  padding: 8px 10px 8px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+.df-image-modal-header > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.df-image-modal-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+.df-image-modal-actions a {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.df-image-modal-actions a:hover {
   background: var(--bg-subtle);
   border-color: var(--border-strong);
-  color: var(--text-strong);
+}
+.df-image-modal-actions .icon-only {
+  width: 30px;
+  height: 30px;
+}
+.df-image-modal-stage {
+  min-height: 0;
+  padding: clamp(12px, 2vw, 24px);
+  overflow: auto;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.df-image-modal-stage img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(92vh - 96px);
+  object-fit: contain;
 }
 
 /* Row context menu */
@@ -13261,6 +13507,15 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   font-size: 12px;
 }
 .produced-file-icon { width: 22px; text-align: center; color: var(--text-muted); }
+.produced-file-thumbnail {
+  width: 52px;
+  height: 34px;
+  flex: 0 0 52px;
+  object-fit: cover;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+}
 .produced-file-name {
   flex: 1;
   min-width: 0;
@@ -18101,7 +18356,7 @@ body.desktop-pet-shell .pet-task-item {
 .composer-tools-menu {
   position: absolute;
   bottom: calc(100% + 6px);
-  left: 0;
+  right: 0;
   width: 320px;
   max-width: calc(100vw - 32px);
   z-index: 30;
@@ -25550,7 +25805,6 @@ body.desktop-pet-shell .pet-task-item {
 }
 .app .split-chat-slot > .pane {
   border: none;
-  border-right: 1px solid var(--border);
   border-radius: 0;
   box-shadow: none;
   background: var(--bg-panel);
@@ -25558,28 +25812,12 @@ body.desktop-pet-shell .pet-task-item {
 .app .split-resize-handle {
   width: 8px;
   min-width: 8px;
-  background:
-    linear-gradient(
-      90deg,
-      transparent 0,
-      transparent 3px,
-      var(--border) 3px,
-      var(--border) 4px,
-      transparent 4px
-    );
+  background: transparent;
 }
 .app .split-resize-handle:hover,
 .app .split-resize-handle:focus-visible,
 .app .split.is-resizing-chat .split-resize-handle {
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--accent) 12%, transparent) 0,
-      color-mix(in srgb, var(--accent) 12%, transparent) 3px,
-      var(--accent) 3px,
-      var(--accent) 4px,
-      color-mix(in srgb, var(--accent) 12%, transparent) 4px
-    );
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 @media (max-width: 900px) {
@@ -25602,7 +25840,7 @@ body.desktop-pet-shell .pet-task-item {
     position: fixed;
     left: 0;
     right: 0;
-    top: calc(var(--workspace-tabs-chrome-height, 40px) + 44px);
+    top: 0;
     bottom: 0;
     z-index: 110;
     display: flex;
@@ -25907,6 +26145,17 @@ body.desktop-pet-shell .pet-task-item {
   font-weight: 600;
   box-shadow: none;
 }
+.app .composer-send.stop,
+.app .composer-send-split .composer-send-primary {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+}
+.app .composer-send-split .composer-send-primary {
+  height: 28px;
+  min-height: 28px;
+  border-radius: 0;
+}
 .app .composer-send:disabled {
   background: var(--bg-subtle);
   border-color: var(--border);
@@ -26083,12 +26332,12 @@ body.desktop-pet-shell .pet-task-item {
 }
 .app .df-th-check,
 .app .df-cell-check {
-  width: 28px;
-  padding-left: 8px;
+  width: 44px;
+  padding-left: 4px;
 }
 .app .df-th-icon,
 .app .df-cell-icon {
-  width: 40px;
+  width: 72px;
 }
 .app .df-th-kind {
   width: 128px;
@@ -26098,7 +26347,7 @@ body.desktop-pet-shell .pet-task-item {
 }
 .app .df-th-menu,
 .app .df-cell-menu {
-  width: 34px;
+  width: 108px;
   padding-right: 6px;
 }
 .app .df-panel:not(.no-preview) .df-th-kind,
@@ -26146,6 +26395,7 @@ body.desktop-pet-shell .pet-task-item {
   padding-bottom: 8px;
 }
 .app .df-cell-name {
+  padding-left: 10px;
   padding-right: 14px;
 }
 .app .df-file-row + .df-file-row .df-cell-check,
@@ -26328,3 +26578,34 @@ body.desktop-pet-shell .pet-task-item {
 .canvas-annot-handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
 .canvas-annot-handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
 .canvas-annot-handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+
+/* Workspaces use one continuous app canvas. Only large structural containers
+   are transparent; navigation, tab bars, toolbars, composers, and cards keep
+   their own component surfaces. */
+.app,
+.app > .split,
+.app .split-chat-slot,
+.app .split-chat-slot > .pane,
+.app .chat-log,
+.app .workspace,
+.app .ws-body,
+.app .df-panel,
+.app .df-main,
+.app .df-body {
+  background: transparent;
+}
+
+/* Open structural bars keep their separators and sticky behavior, but their
+   surface must match the canvas because they are not fully enclosed modules. */
+.entry-main--scroll .tab-panel-toolbar {
+  background: var(--bg);
+}
+
+.app > .app-chrome-header,
+.app .topbar,
+.app .chat-header,
+.app .composer,
+.app .ws-tabs-shell,
+.app .df-controls-row {
+  background: var(--bg-app);
+}

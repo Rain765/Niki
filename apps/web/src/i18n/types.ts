@@ -698,6 +698,14 @@ export interface Dict {
   'homeHero.forNewLine': string;
   'homeHero.run': string;
   'homeHero.typeSomethingToRun': string;
+  'homeHero.autoPoster': string;
+  'homeHero.autoPosterPreparing': string;
+  'homeHero.autoPosterCountAria': string;
+  'homeHero.autoPosterCountOption': string;
+  'homeHero.autoPosterSizeAria': string;
+  'homeHero.autoPosterBrandAria': string;
+  'homeHero.autoPosterProjectName': string;
+  'homeHero.autoPosterError': string;
   'homeHero.railAria': string;
   'homeHero.confirmReplaceTitle': string;
   'homeHero.confirmReplaceBody': string;

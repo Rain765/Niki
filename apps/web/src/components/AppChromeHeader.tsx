@@ -22,8 +22,8 @@ export function AppChromeHeader({
   const t = useT();
   const resolvedBackLabel = backLabel ?? t('project.backToProjects');
 
-  return (
-    <header className="app-chrome-header">
+  const leading = (
+    <>
       {showTrafficSpace ? <div className="app-chrome-traffic-space" aria-hidden /> : null}
       {onBack ? (
         <button
@@ -37,9 +37,21 @@ export function AppChromeHeader({
         </button>
       ) : null}
       {children ? <div className="app-chrome-content">{children}</div> : null}
+    </>
+  );
+
+  const trailing = (
+    <>
       <div className="app-chrome-drag" aria-hidden />
       <div id={APP_CHROME_FILE_ACTIONS_ID} className="app-chrome-file-actions" />
       {actions ? <div className="app-chrome-actions">{actions}</div> : null}
+    </>
+  );
+
+  return (
+    <header className="app-chrome-header">
+      {leading}
+      {trailing}
     </header>
   );
 }

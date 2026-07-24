@@ -98,7 +98,6 @@ export function DesignFilesPanel({
   projectId,
   files,
   liveArtifacts,
-  onRefreshFiles,
   onOpenFile,
   onOpenLiveArtifact,
   onRenameFile,
@@ -114,14 +113,13 @@ export function DesignFilesPanel({
 }: Props) {
   const t = useT();
   const analytics = useAnalytics();
-  const [refreshing, setRefreshing] = useState(false);
   const [draggingFiles, setDraggingFiles] = useState(false);
   const dragDepthRef = useRef(0);
-  const [hover, setHover] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ name: string; top: number; left: number } | null>(null);
   const MENU_ESTIMATED_HEIGHT = 145;
   const MENU_SAFE_PADDING = 8;
   const [preview, setPreview] = useState<string | null>(null);
+  const [imageModal, setImageModal] = useState<ProjectFile | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey>('mtime');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -328,6 +326,12 @@ export function DesignFilesPanel({
   );
 
   useEffect(() => {
+    if (imageModal && !files.some((file) => file.name === imageModal.name)) {
+      setImageModal(null);
+    }
+  }, [files, imageModal]);
+
+  useEffect(() => {
     if (!menuPos) return;
     const close = () => setMenuPos(null);
     const onKey = (e: KeyboardEvent) => {
@@ -340,15 +344,6 @@ export function DesignFilesPanel({
       window.removeEventListener('keydown', onKey);
     };
   }, [menuPos]);
-
-  async function handleRefresh() {
-    setRefreshing(true);
-    try {
-      await onRefreshFiles();
-    } finally {
-      setRefreshing(false);
-    }
-  }
 
   function toggleSort(key: SortKey) {
     return () => {
@@ -391,6 +386,14 @@ export function DesignFilesPanel({
 
   function clearSelection() {
     setSelected(new Set());
+  }
+
+  function openFile(file: ProjectFile) {
+    if (file.kind === 'image') {
+      setImageModal(file);
+      return;
+    }
+    onOpenFile(file.name);
   }
 
   function openMenuFor(name: string, el: HTMLElement) {
@@ -479,15 +482,12 @@ export function DesignFilesPanel({
 
   function renderFileRow(f: ProjectFile) {
     const active = preview === f.name;
-    const isHovered = hover === f.name;
     const renameState = renaming?.name === f.name ? renaming : null;
     return (
       <tr
         key={f.name}
         data-testid={`design-file-row-${f.name}`}
         className={`df-file-row ${active ? 'active' : ''} ${selected.has(f.name) ? 'selected' : ''}`}
-        onMouseEnter={() => setHover(f.name)}
-        onMouseLeave={() => setHover((c) => (c === f.name ? null : c))}
       >
         <td className="df-cell-check">
           <span
@@ -513,11 +513,22 @@ export function DesignFilesPanel({
         <td
           className="df-cell-icon df-cell-openable"
           onClick={() => setPreview(f.name)}
-          onDoubleClick={() => onOpenFile(f.name)}
+          onDoubleClick={() => openFile(f)}
         >
-          <span className="df-row-icon" data-kind={f.kind} aria-hidden>
-            {kindGlyph(f.kind)}
-          </span>
+          {f.kind === 'image' ? (
+            <img
+              className="df-row-thumbnail"
+              data-testid={`design-file-thumbnail-${f.name}`}
+              src={projectFileUrl(projectId, f.name)}
+              alt=""
+              loading="lazy"
+              draggable={false}
+            />
+          ) : (
+            <span className="df-row-icon" data-kind={f.kind} aria-hidden>
+              {kindGlyph(f.kind)}
+            </span>
+          )}
         </td>
         <td
           className="df-cell-name df-cell-openable"
@@ -525,7 +536,7 @@ export function DesignFilesPanel({
             if (!renameState) setPreview(f.name);
           }}
           onDoubleClick={() => {
-            if (!renameState) onOpenFile(f.name);
+            if (!renameState) openFile(f);
           }}
         >
           {renameState ? (
@@ -565,7 +576,7 @@ export function DesignFilesPanel({
                   const last = lastKeyPress.current.get(f.name) ?? 0;
                   if (now - last < 300) {
                     lastKeyPress.current.delete(f.name);
-                    onOpenFile(f.name);
+                    openFile(f);
                   } else {
                     lastKeyPress.current.set(f.name, now);
                     setPreview(f.name);
@@ -583,39 +594,56 @@ export function DesignFilesPanel({
         <td
           className="df-cell-kind df-cell-openable"
           onClick={() => setPreview(f.name)}
-          onDoubleClick={() => onOpenFile(f.name)}
+          onDoubleClick={() => openFile(f)}
         >
           <span className="df-kind-label">{kindLabel(f.kind, t)}</span>
         </td>
         <td
           className="df-cell-time df-cell-openable"
           onClick={() => setPreview(f.name)}
-          onDoubleClick={() => onOpenFile(f.name)}
+          onDoubleClick={() => openFile(f)}
         >
           {relativeTime(f.mtime, t)}
         </td>
         <td className="df-cell-menu">
-          <span
-            data-testid={`design-file-menu-${f.name}`}
-            className="df-row-menu"
-            style={isHovered || active ? { opacity: 1 } : undefined}
-            role="button"
-            tabIndex={0}
-            aria-label={t('designFiles.rowMenu')}
-            onClick={(e) => {
-              e.stopPropagation();
-              openMenuFor(f.name, e.target as HTMLElement);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
+          <div className="df-row-actions">
+            <a
+              data-testid={`design-file-row-download-${f.name}`}
+              className="df-row-action"
+              href={projectFileUrl(projectId, f.name)}
+              download={f.name}
+              title={t('designFiles.download')}
+              aria-label={`${t('designFiles.download')} ${f.name}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Icon name="download" size={18} />
+            </a>
+            <button
+              type="button"
+              data-testid={`design-file-row-delete-${f.name}`}
+              className="df-row-action danger"
+              title={t('designFiles.delete')}
+              aria-label={`${t('designFiles.delete')} ${f.name}`}
+              onClick={(e) => {
                 e.stopPropagation();
-                openMenuFor(f.name, e.currentTarget as HTMLElement);
-              }
-            }}
-          >
-            ⋯
-          </span>
+                onDeleteFile(f.name);
+              }}
+            >
+              <Icon name="trash" size={18} />
+            </button>
+            <button
+              type="button"
+              data-testid={`design-file-menu-${f.name}`}
+              className="df-row-action df-row-menu"
+              aria-label={t('designFiles.rowMenu')}
+              onClick={(e) => {
+                e.stopPropagation();
+                openMenuFor(f.name, e.currentTarget);
+              }}
+            >
+              <Icon name="more-horizontal" size={18} />
+            </button>
+          </div>
         </td>
       </tr>
     );
@@ -707,6 +735,26 @@ export function DesignFilesPanel({
     }
   }
 
+  async function handleBatchAddToCanvas() {
+    const imageFiles = files.filter(
+      (file) => selected.has(file.name) && file.kind === 'image',
+    );
+    await Promise.all(
+      imageFiles.map((file, index) =>
+        addCanvasImageNode(
+          projectId,
+          projectFileUrl(projectId, file.name),
+          file.name,
+          {
+            x: 80 + (index % 3) * 680,
+            y: 80 + Math.floor(index / 3) * 680,
+          },
+        ),
+      ),
+    );
+    clearSelection();
+  }
+
   async function handleDrop(ev: React.DragEvent<HTMLDivElement>) {
     ev.preventDefault();
     dragDepthRef.current = 0;
@@ -735,22 +783,19 @@ export function DesignFilesPanel({
     }
   }
 
-  const refreshControl = (
-    <button
-      type="button"
-      className="icon-only df-refresh-control"
-      onClick={() => void handleRefresh()}
-      disabled={refreshing}
-      title={t('designFiles.refresh')}
-      aria-label={t('designFiles.refresh')}
-    >
-      <Icon name={refreshing ? 'spinner' : 'reload'} size={14} />
-    </button>
-  );
-
   const fileActions =
     selected.size > 0 ? (
       <div className="df-actions">
+        <button
+          type="button"
+          data-testid="design-files-batch-add-to-canvas"
+          disabled={!files.some((file) => selected.has(file.name) && file.kind === 'image')}
+          onClick={() => void handleBatchAddToCanvas()}
+          title={t('designFiles.addToCanvas')}
+        >
+          <Icon name="draw" size={17} />
+          <span>{t('designFiles.addToCanvas')}</span>
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -763,7 +808,7 @@ export function DesignFilesPanel({
           }}
           title={t('designFiles.downloadSelected', { n: selected.size })}
         >
-          <Icon name="download" size={13} />
+          <Icon name="download" size={17} />
           <span>{t('designFiles.downloadSelected', { n: selected.size })}</span>
         </button>
         <button
@@ -774,17 +819,26 @@ export function DesignFilesPanel({
           onClick={() => void handleBatchDelete()}
           title={t('designFiles.deleteSelected', { n: selected.size })}
         >
+          <Icon name="trash" size={17} />
           <span>{t('designFiles.deleteSelected', { n: selected.size })}</span>
+        </button>
+        <button
+          type="button"
+          onClick={clearSelection}
+          title={t('designFiles.clearSelection')}
+        >
+          <Icon name="close" size={17} />
+          <span>{t('designFiles.clearSelection')}</span>
         </button>
       </div>
     ) : (
       <div className="df-actions">
         <button type="button" onClick={onNewSketch} title={t('designFiles.newSketch')}>
-          <Icon name="pencil" size={13} />
+          <Icon name="pencil" size={17} />
           <span>{t('designFiles.newSketch')}</span>
         </button>
         <button type="button" onClick={onPaste} title={t('designFiles.paste.title')}>
-          <Icon name="copy" size={13} />
+          <Icon name="copy" size={17} />
           <span>{t('designFiles.paste.label')}</span>
         </button>
         <button
@@ -793,7 +847,7 @@ export function DesignFilesPanel({
           onClick={onUpload}
           title={t('designFiles.upload.title')}
         >
-          <Icon name="upload" size={13} />
+          <Icon name="upload" size={17} />
           <span>{t('designFiles.upload.label')}</span>
         </button>
       </div>
@@ -839,7 +893,7 @@ export function DesignFilesPanel({
           aria-label={t('designFiles.filterBy')}
           onClick={() => setFilterMenuOpen((open) => !open)}
         >
-          <Icon name="sliders" size={13} />
+          <Icon name="sliders" size={17} />
           <span className="df-kind-filter-trigger-label">
             {kindFilter.size === 0
               ? t('designFiles.filterBy')
@@ -924,7 +978,6 @@ export function DesignFilesPanel({
             </div>
           ) : null}
           <div className="df-controls-row">
-            {refreshControl}
             {groupToggle}
             {kindFilterControl}
             {fileActions}
@@ -1233,8 +1286,30 @@ export function DesignFilesPanel({
           key={previewFile.name}
           projectId={projectId}
           file={previewFile}
-          onOpen={() => onOpenFile(previewFile.name)}
-          onClose={() => setPreview(null)}
+          onOpen={() => openFile(previewFile)}
+          onAddToCanvas={() =>
+            void addCanvasImageNode(
+              projectId,
+              projectFileUrl(projectId, previewFile.name),
+              previewFile.name,
+            )
+          }
+          onCopy={() =>
+            void copyFileToClipboard(
+              projectId,
+              previewFile.name,
+              previewFile.kind === 'image',
+            )
+          }
+          onRename={() => startRename(previewFile.name)}
+          onDelete={() => onDeleteFile(previewFile.name)}
+        />
+      ) : null}
+      {imageModal ? (
+        <DfImagePreviewModal
+          projectId={projectId}
+          file={imageModal}
+          onClose={() => setImageModal(null)}
         />
       ) : null}
       {menuPos ? (
@@ -1251,10 +1326,13 @@ export function DesignFilesPanel({
               e.stopPropagation();
               const name = menuPos.name;
               setMenuPos(null);
-              onOpenFile(name);
+              const file = files.find((candidate) => candidate.name === name);
+              if (file) openFile(file);
             }}
           >
-            {t('designFiles.openInTab')}
+            {files.find((file) => file.name === menuPos.name)?.kind === 'image'
+              ? t('common.preview')
+              : t('designFiles.openInTab')}
           </button>
           {files.find((f) => f.name === menuPos.name)?.kind === 'image' ? (
             <button
@@ -1331,30 +1409,26 @@ function DfPreview({
   projectId,
   file,
   onOpen,
-  onClose,
+  onAddToCanvas,
+  onCopy,
+  onRename,
+  onDelete,
 }: {
   projectId: string;
   file: ProjectFile;
   onOpen: () => void;
-  onClose: () => void;
+  onAddToCanvas: () => void;
+  onCopy: () => void;
+  onRename: () => void;
+  onDelete: () => void;
 }) {
   const t = useT();
   const url = projectFileUrl(projectId, file.name);
   const rendersSketchJson = isRenderableSketchJson(file);
-  const openPreviewLabel = `${t('designFiles.previewOpen')} ${file.name}`;
-  const thumbCanOpen = file.kind !== 'audio' && file.kind !== 'video';
+  const imageLike = file.kind === 'image' || (file.kind === 'sketch' && !rendersSketchJson);
   return (
     <aside className="df-preview">
-      <button
-        type="button"
-        className="df-preview-close"
-        onClick={onClose}
-        title={t('designFiles.previewClose')}
-        aria-label={t('designFiles.previewClose')}
-      >
-        <Icon name="close" size={13} />
-      </button>
-      <div className={`df-preview-thumb${thumbCanOpen ? ' is-openable' : ''}`}>
+      <div className={`df-preview-thumb${imageLike ? ' is-image' : ''}`}>
         {rendersSketchJson ? (
           <SketchPreview projectId={projectId} file={file} />
         ) : file.kind === 'image' || file.kind === 'sketch' ? (
@@ -1385,35 +1459,8 @@ function DfPreview({
             {kindGlyph(file.kind)}
           </div>
         )}
-        {thumbCanOpen ? (
-          <button
-            type="button"
-            className="df-preview-thumb-open"
-            onClick={onOpen}
-            title={openPreviewLabel}
-            aria-label={openPreviewLabel}
-          >
-            <span className="df-preview-thumb-eye" aria-hidden>
-              <Icon name="eye" size={18} />
-            </span>
-          </button>
-        ) : null}
       </div>
       <div className="df-preview-meta" data-testid="design-file-preview">
-        <div className="df-preview-actions">
-          <button type="button" className="ghost" onClick={onOpen}>
-            <Icon name="eye" size={13} />
-            <span>{t('designFiles.previewOpen')}</span>
-          </button>
-          <a
-            className="ghost-link"
-            href={url}
-            download={file.name}
-          >
-            <Icon name="download" size={13} />
-            <span>{t('designFiles.download')}</span>
-          </a>
-        </div>
         <div className="df-preview-name">{file.name}</div>
         <div className="df-preview-kind">{kindLabel(file.kind, t)}</div>
         <div className="df-preview-stats">
@@ -1422,8 +1469,101 @@ function DfPreview({
             size: humanBytes(file.size),
           })}
         </div>
+        <div className="df-preview-actions">
+          <button type="button" className="ghost" onClick={onOpen}>
+            <Icon name="eye" size={17} />
+            <span>{t('common.preview')}</span>
+          </button>
+          <a
+            className="ghost-link"
+            href={url}
+            download={file.name}
+          >
+            <Icon name="download" size={17} />
+            <span>{t('designFiles.download')}</span>
+          </a>
+          {file.kind === 'image' ? (
+            <button type="button" className="ghost" onClick={onAddToCanvas}>
+              <Icon name="draw" size={17} />
+              <span>{t('designFiles.addToCanvas')}</span>
+            </button>
+          ) : null}
+          <button type="button" className="ghost" onClick={onCopy}>
+            <Icon name="copy" size={17} />
+            <span>{t('designFiles.copy')}</span>
+          </button>
+          <button type="button" className="ghost" onClick={onRename}>
+            <Icon name="edit" size={17} />
+            <span>{t('common.rename')}</span>
+          </button>
+          <button type="button" className="ghost danger" onClick={onDelete}>
+            <Icon name="trash" size={17} />
+            <span>{t('designFiles.delete')}</span>
+          </button>
+        </div>
       </div>
     </aside>
+  );
+}
+
+function DfImagePreviewModal({
+  projectId,
+  file,
+  onClose,
+}: {
+  projectId: string;
+  file: ProjectFile;
+  onClose: () => void;
+}) {
+  const t = useT();
+  const url = projectFileUrl(projectId, file.name);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      className="df-image-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${t('common.preview')} ${file.name}`}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="df-image-modal-content">
+        <div className="df-image-modal-header">
+          <span>{file.name}</span>
+          <div className="df-image-modal-actions">
+            <a href={url} download={file.name} title={t('designFiles.download')}>
+              <Icon name="download" size={18} />
+              <span>{t('designFiles.download')}</span>
+            </a>
+            <button
+              type="button"
+              className="icon-only"
+              onClick={onClose}
+              title={t('designFiles.previewClose')}
+              aria-label={t('designFiles.previewClose')}
+            >
+              <Icon name="close" size={18} />
+            </button>
+          </div>
+        </div>
+        <div className="df-image-modal-stage">
+          <img
+            src={`${url}?v=${Math.round(file.mtime)}`}
+            alt={file.name}
+            data-testid="design-file-modal-image"
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 

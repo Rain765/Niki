@@ -398,7 +398,7 @@ test.describe('Settings Memory and Automations flows', () => {
     });
 
     await gotoEntryHome(page);
-    await page.getByTestId('entry-nav-tasks').click();
+    await page.goto('/automations');
     const view = page.getByTestId('tasks-view');
     await expect(view.getByRole('heading', { name: 'Automations' })).toBeVisible();
 
@@ -467,7 +467,7 @@ test.describe('Settings Memory and Automations flows', () => {
     });
 
     await gotoEntryHome(page);
-    await page.getByTestId('entry-nav-tasks').click();
+    await page.goto('/automations');
     const view = page.getByTestId('tasks-view');
 
     await view.getByRole('button', { name: 'New automation' }).click();

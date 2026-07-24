@@ -15,6 +15,7 @@ import { createArtifactParser } from '../artifacts/parser';
 import { useT } from '../i18n';
 import { streamMessage } from '../providers/anthropic';
 import {
+  addCanvasImageNode,
   fetchChatRunStatus,
   listActiveChatRuns,
   listProjectRuns,
@@ -34,6 +35,7 @@ import {
   patchPreviewCommentStatus,
   upsertPreviewComment,
   writeProjectTextFile,
+  projectFileUrl,
 } from '../providers/registry';
 import { useProjectFileEvents, type ProjectEvent } from '../providers/project-events';
 import { useCoalescedCallback } from '../hooks/useCoalescedCallback';
@@ -56,6 +58,7 @@ import {
 import {
   apiProtocolAgentId,
   apiProtocolModelLabel,
+  apiProtocolWireProtocol,
 } from '../utils/apiProtocol';
 import { playSound, showCompletionNotification } from '../utils/notifications';
 import { randomUUID } from '../utils/uuid';
@@ -116,8 +119,6 @@ import {
   mergeAttachedComments,
   removeAttachedComment,
 } from '../comments';
-import { AppChromeHeader } from './AppChromeHeader';
-import { AvatarMenu } from './AvatarMenu';
 import { ChatPane } from './ChatPane';
 import type { ChatSendMeta } from './ChatComposer';
 import {
@@ -445,10 +446,6 @@ export function ProjectView({
   designTemplates,
   designSystems,
   daemonLive,
-  onModeChange,
-  onAgentChange,
-  onAgentModelChange,
-  onRefreshAgents,
   onOpenSettings,
   onOpenMcpSettings,
   onAdoptPetInline,
@@ -502,6 +499,7 @@ export function ProjectView({
   const [filesRefresh, setFilesRefresh] = useState(0);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const projectFilesRef = useRef<ProjectFile[]>([]);
+  const projectFilesHydratedRef = useRef(false);
   const [liveArtifacts, setLiveArtifacts] = useState<LiveArtifactSummary[]>([]);
   const [liveArtifactEvents, setLiveArtifactEvents] = useState<LiveArtifactEventItem[]>([]);
   const [workspaceFocused, setWorkspaceFocused] = useState(false);
@@ -977,9 +975,26 @@ export function ProjectView({
 
   const refreshProjectFiles = useCallback(async (): Promise<ProjectFile[]> => {
     const next = await fetchProjectFiles(project.id);
+    const previousNames = new Set(projectFilesRef.current.map((file) => file.name));
+    const addedImages = projectFilesHydratedRef.current
+      ? next.filter((file) => file.kind === 'image' && !previousNames.has(file.name))
+      : [];
     projectFilesRef.current = next;
+    projectFilesHydratedRef.current = true;
     setProjectFiles(next);
+    for (const file of addedImages) {
+      void addCanvasImageNode(
+        project.id,
+        projectFileUrl(project.id, file.name),
+        file.name,
+      );
+    }
     return next;
+  }, [project.id]);
+
+  useEffect(() => {
+    projectFilesHydratedRef.current = false;
+    projectFilesRef.current = [];
   }, [project.id]);
 
   useEffect(() => {
@@ -1371,6 +1386,7 @@ export function ProjectView({
       projectInstructions: project.customInstructions,
     });
   }, [
+    project.id,
     project.skillId,
     project.designSystemId,
     project.metadata,
@@ -3259,7 +3275,7 @@ export function ProjectView({
   // shortcut wiring. Close to the JSX so the data flow is easy to
   // trace from the toolbar back to its sources.
   const handleFinalize = useCallback(() => {
-    const protocol = config.apiProtocol ?? 'anthropic';
+    const protocol = apiProtocolWireProtocol(config.apiProtocol);
     void finalize.trigger({
       protocol,
       apiKey: config.apiKey,
@@ -3501,152 +3517,6 @@ export function ProjectView({
         projectId={project.id}
         enabled={critiqueTheaterEnabled}
       />
-      <AppChromeHeader
-        showTrafficSpace={false}
-        onBack={onBack}
-        backLabel={t('project.backToProjects')}
-        actions={(
-          <>
-            <button
-              type="button"
-              className="project-workspace-mobile-toggle"
-              data-testid="project-mobile-design-files-toggle"
-              aria-label={t('workspace.designFiles')}
-              aria-expanded={mobileWorkspaceOpen}
-              onClick={() => setMobileWorkspaceOpen((open) => !open)}
-              title={t('workspace.designFiles')}
-            >
-              <Icon name="grid" size={15} />
-              <span>{t('workspace.designFiles')}</span>
-            </button>
-            <AvatarMenu
-              config={config}
-              agents={agents}
-              daemonLive={daemonLive}
-              onModeChange={onModeChange}
-              onAgentChange={onAgentChange}
-              onAgentModelChange={onAgentModelChange}
-              onOpenSettings={onOpenSettings}
-              onRefreshAgents={onRefreshAgents}
-              onBack={onBack}
-            />
-          </>
-        )}
-      >
-        <div className="app-project-title">
-          <span className="app-project-title-line">
-            <span
-              className="title editable"
-              data-testid="project-title"
-              tabIndex={0}
-              role="textbox"
-              suppressContentEditableWarning
-              contentEditable
-              onBlur={(e) => handleProjectRename(e.currentTarget.textContent ?? '')}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  (e.currentTarget as HTMLElement).blur();
-                }
-              }}
-            >
-              {project.name}
-            </span>
-            <span className="meta" data-testid="project-meta">{projectMeta}</span>
-            {(project.customInstructions ?? '').trim() ? (
-              <button
-                type="button"
-                className={`project-instructions-chip${instructionsMode !== 'closed' ? ' is-open' : ''}`}
-                data-testid="project-instructions-chip"
-                title={t('project.customInstructions')}
-                aria-expanded={instructionsMode !== 'closed'}
-                onClick={() => setInstructionsMode((m) => (m === 'closed' ? 'review' : 'closed'))}
-              >
-                <Icon name="file" size={11} />
-                <span>{t('project.customInstructions')}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="project-instructions-toggle"
-                data-testid="project-instructions-add"
-                title={t('project.customInstructions')}
-                aria-expanded={instructionsMode !== 'closed'}
-                onClick={() => {
-                  setInstructionsDraft('');
-                  setInstructionsMode((m) => (m === 'closed' ? 'edit' : 'closed'));
-                }}
-              >
-                <Icon name="edit" size={13} />
-              </button>
-            )}
-          </span>
-        </div>
-      </AppChromeHeader>
-      {instructionsMode === 'review' && (
-        <div className="project-instructions-bar project-instructions-review">
-          <div className="project-instructions-bar-head">
-            <label className="project-instructions-label">{t('project.customInstructions')}</label>
-            <span className="project-instructions-status">
-              <Icon name="check" size={11} />
-              {t('project.instructionsActive')}
-            </span>
-          </div>
-          <div className="project-instructions-preview" data-testid="project-instructions-preview">
-            {project.customInstructions}
-          </div>
-          <div className="project-instructions-actions">
-            <button
-              type="button"
-              className="btn-sm"
-              onClick={() => setInstructionsMode('closed')}
-            >
-              {t('common.close')}
-            </button>
-            <button
-              type="button"
-              className="btn-sm btn-primary"
-              data-testid="project-instructions-edit"
-              onClick={() => {
-                setInstructionsDraft(project.customInstructions ?? '');
-                setInstructionsMode('edit');
-              }}
-            >
-              {t('common.edit')}
-            </button>
-          </div>
-        </div>
-      )}
-      {instructionsMode === 'edit' && (
-        <div className="project-instructions-bar">
-          <label className="project-instructions-label">{t('project.customInstructions')}</label>
-          <textarea
-            className="project-instructions-input"
-            data-testid="project-instructions-textarea"
-            rows={3}
-            maxLength={5000}
-            placeholder={t('project.customInstructionsPlaceholder')}
-            value={instructionsDraft}
-            onChange={(e) => setInstructionsDraft(e.target.value)}
-            disabled={instructionsSaving}
-            autoFocus
-          />
-          <div className="project-instructions-actions">
-            <button type="button" className="btn-sm" disabled={instructionsSaving} onClick={() => {
-              setInstructionsDraft(project.customInstructions ?? '');
-              setInstructionsMode((project.customInstructions ?? '').trim() ? 'review' : 'closed');
-            }}>
-              {t('common.cancel')}
-            </button>
-            <button type="button" className="btn-sm btn-primary" data-testid="project-instructions-save" disabled={instructionsSaving} onClick={handleSaveInstructions}>
-              {t('common.save')}
-            </button>
-          </div>
-        </div>
-      )}
-      {/* ProjectActionsToolbar removed per 00efdcba — hide finalize-design
-          toolbar from project header. Restore from cf1cd9bb if product
-          wants the Finalize + Continue-in-CLI buttons back in the chrome. */}
       <div
         ref={splitRef}
         className={[
@@ -3661,6 +3531,139 @@ export function ProjectView({
             }}
       >
         <div className="split-chat-slot" hidden={workspaceFocused}>
+          <div className="project-chat-chrome">
+            <button
+              type="button"
+              className="app-chrome-back"
+              onClick={onBack}
+              title={t('project.backToProjects')}
+              aria-label={t('project.backToProjects')}
+            >
+              <Icon name="arrow-left" size={16} />
+            </button>
+            <div className="app-project-title">
+              <span className="app-project-title-line">
+                <span
+                  className="title editable"
+                  data-testid="project-title"
+                  tabIndex={0}
+                  role="textbox"
+                  suppressContentEditableWarning
+                  contentEditable
+                  onBlur={(e) => handleProjectRename(e.currentTarget.textContent ?? '')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      (e.currentTarget as HTMLElement).blur();
+                    }
+                  }}
+                >
+                  {project.name}
+                </span>
+                <span className="meta" data-testid="project-meta">{projectMeta}</span>
+                {(project.customInstructions ?? '').trim() ? (
+                  <button
+                    type="button"
+                    className={`project-instructions-chip${instructionsMode !== 'closed' ? ' is-open' : ''}`}
+                    data-testid="project-instructions-chip"
+                    title={t('project.customInstructions')}
+                    aria-expanded={instructionsMode !== 'closed'}
+                    onClick={() => setInstructionsMode((m) => (m === 'closed' ? 'review' : 'closed'))}
+                  >
+                    <Icon name="file" size={11} />
+                    <span>{t('project.customInstructions')}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="project-instructions-toggle"
+                    data-testid="project-instructions-add"
+                    title={t('project.customInstructions')}
+                    aria-expanded={instructionsMode !== 'closed'}
+                    onClick={() => {
+                      setInstructionsDraft('');
+                      setInstructionsMode((m) => (m === 'closed' ? 'edit' : 'closed'));
+                    }}
+                  >
+                    <Icon name="edit" size={13} />
+                  </button>
+                )}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="project-workspace-mobile-toggle"
+              data-testid="project-mobile-design-files-toggle"
+              aria-label={t('workspace.designFiles')}
+              aria-expanded={mobileWorkspaceOpen}
+              onClick={() => setMobileWorkspaceOpen((open) => !open)}
+              title={t('workspace.designFiles')}
+            >
+              <Icon name="grid" size={15} />
+              <span>{t('workspace.designFiles')}</span>
+            </button>
+          </div>
+          {instructionsMode === 'review' && (
+            <div className="project-instructions-bar project-instructions-review">
+              <div className="project-instructions-bar-head">
+                <label className="project-instructions-label">{t('project.customInstructions')}</label>
+                <span className="project-instructions-status">
+                  <Icon name="check" size={11} />
+                  {t('project.instructionsActive')}
+                </span>
+              </div>
+              <div className="project-instructions-preview" data-testid="project-instructions-preview">
+                {project.customInstructions}
+              </div>
+              <div className="project-instructions-actions">
+                <button
+                  type="button"
+                  className="btn-sm"
+                  onClick={() => setInstructionsMode('closed')}
+                >
+                  {t('common.close')}
+                </button>
+                <button
+                  type="button"
+                  className="btn-sm btn-primary"
+                  data-testid="project-instructions-edit"
+                  onClick={() => {
+                    setInstructionsDraft(project.customInstructions ?? '');
+                    setInstructionsMode('edit');
+                  }}
+                >
+                  {t('common.edit')}
+                </button>
+              </div>
+            </div>
+          )}
+          {instructionsMode === 'edit' && (
+            <div className="project-instructions-bar">
+              <label className="project-instructions-label">{t('project.customInstructions')}</label>
+              <textarea
+                className="project-instructions-input"
+                data-testid="project-instructions-textarea"
+                rows={3}
+                maxLength={5000}
+                placeholder={t('project.customInstructionsPlaceholder')}
+                value={instructionsDraft}
+                onChange={(e) => setInstructionsDraft(e.target.value)}
+                disabled={instructionsSaving}
+                autoFocus
+              />
+              <div className="project-instructions-actions">
+                <button type="button" className="btn-sm" disabled={instructionsSaving} onClick={() => {
+                  setInstructionsDraft(project.customInstructions ?? '');
+                  setInstructionsMode((project.customInstructions ?? '').trim() ? 'review' : 'closed');
+                }}>
+                  {t('common.cancel')}
+                </button>
+                <button type="button" className="btn-sm btn-primary" data-testid="project-instructions-save" disabled={instructionsSaving} onClick={handleSaveInstructions}>
+                  {t('common.save')}
+                </button>
+              </div>
+            </div>
+          )}
           {activeConversationId || conversationLoadError ? (
             <ChatPane
               // The conversation id is part of the key so switching conversations

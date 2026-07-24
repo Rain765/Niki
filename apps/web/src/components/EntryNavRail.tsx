@@ -1,17 +1,14 @@
 // Lovart-style top navigation for the entry view.
 //
 // Renders a compact horizontal bar. The first slot is the brand
-// logo (clicking navigates to home), followed by primary actions
-// (new project, home, projects, automations, plugins, design systems, integrations).
+// logo (clicking navigates to home), followed by the primary Home and
+// Projects destinations. Secondary product surfaces stay deep-linkable
+// without competing for permanent navigation space.
 // On small screens those actions collapse behind a dropdown trigger.
-// A small help launcher sits at the end and opens a popover with the
-// canonical "ask for help / submit a feature / what's new / download
-// desktop" external links. Language switching and other account-
-// scoped controls live behind the floating settings cog in the
-// top-right corner of the main content.
+// The trailing slot is owned by EntryShell so the settings menu can
+// share the same execution/model state as the rest of the entry view.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { EntryHelpMenu } from './EntryHelpMenu';
 import { Icon, type IconName } from './Icon';
 import { UpdaterPopup } from './UpdaterPopup';
 import { useT } from '../i18n';
@@ -28,7 +25,7 @@ export type EntryView =
 interface Props {
   view: EntryView;
   onViewChange: (view: EntryView) => void;
-  onNewProject: () => void;
+  settingsControl: ReactNode;
 }
 
 interface NavButtonProps {
@@ -66,7 +63,7 @@ function NavButton({ active, ariaLabel, tooltip, onClick, testId, children }: Na
   );
 }
 
-export function EntryNavRail({ view, onViewChange, onNewProject }: Props) {
+export function EntryNavRail({ view, onViewChange, settingsControl }: Props) {
   const t = useT();
   const brandLabel = t('app.brand');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -85,13 +82,6 @@ export function EntryNavRail({ view, onViewChange, onNewProject }: Props) {
               : t('entry.navHome');
   const navItems: NavItem[] = [
     {
-      id: 'new-project',
-      label: t('entry.navNewProject'),
-      icon: 'plus',
-      onClick: onNewProject,
-      testId: 'entry-nav-new-project',
-    },
-    {
       id: 'home',
       view: 'home',
       label: t('entry.navHome'),
@@ -108,42 +98,6 @@ export function EntryNavRail({ view, onViewChange, onNewProject }: Props) {
       active: view === 'projects',
       onClick: () => onViewChange('projects'),
       testId: 'entry-nav-projects',
-    },
-    {
-      id: 'tasks',
-      view: 'tasks',
-      label: t('entry.navTasks'),
-      icon: 'kanban',
-      active: view === 'tasks',
-      onClick: () => onViewChange('tasks'),
-      testId: 'entry-nav-tasks',
-    },
-    {
-      id: 'plugins',
-      view: 'plugins',
-      label: t('entry.navPlugins'),
-      icon: 'grid',
-      active: view === 'plugins',
-      onClick: () => onViewChange('plugins'),
-      testId: 'entry-nav-plugins',
-    },
-    {
-      id: 'design-systems',
-      view: 'design-systems',
-      label: t('entry.navDesignSystems'),
-      icon: 'palette',
-      active: view === 'design-systems',
-      onClick: () => onViewChange('design-systems'),
-      testId: 'entry-nav-design-systems',
-    },
-    {
-      id: 'integrations',
-      view: 'integrations',
-      label: t('entry.navIntegrations'),
-      icon: 'link',
-      active: view === 'integrations',
-      onClick: () => onViewChange('integrations'),
-      testId: 'entry-nav-integrations',
     },
   ];
 
@@ -190,6 +144,9 @@ export function EntryNavRail({ view, onViewChange, onNewProject }: Props) {
             draggable={false}
           />
         </button>
+        <span className="entry-nav-rail__wordmark" aria-hidden>
+          Niki
+        </span>
         <span className="entry-nav-rail__current">{activeLabel}</span>
       </div>
       <div className="entry-nav-rail__group entry-nav-rail__group--desktop">
@@ -204,12 +161,11 @@ export function EntryNavRail({ view, onViewChange, onNewProject }: Props) {
             testId={item.testId}
           >
             <Icon name={item.icon} size={18} />
+            <span className="entry-nav-rail__btn-label">{item.label}</span>
           </NavButton>
         ))}
       </div>
-      <div className="entry-nav-rail__footer entry-nav-rail__footer--desktop">
-        <EntryHelpMenu />
-      </div>
+      <div className="entry-nav-rail__footer">{settingsControl}</div>
       <button
         type="button"
         className="entry-nav-rail__menu-toggle"

@@ -41,7 +41,7 @@ export const hu: Dict = {
   'common.daysShort': '{n}n',
   'common.untitled': 'Cím nélkül',
 
-  'app.brand': 'Open Design',
+  'app.brand': 'Niki',
   'app.brandPill': 'Kutatási előzetes',
   'app.brandSubtitle': 'a Nexu Labs-tól',
   'app.welcomeLoading': 'Munkaterület betöltése…',

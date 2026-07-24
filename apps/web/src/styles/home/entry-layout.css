@@ -12,6 +12,8 @@
   grid-template-rows: minmax(0, 1fr);
   --entry-rail-width: 0px;
   --entry-top-nav-height: 54px;
+  --entry-content-max: var(--ndesign-content-max, 1880px);
+  --entry-page-gutter: var(--ndesign-page-gutter, clamp(16px, 3.75vw, 96px));
 }
 .entry-shell--no-header .entry {
   grid-template-columns: minmax(0, 1fr) !important;
@@ -424,10 +426,7 @@
   overflow-y: auto;
   background: var(--bg);
   padding: 0;
-  /* Used by descendants (e.g. the plugins-home Scenario row) to
-     pin themselves directly below the sticky topbar. Mirrors the
-     topbar's vertical footprint (12px top + 32px chip). */
-  --entry-topbar-h: 44px;
+  --entry-topbar-h: 0px;
 }
 .entry-main__inner {
   width: 100%;
@@ -444,96 +443,60 @@
    gallery can fit 4-5 preview tiles per row on desktop displays
    while the hero card self-constrains to a readable column. */
 .entry-main__inner--wide {
-  max-width: 1440px;
+  max-width: none;
+  padding-inline: max(
+    var(--entry-page-gutter),
+    calc((100vw - var(--entry-content-max)) / 2)
+  );
 }
 
-/* Sticky top-right control strip inside the main scroll area.
-   Stays visually pinned regardless of scroll position so the
-   avatar / settings menu and the chip cluster are always
-   reachable. The strip is fully opaque so any content scrolling
-   underneath (plugin tiles, project cards, hero card) stays
-   clipped behind it instead of bleeding through the chip
-   gutter. The strip's height is mirrored by --entry-topbar-h on
-   .entry-main--scroll so descendants like the plugins-home
-   Scenario row can pin themselves immediately below it. */
-.entry-main__topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px 0;
-  background: var(--bg);
-  isolation: isolate;
-}
-.entry-main__topbar::before {
-  content: '';
-  position: absolute;
-  inset: -1px 0;
-  z-index: -1;
-  pointer-events: none;
-  background: var(--bg);
-}
-/* Chip group — the GitHub star, inline model switcher, and Use
-   everywhere chip live inside this wrapper so the responsive
-   media query can flip the whole row's visibility in one place. */
-.entry-main__topbar-chips {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Stacked menu-item layout — the collapsed model-switcher row
-   shows two lines of text inside a single `.avatar-item` so the
-   active mode + agent reads as a header with the active model
-   underneath. Mirrors the chip's two-tier hierarchy. */
-.avatar-item .avatar-item-stack {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-.avatar-item-stack__top {
-  font-weight: 600;
-  color: var(--text-strong);
-  font-size: 12.5px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.avatar-item-stack__sub {
-  font-size: 11px;
-  color: var(--text-muted);
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Compact-only menu rows live inside `.avatar-popover` and mirror
-   the topbar chips when those chips are hidden by the responsive
-   breakpoint below. Default display is `none` so wide viewports
-   never show them; the matching @media block flips them on. */
-.avatar-item--compact-only,
-.avatar-popover__divider--compact-only {
-  display: none;
-}
 .avatar-popover__divider {
   height: 1px;
   background: var(--border-soft);
   margin: 4px 6px;
 }
 
-/* ============================================================
-   Inline CLI / model switcher — sticky-top chip + popover.
+.avatar-popover__model-switcher {
+  padding: 4px;
+}
 
-   Lives in `.entry-main__topbar` next to the settings cog and
-   exposes the active execution mode (Local CLI / BYOK), the
+.entry-nav-rail__footer .avatar-popover {
+  width: min(390px, calc(100vw - 24px));
+  max-height: calc(100vh - var(--entry-top-nav-height, 54px) - 20px);
+  overflow-y: auto;
+}
+
+.avatar-popover__model-switcher .inline-switcher {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.avatar-popover__model-switcher .inline-switcher__chip {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+  border-radius: var(--radius-sm);
+}
+
+.avatar-popover__model-switcher .inline-switcher__chip-text {
+  flex: 1;
+}
+
+.avatar-popover__model-switcher .inline-switcher__popover {
+  position: static;
+  width: 100%;
+  max-width: none;
+  max-height: min(62vh, 620px);
+  margin-top: 8px;
+  overflow-y: auto;
+  box-shadow: none;
+}
+
+/* ============================================================
+   Inline CLI / model switcher — settings-menu chip + disclosure.
+
+   Exposes the active execution mode (Local CLI / BYOK), the
    active agent or provider, and the active model. The chip is
    intentionally low-chrome so it reads as status, not a primary
    action; the popover is where the actual switching happens.
@@ -1883,20 +1846,7 @@
     padding: 24px 16px 56px;
   }
   .entry-main__inner--wide {
-    max-width: 100%;
-  }
-  /* Collapse the three topbar chips into the settings dropdown.
-     The chips' container disappears and the matching menu rows
-     inside `.avatar-popover` are unhidden so every action stays
-     one click away from the lone settings cog. */
-  .entry-main__topbar-chips {
-    display: none;
-  }
-  .avatar-item--compact-only {
-    display: flex;
-  }
-  .avatar-popover__divider--compact-only {
-    display: block;
+    padding-inline: var(--entry-page-gutter);
   }
 }
 

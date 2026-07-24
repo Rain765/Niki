@@ -786,7 +786,21 @@ describe('loadConfig', () => {
   it('sets an explicit apiProtocol for new default configs', () => {
     expect(DEFAULT_CONFIG.apiProtocol).toBe('anthropic');
     expect(DEFAULT_CONFIG.configMigrationVersion).toBe(1);
-    expect(DEFAULT_CONFIG.accentColor).toBe('#c96442');
+    expect(DEFAULT_CONFIG.accentColor).toBe('#fe5200');
+  });
+
+  it('migrates previous default accents to Hermes Orange 6', () => {
+    for (const accentColor of ['#c96442', '#ff5f53']) {
+      store.set(
+        'open-design:config',
+        JSON.stringify({
+          ...DEFAULT_CONFIG,
+          accentColor,
+        }),
+      );
+
+      expect(loadConfig().accentColor).toBe('#fe5200');
+    }
   });
 });
 

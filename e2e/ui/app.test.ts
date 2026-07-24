@@ -730,7 +730,7 @@ async function runPluginCreateImportFlow(
 ) {
   await routeMockSuccessfulRun(page, 'plugin-create-import-run');
 
-  await page.getByTestId('entry-nav-plugins').click();
+  await page.goto('/plugins');
   await expect(page.getByTestId('plugins-create-button')).toBeVisible();
 
   await page.getByTestId('plugins-create-button').click();
@@ -738,7 +738,7 @@ async function runPluginCreateImportFlow(
   await expect(homeInput).toHaveValue(/Create an Open Design plugin/);
   await expect(page.getByTestId('home-hero-active-plugin')).toContainText('Create plugin');
 
-  await page.getByTestId('entry-nav-plugins').click();
+  await page.goto('/plugins');
   await expect(page.getByTestId('plugins-import-button')).toBeVisible();
   await page.getByTestId('plugins-import-button').click();
 
@@ -1243,7 +1243,8 @@ async function gotoEntryHome(page: Page) {
 }
 
 async function openNewProjectModal(page: Page) {
-  await page.getByTestId('entry-nav-new-project').click();
+  await page.getByTestId('entry-nav-projects').click();
+  await page.getByTestId('projects-new-project').click();
   await expect(page.getByTestId('new-project-modal')).toBeVisible();
   await expect(page.getByTestId('new-project-panel')).toBeVisible();
 }

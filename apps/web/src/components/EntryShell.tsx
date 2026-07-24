@@ -1,7 +1,7 @@
 // EntryShell — the centered-hero entry layout.
 //
 // This component owns the entire JSX render and local UI state for
-// the redesigned home view (left rail + sticky settings cog + hero +
+// the redesigned home view (top navigation + settings menu + hero +
 // recent projects + plugins section + new-project modal). It is
 // intentionally a sibling of `EntryView` so that upstream `main`
 // changes to `EntryView` (props, connector lifecycle, helpers, exports)
@@ -43,15 +43,13 @@ import type {
   ProviderModelsResponse,
   SkillSummary,
 } from '../types';
-import { apiProtocolLabel } from '../utils/apiProtocol';
+import { apiProtocolWireProtocol } from '../utils/apiProtocol';
 import { formatPickAndImportFailure } from '../utils/pickAndImportError';
 import { CenteredLoader } from './Loading';
 import { DesignsTab } from './DesignsTab';
 import { DesignSystemPreviewModal } from './DesignSystemPreviewModal';
 import { DesignSystemsTab } from './DesignSystemsTab';
 import { EntryNavRail, type EntryView as EntryViewKind } from './EntryNavRail';
-import { GithubStarBadge } from './GithubStarBadge';
-import { formatStars, GITHUB_REPO_URL, useGithubStars } from './useGithubStars';
 import { HomeView } from './HomeView';
 import {
   createPluginAuthoringHandoff,
@@ -83,12 +81,8 @@ import type { KnownProvider } from '../state/config';
 import { testApiProvider } from '../providers/connection-test';
 import { fetchProviderModels } from '../providers/provider-models';
 
-// The topbar chips (GitHub star, model switcher, Use everywhere)
-// collapse into the settings dropdown when the viewport gets
-// narrow. The transition is driven entirely by CSS @media queries
-// in `entry-layout.css` so server and client render identical
-// markup — both surfaces are always present, and CSS toggles
-// `display` based on `--compact-topbar` breakpoint (900px).
+// The existing execution switcher lives inside the settings menu so its
+// complete CLI/BYOK structure stays available without a separate top bar.
 
 // Default scenario plugin for each project kind. The mapping lives in
 // `@open-design/contracts` so the daemon's `/api/projects` and
@@ -154,47 +148,6 @@ const APPEARANCE_LABEL: Record<AppTheme, AppearanceThemeLabel> = {
   dark: 'settings.themeDark',
 };
 
-type Translator = ReturnType<typeof useT>;
-
-// Mirrors the chip text the InlineModelSwitcher renders, so the
-// collapsed menu item inside the settings dropdown can advertise
-// the same active mode/agent/model without duplicating the
-// labelling logic. Returned as a structured tuple so the menu can
-// style the primary text and meta independently.
-function describeModelChip(
-  config: AppConfig,
-  agents: AgentInfo[],
-  t: Translator,
-): { mode: string; primary: string; model: string } {
-  const currentAgent = agents.find((a) => a.id === config.agentId) ?? null;
-  const currentChoice =
-    (config.agentId && config.agentModels?.[config.agentId]) || {};
-  const currentModelId =
-    currentChoice.model ?? currentAgent?.models?.[0]?.id ?? null;
-  const currentModelLabel =
-    currentAgent?.models?.find((m) => m.id === currentModelId)?.label ?? null;
-
-  if (config.mode === 'daemon') {
-    return {
-      mode: t('inlineSwitcher.chipCli'),
-      primary: currentAgent?.name ?? t('inlineSwitcher.noAgent'),
-      model:
-        currentModelLabel && currentModelId !== 'default'
-          ? currentModelLabel
-          : t('inlineSwitcher.modelDefault'),
-    };
-  }
-  const apiProtocol = config.apiProtocol ?? 'anthropic';
-  // KNOWN_PROVIDERS is consulted indirectly via apiProtocolLabel —
-  // looking it up here for the menu meta would diverge from the
-  // chip, so we keep the surface identical to InlineModelSwitcher.
-  return {
-    mode: t('inlineSwitcher.chipByok'),
-    primary: apiProtocolLabel(apiProtocol),
-    model: config.model.trim() || t('inlineSwitcher.modelDefault'),
-  };
-}
-
 interface Props {
   skills: SkillSummary[];
   designTemplates: SkillSummary[];
@@ -239,6 +192,7 @@ interface Props {
       pluginInputs?: Record<string, unknown>;
       autoSendFirstMessage?: boolean;
       pendingFiles?: File[];
+      pendingFileVisibility?: 'visible' | 'internal';
     },
   ) => void;
   onCreatePluginShareProject: (
@@ -380,17 +334,6 @@ export function EntryShell({
   const [homePromptHandoff, setHomePromptHandoff] = useState<HomePromptHandoff | null>(null);
   const analytics = useAnalytics();
   const avatarMenuRef = useRef<HTMLDivElement | null>(null);
-  // Star count + active-model summary are kept in render scope so
-  // the dropdown's collapsed rows can mirror what the chips show
-  // when CSS unhides them on narrow viewports. Both surfaces are
-  // always rendered; only `display` flips per the media query.
-  const starCount = useGithubStars();
-  const modelSummary = useMemo(
-    () => describeModelChip(config, agents, t),
-    [config, agents, t],
-  );
-
-
   function changeView(next: EntryViewKind) {
     const navElement = navElementForView(next);
     if (navElement) {
@@ -475,7 +418,9 @@ export function EntryShell({
     const firstAttachmentName = payload.attachments?.[0]?.name ?? '';
     const fallbackName = head.length > 0 ? head : firstAttachmentName || 'Untitled';
     const name =
-      payload.pluginTitle && payload.pluginTitle.trim().length > 0
+      payload.projectName && payload.projectName.trim().length > 0
+        ? payload.projectName.trim()
+        : payload.pluginTitle && payload.pluginTitle.trim().length > 0
         ? payload.pluginTitle.trim()
         : fallbackName;
     const metadata: ProjectMetadata = {
@@ -504,7 +449,10 @@ export function EntryShell({
         : {}),
       ...(payload.pluginInputs ? { pluginInputs: payload.pluginInputs } : {}),
       ...(payload.attachments && payload.attachments.length > 0
-        ? { pendingFiles: payload.attachments }
+        ? {
+            pendingFiles: payload.attachments,
+            pendingFileVisibility: payload.attachmentVisibility ?? 'visible',
+          }
         : {}),
       autoSendFirstMessage: true,
     });
@@ -589,77 +537,20 @@ export function EntryShell({
       </button>
       {avatarMenuOpen ? (
         <div className="avatar-popover" role="menu">
-          {/* Collapsed-topbar rows. Always rendered so SSR and the
-              client agree on the markup; CSS @media (max-width: 900px)
-              flips their `display` so they only show when the
-              matching topbar chips are themselves hidden. */}
-          <a
-            className="avatar-item avatar-item--compact-only"
-            href={GITHUB_REPO_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            onClick={() => setAvatarMenuOpen(false)}
-            data-testid="entry-avatar-github"
-          >
-            <span className="avatar-item-icon" aria-hidden>
-              <Icon name="github" size={14} />
-            </span>
-            <span>{t('entry.githubStarLabel')}</span>
-            <span className="avatar-item-meta">
-              {starCount === null ? '—' : formatStars(starCount)}
-            </span>
-          </a>
-          <button
-            type="button"
-            className="avatar-item avatar-item--compact-only"
-            onClick={() => {
-              setAvatarMenuOpen(false);
-              onOpenSettings('execution');
-            }}
-            data-testid="entry-avatar-model"
-            title={t('inlineSwitcher.chipTitle')}
-          >
-            <span className="avatar-item-icon" aria-hidden>
-              <Icon name="sparkles" size={14} />
-            </span>
-            <span className="avatar-item-stack">
-              <span className="avatar-item-stack__top">
-                {modelSummary.mode} · {modelSummary.primary}
-              </span>
-              <span className="avatar-item-stack__sub">
-                {modelSummary.model}
-              </span>
-            </span>
-          </button>
-          <div
-            className="avatar-popover__divider avatar-popover__divider--compact-only"
-            aria-hidden
-          />
-          <a
-            className="avatar-item"
-            href="https://x.com/nexudotio"
-            target="_blank"
-            rel="noreferrer noopener"
-            onClick={() => setAvatarMenuOpen(false)}
-          >
-            <span className="avatar-item-icon" aria-hidden>
-              <Icon name="external-link" size={14} />
-            </span>
-            <span>Follow @nexudotio on X</span>
-          </a>
-          <a
-            className="avatar-item"
-            href="https://discord.gg/BYShPgWpq"
-            target="_blank"
-            rel="noreferrer noopener"
-            onClick={() => setAvatarMenuOpen(false)}
-          >
-            <span className="avatar-item-icon" aria-hidden>
-              <Icon name="external-link" size={14} />
-            </span>
-            <span>Join Discord</span>
-          </a>
-          <div style={{ height: 1, background: 'var(--border-soft)', margin: '4px 6px' }} />
+          <div className="avatar-popover__model-switcher">
+            <InlineModelSwitcher
+              config={config}
+              agents={agents}
+              daemonLive={daemonLive}
+              onModeChange={onModeChange}
+              onAgentChange={onAgentChange}
+              onAgentModelChange={onAgentModelChange}
+              onApiProtocolChange={onApiProtocolChange}
+              onApiModelChange={onApiModelChange}
+              onOpenSettings={onOpenSettings}
+            />
+          </div>
+          <div className="avatar-popover__divider" />
           <button
             type="button"
             className="avatar-item"
@@ -767,20 +658,6 @@ export function EntryShell({
             className="avatar-item"
             onClick={() => {
               setAvatarMenuOpen(false);
-              openIntegrationTab('use-everywhere');
-            }}
-            data-testid="entry-avatar-use-everywhere"
-          >
-            <span className="avatar-item-icon" aria-hidden>
-              <Icon name="hammer" size={14} />
-            </span>
-            <span>{t('entry.useEverywhereTitle')}</span>
-          </button>
-          <button
-            type="button"
-            className="avatar-item"
-            onClick={() => {
-              setAvatarMenuOpen(false);
               // Toolbar→settings telemetry (CSV row "home_toolbar_click /
               // element=settings") fires here rather than on the avatar
               // icon: that icon now toggles the popover (a navigation
@@ -835,51 +712,12 @@ export function EntryShell({
         <EntryNavRail
           view={view}
           onViewChange={changeView}
-          onNewProject={() => openNewProject()}
+          settingsControl={avatarMenu}
         />
         <main className="entry-main entry-main--scroll">
-          <div className="entry-main__topbar">
-            <div className="entry-main__topbar-chips">
-              <GithubStarBadge />
-              <InlineModelSwitcher
-                config={config}
-                agents={agents}
-                daemonLive={daemonLive}
-                onModeChange={onModeChange}
-                onAgentChange={onAgentChange}
-                onAgentModelChange={onAgentModelChange}
-                onApiProtocolChange={onApiProtocolChange}
-                onApiModelChange={onApiModelChange}
-                onOpenSettings={onOpenSettings}
-              />
-              <button
-                type="button"
-                className="use-everywhere-chip"
-                onClick={() => {
-                  trackHomeToolbarClick(analytics.track, {
-                    page_name: 'home',
-                    area: 'toolbar',
-                    element: 'use_everywhere',
-                  });
-                  openIntegrationTab('use-everywhere');
-                }}
-                title={t('entry.useEverywhereTitle')}
-                aria-label={t('entry.useEverywhereAria')}
-                data-testid="entry-use-everywhere-button"
-              >
-                <span className="use-everywhere-chip__icon" aria-hidden>
-                  <Icon name="hammer" size={13} />
-                </span>
-                <span className="use-everywhere-chip__label">
-                  {t('entry.useEverywhereTitle')}
-                </span>
-              </button>
-            </div>
-            {avatarMenu}
-          </div>
           <div
             className={`entry-main__inner${
-              view === 'home' ? '' : ' entry-main__inner--wide'
+              view === 'home' ? ' entry-main__inner--home' : ' entry-main__inner--wide'
             }`}
           >
             {view === 'home' ? (
@@ -907,8 +745,17 @@ export function EntryShell({
                 <CenteredLoader label={t('common.loading')} />
               ) : (
                 <div className="entry-section">
-                  <header className="entry-section__head">
+                  <header className="entry-section__head entry-section__head--projects">
                     <h1 className="entry-section__title">{t('entry.navProjects')}</h1>
+                    <button
+                      type="button"
+                      className="entry-section__new-project"
+                      onClick={() => openNewProject()}
+                      data-testid="projects-new-project"
+                    >
+                      <Icon name="plus" size={17} />
+                      <span>{t('entry.navNewProject')}</span>
+                    </button>
                   </header>
                   <DesignsTab
                     projects={projects}
@@ -1330,7 +1177,7 @@ function OnboardingView({
     setProviderTestState({ status: 'running', inputKey });
     try {
       const result = await testApiProvider({
-        protocol: apiProtocol,
+        protocol: apiProtocolWireProtocol(apiProtocol),
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         model: config.model,
@@ -1375,7 +1222,7 @@ function OnboardingView({
     setProviderModelsState({ status: 'running', inputKey });
     try {
       const result = await fetchProviderModels({
-        protocol: apiProtocol,
+        protocol: apiProtocolWireProtocol(apiProtocol),
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
       });

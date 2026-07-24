@@ -65,6 +65,16 @@ export const SUGGESTED_MODELS_BY_PROTOCOL: Record<ApiProtocol, readonly string[]
     'gemini-1.5-pro',
     'gemini-1.5-flash',
   ],
+  kimi: [
+    'kimi-k3',
+    'kimi-k2.7-code-highspeed',
+    'kimi-k2.7-code',
+    'kimi-k2.6',
+  ],
+  deepseek: [
+    'deepseek-v4-pro',
+    'deepseek-v4-flash',
+  ],
   senseaudio: [
     // SenseAudio is an OpenAI-compatible gateway that fronts both its own
     // models (senseaudio-s2 family) and aggregator routes to deepseek /
@@ -133,6 +143,8 @@ export const FAST_MODEL_BY_PROTOCOL: Record<ApiProtocol, string> = {
   openai: 'gpt-4o-mini',
   azure: 'gpt-4o-mini',
   google: 'gemini-2.0-flash',
+  kimi: 'kimi-k3',
+  deepseek: 'deepseek-v4-flash',
   // Ollama Cloud doesn't have a clean "fast small model" default that
   // works for the LLM memory extractor — the catalog skews to large
   // open-weight checkpoints. Fall back to a small Gemma so the auto-
@@ -150,6 +162,8 @@ export const API_PROTOCOL_TABS: ReadonlyArray<{
   { id: 'openai', title: 'OpenAI' },
   { id: 'azure', title: 'Azure OpenAI' },
   { id: 'google', title: 'Google Gemini' },
+  { id: 'kimi', title: 'Kimi' },
+  { id: 'deepseek', title: 'DeepSeek' },
   { id: 'ollama', title: 'Ollama Cloud' },
   { id: 'senseaudio', title: 'SenseAudio' },
 ];
@@ -159,6 +173,8 @@ export const API_PROTOCOL_LABELS: Record<ApiProtocol, string> = {
   openai: 'OpenAI API',
   azure: 'Azure OpenAI',
   google: 'Google Gemini',
+  kimi: 'Kimi API',
+  deepseek: 'DeepSeek API',
   ollama: 'Ollama Cloud API',
   senseaudio: 'SenseAudio API',
 };
@@ -168,6 +184,8 @@ export const API_KEY_PLACEHOLDERS: Record<ApiProtocol, string> = {
   openai: 'sk-...',
   azure: 'azure key',
   google: 'AIza...',
+  kimi: 'sk-...',
+  deepseek: 'sk-...',
   ollama: 'Ollama API key',
   senseaudio: 'SenseAudio API key',
 };
@@ -180,6 +198,8 @@ export const DEFAULT_BASE_URL_BY_PROTOCOL: Record<ApiProtocol, string> = {
   openai: 'https://api.openai.com',
   azure: '',
   google: 'https://generativelanguage.googleapis.com',
+  kimi: 'https://api.moonshot.ai/v1',
+  deepseek: 'https://api.deepseek.com',
   ollama: 'https://ollama.com',
   senseaudio: 'https://api.senseaudio.cn',
 };

@@ -47,6 +47,8 @@ const API_PROTOCOL_TABS: Array<{ id: ApiProtocol; title: string }> = [
   { id: 'openai', title: 'OpenAI' },
   { id: 'azure', title: 'Azure' },
   { id: 'google', title: 'Google' },
+  { id: 'kimi', title: 'Kimi' },
+  { id: 'deepseek', title: 'DeepSeek' },
 ];
 
 export function InlineModelSwitcher({

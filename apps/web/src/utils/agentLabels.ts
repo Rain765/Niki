@@ -14,6 +14,8 @@ const AGENT_LABELS: Record<string, string> = {
   'openai-api': 'OpenAI API',
   'azure-openai-api': 'Azure OpenAI',
   'google-gemini-api': 'Google Gemini',
+  'kimi-api': 'Kimi API',
+  'deepseek-api': 'DeepSeek API',
 };
 
 const AGENT_ALIASES: Record<string, string> = {

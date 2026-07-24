@@ -10,4 +10,4 @@ export no_proxy="${no_proxy:-localhost,127.0.0.1,::1}"
 
 unset CODEX_SANDBOX_NETWORK_DISABLED
 
-exec /Applications/Codex.app/Contents/Resources/codex "$@"
+exec /Applications/ChatGPT.app/Contents/Resources/codex "$@"

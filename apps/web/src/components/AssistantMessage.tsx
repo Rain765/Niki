@@ -861,9 +861,20 @@ function ProducedFiles({
       <div className="produced-files-list">
         {files.map((f) => (
           <div key={f.name} className="produced-file">
-            <span className="produced-file-icon" aria-hidden>
-              <Icon name={kindIconName(f.kind)} size={14} />
-            </span>
+            {f.kind === "image" ? (
+              <img
+                className="produced-file-thumbnail"
+                data-testid={`produced-file-thumbnail-${f.name}`}
+                src={projectFileUrl(projectId, f.name)}
+                alt=""
+                loading="lazy"
+                draggable={false}
+              />
+            ) : (
+              <span className="produced-file-icon" aria-hidden>
+                <Icon name={kindIconName(f.kind)} size={14} />
+              </span>
+            )}
             <span className="produced-file-name" title={f.name}>
               {f.name}
             </span>

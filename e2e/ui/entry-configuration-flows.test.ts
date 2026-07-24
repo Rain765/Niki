@@ -120,7 +120,8 @@ test('prompt template retry preserves the edited body in project metadata', asyn
   });
 
   await gotoEntryHome(page);
-  await page.getByTestId('entry-nav-new-project').click();
+  await page.getByTestId('entry-nav-projects').click();
+  await page.getByTestId('projects-new-project').click();
   await expect(page.getByTestId('new-project-modal')).toBeVisible();
   await expect(page.getByTestId('new-project-panel')).toBeVisible();
   await page.getByTestId('new-project-tab-media').click();
@@ -164,7 +165,8 @@ test('live artifact empty connector CTA opens the gated connector setup path', a
   await routeComposioConfig(page, { configured: false, apiKeyTail: '' });
 
   await gotoEntryHome(page);
-  await page.getByTestId('entry-nav-new-project').click();
+  await page.getByTestId('entry-nav-projects').click();
+  await page.getByTestId('projects-new-project').click();
   await expect(page.getByTestId('new-project-modal')).toBeVisible();
   await expect(page.getByTestId('new-project-panel')).toBeVisible();
   await page.getByTestId('new-project-tab-live-artifact').click();
@@ -366,7 +368,7 @@ async function gotoEntryHome(page: Page) {
 }
 
 async function openIntegrationsConnectors(page: Page): Promise<Locator> {
-  await page.getByTestId('entry-nav-integrations').click();
+  await page.goto('/integrations', { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveURL(/\/integrations$/);
   await expect(page.getByRole('heading', { name: 'Integrations' })).toBeVisible();
   await page.getByTestId('integrations-tab-connectors').click();

@@ -3,6 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { composeSystemPrompt } from '../src/prompts/system.js';
 
 describe('composeSystemPrompt', () => {
+  it('keeps functional and plugin scenario skills in separate prompt layers', () => {
+    const prompt = composeSystemPrompt({
+      skillName: 'loan-poster',
+      skillBody: 'Functional poster rules.',
+      scenarioSkillName: 'media-generation',
+      scenarioSkillBody: 'Media routing rules.',
+    });
+
+    expect(prompt).toContain('## Active skill — loan-poster');
+    expect(prompt).toContain('Functional poster rules.');
+    expect(prompt).toContain('## Active scenario skill — media-generation');
+    expect(prompt).toContain('Media routing rules.');
+  });
+
   it('treats an active design system as the visual direction', () => {
     const prompt = composeSystemPrompt({
       designSystemTitle: 'ComfyUI',

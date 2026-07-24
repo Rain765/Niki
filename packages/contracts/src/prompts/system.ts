@@ -118,6 +118,11 @@ export interface ComposeInput {
     | 'video'
     | 'audio'
     | undefined;
+  // Plugin-local scenario guidance can coexist with an explicitly selected
+  // functional skill. The functional skill remains authoritative for domain
+  // rules while this layer controls plugin execution flow.
+  scenarioSkillBody?: string | undefined;
+  scenarioSkillName?: string | undefined;
   designSystemBody?: string | undefined;
   designSystemTitle?: string | undefined;
   // Personal-memory block (auto-extracted facts + the hand-edited
@@ -171,6 +176,8 @@ export function composeSystemPrompt({
   skillBody,
   skillName,
   skillMode,
+  scenarioSkillBody,
+  scenarioSkillName,
   designSystemBody,
   designSystemTitle,
   memoryBody,
@@ -250,6 +257,12 @@ export function composeSystemPrompt({
     const preflight = derivePreflight(skillBody);
     parts.push(
       `\n\n## Active skill${skillName ? ` — ${skillName}` : ''}\n\nFollow this skill's workflow exactly.${preflight}\n\n${skillBody.trim()}`,
+    );
+  }
+
+  if (scenarioSkillBody && scenarioSkillBody.trim().length > 0) {
+    parts.push(
+      `\n\n## Active scenario skill${scenarioSkillName ? ` — ${scenarioSkillName}` : ''}\n\nUse this plugin-local skill for scenario orchestration, stage routing, and media handoff. Follow it alongside the active functional skill above. If the two address the same domain rule, the active functional skill wins; this scenario skill remains authoritative for plugin execution flow.\n\n${scenarioSkillBody.trim()}`,
     );
   }
 

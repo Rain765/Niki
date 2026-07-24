@@ -712,21 +712,24 @@ export async function addCanvasImageNode(
   projectId: string,
   src: string,
   alt?: string,
+  position?: { x: number; y: number },
 ): Promise<boolean> {
   try {
     // Use the image's real aspect ratio (capped to a sane on-canvas size) so
     // it isn't squashed into a square. Falls back to a square only if the
     // image can't be measured.
     const { w, h } = await measureImage(src);
-    // Small random offset so several adds don't stack perfectly on top.
+    // Explicit positions are used for batch inserts so selected images form
+    // a readable grid. Single inserts retain a small offset so they do not
+    // land directly on top of existing content.
     const jitter = () => Math.round(Math.random() * 220);
     const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/canvas/nodes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         type: 'image',
-        x: 80 + jitter(),
-        y: 80 + jitter(),
+        x: position?.x ?? 80 + jitter(),
+        y: position?.y ?? 80 + jitter(),
         w,
         h,
         content: alt ? { src, alt } : { src },
@@ -738,7 +741,7 @@ export async function addCanvasImageNode(
   }
 }
 
-/** Measure an image URL's natural size, scaled so the longest side ≤ 1600. */
+/** Measure an image URL's natural size, scaled so the longest side ≤ 640. */
 function measureImage(src: string): Promise<{ w: number; h: number }> {
   return new Promise((resolve) => {
     if (typeof Image === 'undefined') {
@@ -750,7 +753,7 @@ function measureImage(src: string): Promise<{ w: number; h: number }> {
       const nw = img.naturalWidth || 360;
       const nh = img.naturalHeight || 360;
       const longest = Math.max(nw, nh);
-      const scale = longest > 1600 ? 1600 / longest : 1;
+      const scale = longest > 640 ? 640 / longest : 1;
       resolve({ w: Math.round(nw * scale), h: Math.round(nh * scale) });
     };
     img.onerror = () => resolve({ w: 360, h: 360 });

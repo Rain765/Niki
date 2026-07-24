@@ -17,6 +17,7 @@ import { streamMessageGoogle } from './google-compatible';
 import { streamMessageOllama } from './ollama-compatible';
 import { isOpenAICompatible, streamMessageOpenAI } from './openai-compatible';
 import { streamMessageSenseAudio } from './senseaudio-compatible';
+import { apiProtocolWireProtocol } from '../utils/apiProtocol';
 
 // Re-export for convenience
 export { isOpenAICompatible } from './openai-compatible';
@@ -48,21 +49,22 @@ export async function streamMessage(
   // the same shape regardless of protocol.
   context?: ProxyContext,
 ): Promise<void> {
+  const wireProtocol = apiProtocolWireProtocol(cfg.apiProtocol);
   // Prefer the explicit Settings protocol; keep the legacy heuristic as a
   // fallback for configs saved before apiProtocol existed.
-  if (cfg.apiProtocol === 'azure') {
+  if (wireProtocol === 'azure') {
     return streamMessageAzure(cfg, system, history, signal, handlers);
   }
-  if (cfg.apiProtocol === 'ollama') {
+  if (wireProtocol === 'ollama') {
     return streamMessageOllama(cfg, system, history, signal, handlers);
   }
-  if (cfg.apiProtocol === 'google') {
+  if (wireProtocol === 'google') {
     return streamMessageGoogle(cfg, system, history, signal, handlers);
   }
-  if (cfg.apiProtocol === 'senseaudio') {
+  if (wireProtocol === 'senseaudio') {
     return streamMessageSenseAudio(cfg, system, history, signal, handlers, context);
   }
-  if (cfg.apiProtocol === 'openai' || (!cfg.apiProtocol && isOpenAICompatible(cfg.model, cfg.baseUrl))) {
+  if (wireProtocol === 'openai' || (!cfg.apiProtocol && isOpenAICompatible(cfg.model, cfg.baseUrl))) {
     return streamMessageOpenAI(cfg, system, history, signal, handlers);
   }
 

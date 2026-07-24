@@ -1240,6 +1240,9 @@ function UserMessage({
   activePluginSnapshot?: AppliedPluginSnapshot | null;
 }) {
   const attachments = message.attachments ?? [];
+  const visibleAttachments = attachments.filter(
+    (attachment) => !attachment.path.startsWith('.od-inputs/'),
+  );
   const commentAttachments = message.commentAttachments ?? [];
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -1273,9 +1276,9 @@ function UserMessage({
       {activePluginSnapshot ? (
         <ActivePluginChip snapshot={activePluginSnapshot} t={t} />
       ) : null}
-      {attachments.length > 0 ? (
+      {visibleAttachments.length > 0 ? (
         <div className="user-attachments">
-          {attachments.map((a) => {
+          {visibleAttachments.map((a) => {
             const baseName = a.path.split('/').pop() || a.path;
             const openable =
               !!onRequestOpenFile &&

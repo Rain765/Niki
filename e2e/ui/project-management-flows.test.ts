@@ -811,7 +811,8 @@ async function createProject(
 
 async function openNewProjectPanel(page: Page) {
   if (await page.getByTestId('new-project-panel').isVisible().catch(() => false)) return;
-  await page.getByTestId('entry-nav-new-project').click();
+  await page.getByTestId('entry-nav-projects').click();
+  await page.getByTestId('projects-new-project').click();
   await expect(page.getByTestId('new-project-modal')).toBeVisible();
   await expect(page.getByTestId('new-project-panel')).toBeVisible();
 }

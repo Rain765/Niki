@@ -768,6 +768,7 @@ export function App() {
         autoSendFirstMessage?: boolean;
         requestId?: string;
         pendingFiles?: File[];
+        pendingFileVisibility?: 'visible' | 'internal';
       },
     ) => {
       // Honor an explicit `null` design system — the create panel defaults
@@ -816,7 +817,9 @@ export function App() {
         : [];
       let firstMessageAttachments: ChatAttachment[] = [];
       if (pendingFiles.length > 0) {
-        const uploadResult = await uploadProjectFiles(result.project.id, pendingFiles);
+        const uploadResult = await uploadProjectFiles(result.project.id, pendingFiles, {
+          visibility: input.pendingFileVisibility ?? 'visible',
+        });
         firstMessageAttachments = uploadResult.uploaded;
         if (uploadResult.failed.length > 0) {
           console.warn('Some Home attachments failed to upload', uploadResult.failed);
@@ -1016,7 +1019,7 @@ export function App() {
   }, []);
 
   const handleBack = useCallback(() => {
-    navigate({ kind: 'home', view: 'home' });
+    navigate({ kind: 'home', view: 'projects' });
   }, []);
 
   const handleClearPendingPrompt = useCallback(() => {
@@ -1375,13 +1378,17 @@ export function App() {
   return (
     <>
       <div
-        className={`workspace-shell workspace-shell--${clientType}`}
+        className={`workspace-shell workspace-shell--${clientType}${
+          route.kind === 'project' ? ' workspace-shell--without-tabs' : ''
+        }`}
         data-client-type={clientType}
       >
-        <WorkspaceTabsBar
-          route={route}
-          projects={projects}
-        />
+        {route.kind === 'project' ? null : (
+          <WorkspaceTabsBar
+            route={route}
+            projects={projects}
+          />
+        )}
         <div className="workspace-shell__body">{appMain}</div>
       </div>
       {clientType === 'desktop' ? null : (

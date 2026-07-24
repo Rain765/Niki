@@ -103,7 +103,9 @@ export type TrackingByokProviderId =
   | 'azure_openai'
   | 'google_gemini'
   | 'ollama_cloud'
-  | 'senseaudio';
+  | 'senseaudio'
+  | 'kimi'
+  | 'deepseek';
 
 // v2 CLI provider catalogue (CSV row 63 + image 59). Adds `qoder_cli` and
 // `kilo` over v1.
@@ -262,6 +264,7 @@ export interface HomeChatComposerClickProps {
   element:
     | 'chat_input'
     | 'send_button'
+    | 'auto_poster_button'
     | 'plugin_chip'
     | 'action_chip';
   // For plugin / action chips, the specific id (e.g. `prototype`, `from_figma`).
@@ -1223,6 +1226,10 @@ export function byokProtocolToTracking(
       return 'ollama_cloud';
     case 'senseaudio':
       return 'senseaudio';
+    case 'kimi':
+      return 'kimi';
+    case 'deepseek':
+      return 'deepseek';
     default:
       return null;
   }
@@ -1397,4 +1404,3 @@ export function deriveConfigureGlobals(
     configure_availability: configureAvailability,
   };
 }
-

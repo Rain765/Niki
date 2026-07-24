@@ -74,6 +74,7 @@ import type {
 } from '../types';
 import { testAgent, testApiProvider } from '../providers/connection-test';
 import { fetchProviderModels } from '../providers/provider-models';
+import { apiProtocolWireProtocol } from '../utils/apiProtocol';
 import { fetchConnectors, fetchDesignTemplates } from '../providers/registry';
 import { IMAGE_MODELS, MEDIA_PROVIDERS } from '../media/models';
 import { XaiOAuthControl } from './XaiOAuthControl';
@@ -1007,7 +1008,7 @@ export function SettingsDialog({
     try {
       const result = await testApiProvider(
         {
-          protocol: apiProtocol,
+          protocol: apiProtocolWireProtocol(apiProtocol),
           baseUrl: cfg.baseUrl,
           apiKey: cfg.apiKey,
           model: cfg.model,
@@ -1108,7 +1109,7 @@ export function SettingsDialog({
     try {
       const result = await fetchProviderModels(
         {
-          protocol: apiProtocol,
+          protocol: apiProtocolWireProtocol(apiProtocol),
           baseUrl: cfg.baseUrl,
           apiKey: cfg.apiKey,
           ...(apiProtocol === 'azure' && cfg.apiVersion?.trim()

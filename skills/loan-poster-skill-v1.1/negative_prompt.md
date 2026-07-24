@@ -1,0 +1,1 @@
+blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, duplicate Z marks, top-left brand wordmark, standalone text logo, corner logo badge, mixed brands

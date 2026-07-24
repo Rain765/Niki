@@ -179,6 +179,17 @@ describe('ProjectView – saved Project instructions surface (#1822)', () => {
     vi.clearAllMocks();
   });
 
+  it('keeps project navigation inside the left chat column without a page-wide header', async () => {
+    const { container } = render(<ProjectViewHarness initialProject={baseProject} />);
+
+    const title = await screen.findByTestId('project-title');
+    const chatSlot = title.closest('.split-chat-slot');
+
+    expect(chatSlot).toBeTruthy();
+    expect(title.closest('.project-chat-chrome')).toBeTruthy();
+    expect(container.querySelector('.app > .app-chrome-header')).toBeNull();
+  });
+
   it('shows a persistent saved-state chip (not just a bare pencil) when instructions exist', async () => {
     render(<ProjectViewHarness initialProject={{ ...baseProject, customInstructions: SAVED }} />);
 

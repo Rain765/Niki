@@ -193,6 +193,9 @@ test('codex args keep plugins enabled when OD_CODEX_DISABLE_PLUGINS is not 1', (
 test('codex model picker includes current OpenAI choices in priority order', async () => {
   const expectedModels = [
     'default',
+    'gpt-5.6-sol',
+    'gpt-5.6-terra',
+    'gpt-5.6-luna',
     'gpt-5.5',
     'gpt-5.4',
     'gpt-5.4-mini',
@@ -221,11 +224,11 @@ test('codex model picker includes current OpenAI choices in priority order', asy
     '',
     [],
     [],
-    { model: 'gpt-5.5', reasoning: 'xhigh' },
+    { model: 'gpt-5.6-sol', reasoning: 'xhigh' },
     { cwd: '/tmp/od-project' },
   );
   assert.ok(args.includes('--model'));
-  assert.ok(args.includes('gpt-5.5'));
+  assert.ok(args.includes('gpt-5.6-sol'));
   assert.ok(args.includes('model_reasoning_effort="xhigh"'));
 
   const dir = mkdtempSync(join(tmpdir(), 'od-agents-codex-models-'));

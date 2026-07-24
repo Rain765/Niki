@@ -20,6 +20,7 @@ import {
 
 const STORAGE_KEY = 'open-design:config';
 const CONFIG_MIGRATION_VERSION = 1;
+const LEGACY_DEFAULT_ACCENT_COLORS = new Set(['#c96442', '#ff5f53']);
 
 // Hatched out of the box, but tucked away — the user has to go through
 // either the entry-view "adopt a pet" callout or Settings → Pets to
@@ -148,6 +149,25 @@ export const KNOWN_PROVIDERS: KnownProvider[] = [
     models: ['gpt-4o', 'gpt-4o-mini', 'o3', 'o4-mini'],
   },
   {
+    label: 'Kimi',
+    protocol: 'kimi',
+    baseUrl: 'https://api.moonshot.ai/v1',
+    model: 'kimi-k3',
+    models: [
+      'kimi-k3',
+      'kimi-k2.7-code-highspeed',
+      'kimi-k2.7-code',
+      'kimi-k2.6',
+    ],
+  },
+  {
+    label: 'DeepSeek',
+    protocol: 'deepseek',
+    baseUrl: 'https://api.deepseek.com',
+    model: 'deepseek-v4-pro',
+    models: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+  },
+  {
     label: 'Azure OpenAI',
     protocol: 'azure',
     baseUrl: '',
@@ -165,13 +185,8 @@ export const KNOWN_PROVIDERS: KnownProvider[] = [
     label: 'DeepSeek — OpenAI',
     protocol: 'openai',
     baseUrl: 'https://api.deepseek.com',
-    model: 'deepseek-chat',
-    models: [
-      'deepseek-chat',
-      'deepseek-reasoner',
-      'deepseek-v4-flash',
-      'deepseek-v4-pro',
-    ],
+    model: 'deepseek-v4-pro',
+    models: ['deepseek-v4-pro', 'deepseek-v4-flash'],
   },
   {
     label: 'MiniMax — OpenAI',
@@ -350,7 +365,12 @@ export function loadConfig(): AppConfig {
       composio: { ...(parsed.composio ?? {}) },
       agentModels: { ...(parsed.agentModels ?? {}) },
       agentCliEnv: { ...(parsed.agentCliEnv ?? {}) },
-      accentColor: normalizeAccentColor(parsed.accentColor) ?? DEFAULT_CONFIG.accentColor,
+      accentColor: (() => {
+        const savedAccent = normalizeAccentColor(parsed.accentColor);
+        return savedAccent && LEGACY_DEFAULT_ACCENT_COLORS.has(savedAccent)
+          ? DEFAULT_CONFIG.accentColor
+          : savedAccent ?? DEFAULT_CONFIG.accentColor;
+      })(),
       pet: normalizePet(parsed.pet),
       notifications: normalizeNotifications(parsed.notifications),
       orbit: normalizeOrbit(parsed.orbit),

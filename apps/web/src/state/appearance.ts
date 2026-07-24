@@ -8,7 +8,7 @@ const ACCENT_VARS = [
   '--accent-hover',
 ] as const;
 
-export const DEFAULT_ACCENT_COLOR = '#c96442';
+export const DEFAULT_ACCENT_COLOR = '#fe5200';
 export const ACCENT_SWATCHES = [
   DEFAULT_ACCENT_COLOR,
   '#2563eb',
@@ -56,6 +56,12 @@ export function applyAppearanceToDocument({
   }
 
   const normalized = resolveAccentColor(accentColor);
+  if (normalized === DEFAULT_ACCENT_COLOR) {
+    for (const name of ACCENT_VARS) {
+      root.style.removeProperty(name);
+    }
+    return;
+  }
   const vars = accentVars(normalized);
   for (const name of ACCENT_VARS) {
     root.style.setProperty(name, vars[name]);

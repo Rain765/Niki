@@ -90,6 +90,16 @@ describe('applyAppearanceToDocument', () => {
     applyAppearanceToDocument({ theme: 'system', accentColor: 'not-a-color' });
 
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
-    expect(document.documentElement.style.getPropertyValue('--accent')).toBe(DEFAULT_ACCENT_COLOR);
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('');
+  });
+
+  it('lets the theme stylesheet provide the complete default brand scale', () => {
+    document.documentElement.style.setProperty('--accent', '#4f46e5');
+    document.documentElement.style.setProperty('--accent-strong', '#3730a3');
+
+    applyAppearanceToDocument({ theme: 'light', accentColor: DEFAULT_ACCENT_COLOR });
+
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--accent-strong')).toBe('');
   });
 });

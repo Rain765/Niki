@@ -1191,12 +1191,13 @@ export function registerProjectUploadRoutes(app: Express, ctx: RegisterProjectUp
       try {
         const incoming = Array.isArray(req.files) ? req.files : [];
         const out = [];
+        const internal = req.query?.visibility === 'internal';
         for (const f of incoming) {
           try {
             const stat = await fs.promises.stat(f.path);
             out.push({
               name: f.filename,
-              path: f.filename,
+              path: internal ? `.od-inputs/${f.filename}` : f.filename,
               size: stat.size,
               mtime: stat.mtimeMs,
               originalName: f.originalname,

@@ -44,6 +44,7 @@ import type { ApiProtocol, ExecMode } from '../types';
 import {
   SUGGESTED_MODELS_BY_PROTOCOL,
 } from '../state/apiProtocols';
+import { apiProtocolWireProtocol } from '../utils/apiProtocol';
 import { CUSTOM_MODEL_SENTINEL } from './modelOptions';
 
 interface Props {
@@ -216,7 +217,9 @@ export function MemoryModelInline({
   // …), while the "Same as chat" default can still run the selected
   // local CLI directly on daemon-supported adapters.
   const effectiveChatProtocol: MemoryExtractionProvider | null =
-    mode === 'api' ? apiProtocol : chatProtocolFromAgent(cliAgentId);
+    mode === 'api'
+      ? apiProtocolWireProtocol(apiProtocol)
+      : chatProtocolFromAgent(cliAgentId);
   const sameAsChatCliLabel =
     mode === 'daemon' ? cliAgentLabel(cliAgentId) : null;
 
@@ -248,7 +251,7 @@ export function MemoryModelInline({
       const trimmedModel = modelId.trim();
       if (mode === 'api') {
         return {
-          provider: apiProtocol,
+          provider: apiProtocolWireProtocol(apiProtocol),
           model: trimmedModel,
           baseUrl: chatBaseUrl.trim(),
           apiKey: chatApiKey,

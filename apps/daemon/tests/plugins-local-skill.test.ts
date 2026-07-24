@@ -18,7 +18,10 @@ import {
   applyPlugin,
   pickFirstLocalSkillPath,
 } from '../src/plugins/apply.js';
-import { loadPluginLocalSkill } from '../src/plugins/local-skill.js';
+import {
+  layerPluginLocalSkill,
+  loadPluginLocalSkill,
+} from '../src/plugins/local-skill.js';
 import type { InstalledPluginRecord, PluginManifest } from '@open-design/contracts';
 
 function manifestWithSkills(skills: Array<{ ref?: string; path?: string }>): PluginManifest {
@@ -161,5 +164,36 @@ describe('loadPluginLocalSkill', () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('layerPluginLocalSkill', () => {
+  const local = {
+    body: '# Scenario skill',
+    name: 'Media scenario',
+    dir: '/plugins/media',
+    relpath: 'SKILL.md',
+  };
+
+  it('keeps plugin-only runs on the legacy active-skill path', () => {
+    expect(layerPluginLocalSkill(null, local)).toEqual({
+      active: local,
+      scenario: null,
+      dirs: ['/plugins/media'],
+    });
+  });
+
+  it('keeps an explicit functional skill active and layers the plugin skill', () => {
+    const active = {
+      body: '# Loan poster skill',
+      name: 'Loan poster',
+      dir: '/skills/loan-poster',
+    };
+
+    expect(layerPluginLocalSkill(active, local)).toEqual({
+      active,
+      scenario: local,
+      dirs: ['/skills/loan-poster', '/plugins/media'],
+    });
   });
 });

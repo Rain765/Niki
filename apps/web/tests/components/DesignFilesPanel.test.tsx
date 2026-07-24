@@ -6,6 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DesignFilesPanel } from '../../src/components/DesignFilesPanel';
 import type { ProjectFile, ProjectFileKind } from '../../src/types';
 
+const { addCanvasImageNodeMock } = vi.hoisted(() => ({
+  addCanvasImageNodeMock: vi.fn(async () => true),
+}));
+
+vi.mock('../../src/providers/daemon', () => ({
+  addCanvasImageNode: addCanvasImageNodeMock,
+}));
+
 function extForKind(kind: ProjectFileKind): string {
   if (kind === 'html') return 'html';
   if (kind === 'image') return 'png';
@@ -44,6 +52,7 @@ function generateFiles(count: number): ProjectFile[] {
 
 function renderPanel(files: ProjectFile[]) {
   const onOpenFile = vi.fn();
+  const onDeleteFile = vi.fn();
   const onDeleteFiles = vi.fn();
   const result = render(
     <DesignFilesPanel
@@ -54,7 +63,7 @@ function renderPanel(files: ProjectFile[]) {
       onOpenFile={onOpenFile}
       onOpenLiveArtifact={vi.fn()}
       onRenameFile={vi.fn()}
-      onDeleteFile={vi.fn()}
+      onDeleteFile={onDeleteFile}
       onDeleteFiles={onDeleteFiles}
       onUpload={vi.fn()}
       onUploadFiles={vi.fn()}
@@ -62,7 +71,7 @@ function renderPanel(files: ProjectFile[]) {
       onNewSketch={vi.fn()}
     />,
   );
-  return { ...result, onDeleteFiles, onOpenFile };
+  return { ...result, onDeleteFile, onDeleteFiles, onOpenFile };
 }
 
 function getPageInfo(container: HTMLElement): string {
@@ -78,6 +87,116 @@ function getPageBtns(container: HTMLElement) {
 function getSelects(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLSelectElement>('select'));
 }
+
+describe('DesignFilesPanel image thumbnails', () => {
+  afterEach(cleanup);
+
+  it('renders the project image to the left of its filename', () => {
+    renderPanel([
+      file({
+        name: 'zambia-support-poster-01.png',
+        kind: 'image',
+        mime: 'image/png',
+      }),
+    ]);
+
+    const thumbnail = screen.getByTestId(
+      'design-file-thumbnail-zambia-support-poster-01.png',
+    ) as HTMLImageElement;
+    expect(thumbnail.src).toContain(
+      '/api/projects/test-project/raw/zambia-support-poster-01.png',
+    );
+  });
+
+  it('shows images at their natural ratio and opens them in a modal instead of a tab', () => {
+    const { container, onOpenFile } = renderPanel([
+      file({
+        name: 'zambia-support-poster-01.png',
+        kind: 'image',
+        mime: 'image/png',
+      }),
+    ]);
+
+    fireEvent.click(container.querySelector('.df-row-name-btn')!);
+
+    expect(container.querySelector('.df-preview-thumb.is-image img')).toBeTruthy();
+    expect(container.querySelector('.df-preview-thumb-open')).toBeNull();
+    expect(container.querySelector('.df-preview-close')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+    expect(screen.getByRole('dialog', { name: /zambia-support-poster-01\.png/i })).toBeTruthy();
+    expect(screen.getByTestId('design-file-modal-image')).toBeTruthy();
+    expect(onOpenFile).not.toHaveBeenCalled();
+  });
+
+  it('shows the full file action set beneath the selected image preview', () => {
+    const { container } = renderPanel([
+      file({
+        name: 'zambia-support-poster-01.png',
+        kind: 'image',
+        mime: 'image/png',
+      }),
+    ]);
+
+    fireEvent.click(container.querySelector('.df-row-name-btn')!);
+
+    const preview = screen.getByTestId('design-file-preview');
+    expect(Array.from(preview.children).map((child) => child.className)).toEqual([
+      'df-preview-name',
+      'df-preview-kind',
+      'df-preview-stats',
+      'df-preview-actions',
+    ]);
+    expect(within(preview).getByRole('button', { name: 'Preview' })).toBeTruthy();
+    expect(within(preview).getByRole('link', { name: 'Download' })).toBeTruthy();
+    expect(within(preview).getByRole('button', { name: 'Add to canvas' })).toBeTruthy();
+    expect(within(preview).getByRole('button', { name: 'Copy' })).toBeTruthy();
+    expect(within(preview).getByRole('button', { name: 'Rename' })).toBeTruthy();
+    expect(within(preview).getByRole('button', { name: 'Delete' })).toBeTruthy();
+  });
+
+  it('adds selected images to the canvas at stable non-overlapping positions', async () => {
+    addCanvasImageNodeMock.mockClear();
+    const { container } = renderPanel([
+      file({ name: 'poster-01.png', kind: 'image', mime: 'image/png' }),
+      file({ name: 'poster-02.png', kind: 'image', mime: 'image/png' }),
+    ]);
+
+    const firstRow = screen.getByTestId('design-file-row-poster-01.png');
+    const secondRow = screen.getByTestId('design-file-row-poster-02.png');
+    fireEvent.click(firstRow.querySelector('.df-row-check')!);
+    fireEvent.click(secondRow.querySelector('.df-row-check')!);
+    fireEvent.click(screen.getByTestId('design-files-batch-add-to-canvas'));
+
+    await waitFor(() => expect(addCanvasImageNodeMock).toHaveBeenCalledTimes(2));
+    const calls = addCanvasImageNodeMock.mock.calls as unknown as Array<
+      [string, string, string | undefined, { x: number; y: number } | undefined]
+    >;
+    expect(calls[0]?.[3]).toEqual({ x: 80, y: 80 });
+    expect(calls[1]?.[3]).toEqual({ x: 760, y: 80 });
+  });
+
+  it('does not render the file-list refresh control', () => {
+    renderPanel([file({ name: 'page.html' })]);
+    expect(screen.queryByRole('button', { name: 'Refresh' })).toBeNull();
+  });
+
+  it('keeps non-image files on the existing workspace-tab path', () => {
+    const { container, onOpenFile } = renderPanel([
+      file({
+        name: 'notes.html',
+        kind: 'html',
+        mime: 'text/html',
+      }),
+    ]);
+
+    fireEvent.doubleClick(container.querySelector('.df-cell-name')!);
+
+    expect(onOpenFile).toHaveBeenCalledWith('notes.html');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
 
 describe('DesignFilesPanel grouping', () => {
   afterEach(() => {
@@ -432,6 +551,29 @@ describe('DesignFilesPanel large-list regression', () => {
     fireEvent.click(row.querySelector('.df-row-menu')!);
     expect(container.querySelector('[data-testid="design-file-preview"]')).toBeNull();
     expect(onOpenFile).not.toHaveBeenCalled();
+  });
+
+  it('always exposes direct download and delete actions without selecting the row', () => {
+    const imageName = 'zambia-support-poster-01.png';
+    const { container, onDeleteFile } = renderPanel([
+      file({
+        name: imageName,
+        kind: 'image',
+        mime: 'image/png',
+      }),
+    ]);
+
+    expect(container.querySelector('.df-file-row.selected')).toBeNull();
+    expect(container.querySelector('[data-testid="design-files-batch-actions"]')).toBeNull();
+
+    const download = screen.getByTestId(
+      `design-file-row-download-${imageName}`,
+    ) as HTMLAnchorElement;
+    expect(download.href).toContain(`/api/projects/test-project/raw/${imageName}`);
+    expect(download.download).toBe(imageName);
+
+    fireEvent.click(screen.getByTestId(`design-file-row-delete-${imageName}`));
+    expect(onDeleteFile).toHaveBeenCalledWith(imageName);
   });
 
   it('renders sketch files with the static sketch preview instead of a broken image', async () => {

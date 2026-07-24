@@ -41,7 +41,7 @@ export const ja: Dict = {
   'common.daysShort': '{n}日',
   'common.untitled': '無題',
 
-  'app.brand': 'Open Design',
+  'app.brand': 'Niki',
   'app.brandPill': 'リサーチプレビュー',
   'app.brandSubtitle': 'by Nexu Labs',
   'app.welcomeLoading': 'ワークスペースを読み込み中…',

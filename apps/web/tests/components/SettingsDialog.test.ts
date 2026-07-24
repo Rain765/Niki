@@ -123,6 +123,34 @@ describe('SettingsDialog API protocol switching', () => {
     });
   });
 
+  it('keeps Kimi and DeepSeek keys in independent provider profiles', () => {
+    const kimi = switchApiProtocolConfig(baseConfig, 'kimi');
+    expect(kimi).toMatchObject({
+      apiProtocol: 'kimi',
+      apiKey: '',
+      baseUrl: 'https://api.moonshot.ai/v1',
+      model: 'kimi-k3',
+    });
+
+    const configuredKimi = updateCurrentApiProtocolConfig(kimi, {
+      apiKey: 'kimi-key',
+    });
+    const deepseek = switchApiProtocolConfig(configuredKimi, 'deepseek');
+    expect(deepseek).toMatchObject({
+      apiProtocol: 'deepseek',
+      apiKey: '',
+      baseUrl: 'https://api.deepseek.com',
+      model: 'deepseek-v4-pro',
+    });
+
+    const configuredDeepSeek = updateCurrentApiProtocolConfig(deepseek, {
+      apiKey: 'deepseek-key',
+    });
+    const restoredKimi = switchApiProtocolConfig(configuredDeepSeek, 'kimi');
+    expect(restoredKimi.apiKey).toBe('kimi-key');
+    expect(restoredKimi.apiProtocolConfigs?.deepseek?.apiKey).toBe('deepseek-key');
+  });
+
   it('keeps Azure API version in the Azure draft only', () => {
     const config: AppConfig = {
       ...baseConfig,

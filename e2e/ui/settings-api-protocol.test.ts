@@ -378,6 +378,7 @@ test('saving Local CLI updates the entry status pill with the selected agent', a
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
+  await page.locator('.avatar-menu .settings-icon-btn').click();
   const executionPill = page.getByTestId('inline-model-switcher-chip');
   await expect(executionPill).toContainText(LOCAL_CLI_LABEL);
   await expect(executionPill).toContainText('Codex CLI');

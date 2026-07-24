@@ -11,6 +11,13 @@ const STARTER_PLUGIN = makeStarterPlugin({
   query: 'Make a {{topic}} brief.',
   inputs: [{ name: 'topic', type: 'string', default: 'design systems' }],
 });
+const MEDIA_PLUGIN = makeStarterPlugin({
+  id: 'od-media-generation',
+  title: 'Media Generation',
+  mode: 'image',
+  taskKind: 'new-generation',
+  query: 'Generate an image.',
+});
 const STARTER_PLUGINS = [
   STARTER_PLUGIN,
   makeStarterPlugin({
@@ -123,12 +130,12 @@ test.beforeEach(async ({ page }) => {
 
 test('entry chrome settings menu opens with brand header and no pet rail', async ({ page }) => {
   await gotoEntryHome(page);
-  await expect(page.getByTestId('entry-star-badge')).toBeVisible();
-  await expect(page.getByTestId('entry-use-everywhere-button')).toBeVisible();
+  await expect(page.getByTestId('entry-star-badge')).toHaveCount(0);
+  await expect(page.getByTestId('entry-use-everywhere-button')).toHaveCount(0);
   await expect(page.getByTestId('entry-nav-logo')).toBeVisible();
   await expect(page.getByTestId('recent-projects-strip')).toBeVisible();
   await expect(page.locator('.entry-nav-rail')).toBeVisible();
-  await expect(page.getByTestId('entry-nav-new-project')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-new-project')).toHaveCount(0);
   await expect(page.locator('.entry-brand')).toHaveCount(0);
 
   // The pet picker rail was removed; pet adoption now lives in
@@ -147,13 +154,13 @@ test('entry chrome settings menu opens with brand header and no pet rail', async
 test('entry top navigation matches the current home tab structure', async ({ page }) => {
   await gotoEntryHome(page);
 
-  await expect(page.getByTestId('entry-nav-new-project')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-new-project')).toHaveCount(0);
   await expect(page.getByTestId('entry-nav-home')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('entry-nav-projects')).toBeVisible();
-  await expect(page.getByTestId('entry-nav-tasks')).toBeVisible();
-  await expect(page.getByTestId('entry-nav-plugins')).toBeVisible();
-  await expect(page.getByTestId('entry-nav-design-systems')).toBeVisible();
-  await expect(page.getByTestId('entry-nav-integrations')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-tasks')).toHaveCount(0);
+  await expect(page.getByTestId('entry-nav-plugins')).toHaveCount(0);
+  await expect(page.getByTestId('entry-nav-design-systems')).toHaveCount(0);
+  await expect(page.getByTestId('entry-nav-integrations')).toHaveCount(0);
   await expect(page.getByTestId('home-hero-rail')).toBeVisible();
   await expect(page.getByTestId('home-hero-rail-prototype')).toBeVisible();
   await expect(page.getByTestId('home-hero-rail-live-artifact')).toHaveCount(0);
@@ -171,7 +178,9 @@ test('home view exposes the redesigned hero, recent projects, starters, and moda
   await expect(page.getByTestId('plugins-home-browse-registry')).toBeVisible();
   await expect(page.getByTestId('new-project-panel')).toHaveCount(0);
 
-  await page.getByTestId('entry-nav-new-project').click();
+  await page.getByTestId('entry-nav-projects').click();
+  await expect(page.getByTestId('projects-new-project')).toBeVisible();
+  await page.getByTestId('projects-new-project').click();
   await expect(page.getByTestId('new-project-modal')).toBeVisible();
   await expect(page.getByTestId('new-project-panel')).toBeVisible();
 
@@ -214,11 +223,10 @@ test('design systems page is reachable from entry nav and supports search, previ
     await route.continue();
   });
 
-  await gotoEntryHome(page);
-  await page.getByTestId('entry-nav-design-systems').click();
+  await page.goto('/design-systems');
 
   await expect(page).toHaveURL(/\/design-systems$/);
-  await expect(page.getByTestId('entry-nav-design-systems')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('entry-nav-design-systems')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Design systems' })).toBeVisible();
   await expect(page.getByTestId('design-systems-tab')).toBeVisible();
   await expect(page.getByTestId('design-system-card-agentic')).toBeVisible();
@@ -256,24 +264,24 @@ test('design systems page is reachable from entry nav and supports search, previ
 test('entry chrome avoids horizontal overflow on compact desktop width', async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 900 });
   await gotoEntryHome(page);
-  await expect(page.locator('.entry-main__topbar')).toBeVisible();
+  await expect(page.locator('.entry-nav-rail')).toBeVisible();
 
-  const { pageOverflow, topbarOverflow } = await page.evaluate(() => {
-    const topbar = document.querySelector('.entry-main__topbar');
+  const { pageOverflow, navOverflow } = await page.evaluate(() => {
+    const nav = document.querySelector('.entry-nav-rail');
     return {
       pageOverflow: Math.max(
         0,
         document.documentElement.scrollWidth - document.documentElement.clientWidth,
       ),
-      topbarOverflow:
-        topbar instanceof HTMLElement
-          ? Math.max(0, topbar.scrollWidth - topbar.clientWidth)
+      navOverflow:
+        nav instanceof HTMLElement
+          ? Math.max(0, nav.scrollWidth - nav.clientWidth)
           : null,
     };
   });
 
-  expect(topbarOverflow).not.toBeNull();
-  expect(topbarOverflow!).toBeLessThanOrEqual(2);
+  expect(navOverflow).not.toBeNull();
+  expect(navOverflow!).toBeLessThanOrEqual(2);
   expect(pageOverflow).toBeLessThanOrEqual(2);
 });
 
@@ -366,6 +374,7 @@ test('entry execution pill opens the Local CLI and BYOK switcher from Home', asy
 
   await gotoEntryHome(page);
 
+  await page.locator('.avatar-menu .settings-icon-btn').click();
   const pill = page.getByTestId('inline-model-switcher-chip');
   await expect(pill).toContainText(LOCAL_CLI_LABEL);
   await expect(pill).toContainText('Codex CLI');
@@ -389,43 +398,39 @@ test('entry execution pill opens the Local CLI and BYOK switcher from Home', asy
   await expect(page.getByRole('tab', { name: LOCAL_CLI_LABEL })).toBeVisible();
 });
 
-test('entry avatar menu exposes homepage quick actions and routes Use everywhere', async ({ page }) => {
+test('entry avatar menu exposes only local settings shortcuts', async ({ page }) => {
   await gotoEntryHome(page);
 
   await page.locator('.avatar-menu .settings-icon-btn').click();
   const menu = page.locator('.avatar-popover[role="menu"]');
   await expect(menu).toBeVisible();
-  await expect(menu.getByRole('link', { name: /Follow @nexudotio on X/i })).toHaveAttribute(
-    'href',
-    'https://x.com/nexudotio',
-  );
-  await expect(menu.getByRole('link', { name: /Join Discord/i })).toHaveAttribute(
-    'href',
-    'https://discord.gg/BYShPgWpq',
-  );
+  await expect(menu.getByRole('link', { name: /Follow @nexudotio on X/i })).toHaveCount(0);
+  await expect(menu.getByRole('link', { name: /Join Discord/i })).toHaveCount(0);
+  await expect(menu.getByTestId('entry-avatar-use-everywhere')).toHaveCount(0);
 
   await menu.getByTestId('entry-avatar-language').click();
   await expect(menu.getByRole('group', { name: /Language/i })).toBeVisible();
 
   await menu.getByTestId('entry-avatar-appearance').click();
-  await expect(menu.getByRole('group', { name: /Appearance/i })).toBeVisible();
+  const appearanceGroup = menu.getByRole('group', { name: /Appearance/i });
+  await expect(appearanceGroup).toBeVisible();
 
-  await menu.getByTestId('entry-avatar-use-everywhere').click();
-  await expect(page.getByRole('heading', { name: 'Integrations' })).toBeVisible();
-  await expect(page.getByTestId('integrations-tab-use-everywhere')).toHaveAttribute(
-    'aria-selected',
-    'true',
-  );
+  await appearanceGroup.getByRole('menuitemradio', { name: 'Light' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  await expect(page.locator('.entry-shell--no-header')).toHaveCSS('color-scheme', 'light');
 
-  await page.getByTestId('entry-nav-home').click();
-  await expect(page.getByTestId('home-hero')).toBeVisible();
   await page.locator('.avatar-menu .settings-icon-btn').click();
-  await expect(menu).toBeVisible();
+  const reopenedMenu = page.locator('.avatar-popover[role="menu"]');
+  await reopenedMenu.getByTestId('entry-avatar-appearance').click();
+  await reopenedMenu.getByRole('menuitemradio', { name: 'Dark' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await expect(page.locator('.entry-shell--no-header')).toHaveCSS('color-scheme', 'dark');
+
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
 });
 
-test('home topbar overlays are mutually exclusive and close on outside click or Escape', async ({ page }) => {
+test('home settings menu owns the execution switcher and closes on outside click or Escape', async ({ page }) => {
   await gotoEntryHome(page);
 
   const pill = page.getByTestId('inline-model-switcher-chip');
@@ -433,19 +438,16 @@ test('home topbar overlays are mutually exclusive and close on outside click or 
   const avatarButton = page.locator('.avatar-menu .settings-icon-btn');
   const avatarMenu = page.locator('.avatar-popover[role="menu"]');
 
-  await pill.click();
-  await expect(executionPopover).toBeVisible();
-
   await avatarButton.click();
   await expect(avatarMenu).toBeVisible();
-  await expect(executionPopover).toHaveCount(0);
 
   await pill.click();
   await expect(executionPopover).toBeVisible();
-  await expect(avatarMenu).toHaveCount(0);
+  await expect(avatarMenu).toBeVisible();
 
   await page.getByTestId('home-hero').click();
   await expect(executionPopover).toHaveCount(0);
+  await expect(avatarMenu).toHaveCount(0);
 
   await avatarButton.click();
   await expect(avatarMenu).toBeVisible();
@@ -458,19 +460,19 @@ test('entry execution pill remains available across secondary entry pages', asyn
   await gotoEntryHome(page);
 
   const destinations = [
-    { nav: 'entry-nav-projects', heading: 'Projects' },
-    { nav: 'entry-nav-tasks', heading: 'Automations' },
-    { nav: 'entry-nav-plugins', heading: 'Plugins' },
-    { nav: 'entry-nav-design-systems', heading: 'Design systems' },
-    { nav: 'entry-nav-integrations', heading: 'Integrations' },
+    { path: '/projects', heading: 'Projects' },
+    { path: '/automations', heading: 'Automations' },
+    { path: '/plugins', heading: 'Plugins' },
+    { path: '/design-systems', heading: 'Design systems' },
   ];
 
   for (const destination of destinations) {
-    await page.getByTestId(destination.nav).click();
+    await page.goto(destination.path);
     await expect(
       page.locator('h1').filter({ hasText: destination.heading }).first(),
     ).toBeVisible();
 
+    await page.locator('.avatar-menu .settings-icon-btn').click();
     const pill = page.getByTestId('inline-model-switcher-chip');
     await expect(pill).toBeVisible();
     await pill.click();
@@ -492,7 +494,12 @@ test('clicking a recent project card opens that project from Home', async ({ pag
   await expect(newerCard).toContainText('Home card newer project');
   await newerCard.click();
   await expect(page).toHaveURL(new RegExp(`/projects/${newer.project.id}`));
+  await expect(page.locator('.workspace-tabs-chrome')).toHaveCount(0);
   await expect(page.getByTestId('chat-composer')).toBeVisible();
+
+  await page.getByRole('button', { name: /Back to projects/i }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByTestId('entry-nav-projects')).toHaveAttribute('aria-current', 'page');
 
   void older;
 });
@@ -554,7 +561,7 @@ test('home starters can browse registry and use a starter query from Home', asyn
   await expect(page.getByTestId('plugins-home-browse-registry')).toBeVisible();
   await page.getByTestId('plugins-home-browse-registry').click();
   await expect(page).toHaveURL(/\/plugins$/);
-  await expect(page.getByTestId('entry-nav-plugins')).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByTestId('entry-nav-plugins')).toHaveCount(0);
 
   await page.getByTestId('entry-nav-home').click();
   await expect(page.getByTestId('home-hero')).toBeVisible();
@@ -899,13 +906,31 @@ test('home starters Use with query hydrates the prompt and keeps plugin context 
   await expect(input).toHaveValue('Make a design systems brief.');
 });
 
+test('home hero exposes auto-poster generation and a 1 through 10 count without a prompt', async ({ page }) => {
+  await page.route('**/api/plugins', async (route) => {
+    await route.fulfill({ json: { plugins: [MEDIA_PLUGIN] } });
+  });
+
+  await gotoEntryHome(page);
+
+  const input = page.getByTestId('home-hero-input');
+  const button = page.getByTestId('home-hero-submit');
+  const count = page.getByTestId('home-hero-auto-poster-count');
+  await expect(input).toHaveValue('');
+  await expect(button).toBeEnabled();
+  await expect(count.locator('option')).toHaveCount(10);
+  await count.selectOption('10');
+  await expect(count).toHaveValue('10');
+  await expect(input).toHaveValue('');
+});
+
 test('home hero input keeps Shift+Enter as a newline and submits on Enter', async ({ page }) => {
   await gotoEntryHome(page);
 
   const input = page.getByTestId('home-hero-input');
   const submit = page.getByTestId('home-hero-submit');
 
-  await expect(submit).toBeDisabled();
+  await expect(submit).toBeEnabled();
   await input.click();
   await input.fill('Line one');
   await input.press('Shift+Enter');

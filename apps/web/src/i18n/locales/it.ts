@@ -40,7 +40,7 @@ export const it: Dict = {
   'common.daysShort': '{n} g',
   'common.untitled': 'Senza titolo',
 
-  'app.brand': 'Open Design',
+  'app.brand': 'Niki',
   'app.brandPill': 'Anteprima di ricerca',
   'app.brandSubtitle': 'di Nexu Labs',
   'app.welcomeLoading': 'Caricamento dello spazio di lavoro…',

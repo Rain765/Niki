@@ -1608,9 +1608,14 @@ export interface UploadProjectFilesResult {
   error?: string;
 }
 
+export interface UploadProjectFilesOptions {
+  visibility?: 'visible' | 'internal';
+}
+
 export async function uploadProjectFiles(
   projectId: string,
   files: File[],
+  options: UploadProjectFilesOptions = {},
 ): Promise<UploadProjectFilesResult> {
   if (files.length === 0) return { uploaded: [], failed: [] };
 
@@ -1625,8 +1630,11 @@ export async function uploadProjectFiles(
     for (const f of batch) form.append('files', f);
 
     try {
+      const visibilityQuery = options.visibility === 'internal'
+        ? '?visibility=internal'
+        : '';
       const resp = await fetch(
-        `/api/projects/${encodeURIComponent(projectId)}/upload`,
+        `/api/projects/${encodeURIComponent(projectId)}/upload${visibilityQuery}`,
         { method: 'POST', body: form },
       );
 

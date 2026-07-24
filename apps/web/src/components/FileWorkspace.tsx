@@ -835,18 +835,18 @@ export function FileWorkspace({
         >
           <button
             type="button"
-            className={`ws-tab canvas-tab ${activeTab === CANVAS_TAB ? 'active' : ''}`}
+            className={`ws-tab design-files-tab ${activeTab === DESIGN_FILES_TAB ? 'active' : ''}`}
             role="tab"
-            aria-selected={activeTab === CANVAS_TAB}
+            aria-selected={activeTab === DESIGN_FILES_TAB}
             tabIndex={0}
-            data-testid="canvas-tab"
-            onClick={() => setActiveTab(CANVAS_TAB)}
-            title={t('workspace.canvas')}
+            data-testid="design-files-tab"
+            onClick={() => setActiveTab(DESIGN_FILES_TAB)}
+            title={t('workspace.designFiles')}
           >
             <span className="tab-icon" aria-hidden>
-              <Icon name="draw" size={13} />
+              <Icon name="grid" size={13} />
             </span>
-            <span className="ws-tab-label">{t('workspace.canvas')}</span>
+            <span className="ws-tab-label">{t('workspace.designFiles')}</span>
           </button>
           {designSystemProject ? (
             <button
@@ -867,18 +867,18 @@ export function FileWorkspace({
           ) : null}
           <button
             type="button"
-            className={`ws-tab design-files-tab ${activeTab === DESIGN_FILES_TAB ? 'active' : ''}`}
+            className={`ws-tab canvas-tab ${activeTab === CANVAS_TAB ? 'active' : ''}`}
             role="tab"
-            aria-selected={activeTab === DESIGN_FILES_TAB}
+            aria-selected={activeTab === CANVAS_TAB}
             tabIndex={0}
-            data-testid="design-files-tab"
-            onClick={() => setActiveTab(DESIGN_FILES_TAB)}
-            title={t('workspace.designFiles')}
+            data-testid="canvas-tab"
+            onClick={() => setActiveTab(CANVAS_TAB)}
+            title={t('workspace.canvas')}
           >
             <span className="tab-icon" aria-hidden>
-              <Icon name="grid" size={13} />
+              <Icon name="draw" size={13} />
             </span>
-            <span className="ws-tab-label">{t('workspace.designFiles')}</span>
+            <span className="ws-tab-label">{t('workspace.canvas')}</span>
           </button>
           {tabNames.map((name) => {
             const sketchEntry = sketches[name];

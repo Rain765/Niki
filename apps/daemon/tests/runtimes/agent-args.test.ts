@@ -492,7 +492,7 @@ test('kilo fetchModels falls back to fallbackModels when detection fails', async
 test('codex buildArgs clamps reasoning effort per model', () => {
   const cases: Array<[string | undefined, string, string]> = [
     // [model, reasoning, expected wire-level effort]
-    // gpt-5.5 family (and unknown / 'default' which we treat as 5.5):
+    // Late GPT-5 families (and unknown / 'default' which we treat as 5.5):
     // minimal -> low, others pass through.
     [undefined, 'minimal', 'low'],
     ['default', 'minimal', 'low'],
@@ -504,6 +504,7 @@ test('codex buildArgs clamps reasoning effort per model', () => {
     ['gpt-5.5', 'medium', 'medium'],
     ['gpt-5.5', 'high', 'high'],
     ['vendor/gpt-5.5-foo', 'minimal', 'low'], // path-style id
+    ['gpt-5.6-sol', 'minimal', 'low'],
     // gpt-5.1: xhigh isn't supported, others pass through.
     ['gpt-5.1', 'xhigh', 'high'],
     ['gpt-5.1', 'high', 'high'],

@@ -18,6 +18,7 @@ import { authorInitials, derivePluginSourceLinks } from '../runtime/plugin-sourc
 
 export interface PluginLoopSubmit {
   prompt: string;
+  projectName?: string;
   pluginId: string | null;
   skillId?: string | null;
   appliedPluginSnapshotId: string | null;
@@ -40,6 +41,9 @@ export interface PluginLoopSubmit {
   // Files staged on Home before the project exists. App uploads them
   // into the created project's Design Files before the first auto-send.
   attachments?: File[];
+  // Internal inputs remain available to the agent but stay out of the
+  // user-facing attachment and Design Files surfaces.
+  attachmentVisibility?: 'visible' | 'internal';
 }
 
 interface Props {

@@ -594,6 +594,35 @@ describe('uploadProjectFiles', () => {
     });
   });
 
+  it('uploads internal agent inputs outside the visible project file list', async () => {
+    const file = new File(['z-reference'], 'z-reference.png', { type: 'image/png' });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      files: [
+        {
+          name: 'ref-z-reference.png',
+          path: '.od-inputs/ref-z-reference.png',
+          size: 11,
+          originalName: 'z-reference.png',
+        },
+      ],
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await uploadProjectFiles('project-1', [file], {
+      visibility: 'internal',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/projects/project-1/upload?visibility=internal',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(result.uploaded[0]).toMatchObject({
+      path: '.od-inputs/ref-z-reference.png',
+      name: 'z-reference.png',
+      kind: 'image',
+    });
+  });
+
   it('marks the unmatched tail as failed when the server drops files mid-flight', async () => {
     const a = new File(['a'], 'a.txt', { type: 'text/plain' });
     const b = new File(['b'], 'b.txt', { type: 'text/plain' });

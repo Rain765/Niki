@@ -55,6 +55,23 @@ describe('DesignsTab select mode', () => {
     expect(screen.queryByRole('button', { name: 'Select' })).toBeNull();
   });
 
+  it('keeps fallback thumbnails free of project initial badges', () => {
+    const { container } = render(
+      <DesignsTab
+        projects={[project]}
+        skills={[]}
+        designSystems={[]}
+        onOpen={vi.fn()}
+        onOpenLiveArtifact={vi.fn()}
+        onDelete={vi.fn()}
+        onRename={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.project-thumb-fallback')).toBeTruthy();
+    expect(container.querySelector('.project-thumb-glyph')).toBeNull();
+  });
+
   it('exits select mode when switching to kanban view', () => {
     render(
       <DesignsTab

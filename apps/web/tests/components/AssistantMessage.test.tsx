@@ -47,6 +47,31 @@ function producedFile(name: string): ProjectFile {
 }
 
 describe('AssistantMessage feedback gate (issue #1288)', () => {
+  it('renders image deliverables as thumbnails beside their file copy', () => {
+    render(
+      <AssistantMessage
+        message={baseMessage({
+          producedFiles: [
+            {
+              ...producedFile('zambia-support-poster-01.png'),
+              kind: 'image',
+              mime: 'image/png',
+            },
+          ],
+        })}
+        streaming={false}
+        projectId="proj-1"
+      />,
+    );
+
+    const thumbnail = screen.getByTestId(
+      'produced-file-thumbnail-zambia-support-poster-01.png',
+    ) as HTMLImageElement;
+    expect(thumbnail.src).toContain(
+      '/api/projects/proj-1/raw/zambia-support-poster-01.png',
+    );
+  });
+
   it('shows the feedback widget after a successful turn that produced files', () => {
     render(
       <AssistantMessage

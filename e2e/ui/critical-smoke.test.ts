@@ -67,7 +67,7 @@ test('home loads with the primary entry controls', async ({ page }) => {
   await gotoEntryHome(page);
 
   await expect(page.getByTestId('entry-nav-home')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('entry-nav-new-project')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-new-project')).toHaveCount(0);
   await expect(page.getByTestId('home-hero-input')).toBeVisible();
 });
 
@@ -103,7 +103,8 @@ async function gotoEntryHome(page: Page) {
 }
 
 async function openNewProjectModal(page: Page) {
-  await page.getByTestId('entry-nav-new-project').click();
+  await page.getByTestId('entry-nav-projects').click();
+  await page.getByTestId('projects-new-project').click();
   await expect(page.getByTestId('new-project-modal')).toBeVisible();
   await expect(page.getByTestId('new-project-panel')).toBeVisible();
 }

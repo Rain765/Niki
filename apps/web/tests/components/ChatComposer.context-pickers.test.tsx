@@ -286,7 +286,8 @@ describe('ChatComposer context pickers', () => {
 
   it('lets the tools panel switch between Official and My plugins', async () => {
     renderComposer();
-    fireEvent.click(screen.getByLabelText('Open CLI and model settings'));
+    fireEvent.click(screen.getByTestId('chat-send-menu'));
+    fireEvent.click(screen.getByTestId('chat-resource-picker'));
 
     await waitFor(() => expect(screen.getByText('Community Deck')).toBeTruthy());
     expect(screen.queryByText('My Export')).toBeNull();
