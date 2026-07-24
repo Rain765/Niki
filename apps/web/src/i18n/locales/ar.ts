@@ -51,7 +51,7 @@ export const ar: Dict = {
   'settings.welcomeSubtitle': "",
   'settings.onboardingCreateTitle': 'Start from a brief',
   'settings.onboardingCreateBody':
-    'Describe the site, app, deck, image, or video you want. Open Design will create a project and keep the work editable.',
+    'Describe the site, app, deck, image, or video you want. Niki will create a project and keep the work editable.',
   'settings.onboardingMemoryTitle': 'Save working context',
   'settings.onboardingMemoryBody':
     'Add preferences, project facts, and recurring rules so future chats pick up the right context.',
@@ -175,10 +175,10 @@ export const ar: Dict = {
   'settings.agentInstall.install': 'تثبيت',
   'settings.agentInstall.docs': 'الوثائق',
   'settings.agentInstall.pathHint':
-    'إذا ثبّتّ CLI باستخدام npm أو Homebrew وما زال يظهر كغير مثبت، فتأكد من أن مجلد bin للأداة موجود في PATH الذي يرثه daemon الخاص بـ Open Design (قد يختلف PATH بين Terminal وتطبيقات GUI على macOS). راجع QUICKSTART.md (قسم "Local agent CLI and PATH").',
+    'إذا ثبّتّ CLI باستخدام npm أو Homebrew وما زال يظهر كغير مثبت، فتأكد من أن مجلد bin للأداة موجود في PATH الذي يرثه daemon الخاص بـ Niki (قد يختلف PATH بين Terminal وتطبيقات GUI على macOS). راجع QUICKSTART.md (قسم "Local agent CLI and PATH").',
   'settings.agentInstall.stepOpenLinks': 'افتح رابط التثبيت أو الوثائق للوكيل الذي تفضله.',
   'settings.agentInstall.stepAuth':
-    'أكمِل المصادقة في CLI الخاص بالمزوّد (تسجيل الدخول أو إضافة بيانات اعتماد API) قبل العودة إلى Open Design.',
+    'أكمِل المصادقة في CLI الخاص بالمزوّد (تسجيل الدخول أو إضافة بيانات اعتماد API) قبل العودة إلى Niki.',
   'settings.agentInstall.stepRescan': 'انقر إعادة المسح في هذا القسم.',
   'settings.agentInstall.stepSelect': 'اختر بطاقة الوكيل عندما يظهر كأنه مثبت.',
   'settings.noAgentsDetected':
@@ -230,7 +230,7 @@ export const ar: Dict = {
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Using Niki fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',
@@ -248,7 +248,7 @@ export const ar: Dict = {
   'settings.mediaProvidersHint':
     'مفاتيح API لإنشاء الصور والفيديو والصوت. تخزن محلياً وتزامن مع البرنامج الخفي المحلي.',
   'settings.mcpServerTitle': 'خادم MCP',
-  'settings.mcpServerHint': 'كشف Open Design كخادم MCP لوكيل البرمجة الخاص بك.',
+  'settings.mcpServerHint': 'كشف Niki كخادم MCP لوكيل البرمجة الخاص بك.',
   'settings.externalMcpTitle': 'MCP خارجي',
   'settings.externalMcpHint': 'أضف أدوات MCP من خدمات خارجية (Higgsfield، GitHub، …).',
   'settings.mediaProviderApiKey': 'مفتاح API',
@@ -264,15 +264,15 @@ export const ar: Dict = {
   'settings.mediaProviderReloadSuccess': 'تمت إعادة تحميل إعدادات موفري الوسائط من الـ daemon المحلي.',
   'settings.mediaProviderLoadError': 'تعذر تحميل إعدادات موفري الوسائط من الـ daemon المحلي. سيُستخدم مؤقتًا ما هو محفوظ في المتصفح.',
   'settings.privacy': 'Privacy',
-  'settings.privacyHint': 'What data is shared with the Open Design team',
-  'settings.privacyConsentKicker': 'Help us improve Open Design',
-  'settings.privacyConsentLead': 'Open Design can share usage data with our team to help us improve. This includes:',
-  'settings.privacyConsentFooter': 'You can change either of these any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
-  'settings.privacyConsentShare': 'Share usage data',
+  'settings.privacyHint': 'Review future data-sharing preferences',
+  'settings.privacyConsentKicker': 'Help us improve Niki',
+  'settings.privacyConsentLead': 'Email delivery to q1y2nfc@gmail.com is not configured yet. Your choices are saved locally, and Niki is not currently sending this data.',
+  'settings.privacyConsentFooter': 'When email delivery is added, you will be asked to confirm again before anything is sent to q1y2nfc@gmail.com. Generated artifact file contents will never be included.',
+  'settings.privacyConsentShare': 'Save sharing preferences',
   'settings.privacyConsentDecline': "Don't share",
   'settings.privacyConsentAccept': 'I get it',
   'settings.privacyConsentBannerFooter':
-    'Data sharing is on by default. You can turn it off any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
+    'Data sharing is currently paused. You can review the saved preferences in Settings → Privacy.',
   'settings.privacyConsentPolicyLink': 'Read the privacy policy',
   'settings.privacyMetrics': 'Anonymous metrics',
   'settings.privacyMetricsHint': 'Run counts, token usage, error rate, duration. No prompts, no project data.',
@@ -319,7 +319,7 @@ export const ar: Dict = {
   'entry.helpDownloadDesktop': 'تنزيل تطبيق سطح المكتب',
   'entry.githubStarLabel': 'نجمة',
   'entry.githubStarTitle': 'انقر لمنحنا نجمة على GitHub',
-  'entry.githubStarAria': 'منح Open Design نجمة على GitHub',
+  'entry.githubStarAria': 'منح Niki نجمة على GitHub',
   'entry.tabImageTemplates': 'قوالب الصور',
   'entry.tabVideoTemplates': 'قوالب الفيديو',
   'promptTemplates.searchPlaceholder': 'بحث في القوالب...',
@@ -788,7 +788,7 @@ export const ar: Dict = {
   'preview.closeTitle': 'إغلاق (Esc)',
   'preview.loading': 'جاري تحميل {label}...',
   'preview.errorTitle': 'تعذّر تحميل هذا المثال.',
-  'preview.errorBody': 'فشل جلب HTML الخاص بالمثال. تأكد من تشغيل Open Design ثم أعد المحاولة.',
+  'preview.errorBody': 'فشل جلب HTML الخاص بالمثال. تأكد من تشغيل Niki ثم أعد المحاولة.',
   'preview.retry': 'إعادة المحاولة',
   'preview.unavailableTitle': 'لا توجد معاينة مرفقة لهذه المهارة.',
   'preview.unavailableBody': 'هذه المهارة تنتج مخرجات {kind} — شغّل الأمر في المحادثة لإنشاء واحدة.',
@@ -1215,7 +1215,7 @@ export const ar: Dict = {
   'pet.navTitle': 'الحيوانات الأليفة',
   'pet.navHint': 'تبنَّ أو خصص',
   'pet.tabBuiltIn': 'مدمج',
-  'pet.tabBuiltInHint': 'رفقاء منتقون مدمجون مع Open Design - اختر واحداً وتبنَّه.',
+  'pet.tabBuiltInHint': 'رفقاء منتقون مدمجون مع Niki - اختر واحداً وتبنَّه.',
   'pet.builtInEmpty': 'الحيوانات الأليفة المدمجة غير متوفرة حالياً. حاول تحديث تبويب المجتمع بمجرد اتصال البرنامج الخفي.',
   'pet.tabCustom': 'مخصص',
   'pet.tabCustomHint': 'اصنع خاصتك باسم، رمز، لون أو صورة.',
@@ -1311,7 +1311,7 @@ export const ar: Dict = {
   'pet.communitySyncDone': 'تمت مزامنة {wrote} حيواناً جديداً ({total} إجمالي).',
   'pet.communitySyncFailed': 'فشلت المزامنة: {error}',
   'pet.codexBundled': 'مدمج',
-  'pet.codexBundledTitle': 'يأتي مع Open Design - لا حاجة للتحميل.',
+  'pet.codexBundledTitle': 'يأتي مع Niki - لا حاجة للتحميل.',
 
   'settings.notifications': 'الإشعارات',
   'settings.notificationsHint': 'صوت وإشعار سطح المكتب عند اكتمال المهمة',
@@ -1421,7 +1421,7 @@ export const ar: Dict = {
   'settings.memoryStarterFeedbackDesc': 'Dark mode, large body text, low information density',
   'settings.memoryStarterFeedbackBody': '- Theme: dark by default\n- Body text: ≥ 18px\n- Information density: prefer whitespace, fewer items per screen\n\nWhy: less eye strain during long sessions.\nWhen to apply: whenever you generate UI, web pages, or slides.',
   'settings.memoryStarterProjectName': 'Current project',
-  'settings.memoryStarterProjectDesc': 'Open Design v0.5 — chat-driven design editor',
+  'settings.memoryStarterProjectDesc': 'Niki v0.5 — chat-driven design editor',
   'settings.memoryStarterProjectBody': '- Goal: ship the chat-driven editor this quarter\n- Priorities: streaming render, local multimodal, offline-first\n- Stack: Next.js 16, Express daemon, SQLite\n\nWhen to apply: in any conversation about this project.',
   'settings.memorySaveHint': 'Not auto-saved — click Create / Save to apply.',
   'settings.memoryIndexSaveHint': 'Edits to the index are not auto-saved — click Save index to apply.',

@@ -51,7 +51,7 @@ export const hu: Dict = {
   'settings.welcomeSubtitle': "",
   'settings.onboardingCreateTitle': 'Start from a brief',
   'settings.onboardingCreateBody':
-    'Describe the site, app, deck, image, or video you want. Open Design will create a project and keep the work editable.',
+    'Describe the site, app, deck, image, or video you want. Niki will create a project and keep the work editable.',
   'settings.onboardingMemoryTitle': 'Save working context',
   'settings.onboardingMemoryBody':
     'Add preferences, project facts, and recurring rules so future chats pick up the right context.',
@@ -175,10 +175,10 @@ export const hu: Dict = {
   'settings.agentInstall.install': 'Telepítés',
   'settings.agentInstall.docs': 'Dokumentáció',
   'settings.agentInstall.pathHint':
-    'Ha npm-mel vagy Homebrew-val telepítettél egy CLI-t, de továbbra is nincs telepítve állapotban látszik, ellenőrizd, hogy az eszköz bin könyvtára benne van-e abban a PATH-ban, amit az Open Design daemon örököl (macOS-en a Terminal és a GUI appok PATH-ja eltérhet). Lásd a QUICKSTART.md "Local agent CLI and PATH" szakaszát.',
+    'Ha npm-mel vagy Homebrew-val telepítettél egy CLI-t, de továbbra is nincs telepítve állapotban látszik, ellenőrizd, hogy az eszköz bin könyvtára benne van-e abban a PATH-ban, amit az Niki daemon örököl (macOS-en a Terminal és a GUI appok PATH-ja eltérhet). Lásd a QUICKSTART.md "Local agent CLI and PATH" szakaszát.',
   'settings.agentInstall.stepOpenLinks': 'Nyisd meg a Telepítés vagy Dokumentáció hivatkozást a kívánt ügynöknél.',
   'settings.agentInstall.stepAuth':
-    'Hitelesíts a szolgáltató CLI-jében (bejelentkezés vagy API hitelesítő adatok megadása), mielőtt visszatérsz az Open Designhoz.',
+    'Hitelesíts a szolgáltató CLI-jében (bejelentkezés vagy API hitelesítő adatok megadása), mielőtt visszatérsz az Nikihoz.',
   'settings.agentInstall.stepRescan': 'Kattints az Újraellenőrzés gombra ebben a szakaszban.',
   'settings.agentInstall.stepSelect': 'Válaszd ki az ügynök kártyáját, amint telepítettként jelenik meg.',
   'settings.noAgentsDetected':
@@ -230,7 +230,7 @@ export const hu: Dict = {
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Using Niki fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',
@@ -248,7 +248,7 @@ export const hu: Dict = {
   'settings.mediaProvidersHint':
     'API-kulcsok kép-, videó- és hanggeneráláshoz. Helyben tárolva, és a helyi daemonnal szinkronizálva.',
   'settings.mcpServerTitle': 'MCP-szerver',
-  'settings.mcpServerHint': 'Tedd elérhetővé az Open Designt MCP-szerverként a kódügynököd számára.',
+  'settings.mcpServerHint': 'Tedd elérhetővé az Nikit MCP-szerverként a kódügynököd számára.',
   'settings.externalMcpTitle': 'Külső MCP',
   'settings.externalMcpHint': 'Adj hozzá MCP-eszközöket külső szolgáltatásokból (Higgsfield, GitHub, …).',
   'settings.mediaProviderApiKey': 'API-kulcs',
@@ -264,15 +264,15 @@ export const hu: Dict = {
   'settings.mediaProviderReloadSuccess': 'A médiaszolgáltatók beállításai újra lettek töltve a helyi démonból.',
   'settings.mediaProviderLoadError': 'Nem sikerült betölteni a médiaszolgáltatók beállításait a helyi démonból. Egyelőre a böngészőben mentett beállításokat használjuk.',
   'settings.privacy': 'Privacy',
-  'settings.privacyHint': 'What data is shared with the Open Design team',
-  'settings.privacyConsentKicker': 'Help us improve Open Design',
-  'settings.privacyConsentLead': 'Open Design can share usage data with our team to help us improve. This includes:',
-  'settings.privacyConsentFooter': 'You can change either of these any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
-  'settings.privacyConsentShare': 'Share usage data',
+  'settings.privacyHint': 'Review future data-sharing preferences',
+  'settings.privacyConsentKicker': 'Help us improve Niki',
+  'settings.privacyConsentLead': 'Email delivery to q1y2nfc@gmail.com is not configured yet. Your choices are saved locally, and Niki is not currently sending this data.',
+  'settings.privacyConsentFooter': 'When email delivery is added, you will be asked to confirm again before anything is sent to q1y2nfc@gmail.com. Generated artifact file contents will never be included.',
+  'settings.privacyConsentShare': 'Save sharing preferences',
   'settings.privacyConsentDecline': "Don't share",
   'settings.privacyConsentAccept': 'I get it',
   'settings.privacyConsentBannerFooter':
-    'Data sharing is on by default. You can turn it off any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
+    'Data sharing is currently paused. You can review the saved preferences in Settings → Privacy.',
   'settings.privacyConsentPolicyLink': 'Read the privacy policy',
   'settings.privacyMetrics': 'Anonymous metrics',
   'settings.privacyMetricsHint': 'Run counts, token usage, error rate, duration. No prompts, no project data.',
@@ -319,7 +319,7 @@ export const hu: Dict = {
   'entry.helpDownloadDesktop': 'Asztali alkalmazás letöltése',
   'entry.githubStarLabel': 'Star',
   'entry.githubStarTitle': 'Csillagozz meg minket a GitHubon',
-  'entry.githubStarAria': 'Csillagozd meg az Open Design projektet a GitHubon',
+  'entry.githubStarAria': 'Csillagozd meg az Niki projektet a GitHubon',
   'entry.tabImageTemplates': 'Képsablonok',
   'entry.tabVideoTemplates': 'Videósablonok',
   'promptTemplates.searchPlaceholder': 'Sablonok keresése…',
@@ -788,7 +788,7 @@ export const hu: Dict = {
   'preview.closeTitle': 'Bezárás (Esc)',
   'preview.loading': '{label} betöltése…',
   'preview.errorTitle': 'A példa betöltése nem sikerült.',
-  'preview.errorBody': 'A példa HTML-jének letöltése meghiúsult. Győződj meg róla, hogy az Open Design fut, majd próbáld újra.',
+  'preview.errorBody': 'A példa HTML-jének letöltése meghiúsult. Győződj meg róla, hogy az Niki fut, majd próbáld újra.',
   'preview.retry': 'Újra',
   'preview.unavailableTitle': 'Ehhez a skillhez nincs mellékelt előnézet.',
   'preview.unavailableBody': 'Ez a skill {kind} kimenetet készít — futtasd a promptot a csevegésben egy létrehozásához.',
@@ -1215,7 +1215,7 @@ export const hu: Dict = {
   'pet.navTitle': 'Háziállatok',
   'pet.navHint': 'Befogadás vagy testreszabás',
   'pet.tabBuiltIn': 'Beépített',
-  'pet.tabBuiltInHint': 'Az Open Designnal csomagolt társak — válassz egyet és fogadd örökbe.',
+  'pet.tabBuiltInHint': 'Az Nikinal csomagolt társak — válassz egyet és fogadd örökbe.',
   'pet.builtInEmpty': 'A beépített állatok most nem elérhetők. Frissítsd a Közösség fület, amint a daemon újra online.',
   'pet.tabCustom': 'Egyéni',
   'pet.tabCustomHint': 'Készíts sajátot névvel, jellel, színnel vagy sprite-tal.',
@@ -1321,7 +1321,7 @@ export const hu: Dict = {
   'pet.communitySyncDone': '{wrote} új háziállat szinkronizálva (összesen {total}).',
   'pet.communitySyncFailed': 'A szinkronizálás sikertelen: {error}',
   'pet.codexBundled': 'Beépített',
-  'pet.codexBundledTitle': 'Az Open Designgal érkezik — letöltés nem szükséges.',
+  'pet.codexBundledTitle': 'Az Nikigal érkezik — letöltés nem szükséges.',
 
   'settings.notifications': 'Értesítések',
   'settings.notificationsHint': 'Hang és asztali értesítés a feladat befejezésekor',
@@ -1431,7 +1431,7 @@ export const hu: Dict = {
   'settings.memoryStarterFeedbackDesc': 'Dark mode, large body text, low information density',
   'settings.memoryStarterFeedbackBody': '- Theme: dark by default\n- Body text: ≥ 18px\n- Information density: prefer whitespace, fewer items per screen\n\nWhy: less eye strain during long sessions.\nWhen to apply: whenever you generate UI, web pages, or slides.',
   'settings.memoryStarterProjectName': 'Current project',
-  'settings.memoryStarterProjectDesc': 'Open Design v0.5 — chat-driven design editor',
+  'settings.memoryStarterProjectDesc': 'Niki v0.5 — chat-driven design editor',
   'settings.memoryStarterProjectBody': '- Goal: ship the chat-driven editor this quarter\n- Priorities: streaming render, local multimodal, offline-first\n- Stack: Next.js 16, Express daemon, SQLite\n\nWhen to apply: in any conversation about this project.',
   'settings.memorySaveHint': 'Not auto-saved — click Create / Save to apply.',
   'settings.memoryIndexSaveHint': 'Edits to the index are not auto-saved — click Save index to apply.',

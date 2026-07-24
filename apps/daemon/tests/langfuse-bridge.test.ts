@@ -109,9 +109,11 @@ describe('langfuse-bridge.reportRunCompletedFromDaemon', () => {
 
   beforeEach(async () => {
     dataDir = await mkdtemp(path.join(tmpdir(), 'od-bridge-'));
+    process.env.NIKI_ENABLE_LEGACY_TELEMETRY = 'true';
   });
 
   afterEach(async () => {
+    delete process.env.NIKI_ENABLE_LEGACY_TELEMETRY;
     await rm(dataDir, { recursive: true, force: true });
     vi.restoreAllMocks();
   });

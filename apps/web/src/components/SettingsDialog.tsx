@@ -2868,7 +2868,7 @@ export function SettingsDialog({
                   <div>
                     <h4>{t('settings.customInstructionsTitle')}</h4>
                     <p className="hint">
-                      Fixed instructions OpenDesign follows in every chat. These are
+                      Fixed instructions Niki follows in every chat. These are
                       not saved memories; use Memory for facts, preferences, and
                       project context.
                     </p>
@@ -4671,7 +4671,7 @@ function MediaProvidersSection({
 // Important: every snippet uses absolute paths to the daemon's current
 // Node-compatible runtime and built cli.js, fetched at runtime. macOS
 // and Linux ship a system /usr/bin/od (octal-dump) that shadows any
-// `od` we might add to PATH, and most Open Design users run from
+// `od` we might add to PATH, and most Niki users run from
 // source where `od` is not installed globally. The installer panel
 // must NOT reference bare `od`.
 type McpClientId =

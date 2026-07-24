@@ -51,7 +51,7 @@ export const zhTW: Dict = {
   'settings.welcomeSubtitle': "",
   'settings.onboardingCreateTitle': '從一句需求開始',
   'settings.onboardingCreateBody':
-    '描述你想做的網站、應用、Deck、圖片或影片，Open Design 會建立專案，並保留可繼續編輯的產出。',
+    '描述你想做的網站、應用、Deck、圖片或影片，Niki 會建立專案，並保留可繼續編輯的產出。',
   'settings.onboardingMemoryTitle': '保存工作上下文',
   'settings.onboardingMemoryBody':
     '把偏好、專案事實和長期規則寫入 Memory，後續對話會自動帶上正確背景。',
@@ -174,10 +174,10 @@ export const zhTW: Dict = {
   'settings.agentInstall.install': '安裝',
   'settings.agentInstall.docs': '文件',
   'settings.agentInstall.pathHint':
-    '如果你透過 npm 或 Homebrew 安裝了 CLI，但仍顯示為未安裝，請確認該工具的 bin 目錄已加入 Open Design daemon 繼承的 PATH（在 macOS 上，Terminal 與 GUI 應用的 PATH 可能不同）。請參閱 QUICKSTART.md（「Local agent CLI and PATH」章節）。',
+    '如果你透過 npm 或 Homebrew 安裝了 CLI，但仍顯示為未安裝，請確認該工具的 bin 目錄已加入 Niki daemon 繼承的 PATH（在 macOS 上，Terminal 與 GUI 應用的 PATH 可能不同）。請參閱 QUICKSTART.md（「Local agent CLI and PATH」章節）。',
   'settings.agentInstall.stepOpenLinks': '在目標代理卡片上開啟「安裝」或「文件」連結。',
   'settings.agentInstall.stepAuth':
-    '返回 Open Design 前，請先在對應 CLI 完成驗證（登入或新增 API 憑證）。',
+    '返回 Niki 前，請先在對應 CLI 完成驗證（登入或新增 API 憑證）。',
   'settings.agentInstall.stepRescan': '在此區域點擊「重新掃描」。',
   'settings.agentInstall.stepSelect': '當代理顯示為已安裝後，選擇該代理卡片。',
   'settings.noAgentsDetected':
@@ -229,7 +229,7 @@ export const zhTW: Dict = {
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Using Niki fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
   'settings.cliEnvTitle': 'CLI 設定位置',
   'settings.cliEnvHint':
     '為打包版應用執行和 agent 偵測設定非敏感設定目錄。',
@@ -246,7 +246,7 @@ export const zhTW: Dict = {
   'settings.mediaProviders': '媒體生成提供商',
   'settings.mediaProvidersHint': '圖片、影片、音訊生成的 API key。存於本機並同步到本地守護程序。',
   'settings.mcpServerTitle': 'MCP 伺服器',
-  'settings.mcpServerHint': '將 Open Design 作為 MCP 伺服器暴露給你的編碼代理。',
+  'settings.mcpServerHint': '將 Niki 作為 MCP 伺服器暴露給你的編碼代理。',
   'settings.externalMcpTitle': '外部 MCP',
   'settings.externalMcpHint': '接入外部服務的 MCP 工具（Higgsfield、GitHub 等）。',
   'settings.mediaProviderApiKey': 'API key',
@@ -262,15 +262,15 @@ export const zhTW: Dict = {
   'settings.mediaProviderReloadSuccess': '已從本機守護程序重新載入媒體供應商設定。',
   'settings.mediaProviderLoadError': '無法從本機守護程序載入媒體供應商設定。目前將使用瀏覽器中儲存的設定。',
   'settings.privacy': '隱私',
-  'settings.privacyHint': '與 Open Design 團隊共享哪些資料',
-  'settings.privacyConsentKicker': '協助我們改進 Open Design',
-  'settings.privacyConsentLead': 'Open Design 可以將使用資料分享給我們的團隊以協助改進。包含:',
-  'settings.privacyConsentFooter': '你可以隨時在 設定 → 隱私 中變更任一項。我們絕不上傳你產生的產出檔案內容。',
-  'settings.privacyConsentShare': '分享使用資料',
+  'settings.privacyHint': '檢視未來的資料共享偏好',
+  'settings.privacyConsentKicker': '協助我們改進 Niki',
+  'settings.privacyConsentLead': '傳送至 q1y2nfc@gmail.com 的郵件投遞尚未設定。你的選擇只會儲存在本機，Niki 目前不會傳送這些資料。',
+  'settings.privacyConsentFooter': '郵件投遞接入後，向 q1y2nfc@gmail.com 傳送任何資料前會再次徵求你的確認。產出檔案內容永遠不會包含在內。',
+  'settings.privacyConsentShare': '儲存共享偏好',
   'settings.privacyConsentDecline': '不分享',
   'settings.privacyConsentAccept': '我知道了',
   'settings.privacyConsentBannerFooter':
-    '預設開啟資料分享。你可以隨時在 設定 → 隱私 中關閉。我們絕不上傳你產生的產出檔案內容。',
+    '資料共享目前處於暫停狀態。你可以在「設定 → 隱私」中檢視或修改儲存的偏好。',
   'settings.privacyConsentPolicyLink': '閱讀隱私政策',
   'settings.privacyMetrics': '匿名指標',
   'settings.privacyMetricsHint': '執行次數、token 用量、錯誤率、時長。不包含 prompt,不包含專案資料。',
@@ -298,9 +298,9 @@ export const zhTW: Dict = {
   // MCP server settings
   'settings.mcpTitle': 'MCP server',
   'settings.mcpHint':
-    '讓其他專案中的程式碼代理（Claude Code、Cursor、VS Code、Antigravity、Zed、Windsurf）讀取您的 Open Design 專案。您可以直接將設計匯入應用程式，無需先匯出 zip。',
+    '讓其他專案中的程式碼代理（Claude Code、Cursor、VS Code、Antigravity、Zed、Windsurf）讀取您的 Niki 專案。您可以直接將設計匯入應用程式，無需先匯出 zip。',
   'settings.mcpDaemonError':
-    '無法連線到本地守護程序以解析安裝路徑（{error}）。請確認 Open Design 正在執行，然後重新開啟此面板。',
+    '無法連線到本地守護程序以解析安裝路徑（{error}）。請確認 Niki 正在執行，然後重新開啟此面板。',
   'settings.mcpBuildDaemon': '請先建置守護行程。',
   'settings.mcpNodeMissing': '缺少 Node 執行檔。',
   'settings.mcpBuildHint':
@@ -338,9 +338,9 @@ export const zhTW: Dict = {
   'settings.mcpCapabilityPull':
     '透過單一呼叫拉取設計套件：包含進入點檔案以及所有引用的 CSS 變數、元件與字型。',
   'settings.mcpCapabilityDefault':
-    '預設使用您在 Open Design 中開啟的專案與檔案，因此您可以說「在我的應用程式中建置這個」，無需重新說明是哪個設計。',
+    '預設使用您在 Niki 中開啟的專案與檔案，因此您可以說「在我的應用程式中建置這個」，無需重新說明是哪個設計。',
   'settings.mcpRunningNote':
-    'Open Design 必須正在執行，MCP 工具呼叫才能成功。如果您在開啟 Open Design 之前就已啟動 coding agent，請重新啟動 agent，使其能夠連線到正在執行的守護行程。',
+    'Niki 必須正在執行，MCP 工具呼叫才能成功。如果您在開啟 Niki 之前就已啟動 coding agent，請重新啟動 agent，使其能夠連線到正在執行的守護行程。',
 
   'entry.tabDesigns': '我的設計',
   'entry.tabTemplates': '範本',
@@ -364,7 +364,7 @@ export const zhTW: Dict = {
   'entry.helpDownloadDesktop': '下載桌面端',
   'entry.githubStarLabel': 'Star',
   'entry.githubStarTitle': '在 GitHub 為我們點亮 Star',
-  'entry.githubStarAria': '在 GitHub 為 Open Design 點亮 Star',
+  'entry.githubStarAria': '在 GitHub 為 Niki 點亮 Star',
   'entry.tabImageTemplates': '圖片範本',
   'entry.tabVideoTemplates': '影片範本',
   'promptTemplates.searchPlaceholder': '搜尋範本…',
@@ -863,7 +863,7 @@ export const zhTW: Dict = {
   'preview.closeTitle': '關閉（Esc）',
   'preview.loading': '正在載入{label}…',
   'preview.errorTitle': '無法載入此範例。',
-  'preview.errorBody': '範例 HTML 載入失敗。請確認 Open Design 正在執行後重試。',
+  'preview.errorBody': '範例 HTML 載入失敗。請確認 Niki 正在執行後重試。',
   'preview.retry': '重試',
   'preview.unavailableTitle': '此技能尚未附帶預覽範例。',
   'preview.unavailableBody': '此技能用於產生 {kind} 產物 — 請在對話中執行此 Prompt 來產生。',
@@ -1351,7 +1351,7 @@ export const zhTW: Dict = {
 
   'pet.title': '寵物',
   'pet.tabBuiltIn': '內建',
-  'pet.tabBuiltInHint': 'Open Design 內建的精選寵物 — 一鍵領養。',
+  'pet.tabBuiltInHint': 'Niki 內建的精選寵物 — 一鍵領養。',
   'pet.builtInEmpty': '目前無法載入內建寵物。等本地服務恢復後,重新整理「社群」頁籤再試。',
   'pet.tabCustom': '自訂',
   'pet.tabCustomHint': '自己命名、選符號或上傳精靈圖。',
@@ -1471,7 +1471,7 @@ export const zhTW: Dict = {
   'pet.communitySyncDone': '已同步 {wrote} 個新寵物（共 {total} 個）。',
   'pet.communitySyncFailed': '同步失敗：{error}',
   'pet.codexBundled': '內建',
-  'pet.codexBundledTitle': 'Open Design 內建寵物，無需下載。',
+  'pet.codexBundledTitle': 'Niki 內建寵物，無需下載。',
 
   'settings.notifications': '通知',
   'settings.notificationsHint': '任務完成時的音效和桌面通知',
@@ -1581,7 +1581,7 @@ export const zhTW: Dict = {
   'settings.memoryStarterFeedbackDesc': '深色主題、字號偏大、資訊密度低',
   'settings.memoryStarterFeedbackBody': '- 主題：預設深色\n- 正文字號：≥ 18px\n- 資訊密度：留白多一些，一屏不要塞太多東西\n\n為什麼：長時間使用眼睛不容易累。\n何時適用：讓你畫 UI、網頁、PPT 時都按這個走。',
   'settings.memoryStarterProjectName': '當前專案',
-  'settings.memoryStarterProjectDesc': 'Open Design v0.5 — 聊天驅動的設計編輯器',
+  'settings.memoryStarterProjectDesc': 'Niki v0.5 — 聊天驅動的設計編輯器',
   'settings.memoryStarterProjectBody': '- 目標：本季交付聊天驅動的編輯體驗\n- 優先級：串流渲染、本地多模態、離線優先\n- 技術棧：Next.js 16、Express daemon、SQLite\n\n何時適用：與本專案相關的所有對話。',
   'settings.memorySaveHint': '不會自動儲存 — 點擊「建立」/「儲存」才會生效。',
   'settings.memoryIndexSaveHint': '索引不會自動儲存 — 改完後點擊「儲存索引」才會生效。',

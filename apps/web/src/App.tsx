@@ -1439,16 +1439,13 @@ export function App() {
       {showPrivacyConsent ? (
         <PrivacyConsentModal
           onAccept={() => {
-            // Default opt-in: clicking "I get it" enables the same telemetry
-            // surface the previous two-button "Share usage data" path opted
-            // into. The banner footer + PrivacySection give the user a
-            // one-click path to flip everything off later.
-            const installationId = generateInstallationIdSafe();
+            // Email delivery is intentionally not wired yet. Acknowledge the
+            // disclosure locally without enabling any legacy telemetry sink.
             void handleConfigPersist({
               ...latestPersistedConfigRef.current,
-              installationId,
+              installationId: null,
               privacyDecisionAt: Date.now(),
-              telemetry: { metrics: true, content: true, artifactManifest: false },
+              telemetry: { metrics: false, content: false, artifactManifest: false },
             });
             if (!latestPersistedConfigRef.current.onboardingCompleted) {
               navigate({ kind: 'home', view: 'onboarding' });
@@ -1458,11 +1455,4 @@ export function App() {
       ) : null}
     </>
   );
-}
-
-function generateInstallationIdSafe(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `inst-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }

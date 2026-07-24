@@ -182,6 +182,11 @@ export function readLangfuseConfig(
 export function readTelemetrySinkConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): TelemetrySinkConfig | null {
+  // Data sharing will move to an email service. Until that service exists,
+  // legacy relay and Langfuse delivery require an explicit smoke-test gate.
+  if (env.NIKI_ENABLE_LEGACY_TELEMETRY?.trim().toLowerCase() !== 'true') {
+    return null;
+  }
   const relayUrl = env.OPEN_DESIGN_TELEMETRY_RELAY_URL?.trim();
   if (relayUrl) {
     return {

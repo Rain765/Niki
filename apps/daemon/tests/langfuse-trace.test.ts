@@ -144,8 +144,19 @@ describe('readLangfuseConfig', () => {
 });
 
 describe('readTelemetrySinkConfig', () => {
+  it('keeps legacy telemetry disabled unless explicitly enabled', () => {
+    expect(
+      readTelemetrySinkConfig({
+        OPEN_DESIGN_TELEMETRY_RELAY_URL: 'https://telemetry.open-design.ai/api/langfuse',
+        LANGFUSE_PUBLIC_KEY: 'pk',
+        LANGFUSE_SECRET_KEY: 'sk',
+      }),
+    ).toBeNull();
+  });
+
   it('prefers the Open Design telemetry relay when configured', () => {
     const cfg = readTelemetrySinkConfig({
+      NIKI_ENABLE_LEGACY_TELEMETRY: 'true',
       OPEN_DESIGN_TELEMETRY_RELAY_URL: 'https://telemetry.open-design.ai/api/langfuse//',
       LANGFUSE_PUBLIC_KEY: 'pk',
       LANGFUSE_SECRET_KEY: 'sk',
@@ -160,6 +171,7 @@ describe('readTelemetrySinkConfig', () => {
 
   it('uses relay-specific timeout and retry tuning when present', () => {
     const cfg = readTelemetrySinkConfig({
+      NIKI_ENABLE_LEGACY_TELEMETRY: 'true',
       OPEN_DESIGN_TELEMETRY_RELAY_URL: 'https://telemetry.open-design.ai/api/langfuse',
       OPEN_DESIGN_TELEMETRY_TIMEOUT_MS: '30000',
       OPEN_DESIGN_TELEMETRY_RETRIES: '3',
@@ -175,6 +187,7 @@ describe('readTelemetrySinkConfig', () => {
 
   it('falls back to direct Langfuse config for local smoke tests', () => {
     const cfg = readTelemetrySinkConfig({
+      NIKI_ENABLE_LEGACY_TELEMETRY: 'true',
       LANGFUSE_PUBLIC_KEY: 'pk',
       LANGFUSE_SECRET_KEY: 'sk',
     });

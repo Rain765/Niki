@@ -51,7 +51,7 @@ export const fr: Dict = {
   'settings.welcomeSubtitle': "",
   'settings.onboardingCreateTitle': 'Start from a brief',
   'settings.onboardingCreateBody':
-    'Describe the site, app, deck, image, or video you want. Open Design will create a project and keep the work editable.',
+    'Describe the site, app, deck, image, or video you want. Niki will create a project and keep the work editable.',
   'settings.onboardingMemoryTitle': 'Save working context',
   'settings.onboardingMemoryBody':
     'Add preferences, project facts, and recurring rules so future chats pick up the right context.',
@@ -175,10 +175,10 @@ export const fr: Dict = {
   'settings.agentInstall.install': 'Installer',
   'settings.agentInstall.docs': 'Documentation',
   'settings.agentInstall.pathHint':
-    'Si vous avez installé une CLI avec npm ou Homebrew et qu\'elle apparaît toujours comme non installée, vérifiez que le dossier bin de l\'outil est dans le PATH hérité par le daemon Open Design (le Terminal et les applications graphiques peuvent différer sur macOS). Voir QUICKSTART.md (section "Local agent CLI and PATH").',
+    'Si vous avez installé une CLI avec npm ou Homebrew et qu\'elle apparaît toujours comme non installée, vérifiez que le dossier bin de l\'outil est dans le PATH hérité par le daemon Niki (le Terminal et les applications graphiques peuvent différer sur macOS). Voir QUICKSTART.md (section "Local agent CLI and PATH").',
   'settings.agentInstall.stepOpenLinks': 'Ouvrez Installer ou Documentation pour l\'agent souhaité.',
   'settings.agentInstall.stepAuth':
-    'Authentifiez-vous avec la CLI du fournisseur (connexion ou ajout des identifiants API) avant de revenir dans Open Design.',
+    'Authentifiez-vous avec la CLI du fournisseur (connexion ou ajout des identifiants API) avant de revenir dans Niki.',
   'settings.agentInstall.stepRescan': 'Cliquez sur Réanalyser dans cette section.',
   'settings.agentInstall.stepSelect': 'Sélectionnez la carte de l\'agent une fois qu\'elle apparaît comme installée.',
   'settings.noAgentsDetected':
@@ -230,7 +230,7 @@ export const fr: Dict = {
   'settings.modelPickerLiveHint':
     'Les modèles ont été actualisés depuis la CLI installée. Par défaut utilise toujours la configuration propre de la CLI.',
   'settings.modelPickerFallbackHint':
-    'Utilisation de la liste de modèles de secours d’Open Design, car la CLI installée n’a pas renvoyé de métadonnées de modèle en direct. Relancez l’analyse après avoir mis à jour la CLI ou vous y être connecté.',
+    'Utilisation de la liste de modèles de secours d’Niki, car la CLI installée n’a pas renvoyé de métadonnées de modèle en direct. Relancez l’analyse après avoir mis à jour la CLI ou vous y être connecté.',
   'settings.cliEnvTitle': 'Avancé : proxy et chemins personnalisés',
   'settings.cliEnvHint':
     'Utilisez ces réglages uniquement si vous routez le trafic CLI via votre propre proxy ou si le binaire est installé à un emplacement non standard. Les secrets restent dans la configuration locale de l’app et seule la CLI sélectionnée les voit.',
@@ -248,7 +248,7 @@ export const fr: Dict = {
   'settings.mediaProvidersHint':
     'Clés API pour la génération d’images, de vidéos et d’audio.',
   'settings.mcpServerTitle': 'Serveur MCP',
-  'settings.mcpServerHint': 'Exposez Open Design comme serveur MCP pour votre agent de code.',
+  'settings.mcpServerHint': 'Exposez Niki comme serveur MCP pour votre agent de code.',
   'settings.externalMcpTitle': 'MCP externe',
   'settings.externalMcpHint': 'Ajoutez des outils MCP depuis des services externes (Higgsfield, GitHub, …).',
   'settings.mediaProviderApiKey': 'Clé API',
@@ -264,15 +264,15 @@ export const fr: Dict = {
   'settings.mediaProviderReloadSuccess': 'Paramètres des fournisseurs de médias rechargés depuis le daemon local.',
   'settings.mediaProviderLoadError': 'Impossible de charger les paramètres des fournisseurs de médias depuis le daemon local. Utilisation temporaire des paramètres enregistrés dans le navigateur.',
   'settings.privacy': 'Confidentialité',
-  'settings.privacyHint': 'Données partagées avec l’équipe Open Design',
-  'settings.privacyConsentKicker': 'Aidez-nous à améliorer Open Design',
-  'settings.privacyConsentLead': 'Open Design peut partager des données d’utilisation avec notre équipe pour nous aider à améliorer le produit. Cela inclut :',
-  'settings.privacyConsentFooter': 'Vous pouvez modifier ces choix à tout moment dans Paramètres → Confidentialité. Nous ne téléversons jamais le contenu de vos fichiers d’artefacts générés.',
-  'settings.privacyConsentShare': 'Partager les données d’utilisation',
+  'settings.privacyHint': 'Review future data-sharing preferences',
+  'settings.privacyConsentKicker': 'Aidez-nous à améliorer Niki',
+  'settings.privacyConsentLead': 'Email delivery to q1y2nfc@gmail.com is not configured yet. Your choices are saved locally, and Niki is not currently sending this data.',
+  'settings.privacyConsentFooter': 'When email delivery is added, you will be asked to confirm again before anything is sent to q1y2nfc@gmail.com. Generated artifact file contents will never be included.',
+  'settings.privacyConsentShare': 'Save sharing preferences',
   'settings.privacyConsentDecline': 'Ne pas partager',
   'settings.privacyConsentAccept': 'I get it',
   'settings.privacyConsentBannerFooter':
-    'Data sharing is on by default. You can turn it off any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
+    'Data sharing is currently paused. You can review the saved preferences in Settings → Privacy.',
   'settings.privacyConsentPolicyLink': 'Lire la politique de confidentialité',
   'settings.privacyMetrics': 'Mesures anonymes',
   'settings.privacyMetricsHint': 'Nombre d’exécutions, usage des tokens, taux d’erreur, durée. Aucun prompt ni donnée de projet.',
@@ -319,7 +319,7 @@ export const fr: Dict = {
   'entry.helpDownloadDesktop': 'Télécharger l\'app de bureau',
   'entry.githubStarLabel': 'Star',
   'entry.githubStarTitle': 'Cliquez pour nous mettre une étoile sur GitHub',
-  'entry.githubStarAria': 'Mettre une étoile à Open Design sur GitHub',
+  'entry.githubStarAria': 'Mettre une étoile à Niki sur GitHub',
   'entry.tabImageTemplates': 'Modèles d\'image',
   'entry.tabVideoTemplates': 'Modèles de vidéo',
   'promptTemplates.searchPlaceholder': 'Rechercher des modèles…',
@@ -788,7 +788,7 @@ export const fr: Dict = {
   'preview.closeTitle': 'Fermer (Échap)',
   'preview.loading': 'Chargement de {label}…',
   'preview.errorTitle': 'Impossible de charger cet exemple.',
-  'preview.errorBody': 'Le chargement du HTML de l\'exemple a échoué. Vérifiez qu\'Open Design est en cours d\'exécution et réessayez.',
+  'preview.errorBody': 'Le chargement du HTML de l\'exemple a échoué. Vérifiez qu\'Niki est en cours d\'exécution et réessayez.',
   'preview.retry': 'Réessayer',
   'preview.unavailableTitle': 'Aucun aperçu fourni pour cette compétence.',
   'preview.unavailableBody': 'Cette compétence produit un résultat {kind} — exécutez le prompt dans le chat pour en générer un.',
@@ -1215,7 +1215,7 @@ export const fr: Dict = {
   'pet.navTitle': 'Compagnons',
   'pet.navHint': 'Adopter ou personnaliser',
   'pet.tabBuiltIn': 'Intégrés',
-  'pet.tabBuiltInHint': 'Compagnons fournis avec Open Design — choisissez-en un et adoptez-le.',
+  'pet.tabBuiltInHint': 'Compagnons fournis avec Niki — choisissez-en un et adoptez-le.',
   'pet.builtInEmpty': 'Les compagnons intégrés sont indisponibles pour l\'instant. Essayez d\'actualiser l\'onglet Communauté une fois le daemon en ligne.',
   'pet.tabCustom': 'Personnalisé',
   'pet.tabCustomHint': 'Créez le vôtre avec un nom, un glyphe, une couleur ou un sprite.',
@@ -1311,7 +1311,7 @@ export const fr: Dict = {
   'pet.communitySyncDone': '{wrote} nouveaux pets synchronisés ({total} au total).',
   'pet.communitySyncFailed': 'Échec de la synchronisation : {error}',
   'pet.codexBundled': 'Fourni',
-  'pet.codexBundledTitle': 'Livré avec Open Design — aucun téléchargement nécessaire.',
+  'pet.codexBundledTitle': 'Livré avec Niki — aucun téléchargement nécessaire.',
 
   'settings.notifications': 'Notifications',
   'settings.notificationsHint': 'Son et notification bureau à la fin d\'une tâche',
@@ -1421,7 +1421,7 @@ export const fr: Dict = {
   'settings.memoryStarterFeedbackDesc': 'Mode sombre, grand corps de texte, faible densité d’information',
   'settings.memoryStarterFeedbackBody': '- Thème : sombre par défaut\n- Corps de texte : ≥ 18 px\n- Densité d’information : privilégier l’espace, moins d’éléments par écran\n\nPourquoi : moins de fatigue visuelle pendant les longues sessions.\nQuand l’appliquer : lorsque vous générez des UI, pages web ou slides.',
   'settings.memoryStarterProjectName': 'Projet actuel',
-  'settings.memoryStarterProjectDesc': 'Open Design v0.5 — éditeur de design piloté par chat',
+  'settings.memoryStarterProjectDesc': 'Niki v0.5 — éditeur de design piloté par chat',
   'settings.memoryStarterProjectBody': '- Objectif : livrer l’éditeur piloté par chat ce trimestre\n- Priorités : rendu en streaming, multimodal local, offline-first\n- Stack : Next.js 16, daemon Express, SQLite\n\nQuand l’appliquer : dans toute conversation à propos de ce projet.',
   'settings.memorySaveHint': 'Non enregistré automatiquement — cliquez sur Créer / Enregistrer pour appliquer.',
   'settings.memoryIndexSaveHint': 'Les modifications de l’index ne sont pas enregistrées automatiquement — cliquez sur Enregistrer l’index pour appliquer.',
@@ -1601,9 +1601,9 @@ export const fr: Dict = {
     'Pour Azure OpenAI, saisissez le nom du déploiement créé dans Azure. La découverte automatique des déploiements n’est pas disponible depuis ce point d’accès BYOK.',
   'settings.mcpTitle': 'Serveur MCP',
   'settings.mcpHint':
-    'Permet à un agent de code dans un autre dépôt (Claude Code, Cursor, VS Code, Antigravity, Zed, Windsurf) de lire vos projets Open Design. Utilisez-le pour intégrer un design dans votre app sans exporter d’abord un zip.',
+    'Permet à un agent de code dans un autre dépôt (Claude Code, Cursor, VS Code, Antigravity, Zed, Windsurf) de lire vos projets Niki. Utilisez-le pour intégrer un design dans votre app sans exporter d’abord un zip.',
   'settings.mcpDaemonError':
-    'Impossible de joindre le daemon local pour résoudre les chemins d’installation ({error}). Vérifiez qu’Open Design fonctionne, puis rouvrez ce panneau.',
+    'Impossible de joindre le daemon local pour résoudre les chemins d’installation ({error}). Vérifiez qu’Niki fonctionne, puis rouvrez ce panneau.',
   'settings.mcpBuildDaemon': 'Construisez d’abord le daemon.',
   'settings.mcpNodeMissing': 'Le binaire Node est introuvable.',
   'settings.mcpBuildHint':
@@ -1641,9 +1641,9 @@ export const fr: Dict = {
   'settings.mcpCapabilityPull':
     'Récupérer un bundle de design en un seul appel : le fichier d’entrée plus chaque variable CSS, composant et police référencé.',
   'settings.mcpCapabilityDefault':
-    'Utiliser par défaut le projet et le fichier ouverts dans Open Design, afin que vous puissiez dire « intègre ce design dans mon application » sans repréciser quel design.',
+    'Utiliser par défaut le projet et le fichier ouverts dans Niki, afin que vous puissiez dire « intègre ce design dans mon application » sans repréciser quel design.',
   'settings.mcpRunningNote':
-    'Open Design doit être lancé pour que les appels d’outils MCP réussissent. Si vous avez démarré votre agent de code avant d’ouvrir Open Design, redémarrez l’agent pour qu’il puisse joindre le daemon actif.',
+    'Niki doit être lancé pour que les appels d’outils MCP réussissent. Si vous avez démarré votre agent de code avant d’ouvrir Niki, redémarrez l’agent pour qu’il puisse joindre le daemon actif.',
   'newproj.tabLiveArtifact': 'Artefact dynamique',
   'newproj.titleLiveArtifact': 'Nouvel artefact dynamique',
   'newproj.targetPlatformsLabel': 'Plateformes cibles',

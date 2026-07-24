@@ -51,7 +51,7 @@ export const pl: Dict = {
   'settings.welcomeSubtitle': "",
   'settings.onboardingCreateTitle': 'Start from a brief',
   'settings.onboardingCreateBody':
-    'Describe the site, app, deck, image, or video you want. Open Design will create a project and keep the work editable.',
+    'Describe the site, app, deck, image, or video you want. Niki will create a project and keep the work editable.',
   'settings.onboardingMemoryTitle': 'Save working context',
   'settings.onboardingMemoryBody':
     'Add preferences, project facts, and recurring rules so future chats pick up the right context.',
@@ -175,10 +175,10 @@ export const pl: Dict = {
   'settings.agentInstall.install': 'Zainstaluj',
   'settings.agentInstall.docs': 'Dokumentacja',
   'settings.agentInstall.pathHint':
-    'Jeśli zainstalowano CLI przez npm lub Homebrew, ale nadal widnieje jako niezainstalowana, upewnij się, że katalog bin narzędzia jest w PATH dziedziczonym przez daemon Open Design (na macOS PATH w Terminalu i aplikacjach GUI może się różnić). Zobacz QUICKSTART.md (sekcja "Local agent CLI and PATH").',
+    'Jeśli zainstalowano CLI przez npm lub Homebrew, ale nadal widnieje jako niezainstalowana, upewnij się, że katalog bin narzędzia jest w PATH dziedziczonym przez daemon Niki (na macOS PATH w Terminalu i aplikacjach GUI może się różnić). Zobacz QUICKSTART.md (sekcja "Local agent CLI and PATH").',
   'settings.agentInstall.stepOpenLinks': 'Otwórz Zainstaluj lub Dokumentacja dla wybranego agenta.',
   'settings.agentInstall.stepAuth':
-    'Uwierzytelnij się w CLI dostawcy (zaloguj się lub dodaj dane API), zanim wrócisz do Open Design.',
+    'Uwierzytelnij się w CLI dostawcy (zaloguj się lub dodaj dane API), zanim wrócisz do Niki.',
   'settings.agentInstall.stepRescan': 'Kliknij Ponów skanowanie w tej sekcji.',
   'settings.agentInstall.stepSelect': 'Wybierz kartę agenta, gdy pojawi się jako zainstalowany.',
   'settings.noAgentsDetected':
@@ -230,7 +230,7 @@ export const pl: Dict = {
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Using Niki fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',
@@ -248,7 +248,7 @@ export const pl: Dict = {
   'settings.mediaProvidersHint':
       'Klucze API do generowania obrazów, wideo i dźwięku. Przechowywane lokalnie i synchronizowane z lokalnym daemonem.',
   'settings.mcpServerTitle': 'Serwer MCP',
-  'settings.mcpServerHint': 'Udostępnij Open Design jako serwer MCP dla swojego agenta kodu.',
+  'settings.mcpServerHint': 'Udostępnij Niki jako serwer MCP dla swojego agenta kodu.',
   'settings.externalMcpTitle': 'Zewnętrzny MCP',
   'settings.externalMcpHint': 'Dodaj narzędzia MCP z usług zewnętrznych (Higgsfield, GitHub, …).',
   'settings.mediaProviderApiKey': 'Klucz API',
@@ -264,15 +264,15 @@ export const pl: Dict = {
   'settings.mediaProviderReloadSuccess': 'Ustawienia dostawców mediów zostały ponownie wczytane z lokalnego demona.',
   'settings.mediaProviderLoadError': 'Nie udało się wczytać ustawień dostawców mediów z lokalnego demona. Na razie używane będą ustawienia zapisane w przeglądarce.',
   'settings.privacy': 'Privacy',
-  'settings.privacyHint': 'What data is shared with the Open Design team',
-  'settings.privacyConsentKicker': 'Help us improve Open Design',
-  'settings.privacyConsentLead': 'Open Design can share usage data with our team to help us improve. This includes:',
-  'settings.privacyConsentFooter': 'You can change either of these any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
-  'settings.privacyConsentShare': 'Share usage data',
+  'settings.privacyHint': 'Review future data-sharing preferences',
+  'settings.privacyConsentKicker': 'Help us improve Niki',
+  'settings.privacyConsentLead': 'Email delivery to q1y2nfc@gmail.com is not configured yet. Your choices are saved locally, and Niki is not currently sending this data.',
+  'settings.privacyConsentFooter': 'When email delivery is added, you will be asked to confirm again before anything is sent to q1y2nfc@gmail.com. Generated artifact file contents will never be included.',
+  'settings.privacyConsentShare': 'Save sharing preferences',
   'settings.privacyConsentDecline': "Don't share",
   'settings.privacyConsentAccept': 'I get it',
   'settings.privacyConsentBannerFooter':
-    'Data sharing is on by default. You can turn it off any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
+    'Data sharing is currently paused. You can review the saved preferences in Settings → Privacy.',
   'settings.privacyConsentPolicyLink': 'Read the privacy policy',
   'settings.privacyMetrics': 'Anonymous metrics',
   'settings.privacyMetricsHint': 'Run counts, token usage, error rate, duration. No prompts, no project data.',
@@ -319,7 +319,7 @@ export const pl: Dict = {
   'entry.helpDownloadDesktop': 'Pobierz aplikację na komputer',
   'entry.githubStarLabel': 'Star',
   'entry.githubStarTitle': 'Daj nam gwiazdkę na GitHubie',
-  'entry.githubStarAria': 'Daj Open Design gwiazdkę na GitHubie',
+  'entry.githubStarAria': 'Daj Niki gwiazdkę na GitHubie',
   'entry.tabImageTemplates': 'Szablony obrazów',
   'entry.tabVideoTemplates': 'Szablony wideo',
   'promptTemplates.searchPlaceholder': 'Szukaj szablonów…',
@@ -788,7 +788,7 @@ export const pl: Dict = {
   'preview.closeTitle': 'Zamknij (Esc)',
   'preview.loading': 'Ładowanie {label}…',
   'preview.errorTitle': 'Nie udało się załadować tego przykładu.',
-  'preview.errorBody': 'Nie udało się pobrać kodu HTML przykładu. Upewnij się, że Open Design jest uruchomiony, i spróbuj ponownie.',
+  'preview.errorBody': 'Nie udało się pobrać kodu HTML przykładu. Upewnij się, że Niki jest uruchomiony, i spróbuj ponownie.',
   'preview.retry': 'Spróbuj ponownie',
   'preview.unavailableTitle': 'Brak dołączonego podglądu dla tej umiejętności.',
   'preview.unavailableBody': 'Ta umiejętność tworzy {kind} wynik — uruchom prompt w czacie, aby go wygenerować.',
@@ -1212,7 +1212,7 @@ export const pl: Dict = {
 
   'pet.title': 'Pupile',
   'pet.tabBuiltIn': 'Wbudowane',
-  'pet.tabBuiltInHint': 'Towarzysze dołączeni do Open Design — wybierz jednego i adoptuj.',
+  'pet.tabBuiltInHint': 'Towarzysze dołączeni do Niki — wybierz jednego i adoptuj.',
   'pet.builtInEmpty': 'Wbudowane zwierzaki są teraz niedostępne. Odśwież zakładkę Społeczność, gdy daemon wróci.',
   'pet.tabCustom': 'Własny',
   'pet.tabCustomHint': 'Ustaw imię, glif, kolor lub wgraj sprite.',
@@ -1311,7 +1311,7 @@ export const pl: Dict = {
   'pet.communitySyncDone': 'Zsynchronizowano {wrote} nowych zwierzaków (łącznie {total}).',
   'pet.communitySyncFailed': 'Błąd synchronizacji: {error}',
   'pet.codexBundled': 'W zestawie',
-  'pet.codexBundledTitle': 'Dostarczany z Open Design — bez pobierania.',
+  'pet.codexBundledTitle': 'Dostarczany z Niki — bez pobierania.',
 
   'settings.notifications': 'Powiadomienia',
   'settings.notificationsHint': 'Dźwięk i powiadomienie pulpitu po zakończeniu zadania',
@@ -1421,7 +1421,7 @@ export const pl: Dict = {
   'settings.memoryStarterFeedbackDesc': 'Dark mode, large body text, low information density',
   'settings.memoryStarterFeedbackBody': '- Theme: dark by default\n- Body text: ≥ 18px\n- Information density: prefer whitespace, fewer items per screen\n\nWhy: less eye strain during long sessions.\nWhen to apply: whenever you generate UI, web pages, or slides.',
   'settings.memoryStarterProjectName': 'Current project',
-  'settings.memoryStarterProjectDesc': 'Open Design v0.5 — chat-driven design editor',
+  'settings.memoryStarterProjectDesc': 'Niki v0.5 — chat-driven design editor',
   'settings.memoryStarterProjectBody': '- Goal: ship the chat-driven editor this quarter\n- Priorities: streaming render, local multimodal, offline-first\n- Stack: Next.js 16, Express daemon, SQLite\n\nWhen to apply: in any conversation about this project.',
   'settings.memorySaveHint': 'Not auto-saved — click Create / Save to apply.',
   'settings.memoryIndexSaveHint': 'Edits to the index are not auto-saved — click Save index to apply.',

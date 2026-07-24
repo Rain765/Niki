@@ -370,8 +370,8 @@ function describeExtractionFailure(record: MemoryExtractionRecord): FriendlyExtr
   const haystack = `${parsed.message} ${parsed.code} ${record.error}`.toLowerCase();
   const source =
     record.kind === 'connector'
-      ? 'Connected apps were read, but OpenDesign could not turn that context into memory.'
-      : 'OpenDesign could not run memory extraction for this chat.';
+      ? 'Connected apps were read, but Niki could not turn that context into memory.'
+      : 'Niki could not run memory extraction for this chat.';
 
   if (
     parsed.status === 401
@@ -1240,7 +1240,7 @@ export function MemorySection({
       } else if (!result.attemptedLLM) {
         setConnectorError(
           describeConnectorReadIssue(result)
-          ?? 'No memory suggestions found. OpenDesign could not read useful content from the selected app yet.',
+          ?? 'No memory suggestions found. Niki could not read useful content from the selected app yet.',
         );
       } else {
         setConnectorStatus(
@@ -1861,7 +1861,7 @@ export function MemorySection({
             <div>
               <h4>Learn from chats</h4>
               <p className="hint">
-                OpenDesign can learn preferences and project facts from future
+                Niki can learn preferences and project facts from future
                 chat turns.
               </p>
             </div>
@@ -1915,7 +1915,7 @@ export function MemorySection({
               <div>
                 <h4>Choose sources</h4>
                 <p className="hint">
-                  Select connected apps first. OpenDesign only scans the apps you choose.
+                  Select connected apps first. Niki only scans the apps you choose.
                 </p>
               </div>
               <span className="memory-source-badge">

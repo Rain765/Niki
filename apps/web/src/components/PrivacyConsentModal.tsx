@@ -8,13 +8,12 @@ import { Icon } from './Icon';
  * constant so it can be repointed (e.g. to a hosted page) without touching
  * markup. `PRIVACY.md` documents the same data handling the modal discloses.
  */
-const PRIVACY_POLICY_URL = 'https://github.com/nexu-io/open-design/blob/main/PRIVACY.md';
+const PRIVACY_POLICY_URL = 'https://github.com/Rain765/Niki/blob/main/PRIVACY.md';
 
 interface Props {
-  /** Acknowledges the disclosure. Implies default opt-in; the host opts the
-   *  user into the same telemetry surface the previous "Share usage data"
-   *  button enabled. The user can flip the toggle off any time from
-   *  Settings → Privacy, which the banner footer says explicitly. */
+  /** Acknowledges the disclosure. Delivery is not configured yet, so the
+   *  host records a local decision while keeping every telemetry category
+   *  disabled. */
   onAccept: () => void;
 }
 
@@ -27,14 +26,9 @@ interface Props {
  * it stretches to a bottom-edge bar (see `.privacy-consent-banner` in
  * index.css) so it doesn't crowd content on phones.
  *
- * Single "I get it" action: the product runs with telemetry on by
- * default. The banner is an informed-disclosure surface, not a binary
- * consent picker — the user reads what's collected and dismisses with
- * an acknowledgement. The footer states the default explicitly and
- * points at Settings → Privacy as the off switch, so the user keeps a
- * one-click path to opt out at any time. The matching Settings UI
- * (PrivacySection.tsx) still exposes both Share and Don't share buttons
- * for users who arrive there before this banner has been shown.
+ * Single "I get it" action: the banner records that the disclosure was
+ * reviewed. It does not opt the user into a delivery channel. Preferences
+ * can still be staged in Settings → Privacy for the future email service.
  *
  * Stays mounted until the user clicks I get it — there is no
  * dismiss-without-acknowledgement button on purpose. The downstream
@@ -44,10 +38,9 @@ interface Props {
 export function PrivacyConsentModal({ onAccept }: Props): JSX.Element {
   const t = useT();
   const analytics = useAnalytics();
-  // P0 — the first-launch privacy banner ships with a single "I get it"
-  // action that implicitly accepts; we map that to `yes` on the contract's
-  // `privacy_modal` ui_click. The contract enum has `yes|no` but no
-  // surface_view counterpart, so this is the only event the surface emits.
+  // The analytics event is retained for schema compatibility. The daemon
+  // delivery sinks remain disabled, so acknowledging this banner does not
+  // transmit an event.
   return (
     <div className="privacy-consent-banner" role="region" aria-labelledby="privacy-consent-title">
       <div className="privacy-consent-banner-head">

@@ -25,6 +25,7 @@ import {
 import { readAppConfig } from './app-config.js';
 
 const DEFAULT_HOST = 'https://us.i.posthog.com';
+const LEGACY_TELEMETRY_GATE = 'NIKI_ENABLE_LEGACY_TELEMETRY';
 
 export interface AnalyticsContext {
   deviceId: string;
@@ -65,6 +66,10 @@ export interface PosthogConfig {
 export function readPosthogConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): PosthogConfig | null {
+  // The planned email delivery service is not wired yet. Keep historical
+  // PostHog support available for explicit local smoke tests, but never send
+  // to the legacy sink by default.
+  if (env[LEGACY_TELEMETRY_GATE]?.trim().toLowerCase() !== 'true') return null;
   const key = env.POSTHOG_KEY?.trim();
   if (!key) return null;
   const host = (env.POSTHOG_HOST?.trim() || DEFAULT_HOST).replace(/\/+$/, '');

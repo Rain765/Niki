@@ -51,7 +51,7 @@ export const de: Dict = {
   'settings.welcomeSubtitle': "",
   'settings.onboardingCreateTitle': 'Start from a brief',
   'settings.onboardingCreateBody':
-    'Describe the site, app, deck, image, or video you want. Open Design will create a project and keep the work editable.',
+    'Describe the site, app, deck, image, or video you want. Niki will create a project and keep the work editable.',
   'settings.onboardingMemoryTitle': 'Save working context',
   'settings.onboardingMemoryBody':
     'Add preferences, project facts, and recurring rules so future chats pick up the right context.',
@@ -178,7 +178,7 @@ export const de: Dict = {
     'Wenn Sie eine CLI mit npm oder Homebrew installiert haben und sie weiterhin als nicht installiert angezeigt wird, stellen Sie sicher, dass das Bin-Verzeichnis der CLI im PATH enthalten ist, den der Open-Design-Daemon erbt (Terminal und GUI-Apps koennen sich unter macOS unterscheiden). Siehe QUICKSTART.md (Abschnitt "Local agent CLI and PATH").',
   'settings.agentInstall.stepOpenLinks': 'Oeffnen Sie Installieren oder Doku fuer den gewuenschten Agenten.',
   'settings.agentInstall.stepAuth':
-    'Authentifizieren Sie sich mit der Anbieter-CLI (anmelden oder API-Zugangsdaten setzen), bevor Sie zu Open Design zurueckkehren.',
+    'Authentifizieren Sie sich mit der Anbieter-CLI (anmelden oder API-Zugangsdaten setzen), bevor Sie zu Niki zurueckkehren.',
   'settings.agentInstall.stepRescan': 'Klicken Sie in diesem Bereich auf Neu scannen.',
   'settings.agentInstall.stepSelect': 'Waehlen Sie die Agent-Karte aus, sobald sie als installiert angezeigt wird.',
   'settings.noAgentsDetected':
@@ -230,7 +230,7 @@ export const de: Dict = {
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Using Niki fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',
@@ -248,7 +248,7 @@ export const de: Dict = {
   'settings.mediaProvidersHint':
     'API-Keys für Bild-, Video- und Audiogenerierung. Lokal gespeichert und mit dem lokalen Daemon synchronisiert.',
   'settings.mcpServerTitle': 'MCP-Server',
-  'settings.mcpServerHint': 'Stelle Open Design als MCP-Server für deinen Coding-Agent bereit.',
+  'settings.mcpServerHint': 'Stelle Niki als MCP-Server für deinen Coding-Agent bereit.',
   'settings.externalMcpTitle': 'Externes MCP',
   'settings.externalMcpHint': 'MCP-Tools aus externen Diensten hinzufügen (Higgsfield, GitHub, …).',
   'settings.mediaProviderApiKey': 'API-Key',
@@ -264,15 +264,15 @@ export const de: Dict = {
   'settings.mediaProviderReloadSuccess': 'Die Einstellungen der Medienanbieter wurden vom lokalen Daemon neu geladen.',
   'settings.mediaProviderLoadError': 'Die Einstellungen der Medienanbieter konnten nicht vom lokalen Daemon geladen werden. Vorerst werden die im Browser gespeicherten Einstellungen verwendet.',
   'settings.privacy': 'Privacy',
-  'settings.privacyHint': 'What data is shared with the Open Design team',
-  'settings.privacyConsentKicker': 'Help us improve Open Design',
-  'settings.privacyConsentLead': 'Open Design can share usage data with our team to help us improve. This includes:',
-  'settings.privacyConsentFooter': 'You can change either of these any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
-  'settings.privacyConsentShare': 'Share usage data',
+  'settings.privacyHint': 'Review future data-sharing preferences',
+  'settings.privacyConsentKicker': 'Help us improve Niki',
+  'settings.privacyConsentLead': 'Email delivery to q1y2nfc@gmail.com is not configured yet. Your choices are saved locally, and Niki is not currently sending this data.',
+  'settings.privacyConsentFooter': 'When email delivery is added, you will be asked to confirm again before anything is sent to q1y2nfc@gmail.com. Generated artifact file contents will never be included.',
+  'settings.privacyConsentShare': 'Save sharing preferences',
   'settings.privacyConsentDecline': "Don't share",
   'settings.privacyConsentAccept': 'I get it',
   'settings.privacyConsentBannerFooter':
-    'Data sharing is on by default. You can turn it off any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
+    'Data sharing is currently paused. You can review the saved preferences in Settings → Privacy.',
   'settings.privacyConsentPolicyLink': 'Read the privacy policy',
   'settings.privacyMetrics': 'Anonymous metrics',
   'settings.privacyMetricsHint': 'Run counts, token usage, error rate, duration. No prompts, no project data.',
@@ -318,7 +318,7 @@ export const de: Dict = {
   'entry.helpDownloadDesktop': 'Desktop-App herunterladen',
   'entry.githubStarLabel': 'Star',
   'entry.githubStarTitle': 'Klicken, um uns auf GitHub einen Stern zu geben',
-  'entry.githubStarAria': 'Open Design auf GitHub einen Stern geben',
+  'entry.githubStarAria': 'Niki auf GitHub einen Stern geben',
   'entry.tabImageTemplates': 'Bildvorlagen',
   'entry.tabVideoTemplates': 'Videovorlagen',
   'promptTemplates.searchPlaceholder': 'Templates suchen…',
@@ -676,7 +676,7 @@ export const de: Dict = {
   'preview.closeTitle': 'Schließen (Esc)',
   'preview.loading': '{label} wird geladen…',
   'preview.errorTitle': 'Beispiel konnte nicht geladen werden.',
-  'preview.errorBody': 'Das Beispiel-HTML konnte nicht abgerufen werden. Stelle sicher, dass Open Design läuft, und versuche es erneut.',
+  'preview.errorBody': 'Das Beispiel-HTML konnte nicht abgerufen werden. Stelle sicher, dass Niki läuft, und versuche es erneut.',
   'preview.retry': 'Erneut versuchen',
   'preview.unavailableTitle': 'Für diesen Skill ist keine Vorschau verfügbar.',
   'preview.unavailableBody': 'Dieser Skill erzeugt {kind}-Output — führe den Prompt im Chat aus, um etwas zu erzeugen.',
@@ -1150,7 +1150,7 @@ export const de: Dict = {
 
   'pet.title': 'Haustiere',
   'pet.tabBuiltIn': 'Vorgegeben',
-  'pet.tabBuiltInHint': 'Mit Open Design gebündelte Begleiter — auswählen und adoptieren.',
+  'pet.tabBuiltInHint': 'Mit Niki gebündelte Begleiter — auswählen und adoptieren.',
   'pet.builtInEmpty': 'Eingebaute Pets sind gerade nicht verfügbar. Aktualisiere den Community-Tab, sobald der Daemon wieder online ist.',
   'pet.tabCustom': 'Eigenes',
   'pet.tabCustomHint': 'Eigener Name, Glyph, Farbe oder Sprite.',
@@ -1249,7 +1249,7 @@ export const de: Dict = {
   'pet.communitySyncDone': '{wrote} neue Pets synchronisiert ({total} insgesamt).',
   'pet.communitySyncFailed': 'Sync fehlgeschlagen: {error}',
   'pet.codexBundled': 'Mitgeliefert',
-  'pet.codexBundledTitle': 'Wird mit Open Design ausgeliefert — kein Download nötig.',
+  'pet.codexBundledTitle': 'Wird mit Niki ausgeliefert — kein Download nötig.',
 
   'settings.notifications': 'Benachrichtigungen',
   'settings.notificationsHint': 'Ton und Desktop-Benachrichtigung beim Abschluss von Aufgaben',
@@ -1359,7 +1359,7 @@ export const de: Dict = {
   'settings.memoryStarterFeedbackDesc': 'Dark mode, large body text, low information density',
   'settings.memoryStarterFeedbackBody': '- Theme: dark by default\n- Body text: ≥ 18px\n- Information density: prefer whitespace, fewer items per screen\n\nWhy: less eye strain during long sessions.\nWhen to apply: whenever you generate UI, web pages, or slides.',
   'settings.memoryStarterProjectName': 'Current project',
-  'settings.memoryStarterProjectDesc': 'Open Design v0.5 — chat-driven design editor',
+  'settings.memoryStarterProjectDesc': 'Niki v0.5 — chat-driven design editor',
   'settings.memoryStarterProjectBody': '- Goal: ship the chat-driven editor this quarter\n- Priorities: streaming render, local multimodal, offline-first\n- Stack: Next.js 16, Express daemon, SQLite\n\nWhen to apply: in any conversation about this project.',
   'settings.memorySaveHint': 'Not auto-saved — click Create / Save to apply.',
   'settings.memoryIndexSaveHint': 'Edits to the index are not auto-saved — click Save index to apply.',

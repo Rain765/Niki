@@ -235,7 +235,7 @@ async function createProjectViaApi(page: Page, projectId: string, name: string) 
 async function gotoEntryHome(page: Page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await waitForLoadingToClear(page);
-  const privacyDialog = page.getByRole('dialog').filter({ hasText: 'Help us improve Open Design' });
+  const privacyDialog = page.getByRole('dialog').filter({ hasText: 'Help us improve Niki' });
   if (await privacyDialog.isVisible().catch(() => false)) {
     await privacyDialog.getByRole('button', { name: /not now/i }).click();
     await expect(privacyDialog).toHaveCount(0);
@@ -305,7 +305,7 @@ async function sendPromptAndReloadBeforeCreateResponse(page: Page, prompt: strin
 }
 
 async function dismissPrivacyDialog(page: Page) {
-  const privacyDialog = page.getByRole('dialog').filter({ hasText: 'Help us improve Open Design' });
+  const privacyDialog = page.getByRole('dialog').filter({ hasText: 'Help us improve Niki' });
   if (await privacyDialog.isVisible().catch(() => false)) {
     await privacyDialog.getByRole('button', { name: /not now/i }).click();
     await expect(privacyDialog).toHaveCount(0);
@@ -313,7 +313,7 @@ async function dismissPrivacyDialog(page: Page) {
 }
 
 async function waitForLoadingToClear(page: Page) {
-  const loading = page.getByText('Loading Open Design…');
+  const loading = page.getByText('Loading Niki…');
   await loading.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {});
 }
 

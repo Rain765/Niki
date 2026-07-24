@@ -51,7 +51,7 @@ export const ko: Dict = {
   'settings.welcomeSubtitle': "",
   'settings.onboardingCreateTitle': 'Start from a brief',
   'settings.onboardingCreateBody':
-    'Describe the site, app, deck, image, or video you want. Open Design will create a project and keep the work editable.',
+    'Describe the site, app, deck, image, or video you want. Niki will create a project and keep the work editable.',
   'settings.onboardingMemoryTitle': 'Save working context',
   'settings.onboardingMemoryBody':
     'Add preferences, project facts, and recurring rules so future chats pick up the right context.',
@@ -175,10 +175,10 @@ export const ko: Dict = {
   'settings.agentInstall.install': '설치',
   'settings.agentInstall.docs': '문서',
   'settings.agentInstall.pathHint':
-    'npm 또는 Homebrew로 CLI를 설치했는데도 아직 미설치로 표시된다면, Open Design daemon이 상속받는 PATH에 도구의 bin 디렉터리가 포함되어 있는지 확인하세요(macOS에서는 Terminal과 GUI 앱의 PATH가 다를 수 있습니다). QUICKSTART.md("Local agent CLI and PATH" 섹션)를 참고하세요.',
+    'npm 또는 Homebrew로 CLI를 설치했는데도 아직 미설치로 표시된다면, Niki daemon이 상속받는 PATH에 도구의 bin 디렉터리가 포함되어 있는지 확인하세요(macOS에서는 Terminal과 GUI 앱의 PATH가 다를 수 있습니다). QUICKSTART.md("Local agent CLI and PATH" 섹션)를 참고하세요.',
   'settings.agentInstall.stepOpenLinks': '원하는 에이전트 카드에서 설치 또는 문서 링크를 여세요.',
   'settings.agentInstall.stepAuth':
-    'Open Design으로 돌아오기 전에 공급자 CLI에서 인증(로그인 또는 API 자격 증명 추가)을 완료하세요.',
+    'Niki으로 돌아오기 전에 공급자 CLI에서 인증(로그인 또는 API 자격 증명 추가)을 완료하세요.',
   'settings.agentInstall.stepRescan': '이 섹션에서 다시 스캔을 클릭하세요.',
   'settings.agentInstall.stepSelect': '설치됨으로 표시되면 해당 에이전트 카드를 선택하세요.',
   'settings.noAgentsDetected':
@@ -230,7 +230,7 @@ export const ko: Dict = {
   'settings.modelPickerLiveHint':
     'Models were refreshed from the installed CLI. Default still uses the CLI config.',
   'settings.modelPickerFallbackHint':
-    'Using Open Design fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
+    'Using Niki fallback models because the installed CLI did not return live model metadata. Rescan after updating or logging in to the CLI.',
   'settings.cliEnvTitle': 'CLI config locations',
   'settings.cliEnvHint':
     'Set non-secret config directories for packaged app runs and agent detection.',
@@ -248,7 +248,7 @@ export const ko: Dict = {
   'settings.mediaProvidersHint':
     '이미지, 비디오, 오디오 생성을 위한 API 키입니다. 로컬에 저장되며 로컬 데몬과 동기화됩니다.',
   'settings.mcpServerTitle': 'MCP 서버',
-  'settings.mcpServerHint': 'Open Design을 코딩 에이전트용 MCP 서버로 노출합니다.',
+  'settings.mcpServerHint': 'Niki을 코딩 에이전트용 MCP 서버로 노출합니다.',
   'settings.externalMcpTitle': '외부 MCP',
   'settings.externalMcpHint': '외부 서비스(Higgsfield, GitHub 등)의 MCP 도구를 추가합니다.',
   'settings.mediaProviderApiKey': 'API 키',
@@ -264,15 +264,15 @@ export const ko: Dict = {
   'settings.mediaProviderReloadSuccess': '로컬 데몬에서 미디어 제공자 설정을 다시 불러왔습니다.',
   'settings.mediaProviderLoadError': '로컬 데몬에서 미디어 제공자 설정을 불러오지 못했습니다. 지금은 브라우저에 저장된 설정을 사용합니다.',
   'settings.privacy': 'Privacy',
-  'settings.privacyHint': 'What data is shared with the Open Design team',
-  'settings.privacyConsentKicker': 'Help us improve Open Design',
-  'settings.privacyConsentLead': 'Open Design can share usage data with our team to help us improve. This includes:',
-  'settings.privacyConsentFooter': 'You can change either of these any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
-  'settings.privacyConsentShare': 'Share usage data',
+  'settings.privacyHint': 'Review future data-sharing preferences',
+  'settings.privacyConsentKicker': 'Help us improve Niki',
+  'settings.privacyConsentLead': 'Email delivery to q1y2nfc@gmail.com is not configured yet. Your choices are saved locally, and Niki is not currently sending this data.',
+  'settings.privacyConsentFooter': 'When email delivery is added, you will be asked to confirm again before anything is sent to q1y2nfc@gmail.com. Generated artifact file contents will never be included.',
+  'settings.privacyConsentShare': 'Save sharing preferences',
   'settings.privacyConsentDecline': "Don't share",
   'settings.privacyConsentAccept': 'I get it',
   'settings.privacyConsentBannerFooter':
-    'Data sharing is on by default. You can turn it off any time in Settings → Privacy. We never upload the contents of your generated artifact files.',
+    'Data sharing is currently paused. You can review the saved preferences in Settings → Privacy.',
   'settings.privacyConsentPolicyLink': 'Read the privacy policy',
   'settings.privacyMetrics': 'Anonymous metrics',
   'settings.privacyMetricsHint': 'Run counts, token usage, error rate, duration. No prompts, no project data.',
@@ -319,7 +319,7 @@ export const ko: Dict = {
   'entry.helpDownloadDesktop': '데스크탑 앱 다운로드',
   'entry.githubStarLabel': 'Star',
   'entry.githubStarTitle': 'GitHub 에서 별을 눌러주세요',
-  'entry.githubStarAria': 'GitHub 에서 Open Design 에 별 누르기',
+  'entry.githubStarAria': 'GitHub 에서 Niki 에 별 누르기',
   'entry.tabImageTemplates': '이미지 템플릿',
   'entry.tabVideoTemplates': '비디오 템플릿',
   'promptTemplates.searchPlaceholder': '템플릿 검색…',
@@ -788,7 +788,7 @@ export const ko: Dict = {
   'preview.closeTitle': '닫기 (Esc)',
   'preview.loading': '{label} 불러오는 중…',
   'preview.errorTitle': '이 예제를 불러오지 못했습니다.',
-  'preview.errorBody': '예제 HTML을 가져오지 못했습니다. Open Design이 실행 중인지 확인하고 다시 시도하세요.',
+  'preview.errorBody': '예제 HTML을 가져오지 못했습니다. Niki이 실행 중인지 확인하고 다시 시도하세요.',
   'preview.retry': '다시 시도',
   'preview.unavailableTitle': '이 스킬에는 함께 제공되는 미리보기가 없습니다.',
   'preview.unavailableBody': '이 스킬은 {kind} 출력을 생성합니다 — 채팅에서 프롬프트를 실행해 생성하세요.',
@@ -1262,7 +1262,7 @@ export const ko: Dict = {
 
   'pet.title': '펫',
   'pet.tabBuiltIn': '내장',
-  'pet.tabBuiltInHint': 'Open Design에 기본 포함된 친구들 — 골라서 입양하세요.',
+  'pet.tabBuiltInHint': 'Niki에 기본 포함된 친구들 — 골라서 입양하세요.',
   'pet.builtInEmpty': '지금은 기본 제공 펫을 불러올 수 없어요. 데몬이 다시 켜지면 커뮤니티 탭을 새로고침해 주세요.',
   'pet.tabCustom': '커스텀',
   'pet.tabCustomHint': '이름·글리프·색상·스프라이트를 직접 정해 보세요.',
@@ -1361,7 +1361,7 @@ export const ko: Dict = {
   'pet.communitySyncDone': '신규 펫 {wrote} 마리 동기화됨 (총 {total} 마리).',
   'pet.communitySyncFailed': '동기화 실패: {error}',
   'pet.codexBundled': '내장',
-  'pet.codexBundledTitle': 'Open Design 에 내장 — 다운로드 불필요.',
+  'pet.codexBundledTitle': 'Niki 에 내장 — 다운로드 불필요.',
 
   'settings.notifications': '알림',
   'settings.notificationsHint': '작업 완료 시 효과음 및 데스크톱 알림',
@@ -1471,7 +1471,7 @@ export const ko: Dict = {
   'settings.memoryStarterFeedbackDesc': 'Dark mode, large body text, low information density',
   'settings.memoryStarterFeedbackBody': '- Theme: dark by default\n- Body text: ≥ 18px\n- Information density: prefer whitespace, fewer items per screen\n\nWhy: less eye strain during long sessions.\nWhen to apply: whenever you generate UI, web pages, or slides.',
   'settings.memoryStarterProjectName': 'Current project',
-  'settings.memoryStarterProjectDesc': 'Open Design v0.5 — chat-driven design editor',
+  'settings.memoryStarterProjectDesc': 'Niki v0.5 — chat-driven design editor',
   'settings.memoryStarterProjectBody': '- Goal: ship the chat-driven editor this quarter\n- Priorities: streaming render, local multimodal, offline-first\n- Stack: Next.js 16, Express daemon, SQLite\n\nWhen to apply: in any conversation about this project.',
   'settings.memorySaveHint': 'Not auto-saved — click Create / Save to apply.',
   'settings.memoryIndexSaveHint': 'Edits to the index are not auto-saved — click Save index to apply.',
