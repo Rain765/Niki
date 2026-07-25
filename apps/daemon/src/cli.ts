@@ -231,6 +231,7 @@ const SUBCOMMAND_MAP = {
   'design-systems': runDesignSystems,
   craft: runCraft,
   diagnostics: runDiagnostics,
+  device: runDevice,
   status: runStatus,
   version: runVersion,
   doctor: runDoctor,
@@ -322,6 +323,10 @@ function printRootHelp() {
       schedule, trigger, or harvest results from a routine without
       opening the web UI.
 
+  od device <status|pair|disconnect> [args]
+      Pair this local daemon with the Niki relay, inspect presence, or
+      remove the pairing. This MVP exposes status and Ping only.
+
   od memory tree <list|view|edit|move> [args]
       Inspect and edit the memory tree that is injected into agent prompts.
 
@@ -366,6 +371,62 @@ What the daemon does:
   * proxies messages (text + images) to the selected agent via child-process spawn
   * exposes /api/projects/:id/media/generate — the unified image/video/audio
      dispatcher that the agent calls via \`od media generate\`.`);
+}
+
+async function runDevice(args) {
+  const subcommand = args.find((value) => !value.startsWith('-')) ?? 'status';
+  if (subcommand === 'help' || args.includes('--help') || args.includes('-h')) {
+    console.log(`Usage:
+  od device status [--json] [--daemon-url <url>]
+  od device pair --relay-url <url> [--name <device-name>] [--json] [--daemon-url <url>]
+  od device disconnect [--json] [--daemon-url <url>]
+
+The device bridge MVP allows presence and Ping/Pong only. It cannot execute
+commands or access project files.`);
+    return;
+  }
+  if (!['status', 'pair', 'disconnect'].includes(subcommand)) {
+    throw new Error(`unknown device command: ${subcommand}`);
+  }
+  const flags = parseFlags(args, {
+    string: new Set(['daemon-url', 'relay-url', 'name']),
+    boolean: new Set(['json', 'help', 'h']),
+  });
+  const base = await cliDaemonBaseUrl(flags);
+  let response;
+  if (subcommand === 'status') {
+    response = await fetch(`${base}/api/device-bridge/status`);
+  } else if (subcommand === 'pair') {
+    if (!flags['relay-url']) {
+      throw new Error('od device pair requires --relay-url <url>');
+    }
+    response = await fetch(`${base}/api/device-bridge/pair`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        relayUrl: flags['relay-url'],
+        ...(flags.name ? { deviceName: flags.name } : {}),
+      }),
+    });
+  } else {
+    response = await fetch(`${base}/api/device-bridge/pair`, { method: 'DELETE' });
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body.error ?? `device bridge request failed (${response.status})`);
+  }
+  if (flags.json) {
+    console.log(JSON.stringify(body));
+    return;
+  }
+  console.log(`Device: ${body.device?.name ?? 'unpaired'}`);
+  console.log(`State: ${body.state}`);
+  if (body.relayUrl) console.log(`Relay: ${body.relayUrl}`);
+  if (body.pairCode) {
+    console.log(`Pair code: ${body.pairCode}`);
+    console.log(`Expires: ${new Date(body.pairCodeExpiresAt).toLocaleString()}`);
+  }
+  if (body.error) console.log(`Error: ${body.error}`);
 }
 
 // ---------------------------------------------------------------------------

@@ -371,6 +371,8 @@ import { TranscriptExportLockedError } from './transcript-export.js';
 import { registerChatRoutes } from './chat-routes.js';
 import { registerStaticResourceRoutes } from './static-resource-routes.js';
 import { registerRoutineRoutes, routineDbRowToContract } from './routine-routes.js';
+import { registerDeviceBridgeRoutes } from './device-bridge-routes.js';
+import { createDeviceBridgeService } from './device-bridge.js';
 import { assertServerContextSatisfiesRoutes } from './route-context-contract.js';
 import { configureConnectorCredentialStore, ConnectorServiceError, FileConnectorCredentialStore } from './connectors/service.js';
 import { composioConnectorProvider } from './connectors/composio.js';
@@ -3158,6 +3160,7 @@ export async function startServer({
     next();
   });
   const db = openDatabase(PROJECT_ROOT, { dataDir: RUNTIME_DATA_DIR });
+  const deviceBridge = await createDeviceBridgeService(RUNTIME_DATA_DIR);
   // Wire the upload-destination bridge to this db so multer can route
   // file uploads into baseDir-rooted projects' actual folders.
   projectMetadataLookup = (id) => {
@@ -4428,6 +4431,7 @@ export async function startServer({
     telemetry: { reportFinalizedMessage },
     validation: validationDeps,
   });
+  registerDeviceBridgeRoutes(app, deviceBridge);
   registerCanvasRoutes(app, { db, http: httpDeps });
   registerImportRoutes(app, {
     db,
@@ -11232,6 +11236,7 @@ export async function startServer({
       composioConnectorProvider.stopCatalogRefreshLoop();
       orbitService.stop();
       routineService?.stop();
+      void deviceBridge.stop();
     };
     const shutdownDaemonRuns = async () => {
       if (daemonShutdownStarted) return;
@@ -11239,6 +11244,7 @@ export async function startServer({
       daemonShuttingDown = true;
       await design.runs.shutdownActive({ graceMs: resolveChatRunShutdownGraceMs() });
       await design.analytics.shutdown();
+      await deviceBridge.stop();
     };
     let server;
     try {

@@ -1,0 +1,27 @@
+{
+  "name": "@open-design/relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/cli.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "pnpm run build && node dist/cli.js",
+    "start:prod": "node dist/cli.js",
+    "test": "vitest run -c vitest.config.ts",
+    "typecheck": "pnpm --filter @open-design/contracts build && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json --noEmit"
+  },
+  "dependencies": {
+    "@open-design/contracts": "workspace:*",
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.39",
+    "@types/ws": "8.18.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.6"
+  },
+  "engines": {
+    "node": "~24"
+  }
+}

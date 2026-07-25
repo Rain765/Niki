@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: niki-device-relay
+    runtime: docker
+    dockerfilePath: ./apps/relay/Dockerfile
+    healthCheckPath: /health
+    plan: starter
+    region: singapore
+    envVars:
+      - key: NIKI_RELAY_ALLOWED_ORIGINS
+        value: https://niki-opal.vercel.app
+      - key: NIKI_RELAY_PUBLIC_URL
+        value: https://niki-device-relay.onrender.com
+      - key: NIKI_RELAY_DATA_FILE
+        value: /var/data/relay-state.json
+    disk:
+      name: niki-relay-data
+      mountPath: /var/data
+      sizeGB: 1

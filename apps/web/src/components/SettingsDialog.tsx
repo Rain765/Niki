@@ -85,6 +85,7 @@ import { McpClientSection } from './McpClientSection';
 import { SkillsSection } from './SkillsSection';
 import { DesignSystemsSection } from './DesignSystemsSection';
 import { PrivacySection } from './PrivacySection';
+import { DevicesSection } from './DevicesSection';
 import { RoutinesSection } from './RoutinesSection';
 import { ConnectorsBrowser } from './ConnectorsBrowser';
 import { MemoryModelInline } from './MemoryModelInline';
@@ -112,6 +113,7 @@ import {
 
 export type SettingsSection =
   | 'execution'
+  | 'devices'
   | 'instructions'
   | 'media'
   | 'composio'
@@ -1498,6 +1500,13 @@ export function SettingsDialog({
   // not twice (heading + tab).
   const sectionHeader: Record<SettingsSection, { title: string; subtitle: string }> = {
     execution: { title: t('settings.title'), subtitle: t('settings.subtitle') },
+    devices: {
+      title: locale === 'zh-CN' || locale === 'zh-TW' ? '设备' : 'Devices',
+      subtitle:
+        locale === 'zh-CN' || locale === 'zh-TW'
+          ? '安全连接本机与在线 Niki'
+          : 'Securely connect this Mac to online Niki',
+    },
     instructions: {
       title: 'Instructions / Rules',
       subtitle: 'Fixed behavior the assistant should follow',
@@ -1619,6 +1628,17 @@ export function SettingsDialog({
               <span>
                 <strong>{t('settings.envConfigure')}</strong>
                 <small>{`${t('settings.localCli')} / ${t('settings.modeApiMeta')}`}</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={`settings-nav-item${activeSection === 'devices' ? ' active' : ''}`}
+              onClick={() => setActiveSection('devices')}
+            >
+              <Icon name="present" size={18} />
+              <span>
+                <strong>{locale === 'zh-CN' || locale === 'zh-TW' ? '设备' : 'Devices'}</strong>
+                <small>Remote presence and Ping</small>
               </span>
             </button>
             <button
@@ -2902,6 +2922,8 @@ export function SettingsDialog({
           {activeSection === 'privacy' ? (
             <PrivacySection cfg={cfg} setCfg={setCfg} />
           ) : null}
+
+          {activeSection === 'devices' ? <DevicesSection /> : null}
 
           {activeSection === 'about' ? (
             <section className="settings-section">

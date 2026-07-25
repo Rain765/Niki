@@ -18,6 +18,10 @@
       "types": "./dist/api/connectionTest.d.ts",
       "default": "./dist/api/connectionTest.mjs"
     },
+    "./api/deviceBridge": {
+      "types": "./dist/api/device-bridge.d.ts",
+      "default": "./dist/api/device-bridge.mjs"
+    },
     "./api/orbit": {
       "types": "./dist/api/orbit.d.ts",
       "default": "./dist/api/orbit.mjs"
