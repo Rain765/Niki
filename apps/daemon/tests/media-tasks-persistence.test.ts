@@ -7,6 +7,7 @@ import {
   listMediaTasksByProject,
   listRecentMediaTasks,
   migrateMediaTasks,
+  reconcileDirectLoanPosterProject,
   reconcileMediaTasksOnBoot,
   updateMediaTask,
 } from '../src/media-tasks.js';
@@ -19,6 +20,7 @@ function freshDb(): Database.Database {
     CREATE TABLE projects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      metadata_json TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -150,6 +152,63 @@ describe('media task persistence', () => {
     });
     expect(running?.status).toBe('interrupted');
     expect(done?.status).toBe('done');
+  });
+
+  it('marks a queued direct loan-poster project failed after its media batch terminates with errors', () => {
+    const requestedAt = 1_000;
+    db.prepare(
+      `UPDATE projects
+          SET metadata_json = ?
+        WHERE id = 'p1'`,
+    ).run(JSON.stringify({
+      kind: 'image',
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'queued',
+        requestedAt,
+        expectedOutputs: 2,
+      },
+    }));
+    insertMediaTask(db, {
+      id: 'failed',
+      projectId: 'p1',
+      status: 'failed',
+      surface: 'image',
+      startedAt: 1_100,
+      endedAt: 1_200,
+      error: { message: 'provider unavailable', status: 502 },
+    });
+    insertMediaTask(db, {
+      id: 'running',
+      projectId: 'p1',
+      status: 'running',
+      surface: 'image',
+      startedAt: 1_110,
+    });
+
+    expect(reconcileDirectLoanPosterProject(db, 'p1', { now: 1_300 })).toBe(false);
+
+    updateMediaTask(db, 'running', {
+      status: 'failed',
+      endedAt: 1_400,
+      error: { message: 'fetch failed', status: 400 },
+    });
+
+    expect(reconcileDirectLoanPosterProject(db, 'p1', { now: 1_500 })).toBe(true);
+    const project = db.prepare(
+      `SELECT metadata_json AS metadataJson, updated_at AS updatedAt
+         FROM projects
+        WHERE id = 'p1'`,
+    ).get() as { metadataJson: string; updatedAt: number };
+    expect(JSON.parse(project.metadataJson)).toMatchObject({
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'failed',
+        failedAt: 1_400,
+        lastError: 'fetch failed',
+      },
+    });
+    expect(project.updatedAt).toBe(1_400);
   });
 
   it('keeps recent terminal rows and deletes expired terminal rows by TTL', () => {

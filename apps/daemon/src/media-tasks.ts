@@ -238,6 +238,78 @@ export function listRecentMediaTasks(
   return rows.map(normalizeRow);
 }
 
+/**
+ * A direct loan-poster batch is accepted asynchronously, so the project is
+ * persisted as `queued` before provider work finishes. Once every image task
+ * from that batch is terminal, mirror any provider failure back to the project
+ * lifecycle so clients do not keep rendering an infinite generation spinner.
+ */
+export function reconcileDirectLoanPosterProject(
+  db: Database.Database,
+  projectId: string,
+  options: { now?: number } = {},
+): boolean {
+  const project = db.prepare(
+    `SELECT metadata_json AS metadataJson
+       FROM projects
+      WHERE id = ?`,
+  ).get(projectId) as { metadataJson: string | null } | undefined;
+  if (!project?.metadataJson) return false;
+
+  const metadata = parseJson(project.metadataJson);
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return false;
+  const directGeneration = (metadata as Record<string, unknown>).directGeneration;
+  if (
+    !directGeneration
+    || typeof directGeneration !== 'object'
+    || Array.isArray(directGeneration)
+  ) {
+    return false;
+  }
+  const lifecycle = directGeneration as Record<string, unknown>;
+  if (
+    lifecycle.kind !== 'loan-poster'
+    || (lifecycle.status !== 'queued' && lifecycle.status !== 'preparing')
+  ) {
+    return false;
+  }
+  const requestedAt = lifecycle.requestedAt;
+  if (typeof requestedAt !== 'number' || !Number.isFinite(requestedAt)) return false;
+
+  const batchTasks = listMediaTasksByProject(db, projectId, { includeTerminal: true })
+    .filter((task) => task.surface === 'image' && task.startedAt >= requestedAt);
+  if (
+    batchTasks.length === 0
+    || batchTasks.some((task) => !TERMINAL_STATUSES.has(task.status))
+  ) {
+    return false;
+  }
+  const failures = batchTasks
+    .filter((task) => task.status === 'failed' || task.status === 'interrupted')
+    .sort((a, b) => (b.endedAt ?? b.updatedAt) - (a.endedAt ?? a.updatedAt));
+  const latestFailure = failures[0];
+  if (!latestFailure) return false;
+
+  const failedAt = latestFailure.endedAt ?? latestFailure.updatedAt ?? options.now ?? Date.now();
+  const nextMetadata = {
+    ...(metadata as Record<string, unknown>),
+    directGeneration: {
+      ...lifecycle,
+      status: 'failed',
+      failedAt,
+      lastError: latestFailure.error?.message ?? 'media generation failed',
+    },
+  };
+  const result = db.prepare(
+    `UPDATE projects
+        SET metadata_json = ?,
+            updated_at = ?
+      WHERE id = ?
+        AND metadata_json = ?`,
+  ).run(JSON.stringify(nextMetadata), failedAt, projectId, project.metadataJson);
+  return result.changes === 1;
+}
+
 export function deleteMediaTask(db: Database.Database, id: string): void {
   db.prepare(`DELETE FROM media_tasks WHERE id = ?`).run(id);
 }

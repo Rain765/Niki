@@ -237,6 +237,7 @@ import {
   insertMediaTask,
   listMediaTasksByProject,
   listRecentMediaTasks,
+  reconcileDirectLoanPosterProject,
   reconcileMediaTasksOnBoot,
   updateMediaTask,
 } from './media-tasks.js';
@@ -3235,7 +3236,13 @@ export async function startServer({
     );
   }
   mediaTasks.clear();
-  for (const row of listRecentMediaTasks(db, { terminalTtlMs: TASK_TTL_AFTER_DONE_MS })) {
+  const recentMediaTasks = listRecentMediaTasks(db, {
+    terminalTtlMs: TASK_TTL_AFTER_DONE_MS,
+  });
+  for (const projectId of new Set(recentMediaTasks.map((task) => task.projectId))) {
+    reconcileDirectLoanPosterProject(db, projectId);
+  }
+  for (const row of recentMediaTasks) {
     hydrateMediaTask(row);
   }
 
@@ -4389,6 +4396,8 @@ export async function startServer({
     getLiveMediaTask: (taskId) => getLiveMediaTask(db, taskId),
     mediaTaskSnapshot,
     listMediaTasksByProject,
+    reconcileDirectLoanPosterProject: (projectId) =>
+      reconcileDirectLoanPosterProject(db, projectId),
     listElevenLabsVoiceOptions,
   };
   const appConfigDeps = { readAppConfig, writeAppConfig };
