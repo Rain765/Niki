@@ -23746,6 +23746,19 @@ body.desktop-pet-shell .pet-task-item {
   flex-wrap: wrap;
 }
 .plugin-details-modal__stage-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 /* Settings → Skills (functional) row stack.
    Mirrors the External MCP servers panel: a vertical list of
    collapsible rows. Each row's header is always visible; SKILL.md
@@ -24836,10 +24849,6 @@ body.desktop-pet-shell .pet-task-item {
    lives in `src/styles/home/`. Imported from `app/layout.tsx`
    alongside this file so upstream `index.css` rebases stay narrow.
    ============================================================ */
-  color: var(--text-faint);
-  transition: transform 160ms ease, color 120ms ease;
-  flex-shrink: 0;
-}
 .settings-skills .skills-row-summary-btn:hover .skills-row-chevron {
   color: var(--text-muted);
 }
