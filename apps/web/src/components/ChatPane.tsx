@@ -25,6 +25,11 @@ import {
   type ChatSendMeta,
 } from './ChatComposer';
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
+import {
+  isDirectLoanPosterProject,
+  isLoanPosterGenerationPrompt,
+  isLoanPosterOutputName,
+} from './home-hero/zambia-posters';
 import { Icon } from './Icon';
 
 type TranslateFn = (key: keyof Dict, vars?: Record<string, string | number>) => string;
@@ -217,6 +222,10 @@ interface Props {
   // without project context.
   projectKindForTracking?: TrackingProjectKind | null;
   projectFiles: ProjectFile[];
+  // False only during the first file-list read for a newly opened project.
+  // Direct-generation projects use this to avoid presenting cached queue
+  // metadata as a fresh, still-running generation before files are known.
+  projectFilesInitialized?: boolean;
   hasActiveDesignSystem?: boolean;
   sendDisabled?: boolean;
   // Names that exist in the project folder. Tool cards and chips use this
@@ -242,6 +251,7 @@ interface Props {
   // FileWorkspace's openRequest. Tool cards, attachment chips, and
   // produced-file chips all call this.
   onRequestOpenFile?: (name: string) => void;
+  onDeleteProjectFile?: (name: string) => Promise<boolean>;
   onRequestPluginFolderAgentAction?: (
     relativePath: string,
     action: PluginFolderAgentAction,
@@ -309,6 +319,7 @@ export function ChatPane({
   projectId,
   projectKindForTracking = null,
   projectFiles,
+  projectFilesInitialized = true,
   hasActiveDesignSystem = false,
   projectFileNames,
   onEnsureProject,
@@ -320,6 +331,7 @@ export function ChatPane({
   onSend,
   onStop,
   onRequestOpenFile,
+  onDeleteProjectFile,
   onRequestPluginFolderAgentAction,
   initialDraft,
   onSubmitForm,
@@ -374,6 +386,23 @@ export function ChatPane({
   // the next time the agent emits a different snapshot the card returns,
   // but the same snapshot stays hidden across renders / streaming ticks.
   const [dismissedPinnedTodoKey, setDismissedPinnedTodoKey] = useState<string | null>(null);
+  const directLoanPosterProject = isDirectLoanPosterProject(
+    currentSkillId,
+    projectMetadata,
+  );
+  const generatedLoanPosters = directLoanPosterProject
+    ? projectFiles.filter(
+        (file) => file.kind === 'image' && isLoanPosterOutputName(file.name),
+      )
+    : [];
+  const expectedLoanPosters =
+    projectMetadata?.directGeneration?.kind === 'loan-poster'
+      ? projectMetadata.directGeneration.expectedOutputs
+      : null;
+  const directLoanPosterLifecycle =
+    projectMetadata?.directGeneration?.kind === 'loan-poster'
+      ? projectMetadata.directGeneration
+      : null;
   const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant')?.id;
   const hasActiveRunMessage = messages.some(
     (m) => m.role === 'assistant' && isActiveRunStatus(m.runStatus),
@@ -656,8 +685,8 @@ export function ChatPane({
   }
 
   return (
-    <div className="pane">
-      <div className="chat-header">
+    <div className={`pane${directLoanPosterProject ? ' is-direct-loan-poster' : ''}`}>
+      {!directLoanPosterProject ? <div className="chat-header">
         <div className="chat-header-actions">
           <div
             className={`chat-history-wrap${showConvList ? ' open' : ''}`}
@@ -791,53 +820,64 @@ export function ChatPane({
             </button>
           ) : null}
         </div>
-      </div>
+      </div> : null}
       {tab === 'chat' ? (
         <>
           <div className="chat-log-wrap">
             <div className="chat-log" ref={logRef}>
               {messages.length === 0 ? (
-                <div className="chat-empty-wrap">
-                  <div className="chat-empty">
-                    <span className="chat-empty-title">
-                      {t('chat.startTitle')}
-                    </span>
-                  </div>
-                  <div className="chat-examples" role="list">
-                    {pickStarters(projectMetadata, t).map((ex, i) => (
-                      <button
-                        key={`${ex.title}-${i}`}
-                        type="button"
-                        role="listitem"
-                        className="chat-example"
-                        style={{ animationDelay: `${i * 70}ms` }}
-                        onClick={() => {
-                          trackChatPanelClick(analytics.track, {
-                            page_name: 'chat_panel',
-                            area: 'chat_panel',
-                            element: 'template_card',
-                          });
-                          composerRef.current?.setDraft(ex.prompt);
-                        }}
-                        title={t('chat.fillInputTitle')}
-                      >
-                        <span className="chat-example-icon" aria-hidden>
-                          {ex.icon}
-                        </span>
-                        <span className="chat-example-body">
-                          <span className="chat-example-head">
-                            <span className="chat-example-title">{ex.title}</span>
-                            <span className="chat-example-tag">{ex.tag}</span>
+                directLoanPosterProject ? (
+                  <DirectLoanPosterStatus
+                    generatedFiles={generatedLoanPosters}
+                    expectedCount={expectedLoanPosters}
+                    lifecycle={directLoanPosterLifecycle}
+                    filesInitialized={projectFilesInitialized}
+                    projectId={projectId}
+                    onDeleteProjectFile={onDeleteProjectFile}
+                  />
+                ) : (
+                  <div className="chat-empty-wrap">
+                    <div className="chat-empty">
+                      <span className="chat-empty-title">
+                        {t('chat.startTitle')}
+                      </span>
+                    </div>
+                    <div className="chat-examples" role="list">
+                      {pickStarters(projectMetadata, t).map((ex, i) => (
+                        <button
+                          key={`${ex.title}-${i}`}
+                          type="button"
+                          role="listitem"
+                          className="chat-example"
+                          style={{ animationDelay: `${i * 70}ms` }}
+                          onClick={() => {
+                            trackChatPanelClick(analytics.track, {
+                              page_name: 'chat_panel',
+                              area: 'chat_panel',
+                              element: 'template_card',
+                            });
+                            composerRef.current?.setDraft(ex.prompt);
+                          }}
+                          title={t('chat.fillInputTitle')}
+                        >
+                          <span className="chat-example-icon" aria-hidden>
+                            {ex.icon}
                           </span>
-                          <span className="chat-example-prompt">{ex.prompt}</span>
-                        </span>
-                        <span className="chat-example-cta" aria-hidden>
-                          ↵
-                        </span>
-                      </button>
-                    ))}
+                          <span className="chat-example-body">
+                            <span className="chat-example-head">
+                              <span className="chat-example-title">{ex.title}</span>
+                              <span className="chat-example-tag">{ex.tag}</span>
+                            </span>
+                            <span className="chat-example-prompt">{ex.prompt}</span>
+                          </span>
+                          <span className="chat-example-cta" aria-hidden>
+                            ↵
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )
               ) : null}
               {messages.map((m, i) => {
                 const showDaySeparator = shouldShowDaySeparator(messages[i - 1], m);
@@ -954,6 +994,188 @@ export function ChatPane({
             pinnedPluginId={activePluginSnapshot?.pluginId ?? null}
           />
         </>
+      ) : null}
+    </div>
+  );
+}
+
+function DirectLoanPosterStatus({
+  generatedFiles,
+  expectedCount,
+  lifecycle,
+  filesInitialized,
+  projectId,
+  onDeleteProjectFile,
+}: {
+  generatedFiles: ProjectFile[];
+  expectedCount: number | null;
+  lifecycle: ProjectMetadata['directGeneration'] | null;
+  filesInitialized: boolean;
+  projectId: string | null;
+  onDeleteProjectFile?: (name: string) => Promise<boolean>;
+}) {
+  const t = useT();
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [clientNow, setClientNow] = useState<number | null>(null);
+  useEffect(() => {
+    setClientNow(Date.now());
+  }, [lifecycle?.queuedAt, lifecycle?.requestedAt, lifecycle?.status]);
+  const generatedCount = generatedFiles.length;
+  const hasResults = generatedCount > 0;
+  const selectedFile =
+    generatedFiles.find((file) => file.name === selectedFileName)
+    ?? generatedFiles[0]
+    ?? null;
+  const lifecycleStatus = lifecycle?.status;
+  const hydrating = !filesInitialized;
+  const legacyOrphaned = filesInitialized && lifecycleStatus == null && !hasResults;
+  const failed = lifecycleStatus === 'failed' || legacyOrphaned;
+  const activeLifecycleStatus =
+    lifecycleStatus === 'preparing'
+    || lifecycleStatus === 'queued';
+  const lifecycleStartedAt = lifecycle?.queuedAt ?? lifecycle?.requestedAt;
+  const recentlyStarted =
+    clientNow !== null
+    && lifecycleStartedAt !== undefined
+    && lifecycleStartedAt <= clientNow + 60_000
+    && clientNow - lifecycleStartedAt < 15 * 60_000;
+  const activelyStarting = activeLifecycleStatus && recentlyStarted;
+  const staleActive = activeLifecycleStatus && !recentlyStarted;
+  const complete = !failed
+    && !activelyStarting
+    && expectedCount !== null
+    && generatedCount >= expectedCount;
+  const queuedComplete = lifecycleStatus === 'queued'
+    && expectedCount !== null
+    && generatedCount >= expectedCount;
+  const visuallyComplete = complete || queuedComplete;
+  const title = failed
+    ? '海报生成未启动'
+    : visuallyComplete
+    ? `已完成 ${generatedCount} 张贷款海报`
+    : hasResults
+      ? activelyStarting && expectedCount
+        ? `正在生成 · ${generatedCount}/${expectedCount} 张`
+        : `已生成 ${generatedCount} 张贷款海报`
+      : '正在生成贷款海报';
+  const description = failed
+    ? lifecycle?.lastError ?? '生成任务没有成功入队，请返回首页重试。'
+    : visuallyComplete
+    ? '图片已生成。可复制、下载或删除。'
+    : hasResults && activelyStarting
+      ? '已完成的图片会先显示在这里，其余海报生成后会自动出现。'
+      : hasResults
+        ? '图片已生成。可复制、下载或删除。'
+      : '无需再次发送提示词。生成完成后，图片会自动显示在这里。';
+
+  // Opening an existing chat should never block the whole pane while its file
+  // list hydrates, nor should a persisted queue flag from an old/abandoned
+  // task be presented as a fresh generation. The stable chat shell and
+  // composer remain visible; once files arrive they mount independently.
+  if ((hydrating && !activelyStarting) || (staleActive && !hasResults)) return null;
+
+  return (
+    <div
+      className={[
+        'direct-poster-status',
+        visuallyComplete ? 'is-complete' : '',
+        failed ? 'is-failed' : '',
+        hasResults ? 'has-results' : '',
+        !hasResults && !failed ? 'is-loading' : '',
+      ].filter(Boolean).join(' ')}
+      role="status"
+      aria-live="polite"
+      data-testid="direct-poster-status"
+    >
+      <span className="direct-poster-status-icon">
+        <Icon
+          name={hasResults || failed ? 'image' : 'spinner'}
+          size={19}
+          className={hasResults || failed ? undefined : 'direct-poster-status-spinner'}
+        />
+      </span>
+      <span className="direct-poster-status-copy">
+        <strong>{title}</strong>
+        {hasResults || failed ? <span>{description}</span> : null}
+      </span>
+      {projectId && selectedFile ? (
+        <div className="direct-poster-gallery">
+          <figure className="direct-poster-result">
+            <div className="direct-poster-result-open">
+              <img
+                key={`${selectedFile.name}:${selectedFile.mtime}`}
+                src={`${projectRawUrl(projectId, selectedFile.name)}?v=${Math.round(selectedFile.mtime)}`}
+                alt={`生成的贷款海报 ${generatedFiles.indexOf(selectedFile) + 1}`}
+                loading="lazy"
+                draggable={false}
+                data-testid={`direct-poster-result-image-${selectedFile.name}`}
+              />
+            </div>
+            <figcaption className="direct-poster-result-info">
+              <span>{selectedFile.name}</span>
+              <span className="direct-poster-result-actions">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = new URL(
+                      projectRawUrl(projectId, selectedFile.name),
+                      window.location.href,
+                    ).href;
+                    void copyToClipboard(url);
+                  }}
+                >
+                  {t('designFiles.copy')}
+                </button>
+                <a
+                  href={`${projectRawUrl(projectId, selectedFile.name)}?download=1`}
+                  download={selectedFile.name}
+                >
+                  {t('designFiles.download')}
+                </a>
+                <button
+                  type="button"
+                  className="is-danger"
+                  disabled={!onDeleteProjectFile}
+                  onClick={() => {
+                    if (
+                      !onDeleteProjectFile
+                      || !window.confirm(
+                        t('workspace.deleteFileConfirm', { name: selectedFile.name }),
+                      )
+                    ) return;
+                    void onDeleteProjectFile(selectedFile.name);
+                  }}
+                >
+                  {t('designFiles.delete')}
+                </button>
+              </span>
+            </figcaption>
+          </figure>
+          {generatedCount > 1 ? (
+            <div className="direct-poster-thumbnails" aria-label="生成的海报">
+              {generatedFiles.map((file, index) => (
+                <button
+                  type="button"
+                  key={file.name}
+                  className={file.name === selectedFile.name ? 'is-active' : ''}
+                  aria-label={`查看第 ${index + 1} 张海报`}
+                  aria-pressed={file.name === selectedFile.name}
+                  aria-current={file.name === selectedFile.name ? 'true' : undefined}
+                  onClick={() => setSelectedFileName(file.name)}
+                  data-testid={`direct-poster-thumbnail-button-${file.name}`}
+                >
+                  <img
+                    src={`${projectRawUrl(projectId, file.name)}?v=${Math.round(file.mtime)}`}
+                    alt=""
+                    loading="lazy"
+                    draggable={false}
+                    data-testid={`direct-poster-thumbnail-${file.name}`}
+                  />
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -1245,6 +1467,7 @@ function UserMessage({
   );
   const commentAttachments = message.commentAttachments ?? [];
   const [copied, setCopied] = useState(false);
+  const [promptExpanded, setPromptExpanded] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -1266,6 +1489,12 @@ function UserMessage({
   }
 
   const isDesignSystemWorkspaceRequest = isDesignSystemWorkspacePrompt(message.content);
+  const isCollapsiblePrompt =
+    message.content.length > 320
+    && isLoanPosterGenerationPrompt(message.content);
+  const visiblePrompt = isCollapsiblePrompt && !promptExpanded
+    ? message.content.split(/\n\s*\n/, 1)[0] ?? message.content
+    : message.content;
 
   return (
     <div className="msg user">
@@ -1332,7 +1561,31 @@ function UserMessage({
         </div>
       ) : message.content ? (
         <div className="user-text-wrap">
-          <div className="user-text user-bubble">{message.content}</div>
+          <div
+            className={`user-text user-bubble${isCollapsiblePrompt ? ' user-prompt-collapsible' : ''}`}
+            data-testid={isCollapsiblePrompt ? 'collapsible-user-prompt' : undefined}
+          >
+            {visiblePrompt}
+            {isCollapsiblePrompt ? (
+              <button
+                type="button"
+                className="user-prompt-toggle"
+                aria-expanded={promptExpanded}
+                onClick={() => setPromptExpanded((expanded) => !expanded)}
+              >
+                {t(
+                  promptExpanded
+                    ? 'designFiles.collapseGroup'
+                    : 'designFiles.expandGroup',
+                )}
+                <Icon
+                  name="chevron-down"
+                  size={13}
+                  className={promptExpanded ? 'is-expanded' : undefined}
+                />
+              </button>
+            ) : null}
+          </div>
           <button
             type="button"
             className="ghost user-copy-btn"

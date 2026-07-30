@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildLoanPosterPrompt,
+  buildLoanPosterScenePrompts,
   buildZambiaPosterPrompt,
+  isLoanPosterGenerationPrompt,
+  isLoanPosterOutputName,
   LOAN_POSTER_SKILL_ID,
   loadZambiaPosterReference,
   normalizeZambiaPosterCount,
@@ -65,6 +68,80 @@ describe('Zambia poster preset', () => {
 
     expect(prompt).toContain('1 Zamloan Zambia loan poster');
     expect(prompt).toContain('16:9 landscape');
+  });
+
+  it('recognizes generated execution prompts without matching ordinary chat', () => {
+    const prompt = buildLoanPosterPrompt({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'zamloan',
+    });
+
+    expect(isLoanPosterGenerationPrompt(prompt)).toBe(true);
+    expect(isLoanPosterGenerationPrompt('Design a Zamloan poster for me.')).toBe(false);
+  });
+
+  it('recognizes legacy and date-scoped numbered poster outputs', () => {
+    expect(isLoanPosterOutputName('zamloan-poster-01.png')).toBe(true);
+    expect(isLoanPosterOutputName('zamloan-poster-20260728-001.png')).toBe(true);
+    expect(isLoanPosterOutputName('poster.png')).toBe(false);
+  });
+
+  it('builds ready-to-dispatch scene prompts without an agent planning turn', () => {
+    const prompts = buildLoanPosterScenePrompts({
+      count: 2,
+      aspectRatio: '16:9',
+      brand: 'zamloan',
+    });
+
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]).toContain('Get Cash In 1 Hour');
+    expect(prompts[1]).toContain('Support Your Family Today');
+    expect(prompts.every((prompt) => prompt.includes('Application Successful'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Negative prompt:'))).toBe(true);
+  });
+
+  it('rotates every creative dimension instead of restarting at scene one', () => {
+    const firstBatch = buildLoanPosterScenePrompts({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'zamloan',
+      variationOffset: 0,
+    });
+    const secondBatch = buildLoanPosterScenePrompts({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'zamloan',
+      variationOffset: 1,
+    });
+
+    expect(firstBatch[0]).toContain('Get Cash In 1 Hour');
+    expect(secondBatch[0]).toContain('Support Your Family Today');
+    expect(secondBatch[0]).not.toBe(firstBatch[0]);
+  });
+
+  it('produces ten distinct prompts in one maximum-size batch', () => {
+    const prompts = buildLoanPosterScenePrompts({
+      count: 10,
+      aspectRatio: '1:1',
+      brand: 'biumoney',
+      variationSeed: 'project-variation-seed',
+    });
+
+    expect(prompts).toHaveLength(10);
+    expect(new Set(prompts).size).toBe(10);
+  });
+
+  it('uses a stable project seed so separate projects start differently', () => {
+    const buildForProject = (variationSeed: string) => buildLoanPosterScenePrompts({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'zamloan',
+      variationSeed,
+    })[0];
+
+    expect(buildForProject('project-1')).toBe(buildForProject('project-1'));
+    expect(buildForProject('project-1')).not.toBe(buildForProject('project-2'));
   });
 
   it('loads the bundled Z reference as an internal project attachment', async () => {

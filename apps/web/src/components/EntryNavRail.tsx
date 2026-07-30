@@ -4,11 +4,12 @@
 // logo (clicking navigates to home), followed by the primary Home and
 // Projects destinations. Secondary product surfaces stay deep-linkable
 // without competing for permanent navigation space.
-// On small screens those actions collapse behind a dropdown trigger.
+// Primary destinations remain directly visible on small screens so the
+// mobile entry view never requires an extra menu interaction.
 // The trailing slot is owned by EntryShell so the settings menu can
 // share the same execution/model state as the rest of the entry view.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 import { UpdaterPopup } from './UpdaterPopup';
 import { useT } from '../i18n';
@@ -66,20 +67,6 @@ function NavButton({ active, ariaLabel, tooltip, onClick, testId, children }: Na
 export function EntryNavRail({ view, onViewChange, settingsControl }: Props) {
   const t = useT();
   const brandLabel = t('app.brand');
-  const [menuOpen, setMenuOpen] = useState(false);
-  const navRef = useRef<HTMLElement | null>(null);
-  const activeLabel =
-    view === 'projects'
-      ? t('entry.navProjects')
-      : view === 'tasks'
-        ? t('entry.navTasks')
-        : view === 'plugins'
-          ? t('entry.navPlugins')
-          : view === 'design-systems'
-            ? t('entry.navDesignSystems')
-            : view === 'integrations'
-              ? t('entry.navIntegrations')
-              : t('entry.navHome');
   const navItems: NavItem[] = [
     {
       id: 'home',
@@ -101,38 +88,13 @@ export function EntryNavRail({ view, onViewChange, settingsControl }: Props) {
     },
   ];
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handlePointerDown = (event: PointerEvent) => {
-      if (navRef.current?.contains(event.target as Node)) return;
-      setMenuOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false);
-    };
-    window.addEventListener('pointerdown', handlePointerDown);
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [menuOpen]);
-
-  const handleMenuItemClick = (item: NavItem) => {
-    item.onClick();
-    setMenuOpen(false);
-  };
-
   return (
-    <nav className="entry-nav-rail" aria-label="Primary" ref={navRef}>
+    <nav className="entry-nav-rail" aria-label="Primary">
       <div className="entry-nav-rail__brand-row">
         <button
           type="button"
           className="entry-nav-rail__logo"
-          onClick={() => {
-            onViewChange('home');
-            setMenuOpen(false);
-          }}
+          onClick={() => onViewChange('home')}
           aria-label={brandLabel}
           data-tooltip={brandLabel}
           data-testid="entry-nav-logo"
@@ -147,9 +109,8 @@ export function EntryNavRail({ view, onViewChange, settingsControl }: Props) {
         <span className="entry-nav-rail__wordmark" aria-hidden>
           Niki
         </span>
-        <span className="entry-nav-rail__current">{activeLabel}</span>
       </div>
-      <div className="entry-nav-rail__group entry-nav-rail__group--desktop">
+      <div className="entry-nav-rail__group entry-nav-rail__group--primary">
         <UpdaterPopup />
         {navItems.map((item) => (
           <NavButton
@@ -166,35 +127,6 @@ export function EntryNavRail({ view, onViewChange, settingsControl }: Props) {
         ))}
       </div>
       <div className="entry-nav-rail__footer">{settingsControl}</div>
-      <button
-        type="button"
-        className="entry-nav-rail__menu-toggle"
-        aria-label="Open navigation"
-        aria-expanded={menuOpen}
-        aria-controls="entry-nav-rail-menu"
-        onClick={() => setMenuOpen((open) => !open)}
-        data-testid="entry-nav-menu-toggle"
-      >
-        <Icon name="menu" size={18} />
-        <Icon name="chevron-down" size={13} className="entry-nav-rail__menu-chevron" />
-      </button>
-      {menuOpen ? (
-        <div className="entry-nav-rail__menu" id="entry-nav-rail-menu" role="menu">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`entry-nav-rail__menu-item${item.active ? ' is-active' : ''}`}
-              role="menuitem"
-              aria-current={item.active ? 'page' : undefined}
-              onClick={() => handleMenuItemClick(item)}
-            >
-              <Icon name={item.icon} size={17} />
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
     </nav>
   );
 }

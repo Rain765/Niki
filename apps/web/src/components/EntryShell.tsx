@@ -8,7 +8,15 @@
 // can be rebased without touching this file. `EntryView` becomes a
 // thin wrapper that passes data and callbacks through to this shell.
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   defaultScenarioPluginIdForKind,
   type ConnectorDetail,
@@ -25,7 +33,7 @@ import {
   trackHomeToolbarClick,
 } from '../analytics/events';
 import { LOCALE_LABEL, LOCALES, useI18n, useT, type Locale } from '../i18n';
-import { navigate, useRoute } from '../router';
+import { navigate, useRoute, type EntryHomeView as EntryViewKind } from '../router';
 import type {
   AgentInfo,
   ApiProtocol,
@@ -46,10 +54,6 @@ import type {
 import { apiProtocolWireProtocol } from '../utils/apiProtocol';
 import { formatPickAndImportFailure } from '../utils/pickAndImportError';
 import { CenteredLoader } from './Loading';
-import { DesignsTab } from './DesignsTab';
-import { DesignSystemPreviewModal } from './DesignSystemPreviewModal';
-import { DesignSystemsTab } from './DesignSystemsTab';
-import { EntryNavRail, type EntryView as EntryViewKind } from './EntryNavRail';
 import { HomeView } from './HomeView';
 import {
   createPluginAuthoringHandoff,
@@ -59,17 +63,14 @@ import {
 import type { PluginUseAction } from './plugins-home/useActions';
 import { Icon } from './Icon';
 import { AgentIcon } from './AgentIcon';
-import { IntegrationsView, type IntegrationTab } from './IntegrationsView';
+import type { IntegrationTab } from './IntegrationsView';
 import { InlineModelSwitcher } from './InlineModelSwitcher';
-import { NewProjectModal } from './NewProjectModal';
-import { PluginsView } from './PluginsView';
 import type { CreateInput, CreateTab } from './NewProjectPanel';
 import type { PluginLoopSubmit } from './PluginLoopHome';
 import type {
   PluginShareAction,
   PluginShareProjectOutcome,
 } from '../state/projects';
-import { TasksView } from './TasksView';
 import { Toast } from './Toast';
 import {
   API_KEY_PLACEHOLDERS,
@@ -80,6 +81,37 @@ import { KNOWN_PROVIDERS } from '../state/config';
 import type { KnownProvider } from '../state/config';
 import { testApiProvider } from '../providers/connection-test';
 import { fetchProviderModels } from '../providers/provider-models';
+
+const DesignSystemPreviewModal = lazy(() =>
+  import('./DesignSystemPreviewModal').then((module) => ({
+    default: module.DesignSystemPreviewModal,
+  })),
+);
+const DesignSystemsTab = lazy(() =>
+  import('./DesignSystemsTab').then((module) => ({
+    default: module.DesignSystemsTab,
+  })),
+);
+const IntegrationsView = lazy(() =>
+  import('./IntegrationsView').then((module) => ({
+    default: module.IntegrationsView,
+  })),
+);
+const NewProjectModal = lazy(() =>
+  import('./NewProjectModal').then((module) => ({
+    default: module.NewProjectModal,
+  })),
+);
+const PluginsView = lazy(() =>
+  import('./PluginsView').then((module) => ({
+    default: module.PluginsView,
+  })),
+);
+const TasksView = lazy(() =>
+  import('./TasksView').then((module) => ({
+    default: module.TasksView,
+  })),
+);
 
 // The existing execution switcher lives inside the settings menu so its
 // complete CLI/BYOK structure stays available without a separate top bar.
@@ -164,6 +196,9 @@ interface Props {
   skillsLoading?: boolean;
   designSystemsLoading?: boolean;
   projectsLoading?: boolean;
+  extensionsRequested?: boolean;
+  extensionsLoading?: boolean;
+  onLoadExtensions?: () => Promise<void> | void;
   // Execution / model-switching context. Threaded down from `App` so the
   // top-bar `InlineModelSwitcher` can render the active mode/agent/model
   // and persist changes through the same callbacks the project view uses.
@@ -204,6 +239,7 @@ interface Props {
   onImportFolder?: (baseDir: string) => Promise<void> | void;
   onImportFolderResponse?: (response: OpenDesignHostProjectImportSuccess) => Promise<void> | void;
   onOpenProject: (id: string) => void;
+  onProjectCreated?: (project: Project) => void;
   onOpenLiveArtifact: (projectId: string, artifactId: string) => void;
   onDeleteProject: (id: string) => void;
   onRenameProject: (id: string, name: string) => void;
@@ -233,7 +269,7 @@ interface Props {
   onCompleteOnboarding: () => void;
 }
 
-// Map an EntryNavRail view id to the analytics `element` enum on
+// Map an entry view id to the analytics `element` enum on
 // `home/nav` ui_click. Returns `null` for views without a dedicated nav
 // button (the rail's "Home" target is the brand logo, which gets its own
 // element value via the logo click handler — not the changeView path).
@@ -281,6 +317,9 @@ export function EntryShell({
   skillsLoading = false,
   designSystemsLoading = false,
   projectsLoading = false,
+  extensionsRequested = true,
+  extensionsLoading = false,
+  onLoadExtensions,
   config,
   agents,
   daemonLive,
@@ -298,6 +337,7 @@ export function EntryShell({
   onImportFolder,
   onImportFolderResponse,
   onOpenProject,
+  onProjectCreated,
   onOpenLiveArtifact,
   onDeleteProject,
   onRenameProject,
@@ -707,13 +747,8 @@ export function EntryShell({
   }
 
   return (
-    <div className="entry-shell entry-shell--no-header">
+    <div className="entry-shell entry-shell--no-header entry-shell--workspace">
       <div className="entry">
-        <EntryNavRail
-          view={view}
-          onViewChange={changeView}
-          settingsControl={avatarMenu}
-        />
         <main className="entry-main entry-main--scroll">
           <div
             className={`entry-main__inner${
@@ -723,6 +758,8 @@ export function EntryShell({
             {view === 'home' ? (
               <HomeView
                 onSubmit={handlePluginLoopSubmit}
+                onOpenProject={onOpenProject}
+                {...(onProjectCreated ? { onProjectCreated } : {})}
                 onBrowseRegistry={() => changeView('plugins')}
                 onImportFolder={handleChipFolderImport}
                 onOpenNewProject={(tab) => {
@@ -737,111 +774,94 @@ export function EntryShell({
                 skills={skills}
                 skillsLoading={skillsLoading}
                 connectors={connectors}
-                promptTemplates={promptTemplates}
-              />
-            ) : null}
-            {view === 'projects' ? (
-              projectsLoading || skillsLoading || designSystemsLoading ? (
-                <CenteredLoader label={t('common.loading')} />
-              ) : (
-                <div className="entry-section">
-                  <header className="entry-section__head entry-section__head--projects">
-                    <h1 className="entry-section__title">{t('entry.navProjects')}</h1>
-                    <button
-                      type="button"
-                      className="entry-section__new-project"
-                      onClick={() => openNewProject()}
-                      data-testid="projects-new-project"
-                    >
-                      <Icon name="plus" size={17} />
-                      <span>{t('entry.navNewProject')}</span>
-                    </button>
-                  </header>
-                  <DesignsTab
-                    projects={projects}
-                    skills={skills}
-                    designSystems={designSystems}
-                    onOpen={onOpenProject}
-                    onOpenLiveArtifact={onOpenLiveArtifact}
-                    onDelete={onDeleteProject}
-                    onRename={onRenameProject}
-                  />
-                </div>
-              )
-            ) : null}
-            {view === 'tasks' ? (
-              <TasksView
-                skills={skills}
-                designTemplates={designTemplates}
-                connectors={connectors}
                 connectorsLoading={connectorsLoading}
+                promptTemplates={promptTemplates}
+                extensionsRequested={extensionsRequested}
+                extensionsLoading={extensionsLoading}
+                onLoadExtensions={onLoadExtensions}
               />
             ) : null}
-            {view === 'plugins' ? (
-              <PluginsView
-                onCreatePlugin={startPluginAuthoring}
-                onUsePlugin={usePluginFromLibrary}
-                onCreatePluginShareProject={onCreatePluginShareProject}
-              />
-            ) : null}
-            {view === 'design-systems' ? (
-              designSystemsLoading ? (
-                <CenteredLoader label={t('common.loading')} />
-              ) : (
-                <div className="entry-section">
-                  <header className="entry-section__head">
-                    <h1 className="entry-section__title">{t('entry.navDesignSystems')}</h1>
-                  </header>
-                  <DesignSystemsTab
-                    systems={designSystems}
-                    selectedId={defaultDesignSystemId}
-                    onSelect={onChangeDefaultDesignSystem}
-                    onCreate={onCreateDesignSystem}
-                    onOpenSystem={onOpenDesignSystem}
-                    onSystemsRefresh={onDesignSystemsRefresh}
-                    onPreview={(id) => setPreviewSystemId(id)}
-                  />
-                </div>
-              )
-            ) : null}
-            {view === 'integrations' ? (
-              <IntegrationsView
-                config={config}
-                initialTab={integrationTab}
-                composioConfigLoading={composioConfigLoading}
-                onPersistComposioKey={onPersistComposioKey}
-              />
-            ) : null}
+            <Suspense fallback={<CenteredLoader label={t('common.loading')} />}>
+              {view === 'tasks' ? (
+                <TasksView
+                  skills={skills}
+                  designTemplates={designTemplates}
+                  connectors={connectors}
+                  connectorsLoading={connectorsLoading}
+                />
+              ) : null}
+              {view === 'plugins' ? (
+                <PluginsView
+                  onCreatePlugin={startPluginAuthoring}
+                  onUsePlugin={usePluginFromLibrary}
+                  onCreatePluginShareProject={onCreatePluginShareProject}
+                />
+              ) : null}
+              {view === 'design-systems' ? (
+                designSystemsLoading ? (
+                  <CenteredLoader label={t('common.loading')} />
+                ) : (
+                  <div className="entry-section">
+                    <header className="entry-section__head">
+                      <h1 className="entry-section__title">{t('entry.navDesignSystems')}</h1>
+                    </header>
+                    <DesignSystemsTab
+                      systems={designSystems}
+                      selectedId={defaultDesignSystemId}
+                      onSelect={onChangeDefaultDesignSystem}
+                      onCreate={onCreateDesignSystem}
+                      onOpenSystem={onOpenDesignSystem}
+                      onSystemsRefresh={onDesignSystemsRefresh}
+                      onPreview={(id) => setPreviewSystemId(id)}
+                    />
+                  </div>
+                )
+              ) : null}
+              {view === 'integrations' ? (
+                <IntegrationsView
+                  config={config}
+                  initialTab={integrationTab}
+                  composioConfigLoading={composioConfigLoading}
+                  onPersistComposioKey={onPersistComposioKey}
+                />
+              ) : null}
+            </Suspense>
           </div>
         </main>
       </div>
       {previewSystem ? (
-        <DesignSystemPreviewModal
-          system={previewSystem}
-          onClose={() => setPreviewSystemId(null)}
-        />
+        <Suspense fallback={null}>
+          <DesignSystemPreviewModal
+            system={previewSystem}
+            onClose={() => setPreviewSystemId(null)}
+          />
+        </Suspense>
       ) : null}
-      <NewProjectModal
-        open={newProjectOpen}
-        initialTab={newProjectInitialTab}
-        skills={skills}
-        designSystems={designSystems}
-        defaultDesignSystemId={defaultDesignSystemId}
-        templates={templates}
-        {...(onDeleteTemplate ? { onDeleteTemplate } : {})}
-        promptTemplates={promptTemplates}
-        connectors={connectors}
-        connectorsLoading={connectorsLoading}
-        loading={skillsLoading}
-        onCreate={handleCreate}
-        onImportClaudeDesign={onImportClaudeDesign}
-        {...(onImportFolder ? { onImportFolder } : {})}
-        onOpenConnectorsTab={() => {
-          setNewProjectOpen(false);
-          openIntegrationTab('connectors');
-        }}
-        onClose={() => setNewProjectOpen(false)}
-      />
+      {newProjectOpen ? (
+        <Suspense fallback={<CenteredLoader label={t('common.loading')} />}>
+          <NewProjectModal
+            open
+            initialTab={newProjectInitialTab}
+            skills={skills}
+            designSystems={designSystems}
+            defaultDesignSystemId={defaultDesignSystemId}
+            templates={templates}
+            {...(onDeleteTemplate ? { onDeleteTemplate } : {})}
+            promptTemplates={promptTemplates}
+            connectors={connectors}
+            connectorsLoading={connectorsLoading}
+            loading={skillsLoading}
+            onCreate={handleCreate}
+            onImportClaudeDesign={onImportClaudeDesign}
+            {...(onImportFolder ? { onImportFolder } : {})}
+            onOpenConnectorsTab={() => {
+              setNewProjectOpen(false);
+              openIntegrationTab('connectors');
+            }}
+            onClose={() => setNewProjectOpen(false)}
+          />
+        </Suspense>
+      ) : null}
       {folderImportError ? (
         <Toast
           message={folderImportError.message}

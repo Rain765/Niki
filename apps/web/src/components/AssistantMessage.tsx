@@ -2,7 +2,10 @@ import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useS
 import { ToolCard } from "./ToolCard";
 import { FileOpsSummary } from "./FileOpsSummary";
 import { renderMarkdown } from "../runtime/markdown";
-import { projectFileUrl } from "../providers/registry";
+import {
+  projectFileDownloadUrl,
+  projectImagePreviewUrl,
+} from "../providers/registry";
 import { submitChatRunToolResult } from "../providers/daemon";
 import { useAnalytics } from "../analytics/provider";
 import {
@@ -108,6 +111,10 @@ export function AssistantMessage({
 }: Props) {
   const t = useT();
   const events = message.events ?? [];
+  const availableProjectFileNames = useMemo(
+    () => projectFileNames ?? new Set(projectFiles.map((file) => file.name)),
+    [projectFileNames, projectFiles],
+  );
   // Claude sometimes hedges by emitting a markdown duplicate of the same
   // questions alongside an `AskUserQuestion` tool call. The card already
   // shows the questions + options, so suppressing the trailing prose
@@ -120,7 +127,92 @@ export function AssistantMessage({
     suppressAskUserQuestionFallbackText(buildBlocks(events)),
   );
   const fileOps = useMemo(() => deriveFileOps(events), [events]);
-  const produced = message.producedFiles ?? [];
+  const explicitProduced = message.producedFiles ?? [];
+  const toolResultProduced = useMemo(
+    () =>
+      explicitProduced.length === 0
+        ? projectFilesFromToolResults(events)
+        : [],
+    [events, explicitProduced.length],
+  );
+  const linkedFileText = useMemo(
+    () =>
+      [
+        message.content,
+        ...events
+          .filter((event): event is Extract<AgentEvent, { kind: "text" }> =>
+            event.kind === "text"
+          )
+          .map((event) => event.text),
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    [events, message.content],
+  );
+  const inferredProduced = useMemo(
+    () => {
+      if (explicitProduced.length > 0) return [];
+      return uniqueProjectFiles([
+        ...toolResultProduced,
+        ...linkedProjectFiles(
+          linkedFileText,
+          projectFiles,
+          availableProjectFileNames,
+        ),
+      ]);
+    },
+    [
+      availableProjectFileNames,
+      explicitProduced.length,
+      linkedFileText,
+      projectFiles,
+      toolResultProduced,
+    ],
+  );
+  const produced =
+    explicitProduced.length > 0 ? explicitProduced : inferredProduced;
+  const previewableImages = useMemo(
+    () =>
+      new Map(
+        uniqueProjectFiles([...projectFiles, ...produced])
+          .filter((file) => file.kind === "image")
+          .map((file) => [file.name, file]),
+      ),
+    [produced, projectFiles],
+  );
+  const [previewFile, setPreviewFile] = useState<ProjectFile | null>(null);
+  const requestLinkedFile = useCallback(
+    (name: string) => {
+      const image = previewableImages.get(name);
+      if (image && projectId) {
+        setPreviewFile(image);
+        return;
+      }
+      onRequestOpenFile?.(name);
+    },
+    [onRequestOpenFile, previewableImages, projectId],
+  );
+  useEffect(() => {
+    if (!previewFile) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPreviewFile(null);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [previewFile]);
+  const openableProjectFileNames = useMemo(
+    () =>
+      new Set([
+        ...availableProjectFileNames,
+        ...produced.map((file) => file.name),
+      ]),
+    [availableProjectFileNames, produced],
+  );
   const pluginActionFolders = useMemo(
     () =>
       !streaming && isLast && projectId
@@ -200,7 +292,7 @@ export function AssistantMessage({
           <FileOpsSummary
             entries={fileOps}
             streaming={streaming}
-            projectFileNames={projectFileNames}
+            projectFileNames={openableProjectFileNames}
             onRequestOpenFile={onRequestOpenFile}
           />
         ) : null}
@@ -215,6 +307,8 @@ export function AssistantMessage({
                 nextUserContent={nextUserContent}
                 locallySubmitted={locallySubmitted}
                 suppressDirectionForms={suppressDirectionForms}
+                projectFileNames={openableProjectFileNames}
+                onRequestOpenFile={requestLinkedFile}
                 onSubmitForm={(formId, text) => {
                   setLocallySubmitted((prev) => {
                     const next = new Set(prev);
@@ -234,7 +328,7 @@ export function AssistantMessage({
                 items={b.items}
                 runStreaming={streaming}
                 runSucceeded={runSucceeded}
-                projectFileNames={projectFileNames}
+                projectFileNames={openableProjectFileNames}
                 onRequestOpenFile={onRequestOpenFile}
                 isLast={!!isLast}
                 onSubmitForm={onSubmitForm}
@@ -251,6 +345,7 @@ export function AssistantMessage({
             files={produced}
             projectId={projectId}
             onRequestOpenFile={onRequestOpenFile}
+            onPreviewFile={setPreviewFile}
           />
         ) : null}
         {!streaming && projectId && pluginActionFolders.length > 0 ? (
@@ -302,6 +397,67 @@ export function AssistantMessage({
           </div>
         ) : null}
       </div>
+      {previewFile && projectId ? (
+        <div
+          className="global-design-files__preview"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${t("common.preview")} ${previewFile.name}`}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPreviewFile(null);
+          }}
+        >
+          <div className="global-design-files__preview-card">
+            <header className="global-design-files__preview-header">
+              <div>
+                <strong>{previewFile.name}</strong>
+              </div>
+              <button
+                type="button"
+                className="global-design-files__preview-close"
+                aria-label={t("common.close")}
+                title={t("common.close")}
+                onClick={() => setPreviewFile(null)}
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </header>
+            <div className="global-design-files__preview-stage">
+              <img
+                src={projectImagePreviewUrl(
+                  projectId,
+                  previewFile.name,
+                  "preview",
+                  previewFile.mtime,
+                )}
+                alt={previewFile.name}
+                data-testid="assistant-image-preview"
+              />
+            </div>
+            <footer className="global-design-files__preview-actions">
+              <a
+                href={projectFileDownloadUrl(projectId, previewFile.name)}
+                download
+              >
+                <Icon name="download" size={17} />
+                <span>{t("assistant.downloadFile")}</span>
+              </a>
+              {onRequestOpenFile ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewFile(null);
+                    onRequestOpenFile(previewFile.name);
+                  }}
+                >
+                  <Icon name="grid" size={17} />
+                  <span>{t("assistant.openFile")}</span>
+                </button>
+              ) : null}
+            </footer>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -849,10 +1005,12 @@ function ProducedFiles({
   files,
   projectId,
   onRequestOpenFile,
+  onPreviewFile,
 }: {
   files: ProjectFile[];
   projectId: string;
   onRequestOpenFile?: (name: string) => void;
+  onPreviewFile?: (file: ProjectFile) => void;
 }) {
   const t = useT();
   return (
@@ -862,22 +1020,45 @@ function ProducedFiles({
         {files.map((f) => (
           <div key={f.name} className="produced-file">
             {f.kind === "image" ? (
-              <img
-                className="produced-file-thumbnail"
-                data-testid={`produced-file-thumbnail-${f.name}`}
-                src={projectFileUrl(projectId, f.name)}
-                alt=""
-                loading="lazy"
-                draggable={false}
-              />
+              <button
+                type="button"
+                className="produced-file-open-target produced-file-thumbnail-button"
+                aria-label={`${t("assistant.openFile")} ${f.name}`}
+                disabled={!onPreviewFile && !onRequestOpenFile}
+                onClick={() =>
+                  onPreviewFile ? onPreviewFile(f) : onRequestOpenFile?.(f.name)
+                }
+              >
+                <img
+                  className="produced-file-thumbnail"
+                  data-testid={`produced-file-thumbnail-${f.name}`}
+                  src={projectImagePreviewUrl(
+                    projectId,
+                    f.name,
+                    "thumbnail",
+                    f.mtime,
+                  )}
+                  alt=""
+                  loading="lazy"
+                  draggable={false}
+                />
+              </button>
             ) : (
               <span className="produced-file-icon" aria-hidden>
                 <Icon name={kindIconName(f.kind)} size={14} />
               </span>
             )}
-            <span className="produced-file-name" title={f.name}>
+            <button
+              type="button"
+              className="produced-file-name produced-file-open-target"
+              title={f.name}
+              disabled={!onPreviewFile && !onRequestOpenFile}
+              onClick={() =>
+                onPreviewFile ? onPreviewFile(f) : onRequestOpenFile?.(f.name)
+              }
+            >
               {f.name}
-            </span>
+            </button>
             <span className="produced-file-size">{humanBytes(f.size)}</span>
             <div className="produced-file-actions">
               {onRequestOpenFile ? (
@@ -891,8 +1072,7 @@ function ProducedFiles({
               ) : null}
               <a
                 className="ghost-link"
-                href={projectFileUrl(projectId, f.name)}
-                download={f.name}
+                href={projectFileDownloadUrl(projectId, f.name)}
               >
                 {t("assistant.downloadFile")}
               </a>
@@ -1061,6 +1241,162 @@ function humanBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function decodeMarkdownLinkPart(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function projectFileNameFromMarkdownLink(
+  label: string,
+  href: string,
+  projectFileNames: Set<string>,
+): string | null {
+  const pathWithoutQuery = href.split(/[?#]/, 1)[0] ?? href;
+  const pathParts = pathWithoutQuery.split("/").filter(Boolean);
+  const candidates = [
+    decodeMarkdownLinkPart(label.trim()),
+    decodeMarkdownLinkPart(pathParts.at(-1) ?? ""),
+  ];
+  return candidates.find((candidate) => projectFileNames.has(candidate)) ?? null;
+}
+
+function linkedProjectFiles(
+  text: string,
+  projectFiles: ProjectFile[],
+  projectFileNames: Set<string>,
+): ProjectFile[] {
+  if (!text || projectFiles.length === 0 || projectFileNames.size === 0) return [];
+
+  const filesByName = new Map(projectFiles.map((file) => [file.name, file]));
+  const linked: ProjectFile[] = [];
+  const seen = new Set<string>();
+  const linkPattern = /(?<!!)\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = linkPattern.exec(text))) {
+    const name = projectFileNameFromMarkdownLink(
+      match[1] ?? "",
+      match[2] ?? "",
+      projectFileNames,
+    );
+    const file = name ? filesByName.get(name) : undefined;
+    if (!file || seen.has(file.name)) continue;
+    seen.add(file.name);
+    linked.push(file);
+  }
+  return linked;
+}
+
+function projectFilesFromToolResults(events: AgentEvent[]): ProjectFile[] {
+  const files: ProjectFile[] = [];
+  for (const event of events) {
+    if (event.kind !== "tool_result" || event.isError) continue;
+    const parsed = parseToolResultJson(event.content);
+    const file = projectFileFromUnknown(parsed);
+    if (file) files.push(file);
+  }
+  return uniqueProjectFiles(files);
+}
+
+function parseToolResultJson(content: string): unknown {
+  const candidates = [content, ...content.split("\n")]
+    .map((candidate) => candidate.trim())
+    .filter(Boolean);
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Tool results can include a human-readable line before a JSON payload.
+    }
+  }
+  return null;
+}
+
+function projectFileFromUnknown(value: unknown): ProjectFile | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const candidate =
+    record.file && typeof record.file === "object"
+      ? (record.file as Record<string, unknown>)
+      : null;
+  if (!candidate || typeof candidate.name !== "string") return null;
+  const name = candidate.name.trim();
+  if (!name) return null;
+  const mime =
+    typeof candidate.mime === "string"
+      ? candidate.mime
+      : mimeFromProjectFileName(name);
+  return {
+    name,
+    path: typeof candidate.path === "string" ? candidate.path : name,
+    type: candidate.type === "dir" ? "dir" : "file",
+    size:
+      typeof candidate.size === "number" && Number.isFinite(candidate.size)
+        ? candidate.size
+        : 0,
+    mtime:
+      typeof candidate.mtime === "number" && Number.isFinite(candidate.mtime)
+        ? candidate.mtime
+        : 0,
+    kind: projectFileKindFromUnknown(candidate.kind, mime, name),
+    mime,
+  };
+}
+
+function projectFileKindFromUnknown(
+  value: unknown,
+  mime: string,
+  name: string,
+): ProjectFile["kind"] {
+  const supported = new Set<ProjectFile["kind"]>([
+    "html",
+    "image",
+    "video",
+    "audio",
+    "sketch",
+    "text",
+    "code",
+    "pdf",
+    "document",
+    "presentation",
+    "spreadsheet",
+    "binary",
+  ]);
+  if (
+    typeof value === "string" &&
+    supported.has(value as ProjectFile["kind"])
+  ) {
+    return value as ProjectFile["kind"];
+  }
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.startsWith("audio/")) return "audio";
+  if (mime === "application/pdf") return "pdf";
+  if (/\.html?$/i.test(name)) return "html";
+  return "binary";
+}
+
+function mimeFromProjectFileName(name: string): string {
+  if (/\.png$/i.test(name)) return "image/png";
+  if (/\.jpe?g$/i.test(name)) return "image/jpeg";
+  if (/\.webp$/i.test(name)) return "image/webp";
+  if (/\.gif$/i.test(name)) return "image/gif";
+  if (/\.svg$/i.test(name)) return "image/svg+xml";
+  if (/\.pdf$/i.test(name)) return "application/pdf";
+  if (/\.html?$/i.test(name)) return "text/html";
+  return "application/octet-stream";
+}
+
+function uniqueProjectFiles(files: ProjectFile[]): ProjectFile[] {
+  const byName = new Map<string, ProjectFile>();
+  for (const file of files) {
+    if (!byName.has(file.name)) byName.set(file.name, file);
+  }
+  return [...byName.values()];
+}
+
 function pluginFoldersTouchedThisTurn(
   projectFiles: ProjectFile[],
   fileOps: FileOpEntry[],
@@ -1185,6 +1521,8 @@ function ProseBlock({
   nextUserContent,
   locallySubmitted,
   suppressDirectionForms,
+  projectFileNames,
+  onRequestOpenFile,
   onSubmitForm,
 }: {
   text: string;
@@ -1193,10 +1531,24 @@ function ProseBlock({
   nextUserContent?: string;
   locallySubmitted: Set<string>;
   suppressDirectionForms: boolean;
+  projectFileNames: Set<string>;
+  onRequestOpenFile?: (name: string) => void;
   onSubmitForm: (formId: string, text: string) => void;
 }) {
   const cleaned = useMemo(() => stripArtifact(text), [text]);
   const segments = useMemo(() => splitOnQuestionForms(cleaned), [cleaned]);
+  const resolveLinkAction = useCallback(
+    (label: string, href: string) => {
+      const fileName = projectFileNameFromMarkdownLink(
+        label,
+        href,
+        projectFileNames,
+      );
+      if (!fileName || !onRequestOpenFile) return undefined;
+      return () => onRequestOpenFile(fileName);
+    },
+    [onRequestOpenFile, projectFileNames],
+  );
   // Each text segment is further split on `<system-reminder>` blocks so
   // those render as their own collapsible chip instead of raw markup.
   const renderable = segments.flatMap(
@@ -1232,7 +1584,11 @@ function ProseBlock({
           return <SystemReminderBlock key={seg.key} text={seg.text} />;
         }
         if (seg.kind === "text") {
-          return <Fragment key={seg.key}>{renderMarkdown(seg.text)}</Fragment>;
+          return (
+            <Fragment key={seg.key}>
+              {renderMarkdown(seg.text, { resolveLinkAction })}
+            </Fragment>
+          );
         }
         if (seg.kind === "suppressed-direction") {
           return (

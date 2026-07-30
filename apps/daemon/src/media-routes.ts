@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 
 import { appendImageNodes } from './canvas-store.js';
+import { currentNikiUser } from './niki-auth-context.js';
 import type { RouteDeps } from './server-context.js';
 
 export interface RegisterMediaRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'ids' | 'media' | 'appConfig' | 'orbit' | 'nativeDialogs' | 'projectStore' | 'projectFiles' | 'conversations' | 'research'> {}
@@ -141,7 +142,12 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   });
 
   app.post('/api/projects/:id/media/generate', async (req, res) => {
-    if (!isLocalSameOrigin(req, getResolvedPort())) {
+    // Niki's authenticated web UI may run inside an embedded webview that
+    // omits the Origin header. The auth middleware has already resolved the
+    // session and project ownership before this route runs, so an authenticated
+    // Niki user is allowed here. Auth-disabled daemon installs retain the
+    // original local UI / CLI restriction.
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
       return res.status(403).json({
         error:
           'cross-origin request rejected: media generation is restricted to the local UI / CLI',
@@ -176,6 +182,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         prompt: req.body?.prompt,
         output: req.body?.output,
         aspect: req.body?.aspect,
+        quality: req.body?.quality,
         length:
           typeof req.body?.length === 'number' ? req.body.length : undefined,
         duration:

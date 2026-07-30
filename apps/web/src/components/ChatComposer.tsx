@@ -41,6 +41,11 @@ import {
 import { ANNOTATION_EVENT, type AnnotationEventDetail } from "./PreviewDrawOverlay";
 import { AutoPosterControls } from './AutoPosterControls';
 import {
+  ComposerAddAction,
+  ComposerAddMenu,
+  ComposerAddSection,
+} from './ComposerAddMenu';
+import {
   AUTO_POSTER_DEFAULT_ASPECT_RATIO,
   AUTO_POSTER_DEFAULT_BRAND,
   buildLoanPosterPrompt,
@@ -199,7 +204,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       skills = [],
       onSend,
       onStop,
-      onOpenSettings,
       onOpenMcpSettings,
       petConfig,
       onAdoptPet,
@@ -277,14 +281,9 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
     // a shortcut to open the full Settings dialog. Replaces the previous
     // row of three standalone buttons (which overflowed in narrow chats).
     const [toolsOpen, setToolsOpen] = useState(false);
-    const [sendActionsOpen, setSendActionsOpen] = useState(false);
     const [toolsTab, setToolsTab] = useState<ToolsTab>('plugins');
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-    const toolsMenuRef = useRef<HTMLDivElement | null>(null);
-    const toolsTriggerRef = useRef<HTMLButtonElement | null>(null);
-    const sendActionsMenuRef = useRef<HTMLDivElement | null>(null);
-    const sendActionsTriggerRef = useRef<HTMLButtonElement | null>(null);
     const petEnabled = Boolean(onAdoptPet && onTogglePet);
     const linkedDirs = projectMetadata?.linkedDirs ?? [];
     // initialDraft is only honored on the first non-empty value the parent
@@ -305,44 +304,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
         seededRef.current = true;
       }
     }, [initialDraft, draft]);
-
-    useEffect(() => {
-      if (!toolsOpen) return;
-      function onPointer(e: MouseEvent) {
-        const target = e.target as Node;
-        if (toolsMenuRef.current?.contains(target)) return;
-        if (toolsTriggerRef.current?.contains(target)) return;
-        setToolsOpen(false);
-      }
-      function onKey(e: KeyboardEvent) {
-        if (e.key === 'Escape') setToolsOpen(false);
-      }
-      document.addEventListener('mousedown', onPointer);
-      document.addEventListener('keydown', onKey);
-      return () => {
-        document.removeEventListener('mousedown', onPointer);
-        document.removeEventListener('keydown', onKey);
-      };
-    }, [toolsOpen]);
-
-    useEffect(() => {
-      if (!sendActionsOpen) return;
-      function onPointer(e: MouseEvent) {
-        const target = e.target as Node;
-        if (sendActionsMenuRef.current?.contains(target)) return;
-        if (sendActionsTriggerRef.current?.contains(target)) return;
-        setSendActionsOpen(false);
-      }
-      function onKey(e: KeyboardEvent) {
-        if (e.key === 'Escape') setSendActionsOpen(false);
-      }
-      document.addEventListener('mousedown', onPointer);
-      document.addEventListener('keydown', onKey);
-      return () => {
-        document.removeEventListener('mousedown', onPointer);
-        document.removeEventListener('keydown', onKey);
-      };
-    }, [sendActionsOpen]);
 
     // Lazy-fetch the user's external MCP servers list once on mount so the
     // `/mcp …` slash palette and the composer's MCP button popover have
@@ -796,27 +757,22 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
 
     async function generateLoanPosters() {
       if (autoPosterPending || streaming || sendDisabled) return;
+      setAutoPosterPending(true);
+      setUploadError(null);
+
       const count = normalizeZambiaPosterCount(autoPosterCount);
       const autoPrompt = buildLoanPosterPrompt({
         count,
         aspectRatio: autoPosterAspectRatio,
         brand: autoPosterBrand,
       });
-      const shouldPreviewPrompt = draft.trim().length === 0;
-      if (shouldPreviewPrompt) {
-        setDraft(autoPrompt);
-      }
-
-      const id = await ensureProject();
-      if (!id) {
-        setUploadError(t('homeHero.autoPosterError'));
-        return;
-      }
-
-      setAutoPosterPending(true);
-      setUploadError(null);
 
       try {
+        const id = await ensureProject();
+        if (!id) {
+          throw new Error('Unable to prepare the poster project.');
+        }
+
         const referenceFile = await loadZambiaPosterReference();
         const uploadResult = await uploadProjectFiles(
           id,
@@ -843,9 +799,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
             context: { skillIds },
           },
         );
-        if (shouldPreviewPrompt) {
-          setDraft((current) => current === autoPrompt ? '' : current);
-        }
       } catch (error) {
         console.warn('Unable to start automatic poster generation', error);
         setUploadError(t('homeHero.autoPosterError'));
@@ -1129,10 +1082,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       const prompt = draft.trim();
       if (sendDisabled) return;
       const nextCommentAttachments = currentCommentAttachments();
-      if (!prompt && staged.length === 0 && nextCommentAttachments.length === 0) {
-        await generateLoanPosters();
-        return;
-      }
       // Intercept `/pet …` and `/mcp` before sending so the slash command
       // never hits the agent — these are local UX hooks, not model prompts.
       if (tryHandlePetSlash()) return;
@@ -1487,6 +1436,188 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                 e.target.value = '';
               }}
             />
+            {!streaming ? (
+              <ComposerAddMenu
+                open={toolsOpen}
+                testId="chat-send-menu"
+                label={t('homeHero.contextSurfaces')}
+                closeLabel={t('common.close')}
+                className="chat-composer__add-menu"
+                onOpenChange={setToolsOpen}
+              >
+                <ComposerAddSection label={t('homeHero.contextSurfaces')}>
+                  <ComposerAddAction
+                    icon={uploading ? 'spinner' : 'attach'}
+                    label={t('chat.attachAria')}
+                    testId="chat-attach"
+                    disabled={uploading}
+                    onClick={() => {
+                      trackChatPanelClick(analytics.track, {
+                        page_name: 'chat_panel',
+                        area: 'chat_panel',
+                        element: 'attachment',
+                      });
+                      setToolsOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                  />
+                  <ComposerAddAction
+                    icon="sparkles"
+                    label={t('homeHero.contextSurfaces')}
+                    testId="chat-resource-picker"
+                    onClick={() => {
+                      trackChatPanelClick(analytics.track, {
+                        page_name: 'chat_panel',
+                        area: 'chat_panel',
+                        element: 'resources_popover_trigger',
+                      });
+                      setToolsTab('plugins');
+                    }}
+                  />
+                  {onOpenPetSettings ? (
+                    <ComposerAddAction
+                      icon="settings"
+                      label={t('pet.composerOpenSettings')}
+                      testId="chat-manage-pets"
+                      onClick={() => {
+                        setToolsOpen(false);
+                        onOpenPetSettings();
+                      }}
+                    />
+                  ) : null}
+                </ComposerAddSection>
+
+                <ComposerAddSection label={t('homeHero.railAria')}>
+                  <div className="composer-tools-tabs" role="tablist">
+                    {availableTabs.map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        role="tab"
+                        aria-selected={toolsTab === tab}
+                        className={`composer-tools-tab${toolsTab === tab ? ' active' : ''}`}
+                        onClick={() => setToolsTab(tab)}
+                      >
+                        {tab === 'plugins' ? (
+                          <>
+                            <Icon name="sparkles" size={12} />
+                            <span>Plugins</span>
+                          </>
+                        ) : null}
+                        {tab === 'skills' ? (
+                          <>
+                            <Icon name="file" size={12} />
+                            <span>Skills</span>
+                          </>
+                        ) : null}
+                        {tab === 'mcp' ? (
+                          <>
+                            <Icon name="link" size={12} />
+                            <span>MCP</span>
+                          </>
+                        ) : null}
+                        {tab === 'import' ? (
+                          <>
+                            <Icon name="import" size={12} />
+                            <span>{t('chat.importLabel')}</span>
+                          </>
+                        ) : null}
+                        {tab === 'pet' ? (
+                          <>
+                            <span className="composer-tools-tab-glyph" aria-hidden>
+                              {resolveActivePet(petConfig)?.glyph ?? '🐾'}
+                            </span>
+                            <span>{t('pet.composerMenuTitle')}</span>
+                          </>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="composer-tools-content">
+                    {toolsTab === 'plugins' ? (
+                      <ToolsPluginsPanel
+                        plugins={pluginsForComposer}
+                        activePluginId={pinnedPluginId}
+                        onApply={async (record) => {
+                          const result = await pluginsSectionRef.current?.applyById(
+                            record.id,
+                            record,
+                          );
+                          if (result) setToolsOpen(false);
+                        }}
+                        onShowDetails={(record) => {
+                          setDetailsRecord(record);
+                          setToolsOpen(false);
+                        }}
+                      />
+                    ) : null}
+                    {toolsTab === 'skills' ? (
+                      <ToolsSkillsPanel
+                        skills={skills}
+                        currentSkillId={currentSkillId}
+                        onPick={async (skill) => {
+                          const applied = await applyProjectSkill(skill);
+                          if (applied) setToolsOpen(false);
+                        }}
+                      />
+                    ) : null}
+                    {toolsTab === 'mcp' && onOpenMcpSettings ? (
+                      <ToolsMcpPanel
+                        servers={enabledMcpServers}
+                        templates={mcpTemplates}
+                        onInsert={(serverId) => {
+                          const ta = textareaRef.current;
+                          const server = enabledMcpServers.find((item) => item.id === serverId);
+                          const insert = `${inlineMentionToken(server?.label || serverId)} `;
+                          const cursor = ta?.selectionStart ?? draft.length;
+                          const before = draft.slice(0, cursor);
+                          const after = draft.slice(cursor);
+                          const next = before + insert + after;
+                          setDraft(next);
+                          setToolsOpen(false);
+                          requestAnimationFrame(() => {
+                            const el = textareaRef.current;
+                            if (!el) return;
+                            el.focus();
+                            const pos = before.length + insert.length;
+                            el.setSelectionRange(pos, pos);
+                          });
+                        }}
+                        onManage={() => {
+                          setToolsOpen(false);
+                          onOpenMcpSettings?.();
+                        }}
+                      />
+                    ) : null}
+                    {toolsTab === 'import' ? (
+                      <ToolsImportPanel
+                        t={t}
+                        onLinkFolder={async () => {
+                          setToolsOpen(false);
+                          await handleLinkFolder();
+                        }}
+                      />
+                    ) : null}
+                    {toolsTab === 'pet' && petEnabled ? (
+                      <ToolsPetPanel
+                        t={t}
+                        petConfig={petConfig}
+                        onTogglePet={() => {
+                          onTogglePet?.();
+                          setToolsOpen(false);
+                        }}
+                        onAdoptPet={(id) => {
+                          onAdoptPet?.(id);
+                          setToolsOpen(false);
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                </ComposerAddSection>
+              </ComposerAddMenu>
+            ) : null}
+            <span className="composer-spacer" />
             <AutoPosterControls
               count={autoPosterCount}
               aspectRatio={autoPosterAspectRatio}
@@ -1498,12 +1629,12 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
               onCountChange={setAutoPosterCount}
               onAspectRatioChange={setAutoPosterAspectRatio}
               onBrandChange={setAutoPosterBrand}
+              onGenerate={() => void generateLoanPosters()}
             />
-            <span className="composer-spacer" />
             {streaming ? (
               <button
                 type="button"
-                className="composer-send stop"
+                className="composer-send stop composer-send--round"
                 onClick={onStop}
                 title={t('chat.stop')}
                 aria-label={t('chat.stop')}
@@ -1511,251 +1642,48 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                 <span className="composer-stop-glyph" aria-hidden />
               </button>
             ) : (
-              <div className="composer-tools-wrap composer-send-wrap">
-                {toolsOpen ? (
-                  <div
-                    ref={toolsMenuRef}
-                    className="composer-tools-menu"
-                    role="menu"
-                  >
-                    <div className="composer-tools-tabs" role="tablist">
-                      {availableTabs.map((tab) => (
-                        <button
-                          key={tab}
-                          type="button"
-                          role="tab"
-                          aria-selected={toolsTab === tab}
-                          className={`composer-tools-tab${toolsTab === tab ? ' active' : ''}`}
-                          onClick={() => setToolsTab(tab)}
-                        >
-                          {tab === 'plugins' ? (
-                            <>
-                              <Icon name="sparkles" size={12} />
-                              <span>Plugins</span>
-                            </>
-                          ) : null}
-                          {tab === 'skills' ? (
-                            <>
-                              <Icon name="file" size={12} />
-                              <span>Skills</span>
-                            </>
-                          ) : null}
-                          {tab === 'mcp' ? (
-                            <>
-                              <Icon name="link" size={12} />
-                              <span>MCP</span>
-                            </>
-                          ) : null}
-                          {tab === 'import' ? (
-                            <>
-                              <Icon name="import" size={12} />
-                              <span>{t('chat.importLabel')}</span>
-                            </>
-                          ) : null}
-                          {tab === 'pet' ? (
-                            <>
-                              <span className="composer-tools-tab-glyph" aria-hidden>
-                                {resolveActivePet(petConfig)?.glyph ?? '🐾'}
-                              </span>
-                              <span>{t('pet.composerMenuTitle')}</span>
-                            </>
-                          ) : null}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="composer-tools-content">
-                      {toolsTab === 'plugins' ? (
-                        <ToolsPluginsPanel
-                          plugins={pluginsForComposer}
-                          activePluginId={pinnedPluginId}
-                          onApply={async (record) => {
-                            const result = await pluginsSectionRef.current?.applyById(
-                              record.id,
-                              record,
-                            );
-                            if (result) setToolsOpen(false);
-                          }}
-                          onShowDetails={(record) => {
-                            setDetailsRecord(record);
-                            setToolsOpen(false);
-                          }}
-                        />
-                      ) : null}
-                      {toolsTab === 'skills' ? (
-                        <ToolsSkillsPanel
-                          skills={skills}
-                          currentSkillId={currentSkillId}
-                          onPick={async (skill) => {
-                            const applied = await applyProjectSkill(skill);
-                            if (applied) setToolsOpen(false);
-                          }}
-                        />
-                      ) : null}
-                      {toolsTab === 'mcp' && onOpenMcpSettings ? (
-                        <ToolsMcpPanel
-                          servers={enabledMcpServers}
-                          templates={mcpTemplates}
-                          onInsert={(serverId) => {
-                            const ta = textareaRef.current;
-                            const server = enabledMcpServers.find((item) => item.id === serverId);
-                            const insert = `${inlineMentionToken(server?.label || serverId)} `;
-                            const cursor = ta?.selectionStart ?? draft.length;
-                            const before = draft.slice(0, cursor);
-                            const after = draft.slice(cursor);
-                            const next = before + insert + after;
-                            setDraft(next);
-                            setToolsOpen(false);
-                            requestAnimationFrame(() => {
-                              const el = textareaRef.current;
-                              if (!el) return;
-                              el.focus();
-                              const pos = before.length + insert.length;
-                              el.setSelectionRange(pos, pos);
-                            });
-                          }}
-                          onManage={() => {
-                            setToolsOpen(false);
-                            onOpenMcpSettings?.();
-                          }}
-                        />
-                      ) : null}
-                      {toolsTab === 'import' ? (
-                        <ToolsImportPanel
-                          t={t}
-                          onLinkFolder={async () => {
-                            setToolsOpen(false);
-                            await handleLinkFolder();
-                          }}
-                        />
-                      ) : null}
-                      {toolsTab === 'pet' && petEnabled ? (
-                        <ToolsPetPanel
-                          t={t}
-                          petConfig={petConfig}
-                          onTogglePet={() => {
-                            onTogglePet?.();
-                            setToolsOpen(false);
-                          }}
-                          onAdoptPet={(id) => {
-                            onAdoptPet?.(id);
-                            setToolsOpen(false);
-                          }}
-                          onOpenPetSettings={() => {
-                            onOpenPetSettings?.();
-                            setToolsOpen(false);
-                          }}
-                        />
-                      ) : null}
-                    </div>
-
-                    {onOpenSettings ? (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="composer-tools-settings"
-                        onClick={() => {
-                          trackChatPanelClick(analytics.track, {
-                            page_name: 'chat_panel',
-                            area: 'chat_panel',
-                            element: 'composer_settings',
-                          });
-                          setToolsOpen(false);
-                          onOpenSettings?.();
-                        }}
-                      >
-                        <Icon name="settings" size={13} />
-                        <span>{t('pet.composerOpenSettings')}</span>
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-                {sendActionsOpen ? (
-                  <div
-                    ref={sendActionsMenuRef}
-                    className="composer-send-menu"
-                    role="menu"
-                  >
-                    <button
-                      ref={toolsTriggerRef}
-                      type="button"
-                      role="menuitem"
-                      data-testid="chat-resource-picker"
-                      onClick={() => {
-                        trackChatPanelClick(analytics.track, {
-                          page_name: 'chat_panel',
-                          area: 'chat_panel',
-                          element: 'resources_popover_trigger',
-                        });
-                        setSendActionsOpen(false);
-                        setToolsOpen(true);
-                      }}
-                    >
-                      <span className="composer-tools-at" aria-hidden>@</span>
-                      <span>{t('homeHero.contextSurfaces')}</span>
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      data-testid="chat-attach"
-                      disabled={uploading}
-                      onClick={() => {
-                        trackChatPanelClick(analytics.track, {
-                          page_name: 'chat_panel',
-                          area: 'chat_panel',
-                          element: 'attachment',
-                        });
-                        setSendActionsOpen(false);
-                        fileInputRef.current?.click();
-                      }}
-                    >
-                      <Icon name={uploading ? 'spinner' : 'attach'} size={17} />
-                      <span>{t('chat.attachAria')}</span>
-                    </button>
-                  </div>
-                ) : null}
-                <div className="composer-send-split">
-                  <button
-                    type="button"
-                    className="composer-send composer-send-primary"
-                    data-testid="chat-send"
-                    onClick={() => {
-                      trackChatPanelClick(analytics.track, {
-                        page_name: 'chat_panel',
-                        area: 'chat_panel',
-                        element: 'send',
-                      });
-                      void submit();
-                    }}
-                    disabled={
-                      sendDisabled || autoPosterPending
-                    }
-                    title={t('chat.send')}
-                    aria-label={t('chat.send')}
-                  >
-                    <Icon name="send" size={18} />
-                  </button>
-                  <button
-                    ref={sendActionsTriggerRef}
-                    type="button"
-                    className="composer-send-chevron"
-                    data-testid="chat-send-menu"
-                    onClick={() => {
-                      setToolsOpen(false);
-                      setSendActionsOpen((open) => !open);
-                    }}
-                    title={t('homeHero.contextSurfaces')}
-                    aria-label={t('homeHero.contextSurfaces')}
-                    aria-haspopup="menu"
-                    aria-expanded={sendActionsOpen}
-                  >
-                    <Icon name="chevron-down" size={15} />
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                className="composer-send composer-send--arrow"
+                data-testid="chat-send"
+                onClick={() => {
+                  trackChatPanelClick(analytics.track, {
+                    page_name: 'chat_panel',
+                    area: 'chat_panel',
+                    element: 'send',
+                  });
+                  void submit();
+                }}
+                disabled={
+                  sendDisabled
+                  || autoPosterPending
+                  || (
+                    draft.trim().length === 0
+                    && staged.length === 0
+                    && currentCommentAttachments().length === 0
+                  )
+                }
+                title={t('chat.send')}
+                aria-label={t('chat.send')}
+              >
+                <Icon name="arrow-up" size={20} />
+              </button>
             )}
           </div>
         </div>
+        {autoPosterPending ? (
+          <span
+            className="composer-hint composer-auto-poster-status"
+            data-testid="chat-auto-poster-status"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="composer-auto-poster-status__spinner" aria-hidden />
+            {t('homeHero.autoPosterStarted', {
+              n: normalizeZambiaPosterCount(autoPosterCount),
+            })}
+          </span>
+        ) : null}
         {uploadError ? <span className="composer-hint">{uploadError}</span> : null}
         {detailsRecord ? (
           <PluginDetailsModal
@@ -2451,13 +2379,11 @@ function ToolsPetPanel({
   petConfig,
   onTogglePet,
   onAdoptPet,
-  onOpenPetSettings,
 }: {
   t: TranslateFn;
   petConfig: AppConfig['pet'] | undefined;
   onTogglePet: () => void;
   onAdoptPet: (id: string) => void;
-  onOpenPetSettings: () => void;
 }) {
   return (
     <div className="composer-tools-pet">
@@ -2494,15 +2420,6 @@ function ToolsPetPanel({
           );
         })}
       </div>
-      <button
-        type="button"
-        role="menuitem"
-        className="composer-tools-row composer-tools-row-action"
-        onClick={onOpenPetSettings}
-      >
-        <Icon name="settings" size={12} />
-        <span>{t('pet.composerOpenSettings')}</span>
-      </button>
     </div>
   );
 }

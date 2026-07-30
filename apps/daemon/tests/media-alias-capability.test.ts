@@ -117,6 +117,33 @@ describe('media alias preserves catalog-keyed capability branching (#1309 review
     expect(result.providerNote).not.toContain('dall-e-3');
   });
 
+  it('passes an explicit low quality setting to gpt-image for fast one-click renders', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
+      capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({ data: [{ b64_json: PNG_BASE64 }] }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'project-fast',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'A fast poster draft',
+      quality: 'low',
+      aspect: '16:9',
+      output: 'fast.png',
+    });
+
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody!.quality).toBe('low');
+  });
+
   it('alias gpt-4o-mini-tts -> custom-deployment still attaches style instructions', async () => {
     process.env.OD_MEDIA_MODEL_ALIASES = JSON.stringify({
       'gpt-4o-mini-tts': 'custom-tts-deployment',

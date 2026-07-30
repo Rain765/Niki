@@ -3,7 +3,7 @@ import { useAnalytics } from '../analytics/provider';
 import { trackFileManagerClick } from '../analytics/events';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
-import { projectFileUrl } from '../providers/registry';
+import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
 import { addCanvasImageNode } from '../providers/daemon';
 import type { LiveArtifactWorkspaceEntry, ProjectFile, ProjectFileKind } from '../types';
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
@@ -34,6 +34,12 @@ async function copyFileToClipboard(projectId: string, name: string, isImage: boo
   }
 }
 
+function opensDirectlyOnSingleTap(file: ProjectFile): boolean {
+  return file.kind === 'image'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(max-width: 900px)').matches;
+}
+
 interface Props {
   projectId: string;
   files: ProjectFile[];
@@ -54,6 +60,7 @@ interface Props {
     relativePath: string,
     action: PluginFolderAgentAction,
   ) => Promise<void> | void;
+  simplifiedImageActions?: boolean;
 }
 
 type DesignFilesGroupMode = 'kind' | 'modified';
@@ -110,6 +117,7 @@ export function DesignFilesPanel({
   uploadError = null,
   onClearUploadError,
   onPluginFolderAgentAction,
+  simplifiedImageActions = false,
 }: Props) {
   const t = useT();
   const analytics = useAnalytics();
@@ -512,7 +520,10 @@ export function DesignFilesPanel({
         </td>
         <td
           className="df-cell-icon df-cell-openable"
-          onClick={() => setPreview(f.name)}
+          onClick={() => {
+            if (opensDirectlyOnSingleTap(f)) openFile(f);
+            else setPreview(f.name);
+          }}
           onDoubleClick={() => openFile(f)}
         >
           {f.kind === 'image' ? (
@@ -568,7 +579,11 @@ export function DesignFilesPanel({
             <button
               type="button"
               className="df-row-name-btn"
-              onClick={() => setPreview(f.name)}
+              onClick={(event) => {
+                event.stopPropagation();
+                if (opensDirectlyOnSingleTap(f)) openFile(f);
+                else setPreview(f.name);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
@@ -610,8 +625,7 @@ export function DesignFilesPanel({
             <a
               data-testid={`design-file-row-download-${f.name}`}
               className="df-row-action"
-              href={projectFileUrl(projectId, f.name)}
-              download={f.name}
+              href={projectFileDownloadUrl(projectId, f.name)}
               title={t('designFiles.download')}
               aria-label={`${t('designFiles.download')} ${f.name}`}
               onClick={(e) => e.stopPropagation()}
@@ -786,16 +800,18 @@ export function DesignFilesPanel({
   const fileActions =
     selected.size > 0 ? (
       <div className="df-actions">
-        <button
-          type="button"
-          data-testid="design-files-batch-add-to-canvas"
-          disabled={!files.some((file) => selected.has(file.name) && file.kind === 'image')}
-          onClick={() => void handleBatchAddToCanvas()}
-          title={t('designFiles.addToCanvas')}
-        >
-          <Icon name="draw" size={17} />
-          <span>{t('designFiles.addToCanvas')}</span>
-        </button>
+        {!simplifiedImageActions ? (
+          <button
+            type="button"
+            data-testid="design-files-batch-add-to-canvas"
+            disabled={!files.some((file) => selected.has(file.name) && file.kind === 'image')}
+            onClick={() => void handleBatchAddToCanvas()}
+            title={t('designFiles.addToCanvas')}
+          >
+            <Icon name="draw" size={17} />
+            <span>{t('designFiles.addToCanvas')}</span>
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => {
@@ -1303,6 +1319,7 @@ export function DesignFilesPanel({
           }
           onRename={() => startRename(previewFile.name)}
           onDelete={() => onDeleteFile(previewFile.name)}
+          simplifiedImageActions={simplifiedImageActions}
         />
       ) : null}
       {imageModal ? (
@@ -1334,7 +1351,8 @@ export function DesignFilesPanel({
               ? t('common.preview')
               : t('designFiles.openInTab')}
           </button>
-          {files.find((f) => f.name === menuPos.name)?.kind === 'image' ? (
+          {!simplifiedImageActions
+          && files.find((f) => f.name === menuPos.name)?.kind === 'image' ? (
             <button
               type="button"
               data-testid={`design-file-add-to-canvas-${menuPos.name}`}
@@ -1361,29 +1379,26 @@ export function DesignFilesPanel({
           >
             {t('designFiles.copy')}
           </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              startRename(menuPos.name);
-            }}
-          >
-            {t('common.rename')}
-          </button>
-          <a
-            href={projectFileUrl(projectId, menuPos.name)}
-            download={menuPos.name}
-            style={{ textDecoration: 'none' }}
-          >
+          {!simplifiedImageActions ? (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setMenuPos(null);
+                startRename(menuPos.name);
               }}
             >
-              {t('designFiles.download')}
+              {t('common.rename')}
             </button>
+          ) : null}
+          <a
+            href={projectFileDownloadUrl(projectId, menuPos.name)}
+            style={{ textDecoration: 'none' }}
+            onClick={(event) => {
+              event.stopPropagation();
+              setMenuPos(null);
+            }}
+          >
+            {t('designFiles.download')}
           </a>
           <button
             type="button"
@@ -1413,6 +1428,7 @@ function DfPreview({
   onCopy,
   onRename,
   onDelete,
+  simplifiedImageActions,
 }: {
   projectId: string;
   file: ProjectFile;
@@ -1421,6 +1437,7 @@ function DfPreview({
   onCopy: () => void;
   onRename: () => void;
   onDelete: () => void;
+  simplifiedImageActions: boolean;
 }) {
   const t = useT();
   const url = projectFileUrl(projectId, file.name);
@@ -1476,13 +1493,12 @@ function DfPreview({
           </button>
           <a
             className="ghost-link"
-            href={url}
-            download={file.name}
+            href={projectFileDownloadUrl(projectId, file.name)}
           >
             <Icon name="download" size={17} />
             <span>{t('designFiles.download')}</span>
           </a>
-          {file.kind === 'image' ? (
+          {!simplifiedImageActions && file.kind === 'image' ? (
             <button type="button" className="ghost" onClick={onAddToCanvas}>
               <Icon name="draw" size={17} />
               <span>{t('designFiles.addToCanvas')}</span>
@@ -1492,10 +1508,12 @@ function DfPreview({
             <Icon name="copy" size={17} />
             <span>{t('designFiles.copy')}</span>
           </button>
-          <button type="button" className="ghost" onClick={onRename}>
-            <Icon name="edit" size={17} />
-            <span>{t('common.rename')}</span>
-          </button>
+          {!simplifiedImageActions ? (
+            <button type="button" className="ghost" onClick={onRename}>
+              <Icon name="edit" size={17} />
+              <span>{t('common.rename')}</span>
+            </button>
+          ) : null}
           <button type="button" className="ghost danger" onClick={onDelete}>
             <Icon name="trash" size={17} />
             <span>{t('designFiles.delete')}</span>
@@ -1540,7 +1558,10 @@ function DfImagePreviewModal({
         <div className="df-image-modal-header">
           <span>{file.name}</span>
           <div className="df-image-modal-actions">
-            <a href={url} download={file.name} title={t('designFiles.download')}>
+            <a
+              href={projectFileDownloadUrl(projectId, file.name)}
+              title={t('designFiles.download')}
+            >
               <Icon name="download" size={18} />
               <span>{t('designFiles.download')}</span>
             </a>

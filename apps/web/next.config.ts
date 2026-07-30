@@ -43,6 +43,18 @@ function resolveDevTsconfigPath() {
 
 const DEV_TSCONFIG_PATH = resolveDevTsconfigPath();
 
+export const DEV_NO_STORE_HEADERS = [
+  {
+    source: '/:path*',
+    headers: [
+      {
+        key: 'Cache-Control',
+        value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    ],
+  },
+] as const;
+
 function parseAllowedDevHost(value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -112,6 +124,16 @@ const nextConfig: NextConfig = {
   // Keep the bundle output predictable so the daemon's STATIC_DIR can point
   // at it without any glob trickery.
   distDir: DIST_DIR,
+  ...(!shouldStaticExport
+    ? {
+        async headers() {
+          return DEV_NO_STORE_HEADERS.map((entry) => ({
+            ...entry,
+            headers: entry.headers.map((header) => ({ ...header })),
+          }));
+        },
+      }
+    : {}),
   ...(shouldStaticExport
     ? {
         output: 'export' as const,

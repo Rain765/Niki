@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useAnalytics } from './analytics/provider';
 import { trackProjectCreateResult } from './analytics/events';
 import { detectClientType } from './analytics/identity';
@@ -9,25 +19,19 @@ import {
 } from '@open-design/contracts/analytics';
 import { EntryView } from './components/EntryView';
 import type { IntegrationTab } from './components/IntegrationsView';
-import { MarketplaceView } from './components/MarketplaceView';
-import { PluginDetailView } from './components/PluginDetailView';
 import type { CreateInput } from './components/NewProjectPanel';
 import { MemoryToast } from './components/MemoryToast';
-import { PetOverlay, type PetTaskCenter } from './components/pet/PetOverlay';
+import type { PetTaskCenter } from './components/pet/PetOverlay';
 import { buildPetTaskCenter } from './components/pet/taskCenter';
 import { migrateCustomPetAtlas } from './components/pet/pets';
-import { ProjectView } from './components/ProjectView';
-import { WorkspaceTabsBar } from './components/WorkspaceTabsBar';
+import { NikiWorkspaceShell } from './components/NikiWorkspaceShell';
+import { resetDirectLoanPosterSession } from './components/home-hero/direct-loan-posters';
+import { CenteredLoader } from './components/Loading';
+import type { SettingsSection } from './components/SettingsDialog';
 import {
-  DesignSystemCreationFlow,
-  DesignSystemDetailView,
-} from './components/DesignSystemFlow';
-import {
-  SettingsDialog,
   switchApiProtocolConfig,
   updateCurrentApiProtocolConfig,
-  type SettingsSection,
-} from './components/SettingsDialog';
+} from './state/apiProtocolConfig';
 import { PrivacyConsentModal } from './components/PrivacyConsentModal';
 import {
   daemonIsLive,
@@ -89,6 +93,48 @@ import type {
   PromptTemplateSummary,
   SkillSummary,
 } from './types';
+
+const MarketplaceView = lazy(() =>
+  import('./components/MarketplaceView').then((module) => ({
+    default: module.MarketplaceView,
+  })),
+);
+const PluginDetailView = lazy(() =>
+  import('./components/PluginDetailView').then((module) => ({
+    default: module.PluginDetailView,
+  })),
+);
+const loadProjectView = () => import('./components/ProjectView');
+const ProjectView = lazy(() =>
+  loadProjectView().then((module) => ({
+    default: module.ProjectView,
+  })),
+);
+const GlobalDesignFilesView = lazy(() =>
+  import('./components/GlobalDesignFilesView').then((module) => ({
+    default: module.GlobalDesignFilesView,
+  })),
+);
+const DesignSystemCreationFlow = lazy(() =>
+  import('./components/DesignSystemFlow').then((module) => ({
+    default: module.DesignSystemCreationFlow,
+  })),
+);
+const DesignSystemDetailView = lazy(() =>
+  import('./components/DesignSystemFlow').then((module) => ({
+    default: module.DesignSystemDetailView,
+  })),
+);
+const SettingsDialog = lazy(() =>
+  import('./components/SettingsDialog').then((module) => ({
+    default: module.SettingsDialog,
+  })),
+);
+const PetOverlay = lazy(() =>
+  import('./components/pet/PetOverlay').then((module) => ({
+    default: module.PetOverlay,
+  })),
+);
 
 export function shouldSyncMediaProvidersOnSave(
   mediaProviders: AppConfig['mediaProviders'],
@@ -207,16 +253,18 @@ export function App() {
     'idle' | 'ok' | 'error'
   >('idle');
   const [mediaProvidersNotice, setMediaProvidersNotice] = useState<string | null>(null);
-  // Per-resource loading flags. Each goes false the moment its own fetch
-  // resolves so each entry-view tab can render as its data lands instead of
-  // every tab waiting on the slowest endpoint (typically `/api/agents`,
-  // which probes CLI versions and can take seconds on cold start). The entry
-  // view picks the right flag for whichever tab the user is currently on.
-  const [agentsLoading, setAgentsLoading] = useState(true);
-  const [skillsLoading, setSkillsLoading] = useState(true);
-  const [dsLoading, setDsLoading] = useState(true);
+  // Extension registries stay idle on the lightweight home route. Once the
+  // user opens a project, Settings, or explicitly asks to load extensions,
+  // these flags let each extension surface render as its own data arrives.
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [dsLoading, setDsLoading] = useState(false);
   const [projectsLoading, setProjectsLoading] = useState(true);
-  const [promptTemplatesLoading, setPromptTemplatesLoading] = useState(true);
+  const [promptTemplatesLoading, setPromptTemplatesLoading] = useState(false);
+  const [extensionsRequested, setExtensionsRequested] = useState(false);
+  const [extensionsLoading, setExtensionsLoading] = useState(false);
+  const extensionLoadPromiseRef = useRef<Promise<void> | null>(null);
+  const extensionsLoadedRef = useRef(false);
   // Goes true once the daemon-persisted config (agentId/designSystemId/etc.)
   // has merged into local state. Auto-selection effects below wait on this
   // so they don't race ahead of the daemon-stored choice and overwrite it
@@ -233,6 +281,13 @@ export function App() {
   const [composioConfigLoading, setComposioConfigLoading] = useState(true);
   const route = useRoute();
   const analytics = useAnalytics();
+
+  // ProjectView stays outside the first render bundle, then starts warming as
+  // soon as Home has painted. Waiting for browser idle made the first sidebar
+  // click pay the entire chunk cost on slower webviews.
+  useEffect(() => {
+    void loadProjectView();
+  }, []);
 
   // v2 schema removed the standalone `app_launch` event; the initial
   // page_view fires from each top-level page surface (home / projects /
@@ -303,7 +358,8 @@ export function App() {
   // Sync theme preference to the <html> element so CSS variables pick it up.
   // useLayoutEffect (vs useEffect) fires before the browser paints, so a
   // live theme switch in Settings applies atomically — no 1-frame flash of
-  // the old theme. Safe here because the component tree is ssr:false.
+  // the old theme. The initializer is SSR-safe because loadConfig() falls
+  // back to defaults when browser storage is unavailable.
   useLayoutEffect(() => {
     applyAppearanceToDocument({
       theme: config.theme ?? 'system',
@@ -333,11 +389,55 @@ export function App() {
     });
   }, [activeProjectId, activeFileName]);
 
-  // Bootstrap — detect daemon, then fan out independent fetches so each
-  // entry-view tab can render the moment its own data lands. Earlier this
-  // was one Promise.all behind a global "Loading workspace…" placeholder,
-  // which made the slowest endpoint (typically `/api/agents` on cold start)
-  // gate every tab including the ones that don't need agents at all.
+  const loadExtensions = useCallback((): Promise<void> => {
+    if (extensionsLoadedRef.current) return Promise.resolve();
+    if (extensionLoadPromiseRef.current) return extensionLoadPromiseRef.current;
+
+    setExtensionsRequested(true);
+    setExtensionsLoading(true);
+    setAgentsLoading(true);
+    setSkillsLoading(true);
+    setDsLoading(true);
+    setPromptTemplatesLoading(true);
+
+    const agentsTask = fetchAgents()
+      .then(setAgents)
+      .finally(() => setAgentsLoading(false));
+    const skillsTask = Promise.all([
+      fetchSkills().then(setSkills),
+      fetchDesignTemplates().then(setDesignTemplates),
+    ]).finally(() => setSkillsLoading(false));
+    const designSystemsTask = fetchDesignSystems()
+      .then(setDesignSystems)
+      .finally(() => setDsLoading(false));
+    const templatesTask = listTemplates().then(setTemplates);
+    const promptTemplatesTask = fetchPromptTemplates()
+      .then(setPromptTemplates)
+      .finally(() => setPromptTemplatesLoading(false));
+    const versionTask = fetchAppVersionInfo().then(setAppVersionInfo);
+
+    const request = Promise.allSettled([
+      agentsTask,
+      skillsTask,
+      designSystemsTask,
+      templatesTask,
+      promptTemplatesTask,
+      versionTask,
+    ]).then(() => {
+      extensionsLoadedRef.current = true;
+    }).finally(() => {
+      setExtensionsLoading(false);
+      extensionLoadPromiseRef.current = null;
+    });
+    extensionLoadPromiseRef.current = request;
+    return request;
+  }, []);
+
+  // Lightweight bootstrap — the project rail and saved configuration are
+  // needed for the first screen. Extension registries (agents, skills,
+  // templates, design systems, plugins and MCP) are loaded only after an
+  // explicit user action so one-click image generation is never blocked by
+  // registry discovery.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -360,61 +460,10 @@ export function App() {
         return;
       }
 
-      void fetchAgents().then((list) => {
-        if (cancelled) return;
-        setAgents(list);
-        setAgentsLoading(false);
-      });
-
-      // Functional skills + design templates land independently. Both
-      // gate `skillsLoading` together so the EntryView stops rendering
-      // its loader once both registries respond — neither tab would have
-      // a complete picture if we cleared the flag on the first reply.
-      let functionalReady = false;
-      let templatesReady = false;
-      const maybeClearLoading = () => {
-        if (functionalReady && templatesReady) setSkillsLoading(false);
-      };
-      void fetchSkills().then((list) => {
-        if (cancelled) return;
-        setSkills(list);
-        functionalReady = true;
-        maybeClearLoading();
-      });
-
-      void fetchDesignTemplates().then((list) => {
-        if (cancelled) return;
-        setDesignTemplates(list);
-        templatesReady = true;
-        maybeClearLoading();
-      });
-
-      void fetchDesignSystems().then((list) => {
-        if (cancelled) return;
-        setDesignSystems(list);
-        setDsLoading(false);
-      });
-
       void listProjects().then((list) => {
         if (cancelled) return;
         setProjects(list);
         setProjectsLoading(false);
-      });
-
-      void listTemplates().then((list) => {
-        if (cancelled) return;
-        setTemplates(list);
-      });
-
-      void fetchPromptTemplates().then((list) => {
-        if (cancelled) return;
-        setPromptTemplates(list);
-        setPromptTemplatesLoading(false);
-      });
-
-      void fetchAppVersionInfo().then((info) => {
-        if (cancelled) return;
-        setAppVersionInfo(info);
       });
 
       // Daemon-persisted config + composio config + media provider config land
@@ -970,6 +1019,13 @@ export function App() {
     navigate({ kind: 'project', projectId: id, fileName: null });
   }, []);
 
+  const handleProjectCreated = useCallback((project: Project) => {
+    setProjects((current) => [
+      project,
+      ...current.filter((candidate) => candidate.id !== project.id),
+    ]);
+  }, []);
+
   useEffect(() => {
     if (!config.pet?.enabled || !daemonLive) {
       setPetTaskCenter({ running: [], queued: [], recent: [] });
@@ -1019,7 +1075,7 @@ export function App() {
   }, []);
 
   const handleBack = useCallback(() => {
-    navigate({ kind: 'home', view: 'projects' });
+    navigate({ kind: 'home', view: 'home' });
   }, []);
 
   const handleClearPendingPrompt = useCallback(() => {
@@ -1075,6 +1131,7 @@ export function App() {
   }, [route, activeProject, projects, daemonLive]);
 
   const openSettings = useCallback((section: SettingsSection = 'execution') => {
+    void loadExtensions();
     if (section === 'composio' || section === 'mcpClient' || section === 'integrations') {
       setIntegrationInitialTab(
         section === 'composio'
@@ -1089,7 +1146,7 @@ export function App() {
     setSettingsWelcome(false);
     setSettingsInitialSection(section);
     setSettingsOpen(true);
-  }, []);
+  }, [loadExtensions]);
 
   const openPetSettings = useCallback(() => {
     setSettingsWelcome(false);
@@ -1098,9 +1155,10 @@ export function App() {
   }, []);
 
   const openMcpSettings = useCallback(() => {
+    void loadExtensions();
     setIntegrationInitialTab('mcp');
     navigate({ kind: 'home', view: 'integrations' });
-  }, []);
+  }, [loadExtensions]);
 
   const handleCompleteOnboarding = useCallback(() => {
     const current = latestPersistedConfigRef.current;
@@ -1173,15 +1231,6 @@ export function App() {
       return next;
     });
   }, []);
-
-  // When the user lands on the entry view (route.kind === 'home'), pull
-  // a fresh template list. The template store is global — if they just
-  // saved a template inside a project, returning home should reflect it
-  // immediately in the From-template tab without forcing a page reload.
-  useEffect(() => {
-    if (route.kind !== 'home') return;
-    void refreshTemplates();
-  }, [route.kind, refreshTemplates]);
 
   // Existing card grids (DesignsTab, ProjectView), pickers (NewProjectPanel,
   // ChatComposer mention) all look skills up by id without caring whether
@@ -1275,6 +1324,12 @@ export function App() {
         onProjectsRefresh={refreshProjects}
       />
     );
+  } else if (route.kind === 'design-files') {
+    appMain = (
+      <GlobalDesignFilesView
+        projects={projects}
+      />
+    );
   } else if (activeProject) {
     appMain = (
       <ProjectView
@@ -1298,12 +1353,15 @@ export function App() {
         onTogglePet={handleTogglePet}
         onOpenPetSettings={openPetSettings}
         onBack={handleBack}
+        showBackButton={false}
         onClearPendingPrompt={handleClearPendingPrompt}
         onTouchProject={handleTouchProject}
         onProjectChange={handleProjectChange}
         onProjectsRefresh={refreshProjects}
       />
     );
+  } else if (route.kind === 'project') {
+    appMain = <CenteredLoader label={t('common.loading')} />;
   } else {
     appMain = (
       <EntryView
@@ -1332,12 +1390,16 @@ export function App() {
         designSystemsLoading={dsLoading}
         projectsLoading={projectsLoading}
         promptTemplatesLoading={promptTemplatesLoading}
+        extensionsRequested={extensionsRequested}
+        extensionsLoading={extensionsLoading}
+        onLoadExtensions={loadExtensions}
         onCreateProject={handleCreateProject}
         onCreatePluginShareProject={handleCreatePluginShareProject}
         onImportClaudeDesign={handleImportClaudeDesign}
         onImportFolder={handleImportFolder}
         onImportFolderResponse={handleImportFolderResponse}
         onOpenProject={handleOpenProject}
+        onProjectCreated={handleProjectCreated}
         onOpenLiveArtifact={handleOpenLiveArtifact}
         onDeleteProject={handleDeleteProject}
         onRenameProject={handleRenameProject}
@@ -1375,61 +1437,104 @@ export function App() {
       />
     );
   }
+  const unifiedWorkspace =
+    route.kind === 'project'
+    || route.kind === 'design-files'
+    || (route.kind === 'home' && route.view !== 'onboarding');
+  const workspaceMain = unifiedWorkspace ? (
+    <NikiWorkspaceShell
+      projects={projects}
+      activeProjectId={route.kind === 'project' ? route.projectId : null}
+      activeView={
+        route.kind === 'project'
+          ? 'project'
+          : route.kind === 'design-files'
+            ? 'design-files'
+            : 'home'
+      }
+      projectsLoading={projectsLoading}
+      onOpenProject={handleOpenProject}
+      onNewProject={() => {
+        resetDirectLoanPosterSession();
+        navigate({ kind: 'home', view: 'home' });
+      }}
+      onOpenDesignFiles={() => navigate({ kind: 'design-files' })}
+      onRenameProject={handleRenameProject}
+      onDeleteProject={handleDeleteProject}
+      config={config}
+      agents={agents}
+      daemonLive={daemonLive}
+      onModeChange={handleModeChange}
+      onAgentChange={handleAgentChange}
+      onAgentModelChange={handleAgentModelChange}
+      onApiProtocolChange={handleApiProtocolChange}
+      onApiModelChange={handleApiModelChange}
+      onThemeChange={handleThemeChange}
+      onOpenSettings={openSettings}
+    >
+      <Suspense fallback={<CenteredLoader label={t('common.loading')} />}>
+        {appMain}
+      </Suspense>
+    </NikiWorkspaceShell>
+  ) : appMain;
+
   return (
     <>
       <div
-        className={`workspace-shell workspace-shell--${clientType}${
-          route.kind === 'project' ? ' workspace-shell--without-tabs' : ''
+        className={`workspace-shell workspace-shell--${clientType} workspace-shell--without-tabs${
+          unifiedWorkspace ? ' workspace-shell--unified' : ''
         }`}
         data-client-type={clientType}
       >
-        {route.kind === 'project' ? null : (
-          <WorkspaceTabsBar
-            route={route}
-            projects={projects}
-          />
-        )}
-        <div className="workspace-shell__body">{appMain}</div>
+        <div className="workspace-shell__body">
+          <Suspense fallback={<CenteredLoader label={t('common.loading')} />}>
+            {workspaceMain}
+          </Suspense>
+        </div>
       </div>
       {clientType === 'desktop' ? null : (
-        <PetOverlay
-          pet={config.pet?.enabled ? config.pet : undefined}
-          taskCenter={petTaskCenter}
-          onOpenProject={handleOpenProject}
-        />
+        <Suspense fallback={null}>
+          <PetOverlay
+            pet={config.pet?.enabled ? config.pet : undefined}
+            taskCenter={petTaskCenter}
+            onOpenProject={handleOpenProject}
+          />
+        </Suspense>
       )}
       {settingsOpen ? (
-        <SettingsDialog
-          initial={config}
-          agents={agents}
-          daemonLive={daemonLive}
-          appVersionInfo={appVersionInfo}
-          welcome={settingsWelcome}
-          initialSection={settingsInitialSection}
-          composioConfigLoading={composioConfigLoading}
-          onPersist={handleConfigPersist}
-          onPersistComposioKey={handleConfigPersistComposioKey}
-          onClose={() => {
-            // Closing the dialog is the canonical "I'm done" gesture
-            // now that there is no global Save button. We mark
-            // onboardingCompleted on close so the welcome modal stops
-            // re-prompting on every refresh, regardless of whether
-            // the user changed anything during the session.
-            const next = resolveSettingsCloseConfig(config, latestPersistedConfigRef.current);
-            if (!next.onboardingCompleted || !config.onboardingCompleted) {
-              latestPersistedConfigRef.current = next;
-              saveConfig(next);
-              void syncConfigToDaemon(next);
-              setConfig(next);
-            }
-            setSettingsOpen(false);
-          }}
-          onRefreshAgents={refreshAgents}
-          daemonMediaProviders={daemonMediaProviders}
-          daemonMediaProvidersFetchState={daemonMediaProvidersFetchState}
-          mediaProvidersNotice={mediaProvidersNotice}
-          onReloadMediaProviders={reloadMediaProvidersFromDaemon}
-        />
+        <Suspense fallback={<CenteredLoader label={t('common.loading')} />}>
+          <SettingsDialog
+            initial={config}
+            agents={agents}
+            daemonLive={daemonLive}
+            appVersionInfo={appVersionInfo}
+            welcome={settingsWelcome}
+            initialSection={settingsInitialSection}
+            composioConfigLoading={composioConfigLoading}
+            onPersist={handleConfigPersist}
+            onPersistComposioKey={handleConfigPersistComposioKey}
+            onClose={() => {
+              // Closing the dialog is the canonical "I'm done" gesture
+              // now that there is no global Save button. We mark
+              // onboardingCompleted on close so the welcome modal stops
+              // re-prompting on every refresh, regardless of whether
+              // the user changed anything during the session.
+              const next = resolveSettingsCloseConfig(config, latestPersistedConfigRef.current);
+              if (!next.onboardingCompleted || !config.onboardingCompleted) {
+                latestPersistedConfigRef.current = next;
+                saveConfig(next);
+                void syncConfigToDaemon(next);
+                setConfig(next);
+              }
+              setSettingsOpen(false);
+            }}
+            onRefreshAgents={refreshAgents}
+            daemonMediaProviders={daemonMediaProviders}
+            daemonMediaProvidersFetchState={daemonMediaProvidersFetchState}
+            mediaProvidersNotice={mediaProvidersNotice}
+            onReloadMediaProviders={reloadMediaProvidersFromDaemon}
+          />
+        </Suspense>
       ) : null}
       <MemoryToast onOpenMemory={() => openSettings('memory')} />
       {/* First-run privacy consent banner. It waits for daemon config

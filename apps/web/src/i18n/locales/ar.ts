@@ -660,6 +660,7 @@ export const ar: Dict = {
   'avatar.codeAgent': 'وكيل الكود',
   'avatar.rescan': 'إعادة مسح PATH',
   'avatar.settings': 'الإعدادات',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'العودة للمشاريع',
   'avatar.metaActive': 'نشط',
   'avatar.metaOffline': 'غير متصل',

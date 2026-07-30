@@ -89,11 +89,86 @@ describe('ChatComposer automatic poster controls', () => {
     expect(screen.queryByTestId('chat-attach')).toBeNull();
     fireEvent.click(screen.getByTestId('chat-send-menu'));
 
+    expect(
+      screen.getByTestId('chat-send-menu-panel').parentElement?.classList.contains(
+        'composer-add__portal',
+      ),
+    ).toBe(true);
     expect(screen.getByTestId('chat-resource-picker')).toBeTruthy();
     expect(screen.getByTestId('chat-attach')).toBeTruthy();
 
     fireEvent.click(screen.getByTestId('chat-resource-picker'));
     expect(screen.getByRole('tab', { name: 'Plugins' })).toBeTruthy();
+  });
+
+  it('places the single manage-pets action directly in the context section', () => {
+    const onOpenPetSettings = vi.fn();
+    render(
+      <ChatComposer
+        projectId="project-1"
+        projectFiles={[]}
+        streaming={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        onAdoptPet={vi.fn()}
+        onTogglePet={vi.fn()}
+        onOpenPetSettings={onOpenPetSettings}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('chat-send-menu'));
+
+    const managePets = screen.getByTestId('chat-manage-pets');
+    expect(
+      managePets.closest('.composer-add__section')
+        ?.querySelector('.composer-add__section-label')
+        ?.textContent,
+    ).toBe('Context surfaces');
+    expect(screen.getAllByText('Manage Pets')).toHaveLength(1);
+
+    fireEvent.click(managePets);
+    expect(onOpenPetSettings).toHaveBeenCalledOnce();
+  });
+
+  it('renders the poster filter outside the composer overflow boundary', () => {
+    render(
+      <ChatComposer
+        projectId="project-1"
+        projectFiles={[]}
+        streaming={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('chat-auto-poster-trigger'));
+
+    expect(
+      screen.getByTestId('chat-auto-poster-menu').parentElement?.classList.contains(
+        'auto-poster-filter__portal',
+      ),
+    ).toBe(true);
+  });
+
+  it('keeps poster controls at the right edge immediately before send', () => {
+    render(
+      <ChatComposer
+        projectId="project-1"
+        projectFiles={[]}
+        streaming={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+
+    const controls = screen.getByTestId('chat-auto-poster-controls');
+    const send = screen.getByTestId('chat-send');
+
+    expect(controls.previousElementSibling?.classList.contains('composer-spacer')).toBe(true);
+    expect(controls.nextElementSibling).toBe(send);
   });
 
   it('renders the running stop action as a square icon-only button', () => {
@@ -139,7 +214,8 @@ describe('ChatComposer automatic poster controls', () => {
     fireEvent.change(screen.getByTestId('chat-auto-poster-brand'), {
       target: { value: 'biumoney' },
     });
-    fireEvent.click(screen.getByTestId('chat-send'));
+    expect((screen.getByTestId('chat-send') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId('chat-auto-poster-generate'));
 
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
 
@@ -171,7 +247,7 @@ describe('ChatComposer automatic poster controls', () => {
     });
   });
 
-  it('previews and submits a prompt rebuilt from the latest selector values', async () => {
+  it('shows preparation feedback without dumping the generated prompt into the textarea', async () => {
     let resolveUpload!: (value: Awaited<ReturnType<typeof uploadProjectFiles>>) => void;
     mockedUploadProjectFiles.mockReturnValueOnce(new Promise((resolve) => {
       resolveUpload = resolve;
@@ -204,13 +280,15 @@ describe('ChatComposer automatic poster controls', () => {
     fireEvent.change(screen.getByTestId('chat-auto-poster-brand'), {
       target: { value: 'zamloan' },
     });
-    fireEvent.click(screen.getByTestId('chat-send'));
+    fireEvent.click(screen.getByTestId('chat-auto-poster-generate'));
 
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
     await waitFor(() => {
-      expect(textarea.value).toContain('Generate exactly 3 Zamloan Zambia loan posters now.');
+      expect(screen.getByTestId('chat-auto-poster-status').textContent).toContain(
+        'Generating 3 posters',
+      );
     });
-    expect(textarea.value).toContain('- format: `16:9` (16:9 landscape)');
+    expect(textarea.value).toBe('');
     expect(onSend).not.toHaveBeenCalled();
 
     resolveUpload({
@@ -229,5 +307,27 @@ describe('ChatComposer automatic poster controls', () => {
     expect(prompt).toContain('- format: `16:9` (16:9 landscape)');
     expect(prompt).not.toContain('BiuMoney');
     expect(textarea.value).toBe('');
+    expect(screen.queryByTestId('chat-auto-poster-status')).toBeNull();
+  });
+
+  it('keeps the main send action disabled until the user enters content', () => {
+    render(
+      <ChatComposer
+        projectId="project-1"
+        projectFiles={[]}
+        streaming={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+
+    const send = screen.getByTestId('chat-send') as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'Create a campaign poster' },
+    });
+    expect(send.disabled).toBe(false);
   });
 });

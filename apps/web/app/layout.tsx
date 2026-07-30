@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import type { ReactNode } from 'react';
-import { I18nProvider } from '../src/i18n';
-import { AnalyticsProvider } from '../src/analytics/provider';
 import '../src/index.css';
 import '../src/styles/home/index.css';
 import '../src/styles/ndesign-system.css';
@@ -34,15 +33,15 @@ const themeInitScript = `(function(){try{var c=JSON.parse(localStorage.getItem('
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang='en' suppressHydrationWarning>
-      {/* eslint-disable-next-line @next/next/no-sync-scripts */}
       <head>
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: intentional theme-init inline script to prevent FOUC */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <Script
+          id='open-design-theme-init'
+          strategy='beforeInteractive'
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
       </head>
       <body suppressHydrationWarning>
-        <I18nProvider>
-          <AnalyticsProvider>{children}</AnalyticsProvider>
-        </I18nProvider>
+        {children}
       </body>
     </html>
   );

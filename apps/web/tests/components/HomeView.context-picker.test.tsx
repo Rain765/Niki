@@ -59,9 +59,32 @@ afterEach(() => {
 });
 
 describe('HomeView context picker', () => {
+  it('does not request plugin or MCP registries before extensions are loaded', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const onLoadExtensions = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <HomeView
+        projects={[]}
+        onSubmit={() => undefined}
+        extensionsRequested={false}
+        onLoadExtensions={onLoadExtensions}
+      />,
+    );
+
+    await Promise.resolve();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('plugins-home-section')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('home-hero-send-menu'));
+    fireEvent.click(screen.getByTestId('home-hero-load-extensions'));
+    expect(onLoadExtensions).toHaveBeenCalledTimes(1);
+  });
+
   it('creates a branded image project with the selected count and aspect ratio without typed input', async () => {
     const mediaPlugin = makePlugin('od-media-generation', 'Media Generation');
-    const fetchMock = vi.fn<typeof fetch>(async (url) => {
+    const fetchMock = vi.fn<typeof fetch>(async (url, init) => {
       const value = String(url);
       if (value === '/api/plugins') {
         return new Response(JSON.stringify({ plugins: [mediaPlugin] }), {
@@ -78,35 +101,55 @@ describe('HomeView context picker', () => {
       if (value === '/brand/zambia-support/z-reference.png') {
         return new Response(new Blob(['z-reference'], { type: 'image/png' }), { status: 200 });
       }
-      if (value === '/api/plugins/od-media-generation/apply') {
+      if (value === '/api/projects') {
         return new Response(JSON.stringify({
-          ok: true,
-          appliedPlugin: {
-            snapshotId: 'zambia-media-snapshot',
-            taskKind: 'media-generation',
-          },
-          contextItems: [],
-          inputs: [],
+          project: { id: 'direct-poster-project', name: 'Zamloan Loan Posters' },
         }), {
           status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (value === '/api/projects/direct-poster-project/upload?visibility=internal') {
+        return new Response(JSON.stringify({
+          files: [{ path: '.od-inputs/loan-poster-z-reference.png' }],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (value === '/api/projects/direct-poster-project/media/generate') {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        expect(body).toMatchObject({
+          surface: 'image',
+          model: 'gpt-image-2',
+          quality: 'low',
+          aspect: '1:1',
+          image: '.od-inputs/loan-poster-z-reference.png',
+        });
+        return new Response(JSON.stringify({ task: { id: 'media-task' } }), {
+          status: 202,
           headers: { 'content-type': 'application/json' },
         });
       }
       throw new Error(`unexpected fetch ${value}`);
     });
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'direct-poster-project' });
     const onSubmit = vi.fn();
+    const onOpenProject = vi.fn();
+    const onProjectCreated = vi.fn();
 
     render(
       <HomeView
         projects={[]}
         onSubmit={onSubmit}
-        onOpenProject={() => undefined}
+        onOpenProject={onOpenProject}
+        onProjectCreated={onProjectCreated}
         onViewAllProjects={() => undefined}
       />,
     );
 
-    const button = await screen.findByTestId('home-hero-submit');
+    const button = await screen.findByTestId('home-hero-auto-poster-generate');
     await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
     fireEvent.change(screen.getByTestId('home-hero-auto-poster-count'), {
       target: { value: '3' },
@@ -119,30 +162,18 @@ describe('HomeView context picker', () => {
     });
     fireEvent.click(button);
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-    const payload = onSubmit.mock.calls[0]?.[0];
-    expect(payload).toMatchObject({
-      projectName: 'BiuMoney Loan Posters',
-      pluginId: 'od-media-generation',
-      skillId: 'loan-poster-skill-v1.1',
-      appliedPluginSnapshotId: 'zambia-media-snapshot',
-      projectKind: 'image',
-      projectMetadata: {
-        kind: 'image',
-        imageAspect: '1:1',
-      },
-      pluginInputs: {
-        mediaKind: 'image',
-        aspect: '1:1',
-        ratio: '1:1',
-      },
-      attachmentVisibility: 'internal',
-    });
-    expect(payload.prompt).toContain('Generate exactly 3 BiuMoney Zambia loan posters now.');
-    expect(payload.prompt).toContain('The active functional skill is `loan-poster-skill-v1.1`');
-    expect(payload.prompt).toContain('--aspect 1:1');
-    expect(payload.attachments).toHaveLength(1);
-    expect(payload.attachments[0].name).toBe('loan-poster-z-reference.png');
+    await waitFor(() => expect(onProjectCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'direct-poster-project' }),
+    ));
+    expect(onOpenProject).toHaveBeenCalledWith('direct-poster-project');
+    expect(screen.getByTestId('home-auto-poster-status').textContent).toContain(
+      'Zamloan Loan Posters',
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+    const mediaRequests = fetchMock.mock.calls.filter(
+      ([input]) => String(input) === '/api/projects/direct-poster-project/media/generate',
+    );
+    expect(mediaRequests).toHaveLength(3);
   });
 
   it('stages pasted files on Home and submits them as first-turn context', async () => {

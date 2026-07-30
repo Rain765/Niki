@@ -22,6 +22,7 @@ export type Route =
   | { kind: 'home'; view: EntryHomeView }
   | { kind: 'design-system-create' }
   | { kind: 'design-system-detail'; designSystemId: string }
+  | { kind: 'design-files' }
   | {
       kind: 'project';
       projectId: string;
@@ -71,7 +72,7 @@ export function parseRoute(pathname: string): Route {
       }
       return { kind: 'project', projectId, conversationId: null, fileName: null };
     }
-    return { kind: 'home', view: 'projects' };
+    return { kind: 'home', view: 'home' };
   }
   if (parts[0] === 'design-systems') {
     if (parts[1] === 'create') {
@@ -81,6 +82,9 @@ export function parseRoute(pathname: string): Route {
       return { kind: 'design-system-detail', designSystemId: decodeURIComponent(parts[1]) };
     }
     return { kind: 'home', view: 'design-systems' };
+  }
+  if (parts[0] === 'design-files') {
+    return { kind: 'design-files' };
   }
   if (parts[0] === 'automations' || parts[0] === 'tasks') {
     return { kind: 'home', view: 'tasks' };
@@ -108,7 +112,7 @@ export function parseRoute(pathname: string): Route {
 export function buildPath(route: Route): string {
   if (route.kind === 'home') {
     if (route.view === 'onboarding') return '/onboarding';
-    if (route.view === 'projects') return '/projects';
+    if (route.view === 'projects') return '/';
     if (route.view === 'tasks') return '/automations';
     if (route.view === 'plugins') return '/plugins';
     if (route.view === 'design-systems') return '/design-systems';
@@ -121,6 +125,7 @@ export function buildPath(route: Route): string {
   if (route.kind === 'design-system-detail') {
     return `/design-systems/${encodeURIComponent(route.designSystemId)}`;
   }
+  if (route.kind === 'design-files') return '/design-files';
   const id = encodeURIComponent(route.projectId);
   const file = route.fileName
     ? route.fileName.split('/').map((s) => encodeURIComponent(s)).join('/')
@@ -150,9 +155,16 @@ export function navigate(route: Route, opts: { replace?: boolean } = {}): void {
 }
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState<Route>(() => parseRoute(window.location.pathname));
+  // The App Router serves the same exported shell for every SPA route. Keep
+  // the server render and the browser's first hydration render identical,
+  // then synchronize the real URL after the component mounts. Reading
+  // window.location in the state initializer makes project deep links render
+  // different markup on the server and client, which forces React to discard
+  // the page and breaks locale/project loading and click handlers.
+  const [route, setRoute] = useState<Route>(() => parseRoute('/'));
   useEffect(() => {
     const onPop = () => setRoute(parseRoute(window.location.pathname));
+    onPop();
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);

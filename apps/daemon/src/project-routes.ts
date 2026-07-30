@@ -1,4 +1,9 @@
-import type { Express } from 'express';
+import { createHash, randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { mkdir, rename, stat, unlink } from 'node:fs/promises';
+import path from 'node:path';
+import type { Express, Request, Response } from 'express';
+import sharp from 'sharp';
 import {
   defaultScenarioPluginIdForKind,
   type PluginManifest,
@@ -16,7 +21,31 @@ import type { RouteDeps } from './server-context.js';
 import { listSkills } from './skills.js';
 import { auditDesignSystemPackage } from './tools-connectors-cli.js';
 
-export interface RegisterProjectRoutesDeps extends RouteDeps<'db' | 'design' | 'http' | 'paths' | 'projectStore' | 'projectFiles' | 'conversations' | 'templates' | 'status' | 'events' | 'ids' | 'telemetry' | 'validation'> {}
+export interface RegisterProjectRoutesDeps extends RouteDeps<'db' | 'design' | 'http' | 'paths' | 'projectStore' | 'projectFiles' | 'conversations' | 'templates' | 'status' | 'events' | 'ids' | 'telemetry' | 'validation'> {
+  plugins?: {
+    ensureRegistryInitialized: () => Promise<void>;
+  };
+}
+
+/**
+ * Direct media jobs already carry complete provider inputs and must not pay
+ * the cost of resolving a scenario plugin snapshot during project creation.
+ */
+export function shouldResolveDefaultScenarioPlugin(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return true;
+  const directGeneration = (metadata as {
+    directGeneration?: unknown;
+  }).directGeneration;
+  if (
+    directGeneration
+    && typeof directGeneration === 'object'
+    && !Array.isArray(directGeneration)
+    && (directGeneration as { kind?: unknown }).kind === 'loan-poster'
+  ) {
+    return false;
+  }
+  return true;
+}
 
 export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDeps) {
   const { db, design } = ctx;
@@ -223,15 +252,17 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
           ? true
           : typeof req.body?.appliedPluginSnapshotId === 'string'
             && req.body.appliedPluginSnapshotId.trim().length > 0;
+      const fallbackPluginId =
+        !explicitPlugin && shouldResolveDefaultScenarioPlugin(projectMetadata)
+          ? defaultScenarioPluginIdForKind(projectMetadata?.kind)
+          : null;
+      if (explicitPlugin || fallbackPluginId) {
+        await ctx.plugins?.ensureRegistryInitialized();
+      }
       let resolveBody =
         explicitPlugin ? (req.body as Record<string, unknown>) : null;
-      if (!resolveBody) {
-        const fallbackPluginId = defaultScenarioPluginIdForKind(
-          projectMetadata?.kind,
-        );
-        if (fallbackPluginId && getInstalledPlugin(db, fallbackPluginId)) {
-          resolveBody = { ...(req.body || {}), pluginId: fallbackPluginId };
-        }
+      if (!resolveBody && fallbackPluginId && getInstalledPlugin(db, fallbackPluginId)) {
+        resolveBody = { ...(req.body || {}), pluginId: fallbackPluginId };
       }
       let resolvedSnapshot = null;
       if (resolveBody) {
@@ -798,16 +829,60 @@ export function registerProjectArtifactRoutes(app: Express, ctx: RegisterProject
 
 export interface RegisterProjectFileRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'uploads' | 'node' | 'projectStore' | 'projectFiles' | 'documents' | 'artifacts'> {}
 
+const IMAGE_PREVIEW_VARIANTS = {
+  thumbnail: { width: 320, quality: 78 },
+  preview: { width: 1024, quality: 82 },
+} as const;
+
+type ImagePreviewVariant = keyof typeof IMAGE_PREVIEW_VARIANTS;
+
+function fileEtag(size: number, mtime: number): string {
+  return `W/"${size.toString(16)}-${Math.round(mtime).toString(16)}"`;
+}
+
+function setVersionedFileCacheHeaders(
+  req: Request,
+  res: Response,
+  meta: { size: number; mtime: number },
+): string {
+  const etag = fileEtag(meta.size, meta.mtime);
+  res.setHeader('ETag', etag);
+  res.setHeader('Last-Modified', new Date(meta.mtime).toUTCString());
+  res.setHeader(
+    'Cache-Control',
+    typeof req.query.v === 'string'
+      ? 'private, max-age=31536000, immutable'
+      : 'private, max-age=0, must-revalidate',
+  );
+  return etag;
+}
+
+function streamResolvedFile(
+  res: Response,
+  filePath: string,
+): void {
+  const stream = createReadStream(filePath);
+  stream.on('error', (streamErr) => {
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'STREAM_ERROR', message: String(streamErr) });
+    } else {
+      res.destroy(streamErr);
+    }
+  });
+  stream.pipe(res);
+}
+
 export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFileRoutesDeps) {
   const { db } = ctx;
   const { sendApiError, sendMulterError } = ctx.http;
-  const { PROJECTS_DIR } = ctx.paths;
+  const { PROJECTS_DIR, RUNTIME_DATA_DIR } = ctx.paths;
   const { upload } = ctx.uploads;
   const { fs } = ctx.node;
   const { getProject } = ctx.projectStore;
   const { listFiles, searchProjectFiles, readProjectFile, resolveProjectDir, resolveProjectFilePath, parseByteRange, renameProjectFile, deleteProjectFile, writeProjectFile, sanitizeName, ensureProject } = ctx.projectFiles;
   const { buildDocumentPreview } = ctx.documents;
   const { validateArtifactManifestInput } = ctx.artifacts;
+  const pendingImagePreviews = new Map<string, Promise<string>>();
 
   // Project files. Each project owns a flat folder under .od/projects/<id>/
   // containing every file the user has uploaded, pasted, sketched, or that
@@ -879,6 +954,107 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
     res.sendStatus(204);
   });
 
+  app.get('/api/projects/:id/image-preview/*', async (req, res) => {
+    try {
+      const relPath = (req.params as any)[0];
+      const variantParam = String(req.query.variant ?? 'preview');
+      if (!(variantParam in IMAGE_PREVIEW_VARIANTS)) {
+        sendApiError(res, 400, 'BAD_REQUEST', 'variant must be thumbnail or preview');
+        return;
+      }
+      const variant = variantParam as ImagePreviewVariant;
+      const project = getProject(db, req.params.id);
+      const source = await resolveProjectFilePath(
+        PROJECTS_DIR,
+        req.params.id,
+        relPath,
+        project?.metadata,
+      );
+      if (source.kind !== 'image') {
+        sendApiError(res, 415, 'BAD_REQUEST', 'image preview requires an image file');
+        return;
+      }
+
+      const config = IMAGE_PREVIEW_VARIANTS[variant];
+      const cacheKey = createHash('sha256')
+        .update(req.params.id)
+        .update('\0')
+        .update(source.name)
+        .update('\0')
+        .update(String(source.mtime))
+        .update('\0')
+        .update(String(source.size))
+        .update('\0')
+        .update(`${variant}:${config.width}:${config.quality}`)
+        .digest('hex');
+      const cacheDir = path.join(
+        RUNTIME_DATA_DIR,
+        'cache',
+        'image-previews',
+        cacheKey.slice(0, 2),
+      );
+      const cachePath = path.join(cacheDir, `${cacheKey}.webp`);
+
+      let previewReady = pendingImagePreviews.get(cachePath);
+      if (!previewReady) {
+        previewReady = (async () => {
+          try {
+            await stat(cachePath);
+            return cachePath;
+          } catch {
+            // Generate the immutable derivative once, then atomically publish it.
+          }
+          await mkdir(cacheDir, { recursive: true });
+          const temporaryPath = `${cachePath}.${randomUUID()}.tmp`;
+          try {
+            await sharp(source.filePath, { animated: false })
+              .rotate()
+              .resize({
+                width: config.width,
+                withoutEnlargement: true,
+                fit: 'inside',
+              })
+              .webp({ quality: config.quality, effort: 4 })
+              .toFile(temporaryPath);
+            await rename(temporaryPath, cachePath);
+          } catch (error) {
+            await unlink(temporaryPath).catch(() => undefined);
+            throw error;
+          }
+          return cachePath;
+        })();
+        pendingImagePreviews.set(cachePath, previewReady);
+        void previewReady.then(
+          () => pendingImagePreviews.delete(cachePath),
+          () => pendingImagePreviews.delete(cachePath),
+        );
+      }
+
+      const resolvedPreviewPath = await previewReady;
+      const previewMeta = await stat(resolvedPreviewPath);
+      const etag = setVersionedFileCacheHeaders(req, res, {
+        size: previewMeta.size,
+        mtime: previewMeta.mtimeMs,
+      });
+      if (req.headers['if-none-match'] === etag) {
+        res.status(304).end();
+        return;
+      }
+      res.setHeader('Content-Type', 'image/webp');
+      res.setHeader('Content-Length', String(previewMeta.size));
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      streamResolvedFile(res, resolvedPreviewPath);
+    } catch (err: any) {
+      const status = err && err.code === 'ENOENT' ? 404 : 400;
+      sendApiError(
+        res,
+        status,
+        status === 404 ? 'FILE_NOT_FOUND' : 'BAD_REQUEST',
+        String(err),
+      );
+    }
+  });
+
   app.get('/api/projects/:id/raw/*', async (req, res) => {
     try {
       const relPath = (req.params as any)[0];
@@ -890,6 +1066,16 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
       if (req.headers.origin === 'null') {
         res.header('Access-Control-Allow-Origin', '*');
       }
+      if (req.query.download === '1') {
+        const filename = String(relPath).split('/').filter(Boolean).pop() || 'download';
+        const asciiFallback = filename
+          .replace(/[^\x20-\x7E]/g, '_')
+          .replace(/["\\]/g, '_');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        );
+      }
 
       const meta = await resolveProjectFilePath(
         PROJECTS_DIR,
@@ -897,6 +1083,11 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         relPath,
         project?.metadata,
       );
+      const etag = setVersionedFileCacheHeaders(req, res, meta);
+      if (!req.headers.range && req.headers['if-none-match'] === etag) {
+        res.status(304).end();
+        return;
+      }
 
       if (meta.mime.startsWith('video/') || meta.mime.startsWith('audio/')) {
         res.setHeader('Accept-Ranges', 'bytes');
@@ -942,8 +1133,10 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         return;
       }
 
-      const file = await readProjectFile(PROJECTS_DIR, req.params.id, relPath, project?.metadata);
-      res.type(file.mime).send(file.buffer);
+      res.setHeader('Content-Type', meta.mime);
+      res.setHeader('Content-Length', String(meta.size));
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      streamResolvedFile(res, meta.filePath);
     } catch (err: any) {
       const status = err && err.code === 'ENOENT' ? 404 : 400;
       sendApiError(

@@ -849,17 +849,13 @@ async function expectWorkspaceReady(page: Page) {
 
 async function renameProjectTitle(
   page: Page,
-  title: Locator,
+  _title: Locator,
   nextName: string,
 ) {
-  await title.click();
-  await page.keyboard.press('Meta+A');
-  const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '');
-  if (selected.length === 0) {
-    await page.keyboard.press('Control+A');
-  }
-  await page.keyboard.type(nextName);
-  await page.keyboard.press('Enter');
+  await page.getByTestId('project-title-edit').click();
+  const input = page.getByTestId('project-title-input');
+  await input.fill(nextName);
+  await input.press('Enter');
 }
 
 async function uploadTinyPng(

@@ -199,6 +199,77 @@ describe('ProjectView daemon cleanup', () => {
     expect((seenCancelSignal as any).aborted).toBe(false);
   });
 
+  it('does not clear an already discovered image while replaying a running message', async () => {
+    const producedFile = {
+      name: 'zamloan-poster-01.png',
+      path: 'zamloan-poster-01.png',
+      size: 100,
+      updatedAt: Date.now(),
+      kind: 'image',
+      mime: 'image/png',
+    };
+    listConversations.mockResolvedValue([{ id: 'conv-1', title: 'Conversation' }]);
+    listMessages.mockResolvedValue([
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'Generated zamloan-poster-01.png.',
+        createdAt: Date.now(),
+        runId: 'run-1',
+        runStatus: 'running',
+        producedFiles: [producedFile],
+      },
+    ]);
+    fetchPreviewComments.mockResolvedValue([]);
+    loadTabs.mockResolvedValue({ tabs: [], activeTabId: null });
+    fetchProjectFiles.mockResolvedValue([producedFile]);
+    fetchLiveArtifacts.mockResolvedValue([]);
+    fetchSkill.mockResolvedValue(null);
+    fetchDesignSystem.mockResolvedValue(null);
+    getTemplate.mockResolvedValue(null);
+    fetchChatRunStatus.mockResolvedValue({
+      id: 'run-1',
+      status: 'running',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      exitCode: null,
+      signal: null,
+    });
+    listActiveChatRuns.mockResolvedValue([]);
+    reattachDaemonRun.mockImplementation(async () => new Promise<void>(() => {}));
+
+    render(
+      <ProjectView
+        project={{ id: 'project-1', name: 'Project', skillId: null, designSystemId: null } as never}
+        routeFileName={null}
+        config={{ mode: 'daemon', agentId: 'agent-1', notifications: undefined, agentModels: {} } as never}
+        agents={[{ id: 'agent-1', name: 'OpenCode', models: [] } as never]}
+        skills={[]}
+        designTemplates={[]}
+        designSystems={[]}
+        daemonLive
+        onModeChange={() => {}}
+        onAgentChange={() => {}}
+        onAgentModelChange={() => {}}
+        onRefreshAgents={() => {}}
+        onOpenSettings={() => {}}
+        onBack={() => {}}
+        onClearPendingPrompt={() => {}}
+        onTouchProject={() => {}}
+        onProjectChange={() => {}}
+        onProjectsRefresh={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(reattachDaemonRun).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
+        messages?: ChatMessage[];
+      };
+      expect(props.messages?.[0]?.producedFiles).toEqual([producedFile]);
+    });
+  });
+
   it('marks successful daemon completion as succeeded even before runId reaches message state', () => {
     expect(resolveSucceededRunStatus('running')).toBe('succeeded');
     expect(resolveSucceededRunStatus('queued')).toBe('succeeded');
@@ -494,6 +565,71 @@ describe('ProjectView daemon cleanup', () => {
     } finally {
       window.sessionStorage.removeItem('od:auto-send-first:project-2');
     }
+  });
+
+  it('auto-sends a legacy loan-poster pending prompt even when its session flag is missing', async () => {
+    listConversations.mockResolvedValue([{ id: 'conv-1', title: 'Conversation' }]);
+    listMessages.mockResolvedValue([]);
+    fetchPreviewComments.mockResolvedValue([]);
+    loadTabs.mockResolvedValue({ tabs: [], activeTabId: null });
+    fetchProjectFiles.mockResolvedValue([]);
+    fetchLiveArtifacts.mockResolvedValue([]);
+    fetchSkill.mockResolvedValue(null);
+    fetchDesignSystem.mockResolvedValue(null);
+    getTemplate.mockResolvedValue(null);
+    listActiveChatRuns.mockResolvedValue([]);
+    streamViaDaemon.mockResolvedValue(undefined);
+
+    const loanPosterPrompt = [
+      'Generate exactly 1 Zamloan Zambia loan poster now.',
+      '',
+      'The active functional skill is `loan-poster-skill-v1.1`.',
+    ].join('\n');
+
+    chatPaneSpy.mockClear();
+    window.sessionStorage.removeItem('od:auto-send-first:legacy-poster');
+
+    render(
+      <ProjectView
+        project={{
+          id: 'legacy-poster',
+          name: 'Zamloan 贷款海报',
+          skillId: null,
+          designSystemId: null,
+          pendingPrompt: loanPosterPrompt,
+        } as never}
+        routeFileName={null}
+        config={{ mode: 'daemon', agentId: 'agent-1', notifications: undefined, agentModels: {} } as never}
+        agents={[{ id: 'agent-1', name: 'OpenCode', models: [] } as never]}
+        skills={[]}
+        designTemplates={[]}
+        designSystems={[]}
+        daemonLive
+        onModeChange={() => {}}
+        onAgentChange={() => {}}
+        onAgentModelChange={() => {}}
+        onRefreshAgents={() => {}}
+        onOpenSettings={() => {}}
+        onBack={() => {}}
+        onClearPendingPrompt={() => {}}
+        onTouchProject={() => {}}
+        onProjectChange={() => {}}
+        onProjectsRefresh={() => {}}
+      />,
+    );
+
+    await waitFor(() => expect(streamViaDaemon).toHaveBeenCalledTimes(1));
+    expect(streamViaDaemon.mock.calls[0]?.[0]).toMatchObject({
+      history: [
+        expect.objectContaining({
+          role: 'user',
+          content: loanPosterPrompt,
+        }),
+      ],
+    });
+    expect(
+      chatPaneSpy.mock.calls.some((call) => call[0]?.initialDraft === loanPosterPrompt),
+    ).toBe(false);
   });
 
   it('auto-sends Home-staged design files as first-turn daemon attachments', async () => {

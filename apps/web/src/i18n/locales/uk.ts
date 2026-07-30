@@ -682,6 +682,7 @@ export const uk: Dict = {
   'avatar.codeAgent': 'Кодовий агент',
   'avatar.rescan': 'Переканувати PATH',
   'avatar.settings': 'Налаштування',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Назад до проектів',
   'avatar.metaActive': 'активно',
   'avatar.metaOffline': 'вимкнено',

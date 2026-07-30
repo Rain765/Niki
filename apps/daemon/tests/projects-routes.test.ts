@@ -18,7 +18,22 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
+import { shouldResolveDefaultScenarioPlugin } from '../src/project-routes.js';
 import { startServer } from '../src/server.js';
+
+describe('default scenario plugin resolution', () => {
+  it('skips plugin discovery for direct loan-poster generation', () => {
+    expect(shouldResolveDefaultScenarioPlugin({
+      kind: 'image',
+      directGeneration: { kind: 'loan-poster', expectedOutputs: 1 },
+    })).toBe(false);
+  });
+
+  it('keeps the existing default plugin behavior for ordinary projects', () => {
+    expect(shouldResolveDefaultScenarioPlugin({ kind: 'image' })).toBe(true);
+    expect(shouldResolveDefaultScenarioPlugin(null)).toBe(true);
+  });
+});
 
 describe('GET /api/projects/:id resolvedDir', () => {
   let server: http.Server;

@@ -660,6 +660,7 @@ export const fr: Dict = {
   'avatar.codeAgent': 'Agent de code',
   'avatar.rescan': 'Réanalyser le PATH',
   'avatar.settings': 'Paramètres',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Retour aux projets',
   'avatar.metaActive': 'actif',
   'avatar.metaOffline': 'hors ligne',
