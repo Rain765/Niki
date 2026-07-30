@@ -282,13 +282,6 @@ export function App() {
   const route = useRoute();
   const analytics = useAnalytics();
 
-  // ProjectView stays outside the first render bundle, then starts warming as
-  // soon as Home has painted. Waiting for browser idle made the first sidebar
-  // click pay the entire chunk cost on slower webviews.
-  useEffect(() => {
-    void loadProjectView();
-  }, []);
-
   // v2 schema removed the standalone `app_launch` event; the initial
   // page_view fires from each top-level page surface (home / projects /
   // automations / plugins / design_systems / integrations) instead.

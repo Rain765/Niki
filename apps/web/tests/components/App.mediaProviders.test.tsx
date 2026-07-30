@@ -23,6 +23,7 @@ import {
 } from '../../src/providers/registry';
 import { listProjects, listTemplates } from '../../src/state/projects';
 
+const projectViewModuleLoaded = vi.hoisted(() => vi.fn());
 const navigateMock = vi.fn();
 const useRouteMock = vi.fn(() => ({ kind: 'home' as const, view: 'home' as const }));
 
@@ -41,9 +42,12 @@ vi.mock('../../src/components/EntryView', () => ({
   ),
 }));
 
-vi.mock('../../src/components/ProjectView', () => ({
-  ProjectView: () => <div>Project view</div>,
-}));
+vi.mock('../../src/components/ProjectView', () => {
+  projectViewModuleLoaded();
+  return {
+    ProjectView: () => <div>Project view</div>,
+  };
+});
 
 vi.mock('../../src/components/pet/PetOverlay', () => ({
   PetOverlay: () => null,
@@ -191,6 +195,17 @@ describe('App media provider sync flows', () => {
     cleanup();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
+  });
+
+  it('keeps the heavy project editor bundle lazy on the home screen', async () => {
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mockedListProjects).toHaveBeenCalled();
+    });
+    await Promise.resolve();
+
+    expect(projectViewModuleLoaded).not.toHaveBeenCalled();
   });
 
   it('syncs configured media providers to the daemon during bootstrap when the daemon is live', async () => {
