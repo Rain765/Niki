@@ -160,7 +160,7 @@ const DAEMON_STRING_FLAGS = new Set([
   'daemon-url', 'port', 'host',
 ]);
 const DAEMON_BOOLEAN_FLAGS = new Set([
-  'help', 'h', 'json', 'headless', 'serve-web', 'no-open',
+  'help', 'h', 'json', 'headless', 'serve-web', 'no-open', 'quick',
 ]);
 const LIBRARY_STRING_FLAGS = new Set(['daemon-url', 'query', 'tag']);
 const LIBRARY_BOOLEAN_FLAGS = new Set(['help', 'h', 'json']);

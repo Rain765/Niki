@@ -110,6 +110,7 @@ type MediaContext = {
   promptInfluence: number | undefined;
   compositionDir: string | null;
   imageRef: ImageRef | null;
+  signal?: AbortSignal;
 };
 type RenderResult = { bytes: Buffer; providerNote: string; suggestedExt?: string };
 type JsonRecord = Record<string, unknown>;
@@ -288,7 +289,7 @@ export async function generateMedia(args: {
   prompt?: string; output?: string; aspect?: string; length?: number; duration?: number; voice?: string;
   quality?: ImageQuality;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
-  compositionDir?: string; image?: string; onProgress?: ProgressFn;
+  compositionDir?: string; image?: string; onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
     projectRoot,
@@ -425,6 +426,7 @@ export async function generateMedia(args: {
     // Resolved reference image for i2v / image-edit flows. `null` when
     // the agent didn't pass --image. See resolveProjectImage below.
     imageRef,
+    ...(args.signal ? { signal: args.signal } : {}),
   };
 
   const credentials = await resolveProviderConfig(projectRoot, def.provider);
@@ -697,8 +699,9 @@ function defaultAspectFor(surface: MediaSurface): string | undefined {
 // ---------------------------------------------------------------------------
 
 const AZURE_DEFAULT_API_VERSION = '2024-02-01';
-const OPENAI_IMAGE_HEADERS_TIMEOUT_MS = 10 * 60 * 1000;
-const OPENAI_IMAGE_BODY_TIMEOUT_MS = 10 * 60 * 1000;
+const OPENAI_IMAGE_CONNECT_TIMEOUT_MS = 3_000;
+const OPENAI_IMAGE_HEADERS_TIMEOUT_MS = 3 * 60 * 1000;
+const OPENAI_IMAGE_BODY_TIMEOUT_MS = 3 * 60 * 1000;
 // Honor HTTP(S)_PROXY / NO_PROXY from the daemon's environment. Users in
 // regions that can only reach api.openai.com through a local proxy (e.g.
 // Clash) otherwise hit a connection timeout here — the chat agent has its own
@@ -706,9 +709,21 @@ const OPENAI_IMAGE_BODY_TIMEOUT_MS = 10 * 60 * 1000;
 // EnvHttpProxyAgent reads the proxy env when present and connects directly
 // when it is not, so it is inert for users without a proxy.
 const openAIImageDispatcher = new EnvHttpProxyAgent({
+  connectTimeout: OPENAI_IMAGE_CONNECT_TIMEOUT_MS,
   headersTimeout: OPENAI_IMAGE_HEADERS_TIMEOUT_MS,
   bodyTimeout: OPENAI_IMAGE_BODY_TIMEOUT_MS,
 });
+
+function openAIImageRequestTimeoutMs(): number {
+  const configured = Number(process.env.OD_OPENAI_IMAGE_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return 3 * 60 * 1000;
+  return Math.min(10 * 60 * 1000, Math.max(30_000, Math.floor(configured)));
+}
+
+function openAIImageRequestSignal(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(openAIImageRequestTimeoutMs());
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
 
 async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
   if (!credentials.apiKey) {
@@ -753,11 +768,13 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     // headers, so this is harmless on the standard endpoint too.
     headers['api-key'] = credentials.apiKey;
   }
+  const signal = openAIImageRequestSignal(ctx.signal);
 
   const resp = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal,
     dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
   });
   const text = await resp.text();
@@ -777,7 +794,10 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
   if (entry.b64_json) {
     bytes = Buffer.from(entry.b64_json, 'base64');
   } else if (entry.url) {
-    const imgResp = await fetch(entry.url);
+    const imgResp = await fetch(entry.url, {
+      signal,
+      dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
+    });
     if (!imgResp.ok) throw new Error(`openai image fetch ${imgResp.status}`);
     const arr = await imgResp.arrayBuffer();
     bytes = Buffer.from(arr);

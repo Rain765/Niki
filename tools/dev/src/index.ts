@@ -62,6 +62,7 @@ import {
   waitForWebRuntime,
 } from "./sidecar-client.js";
 import { ensureDaemonGateForDesktop } from "./desktop-auth-gate.js";
+import { rotateLogFile } from "./log-retention.js";
 
 type CliOptions = ToolDevOptions & {
   expr?: string;
@@ -296,6 +297,16 @@ function prependNodePath(entries: string[], current = process.env.NODE_PATH): st
 async function openAppLog(config: ToolDevConfig, appName: ToolDevAppName): Promise<FileHandle> {
   const logPath = appConfig(config, appName).latestLogPath;
   await mkdir(path.dirname(logPath), { recursive: true });
+  const configuredMaxBytes = Number(process.env.OD_TOOLS_DEV_LOG_MAX_BYTES);
+  const configuredRetention = Number(process.env.OD_TOOLS_DEV_LOG_RETENTION);
+  await rotateLogFile(logPath, {
+    maxBytes: Number.isFinite(configuredMaxBytes) && configuredMaxBytes > 0
+      ? configuredMaxBytes
+      : 10 * 1024 * 1024,
+    retention: Number.isFinite(configuredRetention) && configuredRetention > 0
+      ? configuredRetention
+      : 5,
+  });
   return await open(logPath, "a");
 }
 

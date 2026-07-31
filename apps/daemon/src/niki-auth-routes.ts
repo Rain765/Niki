@@ -52,9 +52,17 @@ interface RegisterNikiAuthRoutesOptions {
   db: SqliteDb;
   fetchImpl?: FetchLike;
   env?: NodeJS.ProcessEnv;
+  isLocalOperatorRequest?: (req: Request) => boolean;
   resolveClientIp?: (req: Request) => string;
   resolveRunProjectId?: (runId: string) => string | null | undefined;
 }
+
+const LOCAL_OPERATOR_API_PATHS = new Set([
+  '/daemon/db',
+  '/daemon/db/verify',
+  '/daemon/db/vacuum',
+  '/daemon/shutdown',
+]);
 
 export function readNikiAuthRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env,
@@ -297,6 +305,12 @@ export function registerNikiAuthRoutes(
   app.use('/api', (req, res, next) => {
     if (!config.enabled) return next();
     if (isPublicApiPath(req.path)) return next();
+    if (
+      LOCAL_OPERATOR_API_PATHS.has(req.path)
+      && options.isLocalOperatorRequest?.(req) === true
+    ) {
+      return next();
+    }
     if (!config.ready) {
       return res.status(503).json({
         error: 'Feishu authentication is not configured on this server',

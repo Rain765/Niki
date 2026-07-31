@@ -119,8 +119,10 @@ describe('media alias preserves catalog-keyed capability branching (#1309 review
 
   it('passes an explicit low quality setting to gpt-image for fast one-click renders', async () => {
     let capturedBody: Record<string, unknown> | null = null;
+    let capturedSignal: AbortSignal | null = null;
     const fetchMock = vi.fn(async (_input: unknown, init?: RequestInit) => {
       capturedBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      capturedSignal = init?.signal ?? null;
       return new Response(
         JSON.stringify({ data: [{ b64_json: PNG_BASE64 }] }),
         { status: 200, headers: { 'content-type': 'application/json' } },
@@ -142,6 +144,7 @@ describe('media alias preserves catalog-keyed capability branching (#1309 review
 
     expect(capturedBody).not.toBeNull();
     expect(capturedBody!.quality).toBe('low');
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
   });
 
   it('alias gpt-4o-mini-tts -> custom-deployment still attaches style instructions', async () => {

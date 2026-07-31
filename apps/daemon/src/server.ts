@@ -3381,6 +3381,7 @@ export async function startServer({
     () => undefined;
   registerNikiAuthRoutes(app, {
     db,
+    isLocalOperatorRequest: (req) => validateLocalDaemonRequest(req).ok,
     resolveRunProjectId: (runId) => resolveNikiRunProjectId(runId),
   });
 
@@ -3428,7 +3429,7 @@ export async function startServer({
   // version (the user_version PRAGMA we use for migrations), and
   // per-table row counts. Useful for ops sanity-checking
   // deployments + comparing 'expected' vs. 'actual' table rosters.
-  app.get('/api/daemon/db', async (_req, res) => {
+  app.get('/api/daemon/db', requireLocalDaemonRequest, async (_req, res) => {
     try {
       const { inspectSqliteDatabase } = await import('./storage/db-inspect.js');
       const file = path.join(RUNTIME_DATA_DIR, 'app.sqlite');

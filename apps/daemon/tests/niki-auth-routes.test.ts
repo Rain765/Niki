@@ -36,6 +36,8 @@ describe('Niki Feishu authentication routes', () => {
     registerNikiAuthRoutes(app, {
       db,
       fetchImpl: feishuFetch,
+      isLocalOperatorRequest: (req) =>
+        req.get('x-test-local-operator') === 'yes',
       env: {
         NIKI_AUTH_MODE: 'feishu',
         NIKI_PUBLIC_URL: 'https://niki.example.test',
@@ -44,6 +46,7 @@ describe('Niki Feishu authentication routes', () => {
       },
     });
     app.get('/api/private', (_req, res) => res.json({ ok: true }));
+    app.post('/api/daemon/db/verify', (_req, res) => res.json({ ok: true }));
 
     server = http.createServer(app);
     await new Promise<void>((resolve) => {
@@ -106,5 +109,23 @@ describe('Niki Feishu authentication routes', () => {
       headers: { cookie: authenticatedCookie },
     });
     expect(afterLogin.status).toBe(200);
+  });
+
+  it('allows only strict local operator routes to bypass the web session', async () => {
+    const blockedMaintenance = await fetch(`${baseUrl}/api/daemon/db/verify`, {
+      method: 'POST',
+    });
+    expect(blockedMaintenance.status).toBe(401);
+
+    const localMaintenance = await fetch(`${baseUrl}/api/daemon/db/verify`, {
+      method: 'POST',
+      headers: { 'x-test-local-operator': 'yes' },
+    });
+    expect(localMaintenance.status).toBe(200);
+
+    const privateRoute = await fetch(`${baseUrl}/api/private`, {
+      headers: { 'x-test-local-operator': 'yes' },
+    });
+    expect(privateRoute.status).toBe(401);
   });
 });

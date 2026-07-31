@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
+import http from 'node:http';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 
@@ -55,6 +56,50 @@ describe('CLI startup boundaries', () => {
     } finally {
       await chmod(dataDir, 0o700).catch(() => undefined);
       await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts --quick for daemon database verification', async () => {
+    let requestedUrl = '';
+    const server = http.createServer((req, res) => {
+      requestedUrl = req.url ?? '';
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({
+        ok: true,
+        mode: 'quick_check',
+        issues: [],
+        elapsedMs: 1,
+      }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('server not listening');
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          cliEntry,
+          'daemon',
+          'db',
+          'verify',
+          '--quick',
+          '--json',
+          '--daemon-url',
+          `http://127.0.0.1:${address.port}`,
+        ],
+        { cwd: daemonRoot },
+      );
+
+      expect(requestedUrl).toBe('/api/daemon/db/verify?quick=1');
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: true,
+        mode: 'quick_check',
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 });
