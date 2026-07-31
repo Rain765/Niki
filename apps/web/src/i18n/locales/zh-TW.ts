@@ -3,6 +3,7 @@ import { en } from './en';
 
 export const zhTW: Dict = {
   ...en,
+  'homeHero.autoPosterPrompt': '選擇產品、比例和張數，一鍵出圖',
   'homeHero.autoPosterStarted': '正在生成 {n} 張海報',
   'homeHero.autoPosterStartedDetail': '結果會儲存在左側專案「{name}」中。',
   'homeHero.autoPosterOpenProject': '查看專案',

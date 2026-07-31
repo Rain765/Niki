@@ -12,9 +12,11 @@ import { Icon } from './Icon';
 import {
   AUTO_POSTER_ASPECT_RATIOS,
   AUTO_POSTER_BRANDS,
+  AUTO_POSTER_DEFAULT_ASPECT_RATIO,
   autoPosterBrandLabel,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
+  ZAMBIA_POSTER_DEFAULT_COUNT,
   ZAMBIA_POSTER_MAX_COUNT,
   ZAMBIA_POSTER_MIN_COUNT,
 } from './home-hero/zambia-posters';
@@ -30,7 +32,6 @@ interface Props {
   onCountChange: (count: number) => void;
   onAspectRatioChange: (aspectRatio: AutoPosterAspectRatio) => void;
   onBrandChange: (brand: AutoPosterBrand) => void;
-  onGenerate?: () => void;
   labels?: {
     count: string;
     aspectRatio: string;
@@ -38,6 +39,11 @@ interface Props {
     settings: string;
   };
   formatCount?: (count: number) => string;
+}
+
+interface ProductPreference {
+  count: number;
+  aspectRatio: AutoPosterAspectRatio;
 }
 
 export function AutoPosterControls({
@@ -51,16 +57,21 @@ export function AutoPosterControls({
   onCountChange,
   onAspectRatioChange,
   onBrandChange,
-  onGenerate,
   labels,
   formatCount,
 }: Props) {
   const t = useT();
   const controlsDisabled = pending || disabled;
   const [open, setOpen] = useState(false);
-  const [activePanel, setActivePanel] = useState<'count' | 'aspect' | 'brand' | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const preferencesRef = useRef<Record<AutoPosterBrand, ProductPreference>>({
+    zamloan: { count, aspectRatio },
+    biumoney: {
+      count: ZAMBIA_POSTER_DEFAULT_COUNT,
+      aspectRatio: AUTO_POSTER_DEFAULT_ASPECT_RATIO,
+    },
+  });
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [desktopPosition, setDesktopPosition] = useState<{
     left: number;
@@ -74,18 +85,28 @@ export function AutoPosterControls({
     settings:
       labels?.settings
       ?? [
-        t('homeHero.autoPosterCountAria'),
-        t('homeHero.autoPosterSizeAria'),
         t('homeHero.autoPosterBrandAria'),
+        t('homeHero.autoPosterSizeAria'),
+        t('homeHero.autoPosterCountAria'),
       ].join(' / '),
   };
-  const countLabel = formatCount
-    ? formatCount(count)
-    : t('homeHero.autoPosterCountOption', { n: count });
+  const countOptions = Array.from(
+    { length: ZAMBIA_POSTER_MAX_COUNT - ZAMBIA_POSTER_MIN_COUNT + 1 },
+    (_, index) => index + ZAMBIA_POSTER_MIN_COUNT,
+  );
+  const formatCountLabel = (value: number) => (
+    formatCount
+      ? formatCount(value)
+      : t('homeHero.autoPosterCountOption', { n: value })
+  );
 
   useEffect(() => {
     setPortalRoot(document.body);
   }, []);
+
+  useEffect(() => {
+    preferencesRef.current[brand] = { count, aspectRatio };
+  }, [aspectRatio, brand, count]);
 
   const updateDesktopPosition = useCallback(() => {
     const trigger = rootRef.current;
@@ -99,13 +120,13 @@ export function AutoPosterControls({
     }
 
     const rect = trigger.getBoundingClientRect();
-    const totalMenuWidth = 508;
+    const menuWidth = 380;
     const left = Math.max(
       12,
-      Math.min(rect.left, window.innerWidth - Math.min(totalMenuWidth, window.innerWidth - 24) - 12),
+      Math.min(rect.left, window.innerWidth - Math.min(menuWidth, window.innerWidth - 24) - 12),
     );
 
-    if (rect.top >= 170) {
+    if (rect.top >= 250) {
       setDesktopPosition({
         left,
         bottom: window.innerHeight - rect.top + 10,
@@ -120,18 +141,18 @@ export function AutoPosterControls({
   }, []);
 
   useEffect(() => {
-    if (!open) {
-      setActivePanel(null);
-      return;
-    }
+    if (!open) return;
+
     function onPointerDown(event: PointerEvent) {
       const target = event.target as Node;
       if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) return;
       setOpen(false);
     }
+
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false);
     }
+
     updateDesktopPosition();
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -146,16 +167,29 @@ export function AutoPosterControls({
   }, [open, updateDesktopPosition]);
 
   const selectCount = (value: number) => {
+    preferencesRef.current[brand] = { count: value, aspectRatio };
     onCountChange(value);
-    setOpen(false);
   };
+
   const selectAspect = (value: AutoPosterAspectRatio) => {
+    preferencesRef.current[brand] = { count, aspectRatio: value };
     onAspectRatioChange(value);
-    setOpen(false);
   };
-  const selectBrand = (value: AutoPosterBrand) => {
+
+  const selectProduct = (value: AutoPosterBrand) => {
+    if (value === brand) {
+      if (!open) updateDesktopPosition();
+      setOpen((current) => !current);
+      return;
+    }
+
+    preferencesRef.current[brand] = { count, aspectRatio };
+    const nextPreference = preferencesRef.current[value];
     onBrandChange(value);
-    setOpen(false);
+    onCountChange(nextPreference.count);
+    onAspectRatioChange(nextPreference.aspectRatio);
+    updateDesktopPosition();
+    setOpen(true);
   };
 
   const portalStyle = desktopPosition
@@ -179,12 +213,12 @@ export function AutoPosterControls({
             <div
               ref={menuRef}
               className="auto-poster-filter__menu"
-              role="menu"
+              role="dialog"
               aria-label={resolvedLabels.settings}
               data-testid={`${testIdPrefix}-menu`}
             >
               <div className="auto-poster-filter__mobile-header">
-                <span>{resolvedLabels.settings}</span>
+                <span>{autoPosterBrandLabel(brand)}</span>
                 <button
                   type="button"
                   className="auto-poster-filter__mobile-close"
@@ -195,95 +229,48 @@ export function AutoPosterControls({
                   <Icon name="close" size={17} />
                 </button>
               </div>
-              <FilterRow
-                label={resolvedLabels.count}
-                value={countLabel}
-                active={activePanel === 'count'}
-                onClick={() => setActivePanel('count')}
-              />
-              <FilterRow
-                label={resolvedLabels.aspectRatio}
-                value={aspectRatio}
-                active={activePanel === 'aspect'}
-                onClick={() => setActivePanel('aspect')}
-              />
-              <FilterRow
-                label={resolvedLabels.brand}
-                value={autoPosterBrandLabel(brand)}
-                active={activePanel === 'brand'}
-                onClick={() => setActivePanel('brand')}
-              />
 
-              {activePanel ? (
+              <div className="auto-poster-filter__section">
+                <span className="auto-poster-filter__section-label">
+                  {resolvedLabels.aspectRatio}
+                </span>
                 <div
-                  className={`auto-poster-filter__submenu auto-poster-filter__submenu--${activePanel}`}
-                  role="menu"
+                  className="auto-poster-filter__choices"
+                  role="radiogroup"
+                  aria-label={resolvedLabels.aspectRatio}
                 >
-                  <div className="auto-poster-filter__mobile-subheader">
-                    <button
-                      type="button"
-                      className="auto-poster-filter__mobile-back"
-                      onClick={() => setActivePanel(null)}
-                    >
-                      <Icon name="chevron-left" size={17} />
-                      <span>
-                        {activePanel === 'count'
-                          ? resolvedLabels.count
-                          : activePanel === 'aspect'
-                            ? resolvedLabels.aspectRatio
-                            : resolvedLabels.brand}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="auto-poster-filter__mobile-close"
-                      aria-label={t('common.close')}
-                      data-testid={`${testIdPrefix}-submenu-close`}
-                      onClick={() => setOpen(false)}
-                    >
-                      <Icon name="close" size={17} />
-                    </button>
-                  </div>
-                  {activePanel === 'count'
-                    ? Array.from(
-                        { length: ZAMBIA_POSTER_MAX_COUNT - ZAMBIA_POSTER_MIN_COUNT + 1 },
-                        (_, index) => index + ZAMBIA_POSTER_MIN_COUNT,
-                      ).map((optionCount) => (
-                        <FilterOption
-                          key={optionCount}
-                          label={formatCount
-                            ? formatCount(optionCount)
-                            : t('homeHero.autoPosterCountOption', { n: optionCount })}
-                          selected={count === optionCount}
-                          testId={`${testIdPrefix}-count-option-${optionCount}`}
-                          onClick={() => selectCount(optionCount)}
-                        />
-                      ))
-                    : null}
-                  {activePanel === 'aspect'
-                    ? AUTO_POSTER_ASPECT_RATIOS.map((optionAspectRatio) => (
-                        <FilterOption
-                          key={optionAspectRatio}
-                          label={optionAspectRatio}
-                          selected={aspectRatio === optionAspectRatio}
-                          testId={`${testIdPrefix}-size-option-${optionAspectRatio}`}
-                          onClick={() => selectAspect(optionAspectRatio)}
-                        />
-                      ))
-                    : null}
-                  {activePanel === 'brand'
-                    ? AUTO_POSTER_BRANDS.map((optionBrand) => (
-                        <FilterOption
-                          key={optionBrand}
-                          label={autoPosterBrandLabel(optionBrand)}
-                          selected={brand === optionBrand}
-                          testId={`${testIdPrefix}-brand-option-${optionBrand}`}
-                          onClick={() => selectBrand(optionBrand)}
-                        />
-                      ))
-                    : null}
+                  {AUTO_POSTER_ASPECT_RATIOS.map((optionAspectRatio) => (
+                    <FilterOption
+                      key={optionAspectRatio}
+                      label={optionAspectRatio}
+                      selected={aspectRatio === optionAspectRatio}
+                      testId={`${testIdPrefix}-size-option-${optionAspectRatio}`}
+                      onClick={() => selectAspect(optionAspectRatio)}
+                    />
+                  ))}
                 </div>
-              ) : null}
+              </div>
+
+              <div className="auto-poster-filter__section">
+                <span className="auto-poster-filter__section-label">
+                  {resolvedLabels.count}
+                </span>
+                <div
+                  className="auto-poster-filter__choices auto-poster-filter__choices--count"
+                  role="radiogroup"
+                  aria-label={resolvedLabels.count}
+                >
+                  {countOptions.map((optionCount) => (
+                    <FilterOption
+                      key={optionCount}
+                      label={formatCountLabel(optionCount)}
+                      selected={count === optionCount}
+                      testId={`${testIdPrefix}-count-option-${optionCount}`}
+                      onClick={() => selectCount(optionCount)}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </>,
@@ -297,44 +284,39 @@ export function AutoPosterControls({
       className={['home-hero__auto-poster', className].filter(Boolean).join(' ')}
       data-testid={`${testIdPrefix}-controls`}
     >
-      <button
-        type="button"
-        className={`auto-poster-filter__trigger${open ? ' is-open' : ''}`}
-        data-testid={`${testIdPrefix}-trigger`}
-        disabled={controlsDisabled}
-        aria-label={resolvedLabels.settings}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => {
-          if (!open) updateDesktopPosition();
-          setOpen((value) => !value);
-        }}
+      <div
+        className="auto-poster-products"
+        role="toolbar"
+        aria-label={resolvedLabels.brand}
       >
-        <Icon name="sliders" size={15} />
-        <span>{countLabel}</span>
-        <span className="auto-poster-filter__summary-divider" aria-hidden>·</span>
-        <span>{aspectRatio}</span>
-        <span className="auto-poster-filter__summary-divider" aria-hidden>·</span>
-        <span>{autoPosterBrandLabel(brand)}</span>
-        <Icon name="chevron-down" size={14} />
-      </button>
-
-      {onGenerate ? (
-        <button
-          type="button"
-          className="auto-poster-filter__generate"
-          data-testid={`${testIdPrefix}-generate`}
-          disabled={controlsDisabled}
-          title={pending ? t('homeHero.autoPosterPreparing') : t('homeHero.autoPoster')}
-          aria-label={t('homeHero.autoPoster')}
-          onClick={() => {
-            setOpen(false);
-            onGenerate();
-          }}
-        >
-          <Icon name={pending ? 'spinner' : 'sparkles'} size={17} />
-        </button>
-      ) : null}
+        {AUTO_POSTER_BRANDS.map((optionBrand) => {
+          const selected = optionBrand === brand;
+          return (
+            <button
+              key={optionBrand}
+              type="button"
+              className={`auto-poster-products__tag${selected ? ' is-selected' : ''}`}
+              data-testid={`${testIdPrefix}-product-${optionBrand}`}
+              disabled={controlsDisabled}
+              aria-pressed={selected}
+              aria-haspopup="dialog"
+              aria-expanded={selected && open}
+              onClick={() => selectProduct(optionBrand)}
+            >
+              <span>{autoPosterBrandLabel(optionBrand)}</span>
+              {selected ? (
+                <>
+                  <span className="auto-poster-products__divider" aria-hidden>·</span>
+                  <span>{aspectRatio}</span>
+                  <span className="auto-poster-products__divider" aria-hidden>·</span>
+                  <span>{formatCountLabel(count)}</span>
+                  <Icon name="chevron-down" size={14} />
+                </>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
 
       {filterMenu}
 
@@ -344,14 +326,11 @@ export function AutoPosterControls({
           value={count}
           disabled={controlsDisabled}
           tabIndex={-1}
-          onChange={(event) => onCountChange(Number(event.target.value))}
+          onChange={(event) => selectCount(Number(event.target.value))}
         >
-          {Array.from(
-            { length: ZAMBIA_POSTER_MAX_COUNT - ZAMBIA_POSTER_MIN_COUNT + 1 },
-            (_, index) => index + ZAMBIA_POSTER_MIN_COUNT,
-          ).map((optionCount) => (
+          {countOptions.map((optionCount) => (
             <option key={optionCount} value={optionCount}>
-              {t('homeHero.autoPosterCountOption', { n: optionCount })}
+              {formatCountLabel(optionCount)}
             </option>
           ))}
         </select>
@@ -360,7 +339,7 @@ export function AutoPosterControls({
           value={aspectRatio}
           disabled={controlsDisabled}
           tabIndex={-1}
-          onChange={(event) => onAspectRatioChange(event.target.value as AutoPosterAspectRatio)}
+          onChange={(event) => selectAspect(event.target.value as AutoPosterAspectRatio)}
         >
           {AUTO_POSTER_ASPECT_RATIOS.map((optionAspectRatio) => (
             <option key={optionAspectRatio} value={optionAspectRatio}>{optionAspectRatio}</option>
@@ -371,7 +350,7 @@ export function AutoPosterControls({
           value={brand}
           disabled={controlsDisabled}
           tabIndex={-1}
-          onChange={(event) => onBrandChange(event.target.value as AutoPosterBrand)}
+          onChange={(event) => selectProduct(event.target.value as AutoPosterBrand)}
         >
           {AUTO_POSTER_BRANDS.map((optionBrand) => (
             <option key={optionBrand} value={optionBrand}>
@@ -381,31 +360,6 @@ export function AutoPosterControls({
         </select>
       </span>
     </div>
-  );
-}
-
-function FilterRow({
-  label,
-  value,
-  active,
-  onClick,
-}: {
-  label: string;
-  value: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      className={`auto-poster-filter__row${active ? ' is-active' : ''}`}
-      onClick={onClick}
-    >
-      <span>{label}</span>
-      <span className="auto-poster-filter__row-value">{value}</span>
-      <Icon name="chevron-right" size={16} />
-    </button>
   );
 }
 
@@ -423,14 +377,14 @@ function FilterOption({
   return (
     <button
       type="button"
-      role="menuitemradio"
+      role="radio"
       aria-checked={selected}
       className={`auto-poster-filter__option${selected ? ' is-selected' : ''}`}
       data-testid={testId}
       onClick={onClick}
     >
       <span>{label}</span>
-      {selected ? <Icon name="check" size={17} /> : null}
+      {selected ? <Icon name="check" size={15} /> : null}
     </button>
   );
 }

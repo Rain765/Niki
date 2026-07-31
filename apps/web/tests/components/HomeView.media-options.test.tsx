@@ -71,14 +71,12 @@ describe('HomeView media composer options', () => {
     expect((screen.getByTestId('home-hero-auto-poster-brand') as HTMLSelectElement).disabled)
       .toBe(false);
     expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled)
-      .toBe(true);
-    expect((screen.getByTestId('home-hero-auto-poster-generate') as HTMLButtonElement).disabled)
       .toBe(false);
 
     resolvePlugins(json({ plugins: [MEDIA_PLUGIN, HYPERFRAMES_PLUGIN] }));
     await waitFor(() => {
       expect(
-        (screen.getByTestId('home-hero-auto-poster-generate') as HTMLButtonElement).disabled,
+        (screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled,
       ).toBe(false);
     });
   });

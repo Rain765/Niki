@@ -73,7 +73,7 @@ const USER_PLUGIN_SOURCE_KINDS = new Set<PluginSourceKind>([
   'local',
 ]);
 
-const COMPOSER_TEXTAREA_MIN_HEIGHT = 88;
+const COMPOSER_TEXTAREA_MIN_HEIGHT = 40;
 const COMPOSER_TEXTAREA_MAX_HEIGHT = 184;
 
 function composerTextareaMaxHeight(): number {
@@ -1191,6 +1191,11 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           .filter((s) => skillMatchesQuery(s, mentionQuery))
           .sort((a, b) => skillMentionRank(a, mentionQuery) - skillMentionRank(b, mentionQuery))
       : [];
+    const hasManualSubmission = (
+      draft.trim().length > 0
+      || staged.length > 0
+      || currentCommentAttachments().length > 0
+    );
 
     return (
       <div
@@ -1203,7 +1208,19 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
       >
-        <div className="composer-shell">
+        <AutoPosterControls
+          count={autoPosterCount}
+          aspectRatio={autoPosterAspectRatio}
+          brand={autoPosterBrand}
+          pending={autoPosterPending}
+          disabled={streaming || sendDisabled || uploading}
+          testIdPrefix="chat-auto-poster"
+          className="composer-auto-poster"
+          onCountChange={setAutoPosterCount}
+          onAspectRatioChange={setAutoPosterAspectRatio}
+          onBrandChange={setAutoPosterBrand}
+        />
+        <div className="composer-shell composer-shell--capsule">
           {stagedSkills.length > 0 ? (
             <StagedSkills
               skills={stagedSkills}
@@ -1322,6 +1339,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
               }}
             />
           ) : null}
+          <div className="composer-capsule-row">
           <div
             className={`composer-input-wrap${
               composerMentionParts ? ' has-mention-overlay' : ''
@@ -1360,7 +1378,8 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                 // element + subtree entirely.
                 className="ph-no-capture"
                 value={draft}
-                placeholder={t('chat.composerPlaceholder')}
+                placeholder={t('homeHero.autoPosterPrompt')}
+                rows={1}
                 spellCheck={false}
                 onChange={handleChange}
                 onPaste={handlePaste}
@@ -1625,19 +1644,6 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
               </ComposerAddMenu>
             ) : null}
             <span className="composer-spacer" />
-            <AutoPosterControls
-              count={autoPosterCount}
-              aspectRatio={autoPosterAspectRatio}
-              brand={autoPosterBrand}
-              pending={autoPosterPending}
-              disabled={streaming || sendDisabled || uploading}
-              testIdPrefix="chat-auto-poster"
-              className="composer-auto-poster"
-              onCountChange={setAutoPosterCount}
-              onAspectRatioChange={setAutoPosterAspectRatio}
-              onBrandChange={setAutoPosterBrand}
-              onGenerate={() => void generateLoanPosters()}
-            />
             {streaming ? (
               <button
                 type="button"
@@ -1653,29 +1659,30 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                 type="button"
                 className="composer-send composer-send--arrow"
                 data-testid="chat-send"
+                data-action={hasManualSubmission ? 'send' : 'generate'}
                 onClick={() => {
                   trackChatPanelClick(analytics.track, {
                     page_name: 'chat_panel',
                     area: 'chat_panel',
                     element: 'send',
                   });
-                  void submit();
+                  if (hasManualSubmission) {
+                    void submit();
+                    return;
+                  }
+                  void generateLoanPosters();
                 }}
                 disabled={
                   sendDisabled
                   || autoPosterPending
-                  || (
-                    draft.trim().length === 0
-                    && staged.length === 0
-                    && currentCommentAttachments().length === 0
-                  )
                 }
-                title={t('chat.send')}
-                aria-label={t('chat.send')}
+                title={hasManualSubmission ? t('chat.send') : t('homeHero.autoPoster')}
+                aria-label={hasManualSubmission ? t('chat.send') : t('homeHero.autoPoster')}
               >
-                <Icon name="arrow-up" size={20} />
+                <Icon name={hasManualSubmission ? 'arrow-up' : 'sparkles'} size={20} />
               </button>
             )}
+          </div>
           </div>
         </div>
         {autoPosterPending ? (

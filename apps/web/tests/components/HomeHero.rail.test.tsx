@@ -47,7 +47,7 @@ function renderHero(overrides: Partial<React.ComponentProps<typeof HomeHero>> = 
 }
 
 describe('HomeHero intent rail', () => {
-  it('offers count, size, and brand through one compact filter menu', () => {
+  it('offers product tags with count and aspect settings in one panel', () => {
     const onAutoPoster = vi.fn();
     const onAutoPosterCountChange = vi.fn();
     const onAutoPosterAspectRatioChange = vi.fn();
@@ -72,33 +72,26 @@ describe('HomeHero intent rail', () => {
     expect(size.value).toBe('16:9');
     expect(Array.from(brand.options).map((option) => option.value)).toEqual(['zamloan', 'biumoney']);
     expect(brand.value).toBe('zamloan');
-    expect(screen.getByTestId('home-hero-auto-poster-trigger').textContent)
-      .toContain('1');
+    expect(screen.getByTestId('home-hero-auto-poster-product-zamloan').textContent)
+      .toContain('Zamloan');
     expect(screen.queryByTestId('home-hero-auto-poster-menu')).toBeNull();
 
-    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-zamloan'));
     expect(screen.getByTestId('home-hero-auto-poster-menu')).toBeTruthy();
-    fireEvent.click(screen.getAllByRole('menuitem')[0]!);
     fireEvent.click(screen.getByTestId('home-hero-auto-poster-count-option-7'));
     expect(onAutoPosterCountChange).toHaveBeenCalledWith(7);
 
-    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
-    fireEvent.click(screen.getAllByRole('menuitem')[1]!);
     fireEvent.click(screen.getByTestId('home-hero-auto-poster-size-option-1:1'));
     expect(onAutoPosterAspectRatioChange).toHaveBeenCalledWith('1:1');
 
-    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
-    fireEvent.click(screen.getAllByRole('menuitem')[2]!);
-    fireEvent.click(screen.getByTestId('home-hero-auto-poster-brand-option-biumoney'));
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-biumoney'));
     expect(onAutoPosterBrandChange).toHaveBeenCalledWith('biumoney');
 
-    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
-    fireEvent.click(screen.getAllByRole('menuitem')[0]!);
-    fireEvent.click(screen.getByTestId('home-hero-auto-poster-submenu-close'));
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-close'));
     expect(screen.queryByTestId('home-hero-auto-poster-menu')).toBeNull();
 
-    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByTestId('home-hero-auto-poster-generate'));
+    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByTestId('home-hero-submit'));
     expect(onAutoPoster).toHaveBeenCalledTimes(1);
   });
 
@@ -144,20 +137,19 @@ describe('HomeHero intent rail', () => {
     expect((screen.getByTestId('home-hero-auto-poster-count') as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByTestId('home-hero-auto-poster-size') as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByTestId('home-hero-auto-poster-brand') as HTMLSelectElement).disabled).toBe(true);
-    expect((screen.getByTestId('home-hero-auto-poster-generate') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('keeps poster controls at the right edge immediately before send', () => {
+  it('places product tags above the capsule input', () => {
     renderHero();
 
     const controls = screen.getByTestId('home-hero-auto-poster-controls');
-    const submit = screen.getByTestId('home-hero-submit');
-    const rightActions = controls.closest('.home-hero__foot-right');
+    const capsule = screen.getByTestId('home-hero').querySelector('.home-hero__capsule');
 
-    expect(rightActions).toBeTruthy();
-    expect(rightActions?.lastElementChild).toBe(submit);
-    expect(controls.nextElementSibling).toBe(submit);
-    expect(rightActions?.contains(screen.getByTestId('home-hero-send-menu'))).toBe(false);
+    expect(controls.nextElementSibling).toBe(capsule);
+    expect(screen.getByTestId('home-hero-input').getAttribute('placeholder')).toBe(
+      'Choose product, ratio, and quantity. Generate in one click',
+    );
   });
 
   it('renders one chip per HOME_HERO_CHIPS entry', () => {

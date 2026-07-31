@@ -418,6 +418,7 @@ export const en: Dict = {
   'homeHero.typeSomethingToRun': 'Type something to run',
   'homeHero.autoPoster': 'Auto posters',
   'homeHero.autoPosterPreparing': 'Preparing…',
+  'homeHero.autoPosterPrompt': 'Choose product, ratio, and quantity. Generate in one click',
   'homeHero.autoPosterCountAria': 'Number of posters',
   'homeHero.autoPosterCountOption': '{n} posters',
   'homeHero.autoPosterSizeAria': 'Poster size',

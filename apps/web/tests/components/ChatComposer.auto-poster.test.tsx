@@ -131,7 +131,7 @@ describe('ChatComposer automatic poster controls', () => {
     expect(onOpenPetSettings).toHaveBeenCalledOnce();
   });
 
-  it('renders the poster filter outside the composer overflow boundary', () => {
+  it('opens product settings from a product tag outside the composer overflow boundary', () => {
     render(
       <ChatComposer
         projectId="project-1"
@@ -143,16 +143,18 @@ describe('ChatComposer automatic poster controls', () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId('chat-auto-poster-trigger'));
+    fireEvent.click(screen.getByTestId('chat-auto-poster-product-zamloan'));
 
     expect(
       screen.getByTestId('chat-auto-poster-menu').parentElement?.classList.contains(
         'auto-poster-filter__portal',
       ),
     ).toBe(true);
+    expect(screen.getByTestId('chat-auto-poster-size-option-1:1')).toBeTruthy();
+    expect(screen.getByTestId('chat-auto-poster-count-option-2')).toBeTruthy();
   });
 
-  it('keeps poster controls at the right edge immediately before send', () => {
+  it('places product tags above the capsule composer', () => {
     render(
       <ChatComposer
         projectId="project-1"
@@ -165,10 +167,14 @@ describe('ChatComposer automatic poster controls', () => {
     );
 
     const controls = screen.getByTestId('chat-auto-poster-controls');
-    const send = screen.getByTestId('chat-send');
+    const shell = screen.getByTestId('chat-composer').querySelector('.composer-shell');
 
-    expect(controls.previousElementSibling?.classList.contains('composer-spacer')).toBe(true);
-    expect(controls.nextElementSibling).toBe(send);
+    expect(controls.nextElementSibling).toBe(shell);
+    expect(shell?.classList.contains('composer-shell--capsule')).toBe(true);
+    expect(screen.getByRole('textbox').getAttribute('placeholder')).toBe(
+      'Choose product, ratio, and quantity. Generate in one click',
+    );
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).style.height).toBe('40px');
   });
 
   it('renders the running stop action as a square icon-only button', () => {
@@ -205,17 +211,17 @@ describe('ChatComposer automatic poster controls', () => {
       />,
     );
 
+    fireEvent.change(screen.getByTestId('chat-auto-poster-brand'), {
+      target: { value: 'biumoney' },
+    });
     fireEvent.change(screen.getByTestId('chat-auto-poster-count'), {
       target: { value: '10' },
     });
     fireEvent.change(screen.getByTestId('chat-auto-poster-size'), {
       target: { value: '1:1' },
     });
-    fireEvent.change(screen.getByTestId('chat-auto-poster-brand'), {
-      target: { value: 'biumoney' },
-    });
-    expect((screen.getByTestId('chat-send') as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(screen.getByTestId('chat-auto-poster-generate'));
+    expect((screen.getByTestId('chat-send') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByTestId('chat-send'));
 
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
 
@@ -262,16 +268,7 @@ describe('ChatComposer automatic poster controls', () => {
     fireEvent.change(screen.getByTestId('chat-auto-poster-size'), {
       target: { value: '1:1' },
     });
-    fireEvent.change(screen.getByTestId('chat-auto-poster-brand'), {
-      target: { value: 'biumoney' },
-    });
-    fireEvent.change(screen.getByTestId('chat-auto-poster-size'), {
-      target: { value: '16:9' },
-    });
-    fireEvent.change(screen.getByTestId('chat-auto-poster-brand'), {
-      target: { value: 'zamloan' },
-    });
-    fireEvent.click(screen.getByTestId('chat-auto-poster-generate'));
+    fireEvent.click(screen.getByTestId('chat-send'));
 
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
     await waitFor(() => {
@@ -295,13 +292,13 @@ describe('ChatComposer automatic poster controls', () => {
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
     const [prompt] = onSend.mock.calls[0]!;
     expect(prompt).toContain('Generate exactly 3 Zamloan Zambia loan posters now.');
-    expect(prompt).toContain('- format: `16:9` (16:9 landscape)');
+    expect(prompt).toContain('- format: `1:1` (1:1 square)');
     expect(prompt).not.toContain('BiuMoney');
     expect(textarea.value).toBe('');
     expect(screen.queryByTestId('chat-auto-poster-status')).toBeNull();
   });
 
-  it('keeps the main send action disabled until the user enters content', () => {
+  it('keeps one-click generation available without typed content', () => {
     render(
       <ChatComposer
         projectId="project-1"
@@ -314,11 +311,45 @@ describe('ChatComposer automatic poster controls', () => {
     );
 
     const send = screen.getByTestId('chat-send') as HTMLButtonElement;
-    expect(send.disabled).toBe(true);
+    expect(send.disabled).toBe(false);
+    expect(send.dataset.action).toBe('generate');
 
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: 'Create a campaign poster' },
     });
     expect(send.disabled).toBe(false);
+    expect(send.dataset.action).toBe('send');
+  });
+
+  it('remembers count and aspect settings independently for each product', () => {
+    render(
+      <ChatComposer
+        projectId="project-1"
+        projectFiles={[]}
+        streaming={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByTestId('chat-auto-poster-count'), {
+      target: { value: '3' },
+    });
+    fireEvent.change(screen.getByTestId('chat-auto-poster-size'), {
+      target: { value: '1:1' },
+    });
+
+    fireEvent.click(screen.getByTestId('chat-auto-poster-product-biumoney'));
+    expect((screen.getByTestId('chat-auto-poster-count') as HTMLSelectElement).value).toBe('1');
+    expect((screen.getByTestId('chat-auto-poster-size') as HTMLSelectElement).value).toBe('16:9');
+
+    fireEvent.change(screen.getByTestId('chat-auto-poster-count'), {
+      target: { value: '2' },
+    });
+    fireEvent.click(screen.getByTestId('chat-auto-poster-product-zamloan'));
+
+    expect((screen.getByTestId('chat-auto-poster-count') as HTMLSelectElement).value).toBe('3');
+    expect((screen.getByTestId('chat-auto-poster-size') as HTMLSelectElement).value).toBe('1:1');
   });
 });

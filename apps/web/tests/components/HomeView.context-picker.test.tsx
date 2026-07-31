@@ -124,8 +124,8 @@ describe('HomeView context picker', () => {
           model: 'gpt-image-2',
           quality: 'low',
           aspect: '1:1',
-          image: '.od-inputs/loan-poster-z-reference.png',
         });
+        expect(body).not.toHaveProperty('image');
         return new Response(JSON.stringify({ task: { id: 'media-task' } }), {
           status: 202,
           headers: { 'content-type': 'application/json' },
@@ -149,16 +149,16 @@ describe('HomeView context picker', () => {
       />,
     );
 
-    const button = await screen.findByTestId('home-hero-auto-poster-generate');
+    const button = await screen.findByTestId('home-hero-submit');
     await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.change(screen.getByTestId('home-hero-auto-poster-brand'), {
+      target: { value: 'biumoney' },
+    });
     fireEvent.change(screen.getByTestId('home-hero-auto-poster-count'), {
       target: { value: '3' },
     });
     fireEvent.change(screen.getByTestId('home-hero-auto-poster-size'), {
       target: { value: '1:1' },
-    });
-    fireEvent.change(screen.getByTestId('home-hero-auto-poster-brand'), {
-      target: { value: 'biumoney' },
     });
     fireEvent.click(button);
 

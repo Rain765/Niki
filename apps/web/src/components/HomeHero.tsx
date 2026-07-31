@@ -190,14 +190,18 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
   const inputElementRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasManualSubmission = prompt.trim().length > 0 || stagedFiles.length > 0;
-  const canSubmit = !submitDisabled && hasManualSubmission;
+  const canSubmit = hasManualSubmission
+    ? !submitDisabled
+    : !submitDisabled && !autoPosterDisabled && !autoPosterPending;
   const submitPrimaryAction = useCallback(() => {
     if (!canSubmit) return;
-    onSubmit();
-  }, [canSubmit, onSubmit]);
-  const placeholder = activePluginTitle || activeSkillTitle
-    ? t('homeHero.placeholderActive')
-    : t('homeHero.placeholder');
+    if (hasManualSubmission) {
+      onSubmit();
+      return;
+    }
+    onAutoPoster();
+  }, [canSubmit, hasManualSubmission, onAutoPoster, onSubmit]);
+  const placeholder = t('homeHero.autoPosterPrompt');
   const mention = getContextMention(prompt);
   const mentionActive = Boolean(mention);
   const mentionQuery = mention?.query ?? '';
@@ -588,6 +592,18 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
             ) : null}
           </div>
         ) : null}
+        <AutoPosterControls
+          count={autoPosterCount}
+          aspectRatio={autoPosterAspectRatio}
+          brand={autoPosterBrand}
+          pending={autoPosterPending}
+          disabled={autoPosterDisabled}
+          testIdPrefix="home-hero-auto-poster"
+          onCountChange={onAutoPosterCountChange}
+          onAspectRatioChange={onAutoPosterAspectRatioChange}
+          onBrandChange={onAutoPosterBrandChange}
+        />
+        <div className="home-hero__capsule">
         <div className="home-hero__prompt-surface">
           <div
             className={`home-hero__prompt-editor${
@@ -688,11 +704,11 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
                     if (selected && !selected.disabled) selected.onPick();
                     return;
                   }
-                  if (canSubmit) submitPrimaryAction();
+                  if (hasManualSubmission && canSubmit) submitPrimaryAction();
                 }
               }}
               placeholder={placeholder}
-              rows={3}
+              rows={1}
               aria-controls={pickerOpen ? 'home-hero-context-picker' : undefined}
               aria-expanded={pickerOpen}
             />
@@ -951,30 +967,27 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
             </ComposerAddMenu>
           </div>
           <div className="home-hero__foot-right">
-            <AutoPosterControls
-              count={autoPosterCount}
-              aspectRatio={autoPosterAspectRatio}
-              brand={autoPosterBrand}
-              pending={autoPosterPending}
-              disabled={autoPosterDisabled}
-              testIdPrefix="home-hero-auto-poster"
-              onCountChange={onAutoPosterCountChange}
-              onAspectRatioChange={onAutoPosterAspectRatioChange}
-              onBrandChange={onAutoPosterBrandChange}
-              onGenerate={onAutoPoster}
-            />
             <button
               type="button"
               className="composer-send composer-send--arrow home-hero__submit"
               data-testid="home-hero-submit"
+              data-action={hasManualSubmission ? 'send' : 'generate'}
               onClick={submitPrimaryAction}
               disabled={!canSubmit}
-              title={canSubmit ? t('chat.send') : t('homeHero.typeSomethingToRun')}
-              aria-label={t('chat.send')}
+              title={hasManualSubmission ? t('chat.send') : t('homeHero.autoPoster')}
+              aria-label={hasManualSubmission ? t('chat.send') : t('homeHero.autoPoster')}
             >
-              <Icon name="arrow-up" size={20} />
+              <Icon
+                name={autoPosterPending
+                  ? 'spinner'
+                  : hasManualSubmission
+                    ? 'arrow-up'
+                    : 'sparkles'}
+                size={20}
+              />
             </button>
           </div>
+        </div>
         </div>
       </div>
 

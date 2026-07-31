@@ -27767,3 +27767,88 @@ body.desktop-pet-shell .pet-task-item {
 .app .df-controls-row {
   background: var(--bg-app);
 }
+
+/* Product-first composer: the product tags sit immediately above this
+   one-line capsule, while attachments and applied context can still expand
+   into full-width rows without changing the primary input affordance. */
+.composer-shell--capsule {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 7px;
+}
+
+.app .composer-shell--capsule {
+  border-radius: 999px;
+  padding: 7px;
+}
+
+.composer-capsule-row {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.composer-capsule-row > .composer-input-wrap {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.composer-capsule-row > .composer-row {
+  display: contents;
+}
+
+.composer-capsule-row .composer-row > .composer-add {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.composer-capsule-row .composer-row > .composer-send,
+.composer-capsule-row .composer-row > .composer-send-split {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.composer-shell--capsule .composer-spacer {
+  display: none;
+}
+
+.composer-shell--capsule .composer-textarea-layer,
+.composer-shell--capsule .composer-input-overlay,
+.composer-shell--capsule textarea,
+.app .composer-shell--capsule textarea {
+  min-height: 40px;
+}
+
+.composer-shell--capsule textarea {
+  padding: 10px 8px;
+}
+
+.composer-auto-poster {
+  width: 100%;
+  max-width: none;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 680px) {
+  .composer-shell--capsule,
+  .app .composer-shell--capsule {
+    padding: 6px;
+  }
+
+  .composer-auto-poster {
+    max-width: none;
+    margin-bottom: 7px;
+  }
+
+  .composer-shell--capsule textarea:placeholder-shown {
+    padding-inline: 5px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+}
