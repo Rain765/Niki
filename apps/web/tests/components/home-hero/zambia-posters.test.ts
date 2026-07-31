@@ -87,6 +87,9 @@ describe('Zambia poster preset', () => {
     });
 
     expect(isLoanPosterGenerationPrompt(prompt)).toBe(true);
+    expect(isLoanPosterGenerationPrompt(
+      prompt.replace(LOAN_POSTER_SKILL_ID, 'loan-poster-skill-v1.1'),
+    )).toBe(true);
     expect(isLoanPosterGenerationPrompt('Design a Zamloan poster for me.')).toBe(false);
   });
 

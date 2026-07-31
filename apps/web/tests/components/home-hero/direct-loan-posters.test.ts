@@ -10,7 +10,7 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   autoPosterBrandLabel: () => 'Zamloan',
   autoPosterUsesZReference: (brand: string) => brand === 'zamloan',
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
-  LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1.1',
+  LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
     type: 'image/png',
   }),
@@ -36,7 +36,7 @@ describe('startDirectLoanPosterProject', () => {
   const project = {
     id: 'project-1',
     name: 'Zamloan 贷款海报',
-    skillId: 'loan-poster-skill-v1.1',
+    skillId: 'loan-poster-skill-v1-1',
     designSystemId: null,
     createdAt: 1,
     updatedAt: 1,

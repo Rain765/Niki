@@ -43,12 +43,26 @@ async function pathExists(filePath: string): Promise<boolean> {
 }
 
 function extractDictKeys(indexSource: string): string[] {
-  const match = indexSource.match(/const DICTS:\s*Record<Locale, Dict>\s*=\s*{([\s\S]*?)};/);
-  if (!match?.[1]) return [];
+  const registryNames = ["DICTS", "SYNC_DICTS", "ASYNC_DICT_LOADERS"];
+  const keys = new Set<string>();
 
-  return Array.from(match[1].matchAll(/["']([^"']+)["']\s*:/g))
-    .map((entry) => entry[1])
-    .filter((entry): entry is string => entry != null && entry.length > 0);
+  for (const registryName of registryNames) {
+    const declarationStart = indexSource.indexOf(`const ${registryName}`);
+    if (declarationStart < 0) continue;
+
+    const objectStart = indexSource.indexOf("= {", declarationStart);
+    if (objectStart < 0) continue;
+    const objectEnd = indexSource.indexOf("\n};", objectStart);
+    if (objectEnd < 0) continue;
+
+    const objectSource = indexSource.slice(objectStart + 3, objectEnd);
+    for (const entry of objectSource.matchAll(/["']([^"']+)["']\s*:/g)) {
+      const key = entry[1];
+      if (key) keys.add(key);
+    }
+  }
+
+  return Array.from(keys);
 }
 
 async function checkUiLocaleRegistration(): Promise<CheckResult> {

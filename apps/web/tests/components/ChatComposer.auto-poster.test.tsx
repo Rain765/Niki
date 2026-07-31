@@ -63,7 +63,7 @@ beforeEach(() => {
   });
   mockedPatchProject.mockResolvedValue({
     id: 'project-1',
-    skillId: 'loan-poster-skill-v1.1',
+    skillId: 'loan-poster-skill-v1-1',
   } as never);
 });
 
@@ -228,9 +228,9 @@ describe('ChatComposer automatic poster controls', () => {
     expect(mockedUploadProjectFiles).not.toHaveBeenCalled();
     expect(mockedPatchProject).toHaveBeenCalledWith(
       'project-1',
-      { skillId: 'loan-poster-skill-v1.1' },
+      { skillId: 'loan-poster-skill-v1-1' },
     );
-    expect(onProjectSkillChange).toHaveBeenCalledWith('loan-poster-skill-v1.1');
+    expect(onProjectSkillChange).toHaveBeenCalledWith('loan-poster-skill-v1-1');
 
     const [prompt, attachments, commentAttachments, meta] = onSend.mock.calls[0]!;
     expect(prompt).toContain('Generate exactly 10 BiuMoney Zambia loan posters now.');
@@ -239,8 +239,8 @@ describe('ChatComposer automatic poster controls', () => {
     expect(attachments).toEqual([]);
     expect(commentAttachments).toEqual([]);
     expect(meta).toEqual({
-      skillIds: ['loan-poster-skill-v1.1'],
-      context: { skillIds: ['loan-poster-skill-v1.1'] },
+      skillIds: ['loan-poster-skill-v1-1'],
+      context: { skillIds: ['loan-poster-skill-v1-1'] },
     });
   });
 

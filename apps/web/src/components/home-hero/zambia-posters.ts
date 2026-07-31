@@ -3,7 +3,8 @@ export const ZAMBIA_POSTER_MAX_COUNT = 10;
 export const ZAMBIA_POSTER_DEFAULT_COUNT = 1;
 export const ZAMBIA_POSTER_REFERENCE_URL = '/brand/zambia-support/z-reference.png';
 export const ZAMBIA_POSTER_REFERENCE_NAME = 'loan-poster-z-reference.png';
-export const LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1.1';
+export const LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1-1';
+const LEGACY_LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1.1';
 
 export const AUTO_POSTER_ASPECT_RATIOS = ['1:1', '16:9'] as const;
 export type AutoPosterAspectRatio = (typeof AUTO_POSTER_ASPECT_RATIOS)[number];
@@ -21,7 +22,10 @@ export function isDirectLoanPosterProject(
   } | null | undefined,
 ): boolean {
   return metadata?.directGeneration?.kind === 'loan-poster'
-    || (skillId === LOAN_POSTER_SKILL_ID && metadata?.kind === 'image');
+    || (
+      (skillId === LOAN_POSTER_SKILL_ID || skillId === LEGACY_LOAN_POSTER_SKILL_ID)
+      && metadata?.kind === 'image'
+    );
 }
 
 export function isLoanPosterOutputName(name: string): boolean {
@@ -32,7 +36,8 @@ export function isLoanPosterGenerationPrompt(value: string | null | undefined): 
   if (!value) return false;
   const prompt = value.trim();
   return /^Generate exactly \d+ (?:Zamloan|BiuMoney) Zambia loan posters? now\./i.test(prompt)
-    && prompt.includes(`\`${LOAN_POSTER_SKILL_ID}\``);
+    && [LOAN_POSTER_SKILL_ID, LEGACY_LOAN_POSTER_SKILL_ID]
+      .some((skillId) => prompt.includes(`\`${skillId}\``));
 }
 
 export interface AutoPosterOptions {

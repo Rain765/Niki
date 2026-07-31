@@ -121,7 +121,7 @@ describe('HomeView context picker', () => {
           project: {
             id: 'direct-poster-project',
             name: 'Zamloan Loan Posters',
-            skillId: 'loan-poster-skill-v1.1',
+            skillId: 'loan-poster-skill-v1-1',
             designSystemId: null,
             createdAt: 1,
             updatedAt: body.updatedAt,

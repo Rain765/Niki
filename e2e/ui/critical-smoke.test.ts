@@ -66,28 +66,28 @@ test.beforeEach(async ({ page }) => {
 test('home loads with the primary entry controls', async ({ page }) => {
   await gotoEntryHome(page);
 
-  await expect(page.getByTestId('entry-nav-home')).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByTestId('entry-nav-new-project')).toHaveCount(0);
+  await expect(page.getByTestId('niki-project-sidebar')).toBeVisible();
+  await expect(page.getByTestId('niki-new-project')).toHaveClass(/is-active/);
+  await expect(page.getByTestId('niki-design-files')).toBeVisible();
   await expect(page.getByTestId('home-hero-input')).toBeVisible();
 });
 
 test('settings menu is reachable from home', async ({ page }) => {
   await gotoEntryHome(page);
 
-  await page.locator('.avatar-menu .settings-icon-btn').click();
-  const settingsMenu = page.locator('.avatar-popover[role="menu"]');
+  await page.getByTestId('niki-account-menu-trigger').click();
+  const settingsMenu = page.getByTestId('niki-account-menu-popover');
   await expect(settingsMenu).toBeVisible();
-  await expect(settingsMenu.getByRole('button', { name: /^settings$/i })).toBeVisible();
+  await settingsMenu.getByTestId('niki-account-open-settings').click();
+  await expect(page.getByRole('dialog').first()).toBeVisible();
 });
 
-test('prototype project creation reaches the workspace shell', async ({ page }) => {
+test('design files navigation reaches the unified workspace shell', async ({ page }) => {
   await gotoEntryHome(page);
-  await openNewProjectModal(page);
-  await page.getByTestId('new-project-tab-prototype').click();
-  await page.getByTestId('new-project-name').fill('Critical smoke project');
-  await page.getByTestId('create-project').click();
-
-  await expectWorkspaceReady(page);
+  await page.getByTestId('niki-design-files').click();
+  await expect(page).toHaveURL(/\/design-files$/);
+  await expect(page.getByTestId('global-design-files')).toBeVisible();
+  await expect(page.getByTestId('niki-project-sidebar')).toBeVisible();
 });
 
 async function gotoEntryHome(page: Page) {
@@ -100,21 +100,6 @@ async function gotoEntryHome(page: Page) {
   }
   await expect(page.getByTestId('home-hero')).toBeVisible();
   await expect(page.getByTestId('home-hero-input')).toBeVisible();
-}
-
-async function openNewProjectModal(page: Page) {
-  await page.getByTestId('entry-nav-projects').click();
-  await page.getByTestId('projects-new-project').click();
-  await expect(page.getByTestId('new-project-modal')).toBeVisible();
-  await expect(page.getByTestId('new-project-panel')).toBeVisible();
-}
-
-async function expectWorkspaceReady(page: Page) {
-  await waitForLoadingToClear(page);
-  await expect(page).toHaveURL(/\/projects\//);
-  await expect(page.getByTestId('chat-composer')).toBeVisible();
-  await expect(page.getByTestId('chat-composer-input')).toBeVisible();
-  await expect(page.getByTestId('file-workspace')).toBeVisible();
 }
 
 async function waitForLoadingToClear(page: Page) {

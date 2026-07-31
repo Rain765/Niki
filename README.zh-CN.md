@@ -6,9 +6,7 @@ Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看
 
 本仓库当前对应 Niki 产品。底层仍基于 Open Design 运行时，但主要产品体验已经调整为下文所述的 Niki 海报工作流。
 
-<p align="center">
-  <b>简体中文</b> · <a href="README.md">English</a>
-</p>
+<p align="center"><a href="README.md">English</a> · <a href="README.es.md">Español</a> · <a href="README.pt-BR.md">Português (Brasil)</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a> · <b>简体中文</b> · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.ko.md">한국어</a> · <a href="README.ja-JP.md">日本語</a> · <a href="README.ar.md">العربية</a> · <a href="README.ru.md">Русский</a> · <a href="README.uk.md">Українська</a> · <a href="README.tr.md">Türkçe</a></p>
 
 <p align="center">
   <a href="https://github.com/Rain765/Niki/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Rain765/Niki?style=flat-square" /></a>

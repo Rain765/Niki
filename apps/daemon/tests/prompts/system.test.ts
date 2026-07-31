@@ -83,14 +83,14 @@ describe('composeSystemPrompt — activeStageBlocks splice (spec §23.4)', () =>
 describe('composeSystemPrompt', () => {
   it('layers plugin scenario guidance without replacing the functional skill', () => {
     const prompt = composeSystemPrompt({
-      skillName: 'loan-poster-skill-v1.1',
+      skillName: 'loan-poster-skill-v1-1',
       skillBody: '# Loan poster rules\n\nNever render a text logo.',
       scenarioSkillName: 'Media generation',
       scenarioSkillBody: '# Media scenario\n\nRoute image work through media-image.',
       pluginBlock: '\n\n## Active plugin\n\nMedia generation plugin.',
     });
 
-    expect(prompt).toContain('## Active skill — loan-poster-skill-v1.1');
+    expect(prompt).toContain('## Active skill — loan-poster-skill-v1-1');
     expect(prompt).toContain('Never render a text logo.');
     expect(prompt).toContain('## Active scenario skill — Media generation');
     expect(prompt).toContain('Route image work through media-image.');

@@ -153,7 +153,7 @@ Expected output:
         activeConversationId="conv-1"
         onSelectConversation={vi.fn()}
         onDeleteConversation={vi.fn()}
-        currentSkillId="loan-poster-skill-v1.1"
+        currentSkillId="loan-poster-skill-v1-1"
         projectMetadata={{
           kind: 'image',
           directGeneration: {
@@ -203,7 +203,7 @@ Expected output:
         activeConversationId="conv-1"
         onSelectConversation={vi.fn()}
         onDeleteConversation={vi.fn()}
-        currentSkillId="loan-poster-skill-v1.1"
+        currentSkillId="loan-poster-skill-v1-1"
         projectMetadata={{
           kind: 'image',
           directGeneration: {
@@ -253,7 +253,7 @@ Expected output:
         activeConversationId="conv-1"
         onSelectConversation={vi.fn()}
         onDeleteConversation={vi.fn()}
-        currentSkillId="loan-poster-skill-v1.1"
+        currentSkillId="loan-poster-skill-v1-1"
         projectMetadata={{
           kind: 'image',
           directGeneration: {
@@ -347,7 +347,7 @@ Expected output:
         activeConversationId="conv-1"
         onSelectConversation={vi.fn()}
         onDeleteConversation={vi.fn()}
-        currentSkillId="loan-poster-skill-v1.1"
+        currentSkillId="loan-poster-skill-v1-1"
         projectMetadata={{
           kind: 'image',
           directGeneration: {
@@ -410,7 +410,7 @@ Expected output:
         activeConversationId="conv-1"
         onSelectConversation={vi.fn()}
         onDeleteConversation={vi.fn()}
-        currentSkillId="loan-poster-skill-v1.1"
+        currentSkillId="loan-poster-skill-v1-1"
         projectMetadata={{
           kind: 'image',
           directGeneration: {

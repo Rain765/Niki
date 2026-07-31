@@ -583,7 +583,7 @@ describe('ProjectView daemon cleanup', () => {
     const loanPosterPrompt = [
       'Generate exactly 1 Zamloan Zambia loan poster now.',
       '',
-      'The active functional skill is `loan-poster-skill-v1.1`.',
+      'The active functional skill is `loan-poster-skill-v1-1`.',
     ].join('\n');
 
     chatPaneSpy.mockClear();

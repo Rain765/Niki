@@ -222,7 +222,7 @@ describe('ProjectView pending prompt seeding', () => {
     const onClearPendingPrompt = vi.fn();
     renderProjectView({
       ...project('direct-poster', 'Internal media execution instructions'),
-      skillId: 'loan-poster-skill-v1.1',
+      skillId: 'loan-poster-skill-v1-1',
       metadata: { kind: 'image' },
     }, onClearPendingPrompt);
 
@@ -235,7 +235,7 @@ describe('ProjectView pending prompt seeding', () => {
   it('starts direct-poster projects with the design workspace collapsed', async () => {
     const view = renderProjectView({
       ...project('direct-poster-collapsed'),
-      skillId: 'loan-poster-skill-v1.1',
+      skillId: 'loan-poster-skill-v1-1',
       metadata: { kind: 'image' },
     });
 
@@ -278,7 +278,7 @@ describe('ProjectView pending prompt seeding', () => {
 
     const view = renderProjectView({
       ...project('direct-poster-with-output'),
-      skillId: 'loan-poster-skill-v1.1',
+      skillId: 'loan-poster-skill-v1-1',
       metadata: {
         kind: 'image',
         directGeneration: {
