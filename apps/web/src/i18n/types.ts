@@ -703,6 +703,7 @@ export interface Dict {
   'homeHero.autoPoster': string;
   'homeHero.autoPosterPreparing': string;
   'homeHero.autoPosterPrompt': string;
+  'homeHero.autoPosterWelcome': string;
   'homeHero.autoPosterCountAria': string;
   'homeHero.autoPosterCountOption': string;
   'homeHero.autoPosterSizeAria': string;

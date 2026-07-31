@@ -29,6 +29,8 @@ interface Props {
   disabled?: boolean;
   testIdPrefix: string;
   className?: string;
+  inlineOnMobile?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onCountChange: (count: number) => void;
   onAspectRatioChange: (aspectRatio: AutoPosterAspectRatio) => void;
   onBrandChange: (brand: AutoPosterBrand) => void;
@@ -54,6 +56,8 @@ export function AutoPosterControls({
   disabled = false,
   testIdPrefix,
   className,
+  inlineOnMobile = false,
+  onOpenChange,
   onCountChange,
   onAspectRatioChange,
   onBrandChange,
@@ -63,6 +67,7 @@ export function AutoPosterControls({
   const t = useT();
   const controlsDisabled = pending || disabled;
   const [open, setOpen] = useState(false);
+  const [mobileInlineActive, setMobileInlineActive] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const preferencesRef = useRef<Record<AutoPosterBrand, ProductPreference>>({
@@ -103,6 +108,23 @@ export function AutoPosterControls({
   useEffect(() => {
     setPortalRoot(document.body);
   }, []);
+
+  useEffect(() => {
+    if (!inlineOnMobile || typeof window.matchMedia !== 'function') {
+      setMobileInlineActive(false);
+      return;
+    }
+
+    const query = window.matchMedia('(max-width: 680px)');
+    const sync = () => setMobileInlineActive(query.matches);
+    sync();
+    query.addEventListener?.('change', sync);
+    return () => query.removeEventListener?.('change', sync);
+  }, [inlineOnMobile]);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [onOpenChange, open]);
 
   useEffect(() => {
     preferencesRef.current[brand] = { count, aspectRatio };
@@ -200,88 +222,100 @@ export function AutoPosterControls({
       } as CSSProperties)
     : undefined;
 
-  const filterMenu = portalRoot && open
-    ? createPortal(
-        <>
-          <div
-            className="auto-poster-filter__backdrop"
-            aria-hidden="true"
-            role="presentation"
-            onPointerDown={() => setOpen(false)}
-          />
-          <div className="auto-poster-filter__portal" style={portalStyle}>
+  const filterMenu = open ? (
+    <div
+      ref={menuRef}
+      id={`${testIdPrefix}-menu`}
+      className="auto-poster-filter__menu"
+      role={mobileInlineActive ? 'region' : 'dialog'}
+      aria-label={resolvedLabels.settings}
+      data-testid={`${testIdPrefix}-menu`}
+    >
+      <div className="auto-poster-filter__mobile-header">
+        <span>{autoPosterBrandLabel(brand)}</span>
+        <button
+          type="button"
+          className="auto-poster-filter__mobile-close"
+          aria-label={t('common.close')}
+          data-testid={`${testIdPrefix}-close`}
+          onClick={() => setOpen(false)}
+        >
+          <Icon name="close" size={17} />
+        </button>
+      </div>
+
+      <div className="auto-poster-filter__section">
+        <span className="auto-poster-filter__section-label">
+          {resolvedLabels.aspectRatio}
+        </span>
+        <div
+          className="auto-poster-filter__choices"
+          role="radiogroup"
+          aria-label={resolvedLabels.aspectRatio}
+        >
+          {AUTO_POSTER_ASPECT_RATIOS.map((optionAspectRatio) => (
+            <FilterOption
+              key={optionAspectRatio}
+              label={optionAspectRatio}
+              selected={aspectRatio === optionAspectRatio}
+              testId={`${testIdPrefix}-size-option-${optionAspectRatio}`}
+              onClick={() => selectAspect(optionAspectRatio)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="auto-poster-filter__section">
+        <span className="auto-poster-filter__section-label">
+          {resolvedLabels.count}
+        </span>
+        <div
+          className="auto-poster-filter__choices auto-poster-filter__choices--count"
+          role="radiogroup"
+          aria-label={resolvedLabels.count}
+        >
+          {countOptions.map((optionCount) => (
+            <FilterOption
+              key={optionCount}
+              label={formatCountLabel(optionCount)}
+              selected={count === optionCount}
+              testId={`${testIdPrefix}-count-option-${optionCount}`}
+              onClick={() => selectCount(optionCount)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const filterSurface = open && mobileInlineActive
+    ? <div className="auto-poster-filter__inline">{filterMenu}</div>
+    : portalRoot && filterMenu
+      ? createPortal(
+          <>
             <div
-              ref={menuRef}
-              className="auto-poster-filter__menu"
-              role="dialog"
-              aria-label={resolvedLabels.settings}
-              data-testid={`${testIdPrefix}-menu`}
-            >
-              <div className="auto-poster-filter__mobile-header">
-                <span>{autoPosterBrandLabel(brand)}</span>
-                <button
-                  type="button"
-                  className="auto-poster-filter__mobile-close"
-                  aria-label={t('common.close')}
-                  data-testid={`${testIdPrefix}-close`}
-                  onClick={() => setOpen(false)}
-                >
-                  <Icon name="close" size={17} />
-                </button>
-              </div>
-
-              <div className="auto-poster-filter__section">
-                <span className="auto-poster-filter__section-label">
-                  {resolvedLabels.aspectRatio}
-                </span>
-                <div
-                  className="auto-poster-filter__choices"
-                  role="radiogroup"
-                  aria-label={resolvedLabels.aspectRatio}
-                >
-                  {AUTO_POSTER_ASPECT_RATIOS.map((optionAspectRatio) => (
-                    <FilterOption
-                      key={optionAspectRatio}
-                      label={optionAspectRatio}
-                      selected={aspectRatio === optionAspectRatio}
-                      testId={`${testIdPrefix}-size-option-${optionAspectRatio}`}
-                      onClick={() => selectAspect(optionAspectRatio)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="auto-poster-filter__section">
-                <span className="auto-poster-filter__section-label">
-                  {resolvedLabels.count}
-                </span>
-                <div
-                  className="auto-poster-filter__choices auto-poster-filter__choices--count"
-                  role="radiogroup"
-                  aria-label={resolvedLabels.count}
-                >
-                  {countOptions.map((optionCount) => (
-                    <FilterOption
-                      key={optionCount}
-                      label={formatCountLabel(optionCount)}
-                      selected={count === optionCount}
-                      testId={`${testIdPrefix}-count-option-${optionCount}`}
-                      onClick={() => selectCount(optionCount)}
-                    />
-                  ))}
-                </div>
-              </div>
+              className="auto-poster-filter__backdrop"
+              aria-hidden="true"
+              role="presentation"
+              onPointerDown={() => setOpen(false)}
+            />
+            <div className="auto-poster-filter__portal" style={portalStyle}>
+              {filterMenu}
             </div>
-          </div>
-        </>,
-        portalRoot,
-      )
-    : null;
+          </>,
+          portalRoot,
+        )
+      : null;
 
   return (
     <div
       ref={rootRef}
-      className={['home-hero__auto-poster', className].filter(Boolean).join(' ')}
+      className={[
+        'home-hero__auto-poster',
+        open ? 'is-open' : '',
+        mobileInlineActive ? 'is-mobile-inline' : '',
+        className,
+      ].filter(Boolean).join(' ')}
       data-testid={`${testIdPrefix}-controls`}
     >
       <div
@@ -299,8 +333,9 @@ export function AutoPosterControls({
               data-testid={`${testIdPrefix}-product-${optionBrand}`}
               disabled={controlsDisabled}
               aria-pressed={selected}
-              aria-haspopup="dialog"
+              aria-haspopup={mobileInlineActive ? undefined : 'dialog'}
               aria-expanded={selected && open}
+              aria-controls={selected && open ? `${testIdPrefix}-menu` : undefined}
               onClick={() => selectProduct(optionBrand)}
             >
               <span>{autoPosterBrandLabel(optionBrand)}</span>
@@ -318,7 +353,7 @@ export function AutoPosterControls({
         })}
       </div>
 
-      {filterMenu}
+      {filterSurface}
 
       <span className="auto-poster-filter__native" aria-hidden hidden>
         <select

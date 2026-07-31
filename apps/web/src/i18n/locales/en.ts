@@ -419,6 +419,7 @@ export const en: Dict = {
   'homeHero.autoPoster': 'Auto posters',
   'homeHero.autoPosterPreparing': 'Preparing…',
   'homeHero.autoPosterPrompt': 'Choose product, ratio, and quantity. Generate in one click',
+  'homeHero.autoPosterWelcome': 'Enter your copy and generate a loan poster in one click',
   'homeHero.autoPosterCountAria': 'Number of posters',
   'homeHero.autoPosterCountOption': '{n} posters',
   'homeHero.autoPosterSizeAria': 'Poster size',

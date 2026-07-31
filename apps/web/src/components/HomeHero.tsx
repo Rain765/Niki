@@ -186,6 +186,7 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
   const [dragActive, setDragActive] = useState(false);
   const [openInlineInputName, setOpenInlineInputName] = useState<string | null>(null);
   const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [autoPosterSettingsOpen, setAutoPosterSettingsOpen] = useState(false);
   const composingRef = useRef(false);
   const inputElementRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -193,6 +194,12 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
   const canSubmit = hasManualSubmission
     ? !submitDisabled
     : !submitDisabled && !autoPosterDisabled && !autoPosterPending;
+  const welcomeHidden = autoPosterSettingsOpen
+    || autoPosterPending
+    || hasManualSubmission
+    || Boolean(activePluginTitle)
+    || Boolean(activeSkillTitle)
+    || selectedPluginContexts.length > 0;
   const submitPrimaryAction = useCallback(() => {
     if (!canSubmit) return;
     if (hasManualSubmission) {
@@ -477,8 +484,13 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
         <span className="home-hero__backdrop-scan" />
       </div>
 
+      <NikiPosterWelcome hidden={welcomeHidden} label={t('homeHero.autoPosterWelcome')} />
+
       <div
-        className={`home-hero__input-card${dragActive ? ' is-drag-active' : ''}`}
+        className={`home-hero__input-card${dragActive ? ' is-drag-active' : ''}${
+          autoPosterSettingsOpen ? ' is-settings-open' : ''
+        }`}
+        data-testid="home-hero-poster-composer"
         onDragEnter={(event) => {
           if (event.dataTransfer.types.includes('Files')) setDragActive(true);
         }}
@@ -585,6 +597,8 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
           pending={autoPosterPending}
           disabled={autoPosterDisabled}
           testIdPrefix="home-hero-auto-poster"
+          inlineOnMobile
+          onOpenChange={setAutoPosterSettingsOpen}
           onCountChange={onAutoPosterCountChange}
           onAspectRatioChange={onAutoPosterAspectRatioChange}
           onBrandChange={onAutoPosterBrandChange}
@@ -985,6 +999,37 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     </section>
   );
 });
+
+function NikiPosterWelcome({ hidden, label }: { hidden: boolean; label: string }) {
+  return (
+    <div
+      className={`home-hero__welcome${hidden ? ' is-hidden' : ''}`}
+      data-testid="home-hero-welcome"
+      aria-hidden={hidden || undefined}
+    >
+      <div className="home-hero__mascot" aria-hidden>
+        <span className="home-hero__mascot-halo" />
+        <svg viewBox="0 0 88 88" role="presentation">
+          <defs>
+            <linearGradient id="niki-mascot-fill" x1="18" y1="12" x2="70" y2="78" gradientUnits="userSpaceOnUse">
+              <stop stopColor="#ff8a3d" />
+              <stop offset="1" stopColor="#d94a18" />
+            </linearGradient>
+            <radialGradient id="niki-mascot-glow" cx="0" cy="0" r="1" gradientTransform="translate(30 22) rotate(48) scale(58)">
+              <stop stopColor="#fff" stopOpacity=".34" />
+              <stop offset=".72" stopColor="#fff" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx="44" cy="44" r="36" fill="url(#niki-mascot-fill)" />
+          <circle cx="44" cy="44" r="36" fill="url(#niki-mascot-glow)" />
+          <path className="home-hero__mascot-mark" d="M27 55V32c0-4 5-5 7-2l20 25V32c0-3 2-5 5-5s5 2 5 5v23c0 5-6 7-9 3L37 35v20c0 3-2 5-5 5s-5-2-5-5Z" />
+          <ellipse className="home-hero__mascot-shine" cx="31" cy="25" rx="8" ry="4" transform="rotate(-28 31 25)" />
+        </svg>
+      </div>
+      <p>{label}</p>
+    </div>
+  );
+}
 
 interface ContextMention {
   start: number;

@@ -19,6 +19,7 @@ import {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 function renderHero(overrides: Partial<React.ComponentProps<typeof HomeHero>> = {}) {
@@ -152,6 +153,34 @@ describe('HomeHero intent rail', () => {
     expect(screen.getByTestId('home-hero-input').getAttribute('placeholder')).toBe(
       'Choose product, ratio, and quantity. Generate in one click',
     );
+  });
+
+  it('expands mobile product settings inside the capsule composer and shows the Niki welcome state', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 680px)',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+
+    renderHero();
+
+    const welcome = screen.getByTestId('home-hero-welcome');
+    expect(welcome.textContent).toContain('Enter your copy and generate a loan poster in one click');
+    expect(welcome.querySelector('.home-hero__mascot')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-zamloan'));
+
+    const menu = screen.getByTestId('home-hero-auto-poster-menu');
+    const composer = screen.getByTestId('home-hero-poster-composer');
+    expect(composer.contains(menu)).toBe(true);
+    expect(menu.closest('.auto-poster-filter__portal')).toBeNull();
+    expect(composer.classList.contains('is-settings-open')).toBe(true);
+    expect(welcome.classList.contains('is-hidden')).toBe(true);
   });
 
   it('renders one chip per HOME_HERO_CHIPS entry', () => {

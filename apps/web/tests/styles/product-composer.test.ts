@@ -16,9 +16,12 @@ describe('product composer responsive styles', () => {
     expect(ndesignCss).toMatch(/\.home-hero__capsule\s*\{[^}]*border-radius:\s*999px/s);
   });
 
-  it('keeps product settings as a bottom sheet on mobile', () => {
+  it('keeps chat settings as a bottom sheet and gives the mobile home an integrated surface', () => {
     expect(ndesignCss).toMatch(
       /@media\s*\(max-width:\s*680px\)[\s\S]*\.auto-poster-filter__portal\s+\.auto-poster-filter__menu\s*\{[\s\S]*bottom:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)/,
+    );
+    expect(ndesignCss).toMatch(
+      /\.home-hero__input-card\.is-settings-open\s+\.home-hero__capsule\s*\{[^}]*border-top:\s*1px\s+solid\s+var\(--border-soft\)[^}]*border-radius:\s*0\s+0\s+23px\s+23px/s,
     );
   });
 
