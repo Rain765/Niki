@@ -1113,19 +1113,29 @@ function DirectLoanPosterStatus({
         <div className="direct-poster-gallery">
           <figure className="direct-poster-result">
             <div className="direct-poster-result-open">
-              <img
-                key={`${selectedFile.name}:${selectedFile.mtime}`}
-                src={projectImagePreviewUrl(
-                  projectId,
-                  selectedFile.name,
-                  'preview',
-                  selectedFile.mtime,
-                )}
-                alt={`生成的贷款海报 ${generatedFiles.indexOf(selectedFile) + 1}`}
-                loading="lazy"
-                draggable={false}
-                data-testid={`direct-poster-result-image-${selectedFile.name}`}
-              />
+              <picture key={`${selectedFile.name}:${selectedFile.mtime}`}>
+                <source
+                  media="(max-width: 900px)"
+                  srcSet={projectImagePreviewUrl(
+                    projectId,
+                    selectedFile.name,
+                    'mobile',
+                    selectedFile.mtime,
+                  )}
+                />
+                <img
+                  src={projectImagePreviewUrl(
+                    projectId,
+                    selectedFile.name,
+                    'preview',
+                    selectedFile.mtime,
+                  )}
+                  alt={`生成的贷款海报 ${generatedFiles.indexOf(selectedFile) + 1}`}
+                  loading="lazy"
+                  draggable={false}
+                  data-testid={`direct-poster-result-image-${selectedFile.name}`}
+                />
+              </picture>
             </div>
             <figcaption className="direct-poster-result-info">
               <span>{selectedFile.name}</span>

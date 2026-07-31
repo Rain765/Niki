@@ -1709,7 +1709,7 @@ export function projectRawUrl(projectId: string, filePath: string): string {
 export function projectImagePreviewUrl(
   projectId: string,
   filePath: string,
-  variant: 'thumbnail' | 'preview' = 'preview',
+  variant: 'thumbnail' | 'mobile' | 'preview' = 'preview',
   version?: number,
 ): string {
   if (/\.(?:gif|svg)$/i.test(filePath)) {

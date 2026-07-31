@@ -13709,6 +13709,9 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   border-radius: 18px;
   box-shadow: var(--shadow-sm);
 }
+.direct-poster-result-open picture {
+  display: block;
+}
 .direct-poster-result-open img {
   display: block;
   width: auto;
@@ -13822,11 +13825,47 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
 }
 @media (max-width: 900px) {
   .pane.is-direct-loan-poster {
-    --direct-poster-content-width: calc(100% - 24px);
+    --direct-poster-content-width: 100%;
+  }
+  .pane.is-direct-loan-poster .chat-log {
+    align-items: stretch;
+    padding: 0 0 24px;
+  }
+  .direct-poster-status {
+    width: 100%;
+    margin: 0;
+    padding: 12px 16px;
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .direct-poster-status-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .direct-poster-status-copy {
+    justify-content: center;
+    min-height: 32px;
+  }
+  .direct-poster-status-copy strong,
+  .direct-poster-status-copy span {
+    overflow-wrap: anywhere;
+  }
+  .direct-poster-status.is-loading {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 12px 16px;
   }
   .direct-poster-status.has-results {
+    width: 100%;
     min-width: 0;
-    padding: 4px 0;
+    margin: 0;
+    padding: 12px 16px;
   }
   .pane.is-direct-loan-poster > .composer {
     position: sticky;
@@ -13839,15 +13878,30 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
     background: linear-gradient(180deg, transparent, var(--bg-panel) 18%);
   }
   .direct-poster-result-open {
+    justify-self: center;
     border-radius: 14px;
+  }
+  .direct-poster-result-open img {
+    width: auto;
+    max-width: min(50vw, 220px);
+    height: auto;
+    max-height: min(28vh, 220px);
   }
   .direct-poster-gallery {
     grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
     gap: 8px;
+  }
+  .direct-poster-result {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 10px;
+    width: 100%;
   }
   .direct-poster-thumbnails {
     flex-direction: row;
-    width: 100%;
+    justify-content: center;
+    width: min(100%, 320px);
     max-height: none;
     overflow-x: auto;
     overflow-y: hidden;
@@ -13857,10 +13911,23 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
     flex: 0 0 52px;
   }
   .direct-poster-result figcaption {
+    align-items: center;
     gap: 8px;
+    width: 100%;
+    padding-inline: 4px;
+    text-align: center;
+  }
+  .direct-poster-result figcaption > span:first-child {
+    max-width: min(100%, 28ch);
   }
   .direct-poster-result-actions {
-    justify-content: flex-start;
+    justify-content: center;
+    gap: 6px;
+  }
+  .direct-poster-result-actions button,
+  .direct-poster-result-actions a {
+    min-height: 44px;
+    padding-inline: 12px;
   }
 }
 

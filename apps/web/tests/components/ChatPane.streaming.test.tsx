@@ -174,6 +174,14 @@ Expected output:
     ).toBe(
       '/api/projects/project-1/image-preview/zamloan-poster-01.png?variant=preview&v=1',
     );
+    expect(
+      screen.getByTestId('direct-poster-result-image-zamloan-poster-01.png')
+        .closest('picture')
+        ?.querySelector('source[media="(max-width: 900px)"]')
+        ?.getAttribute('srcset'),
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-01.png?variant=mobile&v=1',
+    );
     expect(screen.queryByText('Editorial portrait')).toBeNull();
     expect(screen.queryByText('Product hero')).toBeNull();
     expect(screen.queryByText('Flat illustration')).toBeNull();
@@ -286,6 +294,13 @@ Expected output:
     expect(switchedImage).not.toBe(selectedImage);
     expect(switchedImage.getAttribute('src')).toBe(
       '/api/projects/project-1/image-preview/zamloan-poster-02.png?variant=preview&v=2',
+    );
+    expect(
+      switchedImage.closest('picture')
+        ?.querySelector('source[media="(max-width: 900px)"]')
+        ?.getAttribute('srcset'),
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-02.png?variant=mobile&v=2',
     );
     expect(
       screen.getByTestId('direct-poster-thumbnail-zamloan-poster-01.png')

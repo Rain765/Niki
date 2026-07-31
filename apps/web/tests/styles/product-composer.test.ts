@@ -33,4 +33,19 @@ describe('product composer responsive styles', () => {
       /@media\s*\(max-width:\s*900px\)[\s\S]*\.pane\.is-direct-loan-poster\s*>\s*\.composer\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/s,
     );
   });
+
+  it('uses one centered mobile column for poster status, media and actions', () => {
+    expect(indexCss).toMatch(
+      /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-status\s*\{[^}]*width:\s*100%[^}]*margin:\s*0[^}]*padding:\s*12px 16px/s,
+    );
+    expect(indexCss).toMatch(
+      /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-result\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s,
+    );
+    expect(indexCss).toMatch(
+      /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-result-open\s+img\s*\{[^}]*max-width:\s*min\(50vw,\s*220px\)[^}]*max-height:\s*min\(28vh,\s*220px\)/s,
+    );
+    expect(indexCss).toMatch(
+      /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-result\s+figcaption\s*\{[^}]*align-items:\s*center[^}]*text-align:\s*center/s,
+    );
+  });
 });

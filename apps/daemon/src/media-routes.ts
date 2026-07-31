@@ -195,6 +195,8 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         output: req.body?.output,
         aspect: req.body?.aspect,
         quality: req.body?.quality,
+        loanPosterOutput:
+          project.metadata?.directGeneration?.kind === 'loan-poster',
         length:
           typeof req.body?.length === 'number' ? req.body.length : undefined,
         duration:

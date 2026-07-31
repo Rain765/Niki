@@ -837,6 +837,7 @@ export interface RegisterProjectFileRoutesDeps extends RouteDeps<'db' | 'http' |
 
 const IMAGE_PREVIEW_VARIANTS = {
   thumbnail: { width: 320, quality: 78 },
+  mobile: { width: 256, quality: 76 },
   preview: { width: 1024, quality: 82 },
 } as const;
 
@@ -965,7 +966,12 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
       const relPath = (req.params as any)[0];
       const variantParam = String(req.query.variant ?? 'preview');
       if (!(variantParam in IMAGE_PREVIEW_VARIANTS)) {
-        sendApiError(res, 400, 'BAD_REQUEST', 'variant must be thumbnail or preview');
+        sendApiError(
+          res,
+          400,
+          'BAD_REQUEST',
+          'variant must be thumbnail, mobile, or preview',
+        );
         return;
       }
       const variant = variantParam as ImagePreviewVariant;

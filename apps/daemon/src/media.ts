@@ -100,6 +100,56 @@ export async function optimizeLosslessPng(
   }
 }
 
+/**
+ * Direct loan posters are primarily reviewed on phones. Halving both axes
+ * keeps the poster readable while reducing the stored pixel area to 25%.
+ * The resized pixels are then encoded as a lossless PNG.
+ */
+export async function optimizeLoanPosterPng(
+  input: Buffer,
+): Promise<{
+  bytes: Buffer;
+  optimized: boolean;
+  savedBytes: number;
+  pixelScale: number;
+}> {
+  try {
+    const metadata = await sharp(input).metadata();
+    if (!metadata.width || !metadata.height) {
+      const optimized = await optimizeLosslessPng(input);
+      return { ...optimized, pixelScale: 1 };
+    }
+    const targetWidth = Math.max(1, Math.round(metadata.width * 0.5));
+    const targetHeight = Math.max(1, Math.round(metadata.height * 0.5));
+    if (targetWidth === metadata.width && targetHeight === metadata.height) {
+      const optimized = await optimizeLosslessPng(input);
+      return { ...optimized, pixelScale: 1 };
+    }
+    const resized = await sharp(input)
+      .resize({
+        width: targetWidth,
+        height: targetHeight,
+        fit: 'fill',
+        kernel: sharp.kernel.lanczos3,
+      })
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+        palette: false,
+      })
+      .toBuffer();
+    return {
+      bytes: resized,
+      optimized: true,
+      savedBytes: Math.max(0, input.length - resized.length),
+      pixelScale: 0.5,
+    };
+  } catch {
+    const optimized = await optimizeLosslessPng(input);
+    return { ...optimized, pixelScale: 1 };
+  }
+}
+
 type MediaContext = {
   surface: MediaSurface;
   /**
@@ -317,6 +367,7 @@ export async function generateMedia(args: {
   projectRoot: string; projectsRoot: string; projectId: string; surface: MediaSurface; model: string;
   prompt?: string; output?: string; aspect?: string; length?: number; duration?: number; voice?: string;
   quality?: ImageQuality;
+  loanPosterOutput?: boolean;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
   compositionDir?: string; image?: string; onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
@@ -330,6 +381,7 @@ export async function generateMedia(args: {
     output,
     aspect,
     quality,
+    loanPosterOutput,
     length,
     duration,
     voice,
@@ -675,7 +727,11 @@ export async function generateMedia(args: {
     finalOut = `${stem}${suggestedExt}`;
   }
   if (surface === 'image' && /\.png$/i.test(finalOut)) {
-    bytes = (await optimizeLosslessPng(bytes)).bytes;
+    bytes = (
+      loanPosterOutput
+        ? await optimizeLoanPosterPng(bytes)
+        : await optimizeLosslessPng(bytes)
+    ).bytes;
   }
   const finalTarget = path.join(dir, finalOut);
   await writeFile(finalTarget, bytes);

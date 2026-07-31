@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 
-import { optimizeLosslessPng } from '../src/media.js';
+import {
+  optimizeLoanPosterPng,
+  optimizeLosslessPng,
+} from '../src/media.js';
 
 describe('generated image optimization', () => {
   it('losslessly optimizes PNG output before it is persisted', async () => {
@@ -25,5 +28,23 @@ describe('generated image optimization', () => {
     expect(optimized.optimized).toBe(true);
     expect(optimized.bytes.length).toBeLessThan(input.length);
     expect(decodedOutput.equals(decodedInput)).toBe(true);
+  });
+
+  it('reduces direct loan posters to one quarter of their pixel area', async () => {
+    const input = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 220, g: 72, b: 30, alpha: 1 },
+      },
+    }).png().toBuffer();
+
+    const optimized = await optimizeLoanPosterPng(input);
+    const metadata = await sharp(optimized.bytes).metadata();
+
+    expect(metadata.width).toBe(400);
+    expect(metadata.height).toBe(300);
+    expect(optimized.pixelScale).toBe(0.5);
   });
 });
