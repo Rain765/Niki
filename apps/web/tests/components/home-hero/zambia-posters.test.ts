@@ -36,6 +36,10 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('1:1 square');
     expect(prompt).toContain('--aspect 1:1');
     expect(prompt).toContain('single semi-transparent background Z');
+    expect(prompt).toContain('exact silhouette geometry');
+    expect(prompt).toContain('exactly two poster-copy text elements');
+    expect(prompt).toContain('phone-screen exception');
+    expect(prompt).toContain('must never overlap the model');
     expect(prompt).toContain('zamloan-poster-03.png');
     expect(prompt).toContain(`\`${ZAMBIA_POSTER_REFERENCE_NAME}\``);
     expect(prompt).toContain('Complete all 3 generation attempts.');
@@ -104,6 +108,23 @@ describe('Zambia poster preset', () => {
     expect(prompts[1]).toContain('Support Your Family Today');
     expect(prompts.every((prompt) => prompt.includes('Application Successful'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('Negative prompt:'))).toBe(true);
+  });
+
+  it('keeps Zamloan copy minimal while retaining the phone success UI', () => {
+    const [prompt] = buildLoanPosterScenePrompts({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'zamloan',
+    });
+
+    expect(prompt).toContain('exact silhouette geometry');
+    expect(prompt).toContain('exactly two poster-copy text elements');
+    expect(prompt).toContain('very large bold headline');
+    expect(prompt).toContain('solid green checkmark');
+    expect(prompt).toContain('Application Successful');
+    expect(prompt).toContain('must never overlap');
+    expect(prompt).not.toContain('benefit callouts');
+    expect(prompt).not.toContain('Apply 100% via mobile');
   });
 
   it('keeps BiuMoney scenes Z-free with only large model-safe title copy', () => {

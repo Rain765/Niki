@@ -157,16 +157,7 @@ const LOAN_POSTER_PALETTES = [
   { gradient: 'sunset red to fresh lime', ribbon: 'glossy forest green' },
 ] as const;
 
-const LOAN_POSTER_COMPOSITIONS = [
-  'Use a strong asymmetric layout with the headline and benefit copy on the left and the subject on the right',
-  'Reverse the familiar layout: place the subject on the left and the headline and benefit copy on the right',
-  'Use a phone-led center composition, with the subject slightly behind the phone and the copy arranged in a clean upper corner',
-  'Use a dynamic diagonal split, with the subject in the lower-right and the copy in the upper-left',
-  'Use a close editorial crop of the subject on the right and a structured text panel on the left',
-  'Use a wide environmental composition with the subject off-center and the copy contained in the upper third',
-] as const;
-
-const BIUMONEY_POSTER_COMPOSITIONS = [
+const MODEL_SAFE_POSTER_COMPOSITIONS = [
   'Place the model in the right third and reserve the entire left half as clean negative space for the two-line text block',
   'Place the model in the left third and reserve the entire right half as clean negative space for the two-line text block',
   'Place the model in the lower-right quadrant and keep the upper-left quadrant clear for the two-line text block',
@@ -209,14 +200,10 @@ export function buildLoanPosterScenePrompts(options: AutoPosterOptions): string[
     const palette = LOAN_POSTER_PALETTES[
       (variationIndex * 3) % LOAN_POSTER_PALETTES.length
     ]!;
-    const compositions = brand === 'biumoney'
-      ? BIUMONEY_POSTER_COMPOSITIONS
-      : LOAN_POSTER_COMPOSITIONS;
+    const compositions = MODEL_SAFE_POSTER_COMPOSITIONS;
     const composition = compositions[
       (variationIndex * 5) % compositions.length
     ]!;
-    const benefitCopy = plan.benefits.map((benefit) => `“${benefit}”`).join(' and ');
-
     if (brand === 'biumoney') {
       return `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
 
@@ -229,11 +216,13 @@ Negative prompt: letter Z, background letter, alphabetic background motif, logo,
 
     return `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
 
-Use a ${palette.gradient} dominant background, one large supplied semi-transparent Z as the only brand mark, and one ${palette.ribbon} curved ribbon along the bottom. Set “${plan.headline}” as the bold headline and “${plan.subline}” as the supporting copy. Add two concise benefit callouts: ${benefitCopy}. ${composition}. Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. The phone screen is white with one solid green checkmark and short black text: “Application Successful”.
+Use a ${palette.gradient} dominant background, one large supplied semi-transparent Z as the only brand mark, and one ${palette.ribbon} curved ribbon along the bottom. Reproduce the exact silhouette geometry of the supplied Z reference, including its distinctive angled terminals, curved outer corners, and diagonal stroke; use the reference for shape only and freely adapt color, material, opacity, scale, and position. Do not invent another Z glyph or alter its outline.
 
-Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, and generous safe margins. Do not render ${brandLabel}, another brand-name wordmark, an icon logo, or a corner badge in the top-left. Do not add another Z.
+Render exactly two poster-copy text elements: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not add benefit copy, feature callouts, labels, badges, disclaimers, or any other poster text. ${composition}. Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. The phone screen is the only text exception: keep its white screen, one solid green checkmark, and short black text “Application Successful”.
 
-Negative prompt: blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, duplicate Z marks, top-left brand wordmark, standalone text logo, corner logo badge, mixed brands.`;
+Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve a clearly visible gap between the text block and the model silhouette. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, oversized readable typography, and generous safe margins. Do not render ${brandLabel}, another brand-name wordmark, an icon logo, or a corner badge in the top-left. Do not add another Z.
+
+Negative prompt: alternate Z glyph, distorted Z outline, extra Z, duplicate Z, benefit copy, feature callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, top-left brand wordmark, standalone text logo, corner logo badge, mixed brands.`;
   });
 }
 
@@ -250,11 +239,15 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const outputPrefix = `${brand}-poster`;
   const usesZReference = autoPosterUsesZReference(brand);
   const referenceContract = usesZReference
-    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is an internal Z reference. Locate its project-relative path and pass it through \`--image\` for every generation. Never copy the Z reference into a visible output path or list it as a deliverable.`
+    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z shape reference. Locate its project-relative path and pass it through \`--image\` for every generation. Reproduce its exact silhouette geometry for every visible Z, but use it for shape only: ignore the source color and freely adapt color, material, opacity, scale, and position. Never invent an alternate Z glyph. Never copy the Z reference into a visible output path or list it as a deliverable.`
     : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
   const brandOverride = usesZReference
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the top-left corner.
-- The single semi-transparent background Z defined by the skill is the only permitted brand mark.`
+- The single semi-transparent background Z defined by the skill is the only permitted brand mark, and it must preserve the exact silhouette geometry of the supplied reference.
+- Render exactly two poster-copy text elements: one very large headline and one large subtitle. Do not add benefit copy, feature callouts, labels, badges, disclaimers, or other poster text.
+- The phone-screen exception is the only additional visible wording: retain the white screen, one solid green checkmark, and \`Application Successful\`.
+- Keep the headline and subtitle entirely inside reserved negative space; they must never overlap the model’s face, body, hands, clothing, or phone.
+- These Zamloan copy and placement rules take precedence over conflicting skill template rules.`
     : `- Do not render \`${brandLabel}\`, another brand-name wordmark, a logo, a letter Z, or any background alphabetic motif.
 - Render exactly two visible text elements: one headline and one subtitle. Do not add benefits, labels, badges, disclaimers, or phone-screen text.
 - Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
