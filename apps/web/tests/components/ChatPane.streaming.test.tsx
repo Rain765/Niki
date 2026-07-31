@@ -171,7 +171,9 @@ Expected output:
     expect(
       screen.getByTestId('direct-poster-result-image-zamloan-poster-01.png')
         .getAttribute('src'),
-    ).toBe('/api/projects/project-1/raw/zamloan-poster-01.png?v=1');
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-01.png?variant=preview&v=1',
+    );
     expect(screen.queryByText('Editorial portrait')).toBeNull();
     expect(screen.queryByText('Product hero')).toBeNull();
     expect(screen.queryByText('Flat illustration')).toBeNull();
@@ -283,7 +285,13 @@ Expected output:
     );
     expect(switchedImage).not.toBe(selectedImage);
     expect(switchedImage.getAttribute('src')).toBe(
-      '/api/projects/project-1/raw/zamloan-poster-02.png?v=2',
+      '/api/projects/project-1/image-preview/zamloan-poster-02.png?variant=preview&v=2',
+    );
+    expect(
+      screen.getByTestId('direct-poster-thumbnail-zamloan-poster-01.png')
+        .getAttribute('src'),
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-01.png?variant=thumbnail&v=1',
     );
     expect(
       screen.getByRole('button', { name: '查看第 2 张海报' })
@@ -291,6 +299,43 @@ Expected output:
     ).toBe('true');
     expect(screen.queryByText('designFiles.addToCanvas')).toBeNull();
     expect(screen.queryByText('common.rename')).toBeNull();
+  });
+
+  it('surfaces an interrupted direct generation instead of spinning forever', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[]}
+        projectFilesInitialized
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1.1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 1,
+            outputPrefix: 'zamloan-poster',
+            status: 'queued',
+            requestedAt: Date.now() - 16 * 60_000,
+            queuedAt: Date.now() - 16 * 60_000,
+          },
+        }}
+      />,
+    );
+
+    const status = screen.getByTestId('direct-poster-status');
+    expect(status.classList.contains('is-failed')).toBe(true);
+    expect(status.textContent).toContain('海报生成已中断');
+    expect(status.textContent).toContain('请重新生成');
   });
 
   it('renders a stopped pinned todo after a terminal run without a final TodoWrite', () => {

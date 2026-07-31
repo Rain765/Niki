@@ -4,7 +4,7 @@ import { trackChatPanelClick } from '../analytics/events';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
-import { projectRawUrl } from '../providers/registry';
+import { projectImagePreviewUrl, projectRawUrl } from '../providers/registry';
 import type { TodoItem } from '../runtime/todos';
 import type { AppliedPluginSnapshot } from '@open-design/contracts';
 import type { TrackingProjectKind } from '@open-design/contracts/analytics';
@@ -1018,7 +1018,13 @@ function DirectLoanPosterStatus({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [clientNow, setClientNow] = useState<number | null>(null);
   useEffect(() => {
-    setClientNow(Date.now());
+    const updateNow = () => setClientNow(Date.now());
+    updateNow();
+    if (lifecycle?.status !== 'preparing' && lifecycle?.status !== 'queued') {
+      return undefined;
+    }
+    const interval = window.setInterval(updateNow, 30_000);
+    return () => window.clearInterval(interval);
   }, [lifecycle?.queuedAt, lifecycle?.requestedAt, lifecycle?.status]);
   const generatedCount = generatedFiles.length;
   const hasResults = generatedCount > 0;
@@ -1029,7 +1035,6 @@ function DirectLoanPosterStatus({
   const lifecycleStatus = lifecycle?.status;
   const hydrating = !filesInitialized;
   const legacyOrphaned = filesInitialized && lifecycleStatus == null && !hasResults;
-  const failed = lifecycleStatus === 'failed' || legacyOrphaned;
   const activeLifecycleStatus =
     lifecycleStatus === 'preparing'
     || lifecycleStatus === 'queued';
@@ -1041,6 +1046,8 @@ function DirectLoanPosterStatus({
     && clientNow - lifecycleStartedAt < 15 * 60_000;
   const activelyStarting = activeLifecycleStatus && recentlyStarted;
   const staleActive = activeLifecycleStatus && !recentlyStarted;
+  const interrupted = staleActive && !hasResults;
+  const failed = lifecycleStatus === 'failed' || legacyOrphaned || interrupted;
   const complete = !failed
     && !activelyStarting
     && expectedCount !== null
@@ -1049,7 +1056,9 @@ function DirectLoanPosterStatus({
     && expectedCount !== null
     && generatedCount >= expectedCount;
   const visuallyComplete = complete || queuedComplete;
-  const title = failed
+  const title = interrupted
+    ? '海报生成已中断'
+    : failed
     ? '海报生成未启动'
     : visuallyComplete
     ? `已完成 ${generatedCount} 张贷款海报`
@@ -1058,7 +1067,9 @@ function DirectLoanPosterStatus({
         ? `正在生成 · ${generatedCount}/${expectedCount} 张`
         : `已生成 ${generatedCount} 张贷款海报`
       : '正在生成贷款海报';
-  const description = failed
+  const description = interrupted
+    ? '生成任务没有完成，可能因服务重启或网络中断。请重新生成。'
+    : failed
     ? lifecycle?.lastError ?? '生成任务没有成功入队，请返回首页重试。'
     : visuallyComplete
     ? '图片已生成。可复制、下载或删除。'
@@ -1072,7 +1083,7 @@ function DirectLoanPosterStatus({
   // list hydrates, nor should a persisted queue flag from an old/abandoned
   // task be presented as a fresh generation. The stable chat shell and
   // composer remain visible; once files arrive they mount independently.
-  if ((hydrating && !activelyStarting) || (staleActive && !hasResults)) return null;
+  if (hydrating && !activelyStarting) return null;
 
   return (
     <div
@@ -1104,7 +1115,12 @@ function DirectLoanPosterStatus({
             <div className="direct-poster-result-open">
               <img
                 key={`${selectedFile.name}:${selectedFile.mtime}`}
-                src={`${projectRawUrl(projectId, selectedFile.name)}?v=${Math.round(selectedFile.mtime)}`}
+                src={projectImagePreviewUrl(
+                  projectId,
+                  selectedFile.name,
+                  'preview',
+                  selectedFile.mtime,
+                )}
                 alt={`生成的贷款海报 ${generatedFiles.indexOf(selectedFile) + 1}`}
                 loading="lazy"
                 draggable={false}
@@ -1165,7 +1181,12 @@ function DirectLoanPosterStatus({
                   data-testid={`direct-poster-thumbnail-button-${file.name}`}
                 >
                   <img
-                    src={`${projectRawUrl(projectId, file.name)}?v=${Math.round(file.mtime)}`}
+                    src={projectImagePreviewUrl(
+                      projectId,
+                      file.name,
+                      'thumbnail',
+                      file.mtime,
+                    )}
                     alt=""
                     loading="lazy"
                     draggable={false}

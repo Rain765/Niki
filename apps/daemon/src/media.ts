@@ -45,6 +45,7 @@ import { execFile as execFileCb, spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import sharp from 'sharp';
 import { EnvHttpProxyAgent } from 'undici';
 import {
   AUDIO_DURATIONS_SEC,
@@ -71,6 +72,34 @@ type ProviderConfig = { apiKey?: string; baseUrl?: string; model?: string };
 type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
 type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
+
+export async function optimizeLosslessPng(
+  input: Buffer,
+): Promise<{ bytes: Buffer; optimized: boolean; savedBytes: number }> {
+  try {
+    const optimized = await sharp(input)
+      .keepMetadata()
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+        palette: false,
+      })
+      .toBuffer();
+    if (optimized.length >= input.length) {
+      return { bytes: input, optimized: false, savedBytes: 0 };
+    }
+    return {
+      bytes: optimized,
+      optimized: true,
+      savedBytes: input.length - optimized.length,
+    };
+  } catch {
+    // Image generation must still succeed if a provider returns a malformed
+    // or unusual PNG that Sharp cannot optimize.
+    return { bytes: input, optimized: false, savedBytes: 0 };
+  }
+}
+
 type MediaContext = {
   surface: MediaSurface;
   /**
@@ -644,6 +673,9 @@ export async function generateMedia(args: {
     const dot = safeOut.lastIndexOf('.');
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
+  }
+  if (surface === 'image' && /\.png$/i.test(finalOut)) {
+    bytes = (await optimizeLosslessPng(bytes)).bytes;
   }
   const finalTarget = path.join(dir, finalOut);
   await writeFile(finalTarget, bytes);

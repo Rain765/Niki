@@ -337,6 +337,17 @@ export function reconcileMediaTasksOnBoot(
       )
       .run(JSON.stringify(interruptedError), now, now).changes;
 
+    const failedProjectIds = db
+      .prepare(
+        `SELECT DISTINCT project_id AS projectId
+           FROM media_tasks
+          WHERE status IN ('failed', 'interrupted')`,
+      )
+      .all() as Array<{ projectId: string }>;
+    for (const { projectId } of failedProjectIds) {
+      reconcileDirectLoanPosterProject(db, projectId, { now });
+    }
+
     const deleted = db
       .prepare(
         `DELETE FROM media_tasks

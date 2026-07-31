@@ -241,6 +241,49 @@ describe('media task persistence', () => {
       .toEqual(['recent']);
   });
 
+  it('reconciles an expired failed poster task before deleting its row', () => {
+    db.prepare(
+      `UPDATE projects
+          SET metadata_json = ?
+        WHERE id = 'p1'`,
+    ).run(JSON.stringify({
+      kind: 'image',
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'queued',
+        requestedAt: 1_000,
+        expectedOutputs: 1,
+      },
+    }));
+    insertMediaTask(db, {
+      id: 'expired-poster-failure',
+      projectId: 'p1',
+      status: 'failed',
+      surface: 'image',
+      startedAt: 1_100,
+      endedAt: 1_500,
+      updatedAt: 1_500,
+      error: { message: 'provider connection lost' },
+    });
+
+    const result = reconcileMediaTasksOnBoot(db, {
+      terminalTtlMs: 5_000,
+      now: 10_000,
+    });
+
+    expect(result.deleted).toBe(1);
+    expect(getMediaTask(db, 'expired-poster-failure')).toBeNull();
+    const project = db.prepare(
+      `SELECT metadata_json AS metadataJson FROM projects WHERE id = 'p1'`,
+    ).get() as { metadataJson: string };
+    expect(JSON.parse(project.metadataJson)).toMatchObject({
+      directGeneration: {
+        status: 'failed',
+        lastError: 'provider connection lost',
+      },
+    });
+  });
+
   it('cascades task deletion when a project is deleted', () => {
     insertMediaTask(db, { id: 'doomed', projectId: 'p2', status: 'running' });
     db.prepare(`DELETE FROM projects WHERE id = ?`).run('p2');
