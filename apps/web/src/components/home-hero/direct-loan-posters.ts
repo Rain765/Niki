@@ -1,5 +1,6 @@
 import {
   autoPosterBrandLabel,
+  autoPosterUsesZReference,
   buildLoanPosterScenePrompts,
   LOAN_POSTER_SKILL_ID,
   loadZambiaPosterReference,
@@ -273,18 +274,21 @@ export async function startDirectLoanPosterProject(
       }
     }
 
-    const referenceFile = await loadZambiaPosterReference();
-    const form = new FormData();
-    form.append('files', referenceFile);
-    const uploadResponse = await fetch(
-      `/api/projects/${encodeURIComponent(project.id)}/upload?visibility=internal`,
-      { method: 'POST', credentials: 'include', body: form },
-    );
-    await assertApiResponse(uploadResponse, 'upload-reference');
-    const uploaded = (await uploadResponse.json()) as { files?: UploadedFile[] };
-    const referencePath = uploaded.files?.[0]?.path;
-    if (!referencePath) throw new Error('Brand reference path is missing.');
-    logStage('reference-uploaded', project.id);
+    let referencePath: string | undefined;
+    if (autoPosterUsesZReference(options.brand)) {
+      const referenceFile = await loadZambiaPosterReference();
+      const form = new FormData();
+      form.append('files', referenceFile);
+      const uploadResponse = await fetch(
+        `/api/projects/${encodeURIComponent(project.id)}/upload?visibility=internal`,
+        { method: 'POST', credentials: 'include', body: form },
+      );
+      await assertApiResponse(uploadResponse, 'upload-reference');
+      const uploaded = (await uploadResponse.json()) as { files?: UploadedFile[] };
+      referencePath = uploaded.files?.[0]?.path;
+      if (!referencePath) throw new Error('Brand reference path is missing.');
+      logStage('reference-uploaded', project.id);
+    }
 
     const datedOutputPrefix = `${prefix}-${compactDateKey(dateKey)}`;
     const highestExistingOutputNumber = existingFiles.reduce((maximum, file) => {
@@ -314,7 +318,7 @@ export async function startDirectLoanPosterProject(
             model: IMAGE_MODEL,
             quality: 'low',
             aspect: options.aspectRatio,
-            image: referencePath,
+            ...(referencePath ? { image: referencePath } : {}),
             output: `${datedOutputPrefix}-${String(nextOutputNumber + index).padStart(3, '0')}.png`,
             prompt,
           }),

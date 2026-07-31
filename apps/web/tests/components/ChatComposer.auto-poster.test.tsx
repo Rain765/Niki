@@ -219,11 +219,7 @@ describe('ChatComposer automatic poster controls', () => {
 
     await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
 
-    expect(mockedUploadProjectFiles).toHaveBeenCalledWith(
-      'project-1',
-      [expect.objectContaining({ name: 'loan-poster-z-reference.png' })],
-      { visibility: 'internal' },
-    );
+    expect(mockedUploadProjectFiles).not.toHaveBeenCalled();
     expect(mockedPatchProject).toHaveBeenCalledWith(
       'project-1',
       { skillId: 'loan-poster-skill-v1.1' },
@@ -234,12 +230,7 @@ describe('ChatComposer automatic poster controls', () => {
     expect(prompt).toContain('Generate exactly 10 BiuMoney Zambia loan posters now.');
     expect(prompt).toContain('- format: `1:1` (1:1 square)');
     expect(prompt).toContain('`biumoney-poster-01.png` through `biumoney-poster-10.png`');
-    expect(attachments).toEqual([
-      expect.objectContaining({
-        path: '.od-inputs/loan-poster-z-reference.png',
-        kind: 'image',
-      }),
-    ]);
+    expect(attachments).toEqual([]);
     expect(commentAttachments).toEqual([]);
     expect(meta).toEqual({
       skillIds: ['loan-poster-skill-v1.1'],

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  autoPosterUsesZReference,
   buildLoanPosterPrompt,
   buildLoanPosterScenePrompts,
   buildZambiaPosterPrompt,
@@ -61,6 +62,10 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('biumoney-poster-02.png');
     expect(prompt).toContain('do not mix in the other brand');
     expect(prompt).toContain('Do not render `BiuMoney`');
+    expect(prompt).toContain('Do not attach or use the Z reference');
+    expect(prompt).toContain('exactly two visible text elements');
+    expect(prompt).toContain('must never overlap the model');
+    expect(prompt).not.toContain('The single semi-transparent background Z');
   });
 
   it('keeps the legacy Zambia builder on the Zamloan 16:9 default', () => {
@@ -99,6 +104,23 @@ describe('Zambia poster preset', () => {
     expect(prompts[1]).toContain('Support Your Family Today');
     expect(prompts.every((prompt) => prompt.includes('Application Successful'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('Negative prompt:'))).toBe(true);
+  });
+
+  it('keeps BiuMoney scenes Z-free with only large model-safe title copy', () => {
+    const [prompt] = buildLoanPosterScenePrompts({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'biumoney',
+    });
+
+    expect(prompt).toContain('no letter Z');
+    expect(prompt).toContain('exactly two visible text elements');
+    expect(prompt).toContain('very large');
+    expect(prompt).toContain('never overlap');
+    expect(prompt).not.toContain('benefit callouts');
+    expect(prompt).not.toContain('Application Successful');
+    expect(autoPosterUsesZReference('biumoney')).toBe(false);
+    expect(autoPosterUsesZReference('zamloan')).toBe(true);
   });
 
   it('rotates every creative dimension instead of restarting at scene one', () => {

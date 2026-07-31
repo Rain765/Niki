@@ -7,6 +7,7 @@ import {
   AUTO_POSTER_DEFAULT_ASPECT_RATIO,
   AUTO_POSTER_DEFAULT_BRAND,
   autoPosterBrandLabel,
+  autoPosterUsesZReference,
   buildLoanPosterPrompt,
   LOAN_POSTER_SKILL_ID,
   loadZambiaPosterReference,
@@ -67,7 +68,9 @@ export function LiteImageHome({
         ratio: aspectRatio,
       };
 
-      const referenceFile = await loadZambiaPosterReference();
+      const referencePromise = autoPosterUsesZReference(brand)
+        ? loadZambiaPosterReference()
+        : null;
       const project = await createImageProject({
         id: browserUuid(),
         name: `${brandLabel} 贷款海报`,
@@ -80,7 +83,9 @@ export function LiteImageHome({
         pluginInputs,
         aspectRatio,
       });
-      const attachments = await uploadInternalReference(project.project.id, referenceFile);
+      const attachments = referencePromise
+        ? await uploadInternalReference(project.project.id, await referencePromise)
+        : [];
 
       try {
         window.sessionStorage.setItem(`od:auto-send-first:${project.project.id}`, '1');

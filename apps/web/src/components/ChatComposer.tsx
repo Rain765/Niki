@@ -48,6 +48,7 @@ import {
 import {
   AUTO_POSTER_DEFAULT_ASPECT_RATIO,
   AUTO_POSTER_DEFAULT_BRAND,
+  autoPosterUsesZReference,
   buildLoanPosterPrompt,
   loadZambiaPosterReference,
   LOAN_POSTER_SKILL_ID,
@@ -768,20 +769,26 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       });
 
       try {
+        const referencePromise = autoPosterUsesZReference(autoPosterBrand)
+          ? loadZambiaPosterReference()
+          : null;
         const id = await ensureProject();
         if (!id) {
           throw new Error('Unable to prepare the poster project.');
         }
 
-        const referenceFile = await loadZambiaPosterReference();
-        const uploadResult = await uploadProjectFiles(
-          id,
-          [referenceFile],
-          { visibility: 'internal' },
-        );
-        const referenceAttachment = uploadResult.uploaded[0];
-        if (!referenceAttachment || uploadResult.failed.length > 0) {
-          throw new Error(uploadResult.error ?? 'Unable to attach the internal Z reference.');
+        let referenceAttachment = null;
+        if (referencePromise) {
+          const referenceFile = await referencePromise;
+          const uploadResult = await uploadProjectFiles(
+            id,
+            [referenceFile],
+            { visibility: 'internal' },
+          );
+          referenceAttachment = uploadResult.uploaded[0] ?? null;
+          if (!referenceAttachment || uploadResult.failed.length > 0) {
+            throw new Error(uploadResult.error ?? 'Unable to attach the internal Z reference.');
+          }
         }
 
         const patchedProject = await patchProject(id, { skillId: LOAN_POSTER_SKILL_ID });
@@ -792,7 +799,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
         const skillIds = [LOAN_POSTER_SKILL_ID];
         onSend(
           autoPrompt,
-          [referenceAttachment],
+          referenceAttachment ? [referenceAttachment] : [],
           [],
           {
             skillIds,

@@ -69,6 +69,10 @@ export function autoPosterBrandLabel(brand: AutoPosterBrand): string {
   return BRAND_LABELS[brand];
 }
 
+export function autoPosterUsesZReference(brand: AutoPosterBrand): boolean {
+  return brand === 'zamloan';
+}
+
 const LOAN_POSTER_SCENES = [
   {
     headline: 'Get Cash In 1 Hour',
@@ -162,6 +166,15 @@ const LOAN_POSTER_COMPOSITIONS = [
   'Use a wide environmental composition with the subject off-center and the copy contained in the upper third',
 ] as const;
 
+const BIUMONEY_POSTER_COMPOSITIONS = [
+  'Place the model in the right third and reserve the entire left half as clean negative space for the two-line text block',
+  'Place the model in the left third and reserve the entire right half as clean negative space for the two-line text block',
+  'Place the model in the lower-right quadrant and keep the upper-left quadrant clear for the two-line text block',
+  'Use an editorial waist-up crop on the right with an uncluttered text-safe panel on the left',
+  'Place the model in the lower-left quadrant and keep the upper-right quadrant clear for the two-line text block',
+  'Use a wide environmental composition with the model confined to one outer third and the opposite side reserved for text',
+] as const;
+
 function stableStringHash(value: string): number {
   let hash = 2_166_136_261;
   for (let index = 0; index < value.length; index += 1) {
@@ -196,10 +209,23 @@ export function buildLoanPosterScenePrompts(options: AutoPosterOptions): string[
     const palette = LOAN_POSTER_PALETTES[
       (variationIndex * 3) % LOAN_POSTER_PALETTES.length
     ]!;
-    const composition = LOAN_POSTER_COMPOSITIONS[
-      (variationIndex * 5) % LOAN_POSTER_COMPOSITIONS.length
+    const compositions = brand === 'biumoney'
+      ? BIUMONEY_POSTER_COMPOSITIONS
+      : LOAN_POSTER_COMPOSITIONS;
+    const composition = compositions[
+      (variationIndex * 5) % compositions.length
     ]!;
     const benefitCopy = plan.benefits.map((benefit) => `“${benefit}”`).join(' and ');
+
+    if (brand === 'biumoney') {
+      return `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
+
+Use a clean ${palette.gradient} dominant background with subtle abstract depth and no letter Z, no alphabetic background motif, and no logo-shaped watermark. Render exactly two visible text elements: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not render any other words, numbers, labels, badges, benefit text, brand names, disclaimers, or phone-screen text. ${composition}. Show ${plan.model} ${plan.scene}, holding or naturally interacting with an anatomically correct smartphone whose screen contains no text.
+
+Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve a clearly visible gap between the text block and the model silhouette. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, oversized readable typography, and generous safe margins.
+
+Negative prompt: letter Z, background letter, alphabetic background motif, logo, watermark, brand wordmark, benefit text, callout, badge, label, disclaimer, phone text, extra text, small typography, text over model, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, duplicated elements, mixed brands.`;
+    }
 
     return `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
 
@@ -222,6 +248,23 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const brandLabel = autoPosterBrandLabel(brand);
   const aspectDescription = aspectRatio === '1:1' ? '1:1 square' : '16:9 landscape';
   const outputPrefix = `${brand}-poster`;
+  const usesZReference = autoPosterUsesZReference(brand);
+  const referenceContract = usesZReference
+    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is an internal Z reference. Locate its project-relative path and pass it through \`--image\` for every generation. Never copy the Z reference into a visible output path or list it as a deliverable.`
+    : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
+  const brandOverride = usesZReference
+    ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the top-left corner.
+- The single semi-transparent background Z defined by the skill is the only permitted brand mark.`
+    : `- Do not render \`${brandLabel}\`, another brand-name wordmark, a logo, a letter Z, or any background alphabetic motif.
+- Render exactly two visible text elements: one headline and one subtitle. Do not add benefits, labels, badges, disclaimers, or phone-screen text.
+- Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
+- This BiuMoney override takes precedence over conflicting skill template rules.`;
+  const generationReference = usesZReference
+    ? ', and the Z reference via `--image`'
+    : ', without an `--image` reference';
+  const referenceCleanup = usesZReference
+    ? '- Remove the internal Z reference after all image generation attempts finish.\n'
+    : '';
 
   return `Generate exactly ${count} ${brandLabel} Zambia loan poster${count === 1 ? '' : 's'} now. Do not ask the user for a prompt, scene list, copy, or confirmation.
 
@@ -233,21 +276,19 @@ Runtime inputs:
 - quantity: \`${count}\`
 - output prefix: \`${outputPrefix}\`
 
-The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is an internal Z reference. Locate its project-relative path and pass it through \`--image\` for every generation. Never copy the Z reference into a visible output path or list it as a deliverable.
+${referenceContract}
 
 Resolve exactly ${count} distinct internal scene plan${count === 1 ? '' : 's'} using the active skill, then render one poster per plan. Do not expose planning files as deliverables.
 
 Visible-brand override:
-- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the top-left corner.
-- The single semi-transparent background Z defined by the skill is the only permitted brand mark.
+${brandOverride}
 
 Generation contract:
 - Use the image model selected in the project metadata.
-- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt, and the Z reference via \`--image\`.
+- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}.
 - Write outputs as \`${outputPrefix}-01.png\` through \`${outputPrefix}-${String(count).padStart(2, '0')}.png\`.
 - Complete all ${count} generation attempts. If one fails, continue with the remaining scenes and report the failed item accurately.
-- Remove the internal Z reference after all image generation attempts finish.
-- Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.
+${referenceCleanup}- Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.
 - Do not emit HTML artifacts. The generated image files are the deliverables and will be placed on the canvas automatically.`;
 }
 

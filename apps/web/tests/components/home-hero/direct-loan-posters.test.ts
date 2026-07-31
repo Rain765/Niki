@@ -8,6 +8,7 @@ const { buildLoanPosterScenePromptsMock } = vi.hoisted(() => ({
 
 vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   autoPosterBrandLabel: () => 'Zamloan',
+  autoPosterUsesZReference: (brand: string) => brand === 'zamloan',
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1.1',
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
@@ -124,6 +125,58 @@ describe('startDirectLoanPosterProject', () => {
       variationSeed: 'project-1',
       variationOffset: 0,
     }));
+  });
+
+  it('does not upload or pass the Z reference for BiuMoney generation', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify(
+          init?.method === 'POST' ? { project } : { projects: [] },
+        ), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/upload?visibility=internal')) {
+        throw new Error('BiuMoney must not upload the Z reference');
+      }
+      if (url.endsWith('/media/generate')) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        expect(body).not.toHaveProperty('image');
+        expect(body.output).toMatch(/^biumoney-poster-\d{8}-001\.png$/);
+        return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          metadata: unknown;
+          updatedAt: number;
+        };
+        return new Response(JSON.stringify({
+          project: {
+            ...project,
+            metadata: body.metadata,
+            updatedAt: body.updatedAt,
+          },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'project-1' });
+
+    await expect(startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'biumoney',
+    })).resolves.toEqual({ projectId: 'project-1' });
   });
 
   it('opens the project immediately after creation while media setup continues', async () => {
