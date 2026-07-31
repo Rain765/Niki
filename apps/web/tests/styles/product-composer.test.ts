@@ -21,4 +21,13 @@ describe('product composer responsive styles', () => {
       /@media\s*\(max-width:\s*680px\)[\s\S]*\.auto-poster-filter__portal\s+\.auto-poster-filter__menu\s*\{[\s\S]*bottom:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)/,
     );
   });
+
+  it('keeps product tags unframed and pins the poster composer on mobile', () => {
+    expect(ndesignCss).toMatch(
+      /\.home-hero__auto-poster,[\s\S]*\.entry-main__inner--home\s+\.home-hero__auto-poster\s*\{[^}]*background:\s*transparent/s,
+    );
+    expect(indexCss).toMatch(
+      /@media\s*\(max-width:\s*900px\)[\s\S]*\.pane\.is-direct-loan-poster\s*>\s*\.composer\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/s,
+    );
+  });
 });

@@ -397,26 +397,6 @@ export function NikiWorkspaceShell({
         >
           <Icon name="menu" size={21} />
         </button>
-        <div className="niki-workspace__mobile-title">
-          {directPosterProjectActive
-            ? null
-            : activeView === 'design-files'
-            ? t('workspace.designFiles')
-            : activeProject
-              ? projectDisplayName(
-                  activeProject,
-                  projectSequenceById.get(activeProject.id),
-                )
-              : 'Niki'}
-        </div>
-        <button
-          type="button"
-          className="niki-workspace__mobile-new"
-          onClick={startNewProject}
-          aria-label={t('chat.newConversation')}
-        >
-          <Icon name="plus" size={20} />
-        </button>
       </header>
 
       <div id="niki-project-drawer" className="niki-workspace__sidebar-slot">

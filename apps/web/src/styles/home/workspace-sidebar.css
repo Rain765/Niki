@@ -468,30 +468,16 @@
     grid-row: 1;
     min-width: 0;
     padding: env(safe-area-inset-top, 0px) 10px 0;
-    display: grid;
-    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    display: flex;
     align-items: center;
-    gap: 4px;
-    border-bottom: 1px solid var(--border);
-    background: color-mix(in srgb, var(--bg-panel) 96%, transparent);
+    border-bottom: 0;
+    background: transparent;
     z-index: 30;
   }
 
-  .niki-workspace__menu-button,
-  .niki-workspace__mobile-new {
+  .niki-workspace__menu-button {
     width: 36px;
     height: 36px;
-  }
-
-  .niki-workspace__mobile-title {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--text-strong);
-    font-size: 15px;
-    font-weight: 680;
-    text-align: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .niki-workspace__main {

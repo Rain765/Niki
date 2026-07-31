@@ -147,6 +147,8 @@ describe('HomeHero intent rail', () => {
     const capsule = screen.getByTestId('home-hero').querySelector('.home-hero__capsule');
 
     expect(controls.nextElementSibling).toBe(capsule);
+    expect(document.querySelector('.home-hero__copy')).toBeNull();
+    expect(document.querySelector('.home-hero__command-bar')).toBeNull();
     expect(screen.getByTestId('home-hero-input').getAttribute('placeholder')).toBe(
       'Choose product, ratio, and quantity. Generate in one click',
     );

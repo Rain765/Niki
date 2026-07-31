@@ -13815,8 +13815,10 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   width: var(--direct-poster-content-width);
   min-width: 440px;
   margin: 0 auto 18px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 @media (max-width: 900px) {
   .pane.is-direct-loan-poster {
@@ -13827,8 +13829,14 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
     padding: 4px 0;
   }
   .pane.is-direct-loan-poster > .composer {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
     min-width: 0;
-    margin-bottom: max(10px, env(safe-area-inset-bottom));
+    width: 100%;
+    margin: 0;
+    padding: 8px 12px max(10px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent, var(--bg-panel) 18%);
   }
   .direct-poster-result-open {
     border-radius: 14px;
@@ -26929,17 +26937,7 @@ body.desktop-pet-shell .pet-task-item {
     grid-template-rows: minmax(0, 1fr);
   }
   .app.app--direct-poster > .direct-poster-topbar {
-    position: fixed;
-    top: env(safe-area-inset-top, 0px);
-    left: 50%;
-    z-index: 500;
-    width: auto;
-    height: 52px;
-    min-height: 52px;
-    padding: 7px 8px;
-    transform: translateX(-50%);
-    border: 0;
-    background: transparent;
+    display: none;
   }
   .app.app--direct-poster > .split {
     grid-row: 1;
@@ -27812,6 +27810,23 @@ body.desktop-pet-shell .pet-task-item {
 .composer-capsule-row .composer-row > .composer-send-split {
   grid-column: 3;
   grid-row: 1;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row > .composer-input-wrap {
+  grid-column: 1;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row .composer-add {
+  display: none;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row .composer-row > .composer-send,
+.pane.is-direct-loan-poster .composer-capsule-row .composer-row > .composer-send-split {
+  grid-column: 2;
 }
 
 .composer-shell--capsule .composer-spacer {

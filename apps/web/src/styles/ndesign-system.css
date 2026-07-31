@@ -1842,8 +1842,8 @@ kbd,
 .home-hero__auto-poster,
 .entry-main__inner--home .home-hero__auto-poster {
   border: 0;
-  gap: 2px;
-  background: var(--accent-tint);
+  gap: 8px;
+  background: transparent;
   box-shadow: none;
 }
 
@@ -2935,7 +2935,7 @@ kbd,
   width: 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   margin-top: 2px;
   padding: 7px;
@@ -2948,13 +2948,35 @@ kbd,
     box-shadow 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* The Niki poster entry is intentionally just product tags plus the capsule.
+   The legacy command card remains the semantic drop target, but contributes
+   no visual container of its own. */
+.entry-main__inner--home .home-hero {
+  justify-content: center;
+}
+
+.entry-main__inner--home .home-hero__input-card,
+.entry-main__inner--home .home-hero__input-card:focus-within {
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.entry-main__inner--home .home-hero__input-card::before,
+.entry-main__inner--home .home-hero__input-card::after {
+  display: none;
+}
+
 .home-hero__capsule:focus-within {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border-strong));
   box-shadow: var(--focus-ring);
 }
 
 .home-hero__capsule > .home-hero__prompt-surface {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 2;
   min-width: 0;
   padding: 0;
@@ -2971,15 +2993,16 @@ kbd,
 }
 
 .home-hero__capsule .home-hero__foot-left {
-  grid-column: 1;
-  grid-row: 2;
-  flex: none;
-  overflow: visible;
+  display: none;
 }
 
 .home-hero__capsule .home-hero__foot-right {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 2;
+}
+
+.home-hero__capsule .composer-add {
+  display: none;
 }
 
 .home-hero__capsule .home-hero__input {
@@ -3160,6 +3183,25 @@ kbd,
     padding-inline: 5px;
     font-size: 12.5px;
     white-space: nowrap;
+  }
+
+  .entry-main__inner--home {
+    min-height: 100%;
+    padding-bottom: 0;
+  }
+
+  .entry-main__inner--home .home-view,
+  .entry-main__inner--home .home-hero {
+    min-height: 100%;
+  }
+
+  .entry-main__inner--home .home-hero {
+    justify-content: flex-end;
+    padding: 12px 12px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .entry-main__inner--home .home-hero__input-card {
+    width: 100%;
   }
 
   .auto-poster-filter__submenu {

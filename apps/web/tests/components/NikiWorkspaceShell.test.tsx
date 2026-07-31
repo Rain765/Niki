@@ -86,6 +86,8 @@ describe('NikiWorkspaceShell', () => {
     const props = renderShell();
     const menuButton = screen.getByRole('button', { name: '聊天' });
 
+    expect(document.querySelector('.niki-workspace__mobile-title')).toBeNull();
+    expect(document.querySelector('.niki-workspace__mobile-new')).toBeNull();
     fireEvent.click(menuButton);
     expect(menuButton.getAttribute('aria-expanded')).toBe('true');
     expect(document.body.style.overflow).toBe('hidden');

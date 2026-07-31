@@ -476,13 +476,6 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
         <span className="home-hero__backdrop-grid" />
         <span className="home-hero__backdrop-scan" />
       </div>
-      <div className="home-hero__copy">
-        <div className="home-hero__eyebrow">
-          <span aria-hidden />
-          NIKI / VISUAL AGENT
-        </div>
-        <h1 className="home-hero__title">{t('homeHero.title')}</h1>
-      </div>
 
       <div
         className={`home-hero__input-card${dragActive ? ' is-drag-active' : ''}`}
@@ -501,13 +494,6 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
         }}
         onDrop={handleDrop}
       >
-        <div className="home-hero__command-bar" aria-hidden>
-          <span className="home-hero__command-status">
-            <span />
-            DESIGN AGENT READY
-          </span>
-          <span>CMD / NIKI</span>
-        </div>
         {activePluginTitle || activeSkillTitle || selectedPluginContexts.length > 0 ? (
           <div className="home-hero__active">
             {selectedPluginContexts.map((plugin) => (
