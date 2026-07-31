@@ -119,8 +119,36 @@ describe('startDirectLoanPosterProject', () => {
         expectedOutputs: 0,
         outputPrefix: 'zamloan-poster',
         status: 'preparing',
+        activeBatchId: 'project-1',
+        batches: [{
+          id: 'project-1',
+          status: 'preparing',
+          expectedOutputs: 2,
+          outputNames: [],
+          brand: 'zamloan',
+          aspectRatio: '16:9',
+        }],
       },
     });
+    const queuedPatch = fetchMock.mock.calls
+      .filter(([input, init]) => (
+        String(input) === '/api/projects/project-1' && init?.method === 'PATCH'
+      ))
+      .map(([, init]) => JSON.parse(String(init?.body)) as {
+        metadata: { directGeneration: { status?: string; batches?: unknown[] } };
+      })
+      .find((body) => body.metadata.directGeneration.status === 'queued');
+    expect(queuedPatch?.metadata.directGeneration.batches).toEqual([
+      expect.objectContaining({
+        id: 'project-1',
+        status: 'queued',
+        expectedOutputs: 2,
+        outputNames: [
+          `zamloan-poster-${compactDate}-001.png`,
+          `zamloan-poster-${compactDate}-002.png`,
+        ],
+      }),
+    ]);
     expect(buildLoanPosterScenePromptsMock).toHaveBeenCalledWith(expect.objectContaining({
       variationSeed: 'project-1',
       variationOffset: 0,
@@ -180,6 +208,7 @@ describe('startDirectLoanPosterProject', () => {
   });
 
   it('opens the project immediately after creation while media setup continues', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
     let resolveUpload!: (response: Response) => void;
     const uploadGate = new Promise<Response>((resolve) => {
       resolveUpload = resolve;

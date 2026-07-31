@@ -31,6 +31,10 @@ import {
   isLoanPosterOutputName,
 } from './home-hero/zambia-posters';
 import { Icon } from './Icon';
+import {
+  buildDirectPosterBatches,
+  type DirectPosterBatchView,
+} from './direct-poster-batches';
 
 type TranslateFn = (key: keyof Dict, vars?: Record<string, string | number>) => string;
 
@@ -370,6 +374,7 @@ export function ChatPane({
   const historyWrapRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<ChatComposerHandle | null>(null);
   const didInitialScrollRef = useRef(false);
+  const lastFocusedDirectBatchRef = useRef<string | null>(null);
   // Tracks whether the user is glued close enough to the bottom that
   // streamed content should auto-follow. Distinct from the jump-button
   // state below, which uses a wider threshold (120px) so the affordance
@@ -395,14 +400,17 @@ export function ChatPane({
         (file) => file.kind === 'image' && isLoanPosterOutputName(file.name),
       )
     : [];
-  const expectedLoanPosters =
-    projectMetadata?.directGeneration?.kind === 'loan-poster'
-      ? projectMetadata.directGeneration.expectedOutputs
-      : null;
   const directLoanPosterLifecycle =
     projectMetadata?.directGeneration?.kind === 'loan-poster'
       ? projectMetadata.directGeneration
       : null;
+  const directPosterBatches = directLoanPosterProject
+    ? buildDirectPosterBatches(generatedLoanPosters, directLoanPosterLifecycle)
+    : [];
+  const activeDirectPosterBatchId = directPosterBatches.find((batch) => (
+    batch.id === directLoanPosterLifecycle?.activeBatchId
+    && (batch.status === 'preparing' || batch.status === 'queued')
+  ))?.id ?? null;
   const lastAssistantId = [...messages].reverse().find((m) => m.role === 'assistant')?.id;
   const hasActiveRunMessage = messages.some(
     (m) => m.role === 'assistant' && isActiveRunStatus(m.runStatus),
@@ -433,6 +441,21 @@ export function ChatPane({
     savedChatScrollRef.current = null;
     scrolledToFormRef.current = new Set();
   }, [activeConversationId]);
+
+  useEffect(() => {
+    if (tab !== 'chat' || !activeDirectPosterBatchId) return undefined;
+    const focusKey = `${activeConversationId}:${activeDirectPosterBatchId}`;
+    if (lastFocusedDirectBatchRef.current === focusKey) return undefined;
+    lastFocusedDirectBatchRef.current = focusKey;
+    const frame = requestAnimationFrame(() => {
+      const target = logRef.current;
+      if (!target) return;
+      target.scrollTop = target.scrollHeight;
+      pinnedToBottomRef.current = true;
+      setScrolledFromBottom(false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeConversationId, activeDirectPosterBatchId, tab]);
 
   // ChatComposer's internal `seededRef` latches after the first
   // non-empty `initialDraft`, so a parent setting `initialDraft` back
@@ -827,10 +850,8 @@ export function ChatPane({
             <div className="chat-log" ref={logRef}>
               {messages.length === 0 ? (
                 directLoanPosterProject ? (
-                  <DirectLoanPosterStatus
-                    generatedFiles={generatedLoanPosters}
-                    expectedCount={expectedLoanPosters}
-                    lifecycle={directLoanPosterLifecycle}
+                  <DirectLoanPosterTimeline
+                    batches={directPosterBatches}
                     filesInitialized={projectFilesInitialized}
                     projectId={projectId}
                     onDeleteProjectFile={onDeleteProjectFile}
@@ -999,17 +1020,53 @@ export function ChatPane({
   );
 }
 
-function DirectLoanPosterStatus({
-  generatedFiles,
-  expectedCount,
-  lifecycle,
+function DirectLoanPosterTimeline({
+  batches,
   filesInitialized,
   projectId,
   onDeleteProjectFile,
 }: {
-  generatedFiles: ProjectFile[];
-  expectedCount: number | null;
-  lifecycle: ProjectMetadata['directGeneration'] | null;
+  batches: DirectPosterBatchView[];
+  filesInitialized: boolean;
+  projectId: string | null;
+  onDeleteProjectFile?: (name: string) => Promise<boolean>;
+}) {
+  return (
+    <div
+      className={[
+        'direct-poster-timeline',
+        batches.length === 1 ? 'is-single-batch' : '',
+      ].filter(Boolean).join(' ')}
+      data-testid="direct-poster-timeline"
+    >
+      {batches.map((batch) => (
+        <div
+          key={batch.id}
+          className="direct-poster-batch"
+          data-testid={`direct-poster-batch-${batch.id}`}
+        >
+          <DirectLoanPosterBatchCard
+            batch={batch}
+            compactLoading={batches.length > 1}
+            filesInitialized={filesInitialized}
+            projectId={projectId}
+            onDeleteProjectFile={onDeleteProjectFile}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DirectLoanPosterBatchCard({
+  batch,
+  compactLoading,
+  filesInitialized,
+  projectId,
+  onDeleteProjectFile,
+}: {
+  batch: DirectPosterBatchView;
+  compactLoading: boolean;
   filesInitialized: boolean;
   projectId: string | null;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
@@ -1017,28 +1074,30 @@ function DirectLoanPosterStatus({
   const t = useT();
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [clientNow, setClientNow] = useState<number | null>(null);
+  const generatedFiles = batch.files;
+  const expectedCount = batch.expectedCount;
   useEffect(() => {
     const updateNow = () => setClientNow(Date.now());
     updateNow();
-    if (lifecycle?.status !== 'preparing' && lifecycle?.status !== 'queued') {
+    if (batch.status !== 'preparing' && batch.status !== 'queued') {
       return undefined;
     }
     const interval = window.setInterval(updateNow, 30_000);
     return () => window.clearInterval(interval);
-  }, [lifecycle?.queuedAt, lifecycle?.requestedAt, lifecycle?.status]);
+  }, [batch.queuedAt, batch.requestedAt, batch.status]);
   const generatedCount = generatedFiles.length;
   const hasResults = generatedCount > 0;
   const selectedFile =
     generatedFiles.find((file) => file.name === selectedFileName)
     ?? generatedFiles[0]
     ?? null;
-  const lifecycleStatus = lifecycle?.status;
+  const lifecycleStatus = batch.status;
   const hydrating = !filesInitialized;
   const legacyOrphaned = filesInitialized && lifecycleStatus == null && !hasResults;
   const activeLifecycleStatus =
     lifecycleStatus === 'preparing'
     || lifecycleStatus === 'queued';
-  const lifecycleStartedAt = lifecycle?.queuedAt ?? lifecycle?.requestedAt;
+  const lifecycleStartedAt = batch.queuedAt ?? batch.requestedAt;
   const recentlyStarted =
     clientNow !== null
     && lifecycleStartedAt !== undefined
@@ -1047,7 +1106,10 @@ function DirectLoanPosterStatus({
   const activelyStarting = activeLifecycleStatus && recentlyStarted;
   const staleActive = activeLifecycleStatus && !recentlyStarted;
   const interrupted = staleActive && !hasResults;
-  const failed = lifecycleStatus === 'failed' || legacyOrphaned || interrupted;
+  const failed = lifecycleStatus === 'failed'
+    || lifecycleStatus === 'interrupted'
+    || legacyOrphaned
+    || interrupted;
   const complete = !failed
     && !activelyStarting
     && expectedCount !== null
@@ -1056,10 +1118,10 @@ function DirectLoanPosterStatus({
     && expectedCount !== null
     && generatedCount >= expectedCount;
   const visuallyComplete = complete || queuedComplete;
-  const title = interrupted
+  const baseTitle = interrupted || lifecycleStatus === 'interrupted'
     ? '海报生成已中断'
     : failed
-    ? '海报生成未启动'
+    ? hasResults ? '本批生成未完成' : '海报生成未启动'
     : visuallyComplete
     ? `已完成 ${generatedCount} 张贷款海报`
     : hasResults
@@ -1067,10 +1129,13 @@ function DirectLoanPosterStatus({
         ? `正在生成 · ${generatedCount}/${expectedCount} 张`
         : `已生成 ${generatedCount} 张贷款海报`
       : '正在生成贷款海报';
-  const description = interrupted
+  const title = batch.batchNumber === null
+    ? baseTitle
+    : `第 ${batch.batchNumber} 批 · ${baseTitle}`;
+  const description = interrupted || lifecycleStatus === 'interrupted'
     ? '生成任务没有完成，可能因服务重启或网络中断。请重新生成。'
     : failed
-    ? lifecycle?.lastError ?? '生成任务没有成功入队，请返回首页重试。'
+    ? batch.lastError ?? '生成任务没有成功入队，请返回首页重试。'
     : visuallyComplete
     ? '图片已生成。可复制、下载或删除。'
     : hasResults && activelyStarting
@@ -1093,10 +1158,13 @@ function DirectLoanPosterStatus({
         failed ? 'is-failed' : '',
         hasResults ? 'has-results' : '',
         !hasResults && !failed ? 'is-loading' : '',
+        compactLoading && !hasResults && !failed ? 'is-inline-loading' : '',
       ].filter(Boolean).join(' ')}
       role="status"
       aria-live="polite"
       data-testid="direct-poster-status"
+      data-batch-id={batch.id}
+      data-batch-number={batch.batchNumber ?? undefined}
     >
       <span className="direct-poster-status-icon">
         <Icon

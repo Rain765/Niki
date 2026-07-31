@@ -87,6 +87,31 @@ export interface DesignSystemReviewEntry {
   agentTask?: DesignSystemReviewAgentTask;
 }
 
+export type DirectLoanPosterBatchStatus =
+  | 'preparing'
+  | 'queued'
+  | 'complete'
+  | 'failed'
+  | 'interrupted';
+
+/**
+ * One user-triggered poster generation. Exact output names keep repeated
+ * generations addressable as a timeline instead of one cumulative gallery.
+ */
+export interface DirectLoanPosterBatch {
+  id: string;
+  status: DirectLoanPosterBatchStatus;
+  requestedAt: number;
+  queuedAt?: number;
+  completedAt?: number;
+  failedAt?: number;
+  expectedOutputs: number;
+  outputNames: string[];
+  brand?: 'zamloan' | 'biumoney';
+  aspectRatio?: MediaAspect;
+  lastError?: string;
+}
+
 export interface ProjectMetadata {
   kind: ProjectKind;
   /**
@@ -104,9 +129,10 @@ export interface ProjectMetadata {
      * media-task admission. Persist the phase so a rejected admission cannot
      * leave every client rendering an endless spinner.
      */
-    status?: 'preparing' | 'queued' | 'failed';
+    status?: DirectLoanPosterBatchStatus;
     requestedAt?: number;
     queuedAt?: number;
+    completedAt?: number;
     failedAt?: number;
     lastError?: string;
     /** Local calendar day used to keep Home one-click generations together. */
@@ -115,6 +141,10 @@ export interface ProjectMetadata {
     outputPrefixes?: string[];
     /** Number of one-click generation batches accumulated in this project. */
     batchCount?: number;
+    /** Ordered generation history; legacy projects may not have this field. */
+    batches?: DirectLoanPosterBatch[];
+    /** Batch currently preparing or queued, retained after completion for history. */
+    activeBatchId?: string;
   };
   intent?: 'live-artifact';
   fidelity?: 'wireframe' | 'high-fidelity';

@@ -109,6 +109,29 @@ describe('HomeView context picker', () => {
           headers: { 'content-type': 'application/json' },
         });
       }
+      if (
+        value === '/api/projects/direct-poster-project'
+        && init?.method === 'PATCH'
+      ) {
+        const body = JSON.parse(String(init.body)) as {
+          metadata: unknown;
+          updatedAt: number;
+        };
+        return new Response(JSON.stringify({
+          project: {
+            id: 'direct-poster-project',
+            name: 'Zamloan Loan Posters',
+            skillId: 'loan-poster-skill-v1.1',
+            designSystemId: null,
+            createdAt: 1,
+            updatedAt: body.updatedAt,
+            metadata: body.metadata,
+          },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
       if (value === '/api/projects/direct-poster-project/upload?visibility=internal') {
         return new Response(JSON.stringify({
           files: [{ path: '.od-inputs/loan-poster-z-reference.png' }],

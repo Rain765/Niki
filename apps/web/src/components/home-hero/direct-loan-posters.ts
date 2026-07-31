@@ -7,7 +7,8 @@ import {
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
 } from './zambia-posters';
-import type { Project } from '../../types';
+import type { DirectLoanPosterBatch } from '@open-design/contracts';
+import type { Project, ProjectMetadata } from '../../types';
 import { fetchProjectFiles } from '../../providers/registry';
 import { listProjects, patchProject } from '../../state/projects';
 
@@ -49,6 +50,15 @@ function localDateKey(date = new Date()): string {
 
 function compactDateKey(dateKey: string): string {
   return dateKey.replaceAll('-', '');
+}
+
+function directGenerationMetadata(
+  metadata: ProjectMetadata,
+): NonNullable<ProjectMetadata['directGeneration']> {
+  if (!metadata.directGeneration) {
+    throw new Error('Direct loan-poster metadata is missing.');
+  }
+  return metadata.directGeneration;
 }
 
 /**
@@ -155,7 +165,18 @@ export async function startDirectLoanPosterProject(
     ? Math.max(0, (previousDirect.batchCount ?? 1) - 1)
     : previousDirect?.batchCount ?? (completedOutputCount > 0 ? 1 : 0);
   const requestedAt = Date.now();
-  let preparingMetadata = {
+  const batchId = browserUuid();
+  const preparingBatch: DirectLoanPosterBatch = {
+    id: batchId,
+    status: 'preparing',
+    requestedAt,
+    expectedOutputs: options.count,
+    outputNames: [],
+    brand: options.brand,
+    aspectRatio: options.aspectRatio,
+  };
+  const previousBatches = previousDirect?.batches ?? [];
+  let preparingMetadata: ProjectMetadata = {
     ...(reusableProject?.metadata ?? {}),
     kind: 'image' as const,
     imageModel: IMAGE_MODEL,
@@ -171,6 +192,8 @@ export async function startDirectLoanPosterProject(
       batchCount: previousAcceptedBatchCount,
       status: 'preparing' as const,
       requestedAt,
+      activeBatchId: batchId,
+      batches: [...previousBatches, preparingBatch],
       lastError: undefined,
       failedAt: undefined,
     },
@@ -209,6 +232,8 @@ export async function startDirectLoanPosterProject(
           batchCount: 0,
           status: 'preparing' as const,
           requestedAt,
+          activeBatchId: batchId,
+          batches: [preparingBatch],
           lastError: undefined,
           failedAt: undefined,
         },
@@ -248,6 +273,7 @@ export async function startDirectLoanPosterProject(
   onProjectCreated?.(project);
 
   let committedProject: Project;
+  let batchOutputNames: string[] = [];
   try {
     if (reusableProject) {
       try {
@@ -262,7 +288,7 @@ export async function startDirectLoanPosterProject(
         preparingMetadata = {
           ...preparingMetadata,
           directGeneration: {
-            ...preparingMetadata.directGeneration,
+            ...directGenerationMetadata(preparingMetadata),
             expectedOutputs: completedOutputCount,
             batchCount: previousAcceptedBatchCount,
           },
@@ -306,6 +332,45 @@ export async function startDirectLoanPosterProject(
       variationSeed: project.id,
       variationOffset: nextOutputNumber - 1,
     });
+    batchOutputNames = prompts.map((_, index) => (
+      `${datedOutputPrefix}-${String(nextOutputNumber + index).padStart(3, '0')}.png`
+    ));
+    const queuedAt = Date.now();
+    const queuedBatches = (directGenerationMetadata(preparingMetadata).batches ?? []).map((batch) => (
+      batch.id === batchId
+        ? {
+          ...batch,
+          status: 'queued' as const,
+          queuedAt,
+          expectedOutputs: batchOutputNames.length,
+          outputNames: batchOutputNames,
+        }
+        : batch
+    ));
+    const committed = await patchProject(project.id, {
+      metadata: {
+        ...preparingMetadata,
+        directGeneration: {
+          ...directGenerationMetadata(preparingMetadata),
+          expectedOutputs: completedOutputCount + batchOutputNames.length,
+          batchCount: previousAcceptedBatchCount + 1,
+          status: 'queued',
+          queuedAt,
+          activeBatchId: batchId,
+          batches: queuedBatches,
+        },
+      },
+      updatedAt: queuedAt,
+    });
+    if (!committed) {
+      throw new DirectLoanPosterRequestError({
+        stage: 'start-generation',
+        status: 500,
+        detail: '无法保存生成批次，图片任务尚未提交。',
+      });
+    }
+    committedProject = committed;
+
     const responses = await Promise.all(
       prompts.map((prompt, index) => fetch(
         `/api/projects/${encodeURIComponent(project.id)}/media/generate`,
@@ -319,7 +384,7 @@ export async function startDirectLoanPosterProject(
             quality: 'low',
             aspect: options.aspectRatio,
             ...(referencePath ? { image: referencePath } : {}),
-            output: `${datedOutputPrefix}-${String(nextOutputNumber + index).padStart(3, '0')}.png`,
+            output: batchOutputNames[index],
             prompt,
           }),
         },
@@ -329,29 +394,6 @@ export async function startDirectLoanPosterProject(
     if (failed) {
       await assertApiResponse(failed, 'start-generation');
     }
-
-    const queuedAt = Date.now();
-    const committed = await patchProject(project.id, {
-      metadata: {
-        ...preparingMetadata,
-        directGeneration: {
-          ...preparingMetadata.directGeneration,
-          expectedOutputs: completedOutputCount + options.count,
-          batchCount: previousAcceptedBatchCount + 1,
-          status: 'queued',
-          queuedAt,
-        },
-      },
-      updatedAt: queuedAt,
-    });
-    if (!committed) {
-      throw new DirectLoanPosterRequestError({
-        stage: 'start-generation',
-        status: 500,
-        detail: '生成任务已提交，但无法保存项目状态。',
-      });
-    }
-    committedProject = committed;
     logStage('generation-queued', project.id);
   } catch (reason) {
     const failureDetail = reason instanceof DirectLoanPosterRequestError
@@ -360,14 +402,28 @@ export async function startDirectLoanPosterProject(
         ? reason.message
         : '未知错误';
     const failedAt = Date.now();
+    const failedBatches = (directGenerationMetadata(preparingMetadata).batches ?? []).map((batch) => (
+      batch.id === batchId
+        ? {
+          ...batch,
+          status: 'failed' as const,
+          failedAt,
+          expectedOutputs: batchOutputNames.length || batch.expectedOutputs,
+          outputNames: batchOutputNames,
+          lastError: failureDetail,
+        }
+        : batch
+    ));
     const failedProject = await patchProject(project.id, {
       metadata: {
         ...preparingMetadata,
         directGeneration: {
-          ...preparingMetadata.directGeneration,
+          ...directGenerationMetadata(preparingMetadata),
           status: 'failed',
           failedAt,
           lastError: failureDetail,
+          activeBatchId: batchId,
+          batches: failedBatches,
         },
       },
       updatedAt: failedAt,
