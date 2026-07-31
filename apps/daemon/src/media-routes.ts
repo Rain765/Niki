@@ -2,6 +2,10 @@ import type { Express } from 'express';
 
 import { appendImageNodes } from './canvas-store.js';
 import { currentNikiUser } from './niki-auth-context.js';
+import {
+  assertNikiGenerationAllowed,
+  NikiQuotaExceededError,
+} from './niki-quota.js';
 import type { RouteDeps } from './server-context.js';
 
 export interface RegisterMediaRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'ids' | 'media' | 'appConfig' | 'orbit' | 'nativeDialogs' | 'projectStore' | 'projectFiles' | 'conversations' | 'research'> {}
@@ -158,6 +162,14 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       const projectId = req.params.id;
       const project = getProject(db, projectId);
       if (!project) return res.status(404).json({ error: 'project not found' });
+      const nikiUser = currentNikiUser();
+      if (nikiUser) {
+        await assertNikiGenerationAllowed(
+          db,
+          PROJECTS_DIR,
+          nikiUser.id,
+        );
+      }
 
       const taskId = randomUUID();
       const task = createMediaTask(taskId, projectId, {
@@ -256,6 +268,13 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         startedAt: task.startedAt,
       });
     } catch (err: any) {
+      if (err instanceof NikiQuotaExceededError) {
+        return res.status(err.status).json({
+          error: err.message,
+          code: err.code,
+          quota: err.statusBody,
+        });
+      }
       const status = typeof err?.status === 'number' ? err.status : 400;
       const code = err?.code;
       const body: any = { error: String(err && err.message ? err.message : err) };

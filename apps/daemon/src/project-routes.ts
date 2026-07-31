@@ -18,6 +18,12 @@ import {
   resolvePluginSnapshot,
 } from './plugins/index.js';
 import type { RouteDeps } from './server-context.js';
+import { currentNikiUser } from './niki-auth-context.js';
+import {
+  assertNikiStorageAllowed,
+  getNikiQuotaStatus,
+  NikiQuotaExceededError,
+} from './niki-quota.js';
 import { listSkills } from './skills.js';
 import { auditDesignSystemPackage } from './tools-connectors-cli.js';
 
@@ -1231,6 +1237,15 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         await ensureProject(PROJECTS_DIR, req.params.id, uploadProject?.metadata);
         if (req.file) {
           const buf = await fs.promises.readFile(req.file.path);
+          const nikiUser = currentNikiUser();
+          if (nikiUser) {
+            await assertNikiStorageAllowed(
+              db,
+              PROJECTS_DIR,
+              nikiUser.id,
+              buf.length,
+            );
+          }
           const desiredName = sanitizeName(
             req.body?.name || req.file.originalname,
           );
@@ -1274,6 +1289,15 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
           encoding === 'base64'
             ? Buffer.from(content, 'base64')
             : Buffer.from(content, 'utf8');
+        const nikiUser = currentNikiUser();
+        if (nikiUser) {
+          await assertNikiStorageAllowed(
+            db,
+            PROJECTS_DIR,
+            nikiUser.id,
+            buf.length,
+          );
+        }
         const meta = artifact === true
           ? await createProjectArtifactFile({
               projectsRoot: PROJECTS_DIR,
@@ -1297,6 +1321,16 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         const body = { file: meta };
         res.json(body);
       } catch (err: any) {
+        if (err instanceof NikiQuotaExceededError) {
+          if (req.file?.path) {
+            fs.promises.unlink(req.file.path).catch(() => {});
+          }
+          return res.status(err.status).json({
+            error: err.message,
+            code: err.code,
+            quota: err.statusBody,
+          });
+        }
         if (err instanceof ArtifactRegressionError) {
           return sendApiError(res, 422, 'ARTIFACT_REGRESSION', err.message, {
             details: {
@@ -1370,12 +1404,14 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
 
 }
 
-export interface RegisterProjectUploadRoutesDeps extends RouteDeps<'http' | 'uploads' | 'node'> {}
+export interface RegisterProjectUploadRoutesDeps extends RouteDeps<'db' | 'http' | 'uploads' | 'node' | 'paths'> {}
 
 export function registerProjectUploadRoutes(app: Express, ctx: RegisterProjectUploadRoutesDeps) {
+  const { db } = ctx;
   const { sendApiError } = ctx.http;
   const { handleProjectUpload } = ctx.uploads;
   const { fs } = ctx.node;
+  const { PROJECTS_DIR } = ctx.paths;
 
   app.post(
     '/api/projects/:id/upload',
@@ -1383,6 +1419,23 @@ export function registerProjectUploadRoutes(app: Express, ctx: RegisterProjectUp
     async (req, res) => {
       try {
         const incoming = Array.isArray(req.files) ? req.files : [];
+        const nikiUser = currentNikiUser();
+        if (nikiUser) {
+          const quota = await getNikiQuotaStatus(
+            db,
+            PROJECTS_DIR,
+            nikiUser.id,
+          );
+          if (!quota.allowed.storage) {
+            await Promise.all(incoming.map((file) =>
+              fs.promises.unlink(file.path).catch(() => {})));
+            return res.status(429).json({
+              error: '存储额度已用完，请删除旧文件或联系管理员提高额度',
+              code: 'STORAGE_QUOTA_EXCEEDED',
+              quota,
+            });
+          }
+        }
         const out = [];
         const internal = req.query?.visibility === 'internal';
         for (const f of incoming) {

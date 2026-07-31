@@ -74,6 +74,8 @@ function migrate(db: SqliteDb): void {
       avatar_url TEXT,
       role TEXT NOT NULL DEFAULT 'member',
       is_active INTEGER NOT NULL DEFAULT 1,
+      storage_quota_bytes INTEGER NOT NULL DEFAULT 5368709120,
+      daily_generation_quota INTEGER NOT NULL DEFAULT 30,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       UNIQUE(feishu_tenant_key, feishu_open_id)
@@ -284,6 +286,19 @@ function migrate(db: SqliteDb): void {
     CREATE INDEX IF NOT EXISTS idx_projects_owner_updated
       ON projects(owner_user_id, updated_at DESC)
   `);
+  const nikiUserCols = db.prepare(`PRAGMA table_info(niki_users)`).all() as DbRow[];
+  if (!nikiUserCols.some((c: DbRow) => c.name === 'storage_quota_bytes')) {
+    db.exec(`
+      ALTER TABLE niki_users
+      ADD COLUMN storage_quota_bytes INTEGER NOT NULL DEFAULT 5368709120
+    `);
+  }
+  if (!nikiUserCols.some((c: DbRow) => c.name === 'daily_generation_quota')) {
+    db.exec(`
+      ALTER TABLE niki_users
+      ADD COLUMN daily_generation_quota INTEGER NOT NULL DEFAULT 30
+    `);
+  }
   const messageCols = db.prepare(`PRAGMA table_info(messages)`).all() as DbRow[];
   if (!messageCols.some((c: DbRow) => c.name === 'agent_id')) {
     db.exec(`ALTER TABLE messages ADD COLUMN agent_id TEXT`);

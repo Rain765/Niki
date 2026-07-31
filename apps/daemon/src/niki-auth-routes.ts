@@ -3,12 +3,15 @@ import type Database from 'better-sqlite3';
 import type {
   NikiAuthConfigResponse,
   NikiAuthMeResponse,
+  NikiManagedUserListResponse,
   NikiPasswordAccountCreateRequest,
   NikiPasswordAccountCreateResponse,
   NikiPasswordAccountListResponse,
   NikiPasswordAccountPasswordUpdateRequest,
   NikiPasswordAccountPasswordUpdateResponse,
   NikiPasswordLoginRequest,
+  NikiUserQuotaStatus,
+  NikiUserQuotaUpdateRequest,
 } from '@open-design/contracts';
 import {
   consumeNikiOAuthState,
@@ -25,6 +28,13 @@ import {
   verifyPasswordUser,
   type FeishuUserProfile,
 } from './niki-auth.js';
+import {
+  assertNikiStorageAllowed,
+  getNikiQuotaStatus,
+  listNikiManagedUsers,
+  NikiQuotaExceededError,
+  updateNikiUserQuota,
+} from './niki-quota.js';
 import { runAsNikiUser } from './niki-auth-context.js';
 import {
   checkPasswordLoginSecurity,
@@ -50,6 +60,7 @@ export interface NikiAuthRuntimeConfig {
 
 interface RegisterNikiAuthRoutesOptions {
   db: SqliteDb;
+  projectsRoot: string;
   fetchImpl?: FetchLike;
   env?: NodeJS.ProcessEnv;
   isLocalOperatorRequest?: (req: Request) => boolean;
@@ -85,7 +96,7 @@ export function registerNikiAuthRoutes(
   app: Express,
   options: RegisterNikiAuthRoutesOptions,
 ): void {
-  const { db, fetchImpl = fetch } = options;
+  const { db, fetchImpl = fetch, projectsRoot } = options;
   const config = readNikiAuthRuntimeConfig(options.env);
 
   app.get('/api/auth/config', (_req, res) => {
@@ -299,35 +310,106 @@ export function registerNikiAuthRoutes(
     return res.json({ ok: true });
   });
 
+  app.get('/api/auth/quota', async (req, res, next) => {
+    try {
+      const user = requireSignedInUser(db, req, res);
+      if (!user) return;
+      res.setHeader('Cache-Control', 'no-store');
+      const body: NikiUserQuotaStatus = await getNikiQuotaStatus(
+        db,
+        projectsRoot,
+        user.id,
+      );
+      return res.json(body);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/auth/users', async (req, res, next) => {
+    try {
+      const admin = requireAdmin(db, req, res);
+      if (!admin) return;
+      res.setHeader('Cache-Control', 'no-store');
+      const body: NikiManagedUserListResponse = {
+        users: await listNikiManagedUsers(db, projectsRoot),
+      };
+      return res.json(body);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch('/api/auth/users/:userId/quota', async (req, res, next) => {
+    try {
+      const admin = requireAdmin(db, req, res);
+      if (!admin) return;
+      const body = req.body as Partial<NikiUserQuotaUpdateRequest> | undefined;
+      const updated = updateNikiUserQuota(db, req.params.userId, {
+        storageBytes: Number(body?.storageBytes),
+        dailyGenerations: Number(body?.dailyGenerations),
+      });
+      if (!updated) return res.status(404).json({ error: '账号不存在' });
+      const status = await getNikiQuotaStatus(
+        db,
+        projectsRoot,
+        req.params.userId,
+      );
+      return res.json(status);
+    } catch (error) {
+      if (error instanceof RangeError) {
+        return res.status(400).json({ error: error.message });
+      }
+      next(error);
+    }
+  });
+
   // Registered before the product routes. This keeps health/auth bootstrap
   // available while every business endpoint receives an authenticated user
   // through AsyncLocalStorage.
-  app.use('/api', (req, res, next) => {
-    if (!config.enabled) return next();
-    if (isPublicApiPath(req.path)) return next();
-    if (
-      LOCAL_OPERATOR_API_PATHS.has(req.path)
-      && options.isLocalOperatorRequest?.(req) === true
-    ) {
-      return next();
+  app.use('/api', async (req, res, next) => {
+    try {
+      if (!config.enabled) return next();
+      if (isPublicApiPath(req.path)) return next();
+      if (
+        LOCAL_OPERATOR_API_PATHS.has(req.path)
+        && options.isLocalOperatorRequest?.(req) === true
+      ) {
+        return next();
+      }
+      if (!config.ready) {
+        return res.status(503).json({
+          error: 'Feishu authentication is not configured on this server',
+        });
+      }
+      const sessionToken = requestSessionToken(req);
+      const user = resolveNikiSession(db, sessionToken);
+      if (!user) return res.status(401).json({ error: 'Authentication required' });
+      if (!requestCanAccessProject(
+        db,
+        req,
+        user.id,
+        options.resolveRunProjectId,
+      )) {
+        return res.status(404).json({ error: 'Project not found' });
+      }
+      if (
+        req.method === 'POST'
+        && (req.path === '/runs' || req.path === '/chat')
+      ) {
+        await assertNikiStorageAllowed(db, projectsRoot, user.id);
+      }
+      return runAsNikiUser(user, () => next(), sessionToken);
+    } catch (error) {
+      if (error instanceof NikiQuotaExceededError) {
+        return res.status(error.status).json({
+          error: error.message,
+          code: error.code,
+          quota: error.statusBody,
+        });
+      }
+      next(error);
     }
-    if (!config.ready) {
-      return res.status(503).json({
-        error: 'Feishu authentication is not configured on this server',
-      });
-    }
-    const sessionToken = requestSessionToken(req);
-    const user = resolveNikiSession(db, sessionToken);
-    if (!user) return res.status(401).json({ error: 'Authentication required' });
-    if (!requestCanAccessProject(
-      db,
-      req,
-      user.id,
-      options.resolveRunProjectId,
-    )) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-    return runAsNikiUser(user, () => next(), sessionToken);
   });
 }
 
@@ -355,6 +437,19 @@ function requireAdmin(
   }
   if (user.role !== 'admin') {
     res.status(403).json({ error: 'Administrator access required' });
+    return null;
+  }
+  return user;
+}
+
+function requireSignedInUser(
+  db: SqliteDb,
+  req: Request,
+  res: Response,
+) {
+  const user = resolveNikiSession(db, requestSessionToken(req));
+  if (!user) {
+    res.status(401).json({ error: 'Authentication required' });
     return null;
   }
   return user;

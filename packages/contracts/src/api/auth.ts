@@ -16,6 +16,46 @@ export interface NikiAuthMeResponse {
   user: NikiAuthUser;
 }
 
+export interface NikiUserQuota {
+  storageBytes: number;
+  dailyGenerations: number;
+}
+
+export interface NikiUserQuotaUsage {
+  storageBytes: number;
+  dailyGenerations: number;
+  windowStartedAt: number;
+}
+
+export interface NikiUserQuotaStatus {
+  userId: string;
+  quota: NikiUserQuota;
+  usage: NikiUserQuotaUsage;
+  allowed: {
+    storage: boolean;
+    generation: boolean;
+  };
+}
+
+export interface NikiManagedUser {
+  user: NikiAuthUser;
+  provider: 'feishu' | 'password';
+  username?: string;
+  isActive: boolean;
+  createdAt: number;
+  quota: NikiUserQuota;
+  usage: NikiUserQuotaUsage;
+}
+
+export interface NikiManagedUserListResponse {
+  users: NikiManagedUser[];
+}
+
+export interface NikiUserQuotaUpdateRequest {
+  storageBytes: number;
+  dailyGenerations: number;
+}
+
 export interface NikiPasswordAccount {
   username: string;
   user: NikiAuthUser;

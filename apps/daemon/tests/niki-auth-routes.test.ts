@@ -35,6 +35,7 @@ describe('Niki Feishu authentication routes', () => {
 
     registerNikiAuthRoutes(app, {
       db,
+      projectsRoot: path.join(tempDir, 'projects'),
       fetchImpl: feishuFetch,
       isLocalOperatorRequest: (req) =>
         req.get('x-test-local-operator') === 'yes',
@@ -127,5 +128,71 @@ describe('Niki Feishu authentication routes', () => {
       headers: { 'x-test-local-operator': 'yes' },
     });
     expect(privateRoute.status).toBe(401);
+  });
+
+  it('reports and updates per-user quotas through authenticated admin APIs', async () => {
+    const start = await fetch(`${baseUrl}/api/auth/feishu/start`, {
+      redirect: 'manual',
+    });
+    const stateCookie = start.headers.get('set-cookie') ?? '';
+    const state = new URL(start.headers.get('location') ?? '')
+      .searchParams.get('state');
+    const callback = await fetch(
+      `${baseUrl}/api/auth/feishu/callback?code=oauth-code&state=${encodeURIComponent(state ?? '')}`,
+      {
+        redirect: 'manual',
+        headers: { cookie: stateCookie.split(';')[0] ?? '' },
+      },
+    );
+    const sessionCookie = callback.headers.getSetCookie()
+      .find((cookie) => cookie.startsWith('niki_session='))
+      ?.split(';')[0] ?? '';
+
+    const quota = await fetch(`${baseUrl}/api/auth/quota`, {
+      headers: { cookie: sessionCookie },
+    });
+    expect(quota.status).toBe(200);
+    const initial = await quota.json() as {
+      userId: string;
+      quota: { storageBytes: number; dailyGenerations: number };
+    };
+    expect(initial.quota.storageBytes).toBeGreaterThan(0);
+    expect(initial.quota.dailyGenerations).toBeGreaterThan(0);
+
+    const updated = await fetch(
+      `${baseUrl}/api/auth/users/${encodeURIComponent(initial.userId)}/quota`,
+      {
+        method: 'PATCH',
+        headers: {
+          cookie: sessionCookie,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          storageBytes: 123_456,
+          dailyGenerations: 7,
+        }),
+      },
+    );
+    expect(updated.status).toBe(200);
+    await expect(updated.json()).resolves.toMatchObject({
+      quota: {
+        storageBytes: 123_456,
+        dailyGenerations: 7,
+      },
+    });
+
+    const users = await fetch(`${baseUrl}/api/auth/users`, {
+      headers: { cookie: sessionCookie },
+    });
+    expect(users.status).toBe(200);
+    await expect(users.json()).resolves.toMatchObject({
+      users: [{
+        provider: 'feishu',
+        quota: {
+          storageBytes: 123_456,
+          dailyGenerations: 7,
+        },
+      }],
+    });
   });
 });

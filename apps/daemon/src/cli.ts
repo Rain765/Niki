@@ -260,6 +260,8 @@ async function runAuth(args) {
       --password-file <path|-> [--json] [--daemon-url <url>]
   od auth users set-password --user <user-id> --password-file <path|->
       [--json] [--daemon-url <url>]
+  od auth users set-quota --user <user-id> --storage-gb <number>
+      --daily-generations <number> [--json] [--daemon-url <url>]
   od auth users disable --user <user-id> [--json] [--daemon-url <url>]
 
 Reports whether Niki Feishu authentication is enabled and whether the
@@ -272,7 +274,10 @@ accepted as a command-line argument.`);
   }
   const sub = args[0];
   const flags = parseFlags(args.slice(1), {
-    string: new Set(['daemon-url', 'username', 'name', 'password-file', 'user']),
+    string: new Set([
+      'daemon-url', 'username', 'name', 'password-file', 'user',
+      'storage-gb', 'daily-generations',
+    ]),
     boolean: new Set(['json', 'help', 'h']),
   });
   if (sub !== 'status' && sub !== 'users') {
@@ -282,8 +287,8 @@ accepted as a command-line argument.`);
   const base = (await resolveDaemonUrl({ flagUrl: flags['daemon-url'] })).replace(/\/$/, '');
   if (sub === 'users') {
     const action = args[1];
-    if (!['list', 'create', 'set-password', 'disable'].includes(action)) {
-      console.error('expected one of: od auth users list|create|set-password|disable');
+    if (!['list', 'create', 'set-password', 'set-quota', 'disable'].includes(action)) {
+      console.error('expected one of: od auth users list|create|set-password|set-quota|disable');
       process.exit(2);
     }
     if (!nikiSessionToken) {
@@ -291,19 +296,22 @@ accepted as a command-line argument.`);
       process.exit(2);
     }
     if (action === 'list') {
-      const response = await fetch(`${base}/api/auth/password-users`);
+      const response = await fetch(`${base}/api/auth/users`);
       if (!response.ok) return structuredHttpFailure(response);
       const body = await response.json();
       if (flags.json) {
         process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
         return;
       }
-      for (const account of body.accounts ?? []) {
+      for (const account of body.users ?? []) {
         console.log([
           account.user?.id ?? '',
-          account.username ?? '',
+          account.provider ?? '',
+          account.username ?? '-',
           account.user?.name ?? '',
           account.isActive ? 'active' : 'disabled',
+          `${Math.round((account.usage?.storageBytes ?? 0) / 1024 / 1024)}MiB/${Math.round((account.quota?.storageBytes ?? 0) / 1024 / 1024)}MiB`,
+          `${account.usage?.dailyGenerations ?? 0}/${account.quota?.dailyGenerations ?? 0}`,
         ].join('\t'));
       }
       return;
@@ -350,6 +358,45 @@ accepted as a command-line argument.`);
       const body = await response.json();
       if (flags.json) process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
       else console.log(`password-updated\t${flags.user}`);
+      return;
+    }
+    if (action === 'set-quota') {
+      if (!flags.user || !flags['storage-gb'] || !flags['daily-generations']) {
+        console.error(
+          'set-quota requires --user, --storage-gb, and --daily-generations',
+        );
+        process.exit(2);
+      }
+      const storageGb = Number(flags['storage-gb']);
+      const dailyGenerations = Number(flags['daily-generations']);
+      if (
+        !Number.isFinite(storageGb)
+        || storageGb <= 0
+        || !Number.isSafeInteger(dailyGenerations)
+        || dailyGenerations <= 0
+      ) {
+        console.error('storage-gb must be positive and daily-generations must be a positive integer');
+        process.exit(2);
+      }
+      const response = await fetch(
+        `${base}/api/auth/users/${encodeURIComponent(flags.user)}/quota`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            storageBytes: Math.round(storageGb * 1024 * 1024 * 1024),
+            dailyGenerations,
+          }),
+        },
+      );
+      if (!response.ok) return structuredHttpFailure(response);
+      const body = await response.json();
+      if (flags.json) process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+      else {
+        console.log(
+          `quota-updated\t${flags.user}\t${storageGb}GiB\t${dailyGenerations}/24h`,
+        );
+      }
       return;
     }
     if (!flags.user) {
