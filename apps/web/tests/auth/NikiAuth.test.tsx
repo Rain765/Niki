@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { NikiAuthGate, useNikiAuth } from '../../src/auth/NikiAuth';
@@ -16,6 +16,45 @@ afterEach(() => {
 });
 
 describe('NikiAuthGate', () => {
+  it('starts the session lookup without waiting for auth config', async () => {
+    let resolveConfig!: (response: Response) => void;
+    const configResponse = new Promise<Response>((resolve) => {
+      resolveConfig = resolve;
+    });
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === '/api/auth/config') return configResponse;
+      return Promise.resolve(new Response(JSON.stringify({
+        user: {
+          id: 'user-1',
+          name: '飞书同事',
+          role: 'member',
+        },
+      }), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/me',
+        expect.objectContaining({ credentials: 'include' }),
+      );
+    });
+
+    resolveConfig(new Response(JSON.stringify({
+      enabled: true,
+      provider: 'feishu',
+      ready: true,
+    }), { status: 200 }));
+
+    expect(await screen.findByText('signed in as 飞书同事')).toBeTruthy();
+  });
+
   it('keeps local development available when Feishu auth is disabled', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
       new Response(JSON.stringify({

@@ -33,6 +33,8 @@ const NikiAuthContext = createContext<NikiAuthContextValue>({
   logout: async () => {},
 });
 
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 8_000;
+
 function authReturnTo(): string {
   const url = new URL(window.location.href);
   url.searchParams.delete('authError');
@@ -61,11 +63,21 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
 
   const load = useCallback(async () => {
     setState({ status: 'loading' });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, AUTH_BOOTSTRAP_TIMEOUT_MS);
     try {
-      const configResponse = await fetch('/api/auth/config', {
+      const requestInit: RequestInit = {
         credentials: 'include',
         cache: 'no-store',
-      });
+        signal: controller.signal,
+      };
+      const configRequest = fetch('/api/auth/config', requestInit);
+      const meRequest = fetch('/api/auth/me', requestInit)
+        .then((response) => ({ response }))
+        .catch((error: unknown) => ({ error }));
+      const configResponse = await configRequest;
       if (!configResponse.ok) throw new Error('无法读取登录配置');
       const config = await configResponse.json() as NikiAuthConfigResponse;
       if (!config.enabled) {
@@ -77,10 +89,9 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
         setState({ status: 'unauthenticated', ready: false });
         return;
       }
-      const meResponse = await fetch('/api/auth/me', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const meResult = await meRequest;
+      if ('error' in meResult) throw meResult.error;
+      const { response: meResponse } = meResult;
       if (meResponse.status === 401) {
         setState({ status: 'unauthenticated', ready: true });
         return;
@@ -92,8 +103,15 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
     } catch (error) {
       setState({
         status: 'error',
-        message: error instanceof Error ? error.message : 'Niki 暂时无法连接',
+        message: controller.signal.aborted
+          ? '连接超时，请检查网络后重试'
+          : error instanceof Error
+            ? error.message
+            : 'Niki 暂时无法连接',
       });
+    } finally {
+      clearTimeout(timeoutId);
+      controller.abort();
     }
   }, []);
 
