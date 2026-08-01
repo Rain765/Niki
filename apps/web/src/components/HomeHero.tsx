@@ -599,6 +599,7 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
           testIdPrefix="home-hero-auto-poster"
           inlineOnMobile
           onOpenChange={setAutoPosterSettingsOpen}
+          onGenerate={onAutoPoster}
           onCountChange={onAutoPosterCountChange}
           onAspectRatioChange={onAutoPosterAspectRatioChange}
           onBrandChange={onAutoPosterBrandChange}

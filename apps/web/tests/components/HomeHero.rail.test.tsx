@@ -167,7 +167,8 @@ describe('HomeHero intent rail', () => {
       dispatchEvent: vi.fn(),
     })));
 
-    renderHero();
+    const onAutoPoster = vi.fn();
+    renderHero({ onAutoPoster });
 
     const welcome = screen.getByTestId('home-hero-welcome');
     expect(welcome.textContent).toContain('Enter your copy and generate a loan poster in one click');
@@ -181,6 +182,14 @@ describe('HomeHero intent rail', () => {
     expect(menu.closest('.auto-poster-filter__portal')).toBeNull();
     expect(composer.classList.contains('is-settings-open')).toBe(true);
     expect(welcome.classList.contains('is-hidden')).toBe(true);
+
+    const generate = screen.getByTestId('home-hero-auto-poster-generate');
+    expect(generate.textContent).toContain('Auto posters');
+    fireEvent.click(generate);
+
+    expect(onAutoPoster).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('home-hero-auto-poster-menu')).toBeNull();
+    expect(composer.classList.contains('is-settings-open')).toBe(false);
   });
 
   it('renders one chip per HOME_HERO_CHIPS entry', () => {

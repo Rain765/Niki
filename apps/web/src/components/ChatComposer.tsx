@@ -263,6 +263,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       AUTO_POSTER_DEFAULT_BRAND,
     );
     const [autoPosterPending, setAutoPosterPending] = useState(false);
+    const [autoPosterSettingsOpen, setAutoPosterSettingsOpen] = useState(false);
     // External MCP servers configured by the user. Fetched lazily on mount;
     // shown in the slash-command palette so `/mcp <id>` inserts a hint into
     // the prompt that nudges the model to use that server's tools.
@@ -1199,7 +1200,9 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
 
     return (
       <div
-        className={`composer${dragActive ? " drag-active" : ""}`}
+        className={`composer${dragActive ? " drag-active" : ""}${
+          autoPosterSettingsOpen ? ' is-settings-open' : ''
+        }`}
         data-testid="chat-composer"
         onDragOver={(e) => {
           e.preventDefault();
@@ -1216,6 +1219,9 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           disabled={streaming || sendDisabled || uploading}
           testIdPrefix="chat-auto-poster"
           className="composer-auto-poster"
+          inlineOnMobile
+          onOpenChange={setAutoPosterSettingsOpen}
+          onGenerate={() => void generateLoanPosters()}
           onCountChange={setAutoPosterCount}
           onAspectRatioChange={setAutoPosterAspectRatio}
           onBrandChange={setAutoPosterBrand}
