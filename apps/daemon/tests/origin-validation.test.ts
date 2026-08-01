@@ -60,7 +60,16 @@ function createOriginMiddleware(resolvedPort: number, host = '127.0.0.1') {
     }
     const ports = allowedBrowserPorts(resolvedPort);
     const extraAllowedOrigins = configuredAllowedOrigins();
-    if (!isAllowedBrowserOrigin(origin, req.headers.host, ports, host, extraAllowedOrigins)) {
+    if (
+      !isAllowedBrowserOrigin(
+        origin,
+        req.headers.host,
+        ports,
+        host,
+        extraAllowedOrigins,
+        req.headers['x-forwarded-host'],
+      )
+    ) {
       return res.status(403).json({ error: 'Cross-origin requests are not allowed' });
     }
     next();
@@ -234,6 +243,44 @@ describe('daemon origin validation middleware', () => {
       },
     });
     expect(res.status).toBe(200);
+  });
+
+  it('allows a same-origin public request forwarded by the local web proxy', async () => {
+    const publicHost = 'niki.example.com';
+    const res = await request(port, 'POST', '/api/projects', {
+      origin: `https://${publicHost}`,
+      headers: {
+        Host: `127.0.0.1:${port}`,
+        'x-forwarded-host': publicHost,
+        'content-type': 'application/json',
+      },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('allows guarded routes through a matching public forwarded host', async () => {
+    const publicHost = 'niki.example.com';
+    const res = await request(port, 'POST', '/api/active', {
+      origin: `https://${publicHost}`,
+      headers: {
+        Host: `127.0.0.1:${port}`,
+        'x-forwarded-host': publicHost,
+        'content-type': 'application/json',
+      },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('blocks a public origin when the forwarded host differs', async () => {
+    const res = await request(port, 'POST', '/api/projects', {
+      origin: 'https://evil.example.com',
+      headers: {
+        Host: `127.0.0.1:${port}`,
+        'x-forwarded-host': 'niki.example.com',
+        'content-type': 'application/json',
+      },
+    });
+    expect(res.status).toBe(403);
   });
 
   it('blocks private LAN origins when the request host differs', async () => {

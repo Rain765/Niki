@@ -7,7 +7,13 @@
  * streaming turns, or empty responses.
  */
 
-import { cleanup, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AssistantMessage } from '../../src/components/AssistantMessage';
@@ -41,13 +47,136 @@ function producedFile(name: string): ProjectFile {
     name,
     path: name,
     size: 100,
-    updatedAt: 1700000005,
+    mtime: 1700000000,
     kind: 'html',
+    mime: 'text/html',
   } as ProjectFile;
 }
 
 describe('AssistantMessage feedback gate (issue #1288)', () => {
+  it('previews a linked generated image without switching to the canvas', () => {
+    const onRequestOpenFile = vi.fn();
+    const fileName = 'zamloan-poster-01.png';
+    render(
+      <AssistantMessage
+        message={baseMessage({
+          content: `Generated [${fileName}](/api/projects/proj-1/raw/${fileName}).`,
+          events: [
+            {
+              kind: 'text',
+              text: `Generated [${fileName}](/api/projects/proj-1/raw/${fileName}).`,
+            } as ChatMessage['events'][number],
+          ],
+        })}
+        streaming={false}
+        projectId="proj-1"
+        projectFiles={[
+          {
+            ...producedFile(fileName),
+            kind: 'image',
+            mime: 'image/png',
+          },
+        ]}
+        projectFileNames={new Set([fileName])}
+        onRequestOpenFile={onRequestOpenFile}
+      />,
+    );
+
+    const [fileLink] = screen.getAllByRole('button', { name: fileName });
+    fireEvent.click(fileLink);
+    expect(
+      screen.getByRole('dialog', { name: `Preview ${fileName}` }),
+    ).toBeTruthy();
+    expect(
+      screen.getByTestId('assistant-image-preview').getAttribute('src'),
+    ).toBe(
+      `/api/projects/proj-1/image-preview/${fileName}?variant=preview&v=1700000000`,
+    );
+    expect(onRequestOpenFile).not.toHaveBeenCalled();
+    expect(screen.queryByRole('link', { name: fileName })).toBeNull();
+  });
+
+  it('keeps a linked generated image visible when replay has not attached producedFiles', () => {
+    const fileName = 'zamloan-poster-01.png';
+    render(
+      <AssistantMessage
+        message={baseMessage({
+          content: `Generated [${fileName}](/api/projects/proj-1/raw/${fileName}).`,
+          events: [
+            {
+              kind: 'text',
+              text: `Generated [${fileName}](/api/projects/proj-1/raw/${fileName}).`,
+            } as ChatMessage['events'][number],
+          ],
+          producedFiles: [],
+        })}
+        streaming={false}
+        projectId="proj-1"
+        projectFiles={[
+          {
+            ...producedFile(fileName),
+            kind: 'image',
+            mime: 'image/png',
+          },
+        ]}
+        projectFileNames={new Set([fileName])}
+        onRequestOpenFile={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId(`produced-file-thumbnail-${fileName}`)).toBeTruthy();
+  });
+
+  it('recovers a generated image from a successful media tool result', () => {
+    const onRequestOpenFile = vi.fn();
+    const fileName = 'zamloan-poster-01.png';
+    render(
+      <AssistantMessage
+        message={baseMessage({
+          content: `Generated [${fileName}](/workspace/${fileName}).`,
+          events: [
+            {
+              kind: 'text',
+              text: `Generated [${fileName}](/workspace/${fileName}).`,
+            },
+            {
+              kind: 'tool_result',
+              toolUseId: 'media-generate',
+              isError: false,
+              content: JSON.stringify({
+                file: {
+                  name: fileName,
+                  size: 2_287_785,
+                  mtime: 1_720_000_000,
+                  kind: 'image',
+                  mime: 'image/png',
+                },
+              }),
+            },
+          ] as ChatMessage['events'],
+          producedFiles: [],
+          runStatus: 'failed',
+        })}
+        streaming={false}
+        projectId="proj-1"
+        onRequestOpenFile={onRequestOpenFile}
+      />,
+    );
+
+    const thumbnail = screen.getByTestId(
+      `produced-file-thumbnail-${fileName}`,
+    );
+    expect(thumbnail).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: fileName })[0]!);
+    expect(
+      screen.getByRole('dialog', { name: `Preview ${fileName}` }),
+    ).toBeTruthy();
+    expect(onRequestOpenFile).not.toHaveBeenCalled();
+    expect(screen.queryByRole('link', { name: fileName })).toBeNull();
+  });
+
   it('renders image deliverables as thumbnails beside their file copy', () => {
+    const onRequestOpenFile = vi.fn();
     render(
       <AssistantMessage
         message={baseMessage({
@@ -61,6 +190,7 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
         })}
         streaming={false}
         projectId="proj-1"
+        onRequestOpenFile={onRequestOpenFile}
       />,
     );
 
@@ -68,8 +198,23 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
       'produced-file-thumbnail-zambia-support-poster-01.png',
     ) as HTMLImageElement;
     expect(thumbnail.src).toContain(
-      '/api/projects/proj-1/raw/zambia-support-poster-01.png',
+      '/api/projects/proj-1/image-preview/zambia-support-poster-01.png?variant=thumbnail',
     );
+    fireEvent.click(thumbnail.closest('button')!);
+    expect(screen.getByTestId('assistant-image-preview')).toBeTruthy();
+    expect(onRequestOpenFile).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.click(screen.getByRole('button', { name: 'zambia-support-poster-01.png' }));
+    expect(screen.getByTestId('assistant-image-preview')).toBeTruthy();
+    expect(onRequestOpenFile).not.toHaveBeenCalled();
+    const preview = screen.getByRole('dialog', {
+      name: 'Preview zambia-support-poster-01.png',
+    });
+    expect(within(preview).getByRole('link', { name: 'Download' }).getAttribute('href')).toBe(
+      '/api/projects/proj-1/raw/zambia-support-poster-01.png?download=1',
+    );
+    fireEvent.click(within(preview).getByRole('button', { name: 'Open' }));
+    expect(onRequestOpenFile).toHaveBeenCalledWith('zambia-support-poster-01.png');
   });
 
   it('shows the feedback widget after a successful turn that produced files', () => {

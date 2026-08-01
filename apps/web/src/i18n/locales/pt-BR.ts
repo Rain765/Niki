@@ -681,6 +681,7 @@ export const ptBR: Dict = {
   'avatar.codeAgent': 'Agente de código',
   'avatar.rescan': 'Reescanear PATH',
   'avatar.settings': 'Configurações',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Voltar aos projetos',
   'avatar.metaActive': 'ativo',
   'avatar.metaOffline': 'offline',

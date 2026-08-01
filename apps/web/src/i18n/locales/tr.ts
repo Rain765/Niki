@@ -649,6 +649,7 @@ export const tr: Dict = {
   'avatar.codeAgent': 'Kod ajanı',
   'avatar.rescan': 'PATH’ı yeniden tara',
   'avatar.settings': 'Ayarlar',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Projelere dön',
   'avatar.metaActive': 'aktif',
   'avatar.metaOffline': 'çevrim dışı',

@@ -237,6 +237,7 @@ import {
   insertMediaTask,
   listMediaTasksByProject,
   listRecentMediaTasks,
+  reconcileDirectLoanPosterProject,
   reconcileMediaTasksOnBoot,
   updateMediaTask,
 } from './media-tasks.js';
@@ -373,6 +374,14 @@ import { registerStaticResourceRoutes } from './static-resource-routes.js';
 import { registerRoutineRoutes, routineDbRowToContract } from './routine-routes.js';
 import { registerDeviceBridgeRoutes } from './device-bridge-routes.js';
 import { createDeviceBridgeService } from './device-bridge.js';
+import {
+  registerNikiAuthRoutes,
+  requireNikiWebSession,
+} from './niki-auth-routes.js';
+import {
+  currentNikiSessionToken,
+  currentNikiUser,
+} from './niki-auth-context.js';
 import { assertServerContextSatisfiesRoutes } from './route-context-contract.js';
 import { configureConnectorCredentialStore, ConnectorServiceError, FileConnectorCredentialStore } from './connectors/service.js';
 import { composioConnectorProvider } from './connectors/composio.js';
@@ -3152,7 +3161,16 @@ export async function startServer({
     }
 
     const ports = allowedBrowserPorts(resolvedPort);
-    if (!isAllowedBrowserOrigin(origin, req.headers.host, ports, host, extraAllowedOrigins)) {
+    if (
+      !isAllowedBrowserOrigin(
+        origin,
+        req.headers.host,
+        ports,
+        host,
+        extraAllowedOrigins,
+        req.headers['x-forwarded-host'],
+      )
+    ) {
       if (req.method !== 'GET' || !isPortlessLoopbackOrigin(String(origin))) {
         return res.status(403).json({ error: 'Cross-origin requests are not allowed' });
       }
@@ -3218,7 +3236,13 @@ export async function startServer({
     );
   }
   mediaTasks.clear();
-  for (const row of listRecentMediaTasks(db, { terminalTtlMs: TASK_TTL_AFTER_DONE_MS })) {
+  const recentMediaTasks = listRecentMediaTasks(db, {
+    terminalTtlMs: TASK_TTL_AFTER_DONE_MS,
+  });
+  for (const projectId of new Set(recentMediaTasks.map((task) => task.projectId))) {
+    reconcileDirectLoanPosterProject(db, projectId);
+  }
+  for (const row of recentMediaTasks) {
     hydrateMediaTask(row);
   }
 
@@ -3226,74 +3250,101 @@ export async function startServer({
     console.log('[od] Codex plugins disabled via OD_CODEX_DISABLE_PLUGINS=1');
   }
 
-  let bundledMarketplaceEntries = [];
-  // Plan §3.I3 / spec §23.3.5 — register every plugin under
-  // <resourceRoot>/plugins/_official/** in packaged runs, or
-  // <projectRoot>/plugins/_official/** in workspace runs, as bundled plugins. The walker
-  // is idempotent (upserts on every boot) so a daemon upgrade rotates
-  // the bundled set in lockstep with the code. ENOENT is silent —
-  // running the daemon outside the dev tree just skips this step.
-  try {
-    const result = await registerBundledPlugins({
-      db,
-      bundledRoot: BUNDLED_PLUGINS_DIR,
-      marketplaceProvenance: {
-        sourceMarketplaceId: OFFICIAL_MARKETPLACE_ID,
-        marketplaceTrust:    'official',
-        entryNamePrefix:     'open-design',
-      },
-    });
-    bundledMarketplaceEntries = result.registered.map((plugin) => ({
-      name:        `open-design/${plugin.id}`,
-      title:       plugin.title,
-      description: plugin.description,
-      version:     plugin.version,
-      source:      bundledPluginRegistrySource(plugin.source),
-      publisher:   { id: 'open-design', url: 'https://open-design.ai' },
-      homepage:    plugin.manifest.homepage,
-      license:     plugin.manifest.license,
-      tags:        plugin.tags,
-      capabilitiesSummary: Array.isArray(plugin.manifest.od?.capabilities)
-        ? plugin.manifest.od.capabilities
-        : undefined,
-    }));
-    if (result.registered.length > 0) {
-      console.log(`[plugins] registered ${result.registered.length} bundled plugin(s)`);
-    }
-    if (result.warnings.length > 0) {
-      for (const w of result.warnings) console.warn(`[plugins] bundled warn: ${w}`);
-    }
-  } catch (err) {
-    console.warn(`[plugins] bundled registration failed: ${(err)?.message ?? err}`);
-  }
+  let pluginRegistryInitialized = false;
+  let pluginRegistryInitializationPromise = null;
+  const ensurePluginRegistryInitialized = () => {
+    if (pluginRegistryInitialized) return Promise.resolve();
+    if (pluginRegistryInitializationPromise) return pluginRegistryInitializationPromise;
 
-  try {
-    const seedDirs = await fs.promises.readdir(PLUGIN_REGISTRY_DIR, { withFileTypes: true }).catch((err) => {
-      if (err?.code === 'ENOENT') return [];
-      throw err;
-    });
-    const { ensureMarketplaceManifest } = await import('./plugins/marketplaces.js');
-    for (const dirent of seedDirs) {
-      if (!dirent.isDirectory()) continue;
-      const id = dirent.name;
-      const manifestText = await marketplaceSeedManifestText(id, bundledMarketplaceEntries);
-      if (!manifestText) continue;
-      const configured = defaultMarketplaceSeedConfig(id);
-      const result = ensureMarketplaceManifest(db, {
-        id,
-        url: configured.url,
-        trust: configured.trust,
-        manifestText,
-      });
-      if (result.ok) {
-        console.log(`[plugins] seeded ${id} registry source (${result.row.manifest.plugins.length} plugin(s))`);
-      } else {
-        console.warn(`[plugins] ${id} registry seed failed: ${result.message}`);
+    pluginRegistryInitializationPromise = (async () => {
+      let bundledMarketplaceEntries = [];
+      // Bundled plugins and their marketplace manifests are intentionally
+      // indexed on first extension use instead of every daemon boot. The
+      // lightweight home/media path does not depend on this catalogue.
+      try {
+        const result = await registerBundledPlugins({
+          db,
+          bundledRoot: BUNDLED_PLUGINS_DIR,
+          marketplaceProvenance: {
+            sourceMarketplaceId: OFFICIAL_MARKETPLACE_ID,
+            marketplaceTrust:    'official',
+            entryNamePrefix:     'open-design',
+          },
+        });
+        bundledMarketplaceEntries = result.registered.map((plugin) => ({
+          name:        `open-design/${plugin.id}`,
+          title:       plugin.title,
+          description: plugin.description,
+          version:     plugin.version,
+          source:      bundledPluginRegistrySource(plugin.source),
+          publisher:   { id: 'open-design', url: 'https://open-design.ai' },
+          homepage:    plugin.manifest.homepage,
+          license:     plugin.manifest.license,
+          tags:        plugin.tags,
+          capabilitiesSummary: Array.isArray(plugin.manifest.od?.capabilities)
+            ? plugin.manifest.od.capabilities
+            : undefined,
+        }));
+        if (result.registered.length > 0) {
+          console.log(`[plugins] registered ${result.registered.length} bundled plugin(s) on demand`);
+        }
+        if (result.warnings.length > 0) {
+          for (const w of result.warnings) console.warn(`[plugins] bundled warn: ${w}`);
+        }
+      } catch (err) {
+        console.warn(`[plugins] bundled registration failed: ${(err)?.message ?? err}`);
       }
+
+      try {
+        const seedDirs = await fs.promises.readdir(PLUGIN_REGISTRY_DIR, { withFileTypes: true }).catch((err) => {
+          if (err?.code === 'ENOENT') return [];
+          throw err;
+        });
+        const { ensureMarketplaceManifest } = await import('./plugins/marketplaces.js');
+        for (const dirent of seedDirs) {
+          if (!dirent.isDirectory()) continue;
+          const id = dirent.name;
+          const manifestText = await marketplaceSeedManifestText(id, bundledMarketplaceEntries);
+          if (!manifestText) continue;
+          const configured = defaultMarketplaceSeedConfig(id);
+          const result = ensureMarketplaceManifest(db, {
+            id,
+            url: configured.url,
+            trust: configured.trust,
+            manifestText,
+          });
+          if (result.ok) {
+            console.log(`[plugins] seeded ${id} registry source (${result.row.manifest.plugins.length} plugin(s))`);
+          } else {
+            console.warn(`[plugins] ${id} registry seed failed: ${result.message}`);
+          }
+        }
+      } catch (err) {
+        console.warn(`[plugins] registry seed failed: ${(err)?.message ?? err}`);
+      }
+
+      pluginRegistryInitialized = true;
+    })().finally(() => {
+      pluginRegistryInitializationPromise = null;
+    });
+    return pluginRegistryInitializationPromise;
+  };
+
+  app.use(async (req, _res, next) => {
+    if (
+      !req.path.startsWith('/api/plugins')
+      && !req.path.startsWith('/api/marketplaces')
+    ) {
+      next();
+      return;
     }
-  } catch (err) {
-    console.warn(`[plugins] registry seed failed: ${(err)?.message ?? err}`);
-  }
+    try {
+      await ensurePluginRegistryInitialized();
+      next();
+    } catch (error) {
+      next(error);
+    }
+  });
 
   // Plan §3.A5 / spec §16 Phase 5 / PB2: periodic snapshot GC. Disabled
   // when OD_SNAPSHOT_GC_INTERVAL_MS is 0; otherwise one-time bootstrap
@@ -3324,6 +3375,15 @@ export async function startServer({
 
   await recoverStaleLiveArtifactRefreshes({ projectsRoot: PROJECTS_DIR }).catch((error) => {
     console.warn('[od] Failed to recover stale live artifact refreshes:', error);
+  });
+
+  let resolveNikiRunProjectId: (runId: string) => string | null | undefined =
+    () => undefined;
+  registerNikiAuthRoutes(app, {
+    db,
+    projectsRoot: PROJECTS_DIR,
+    isLocalOperatorRequest: (req) => validateLocalDaemonRequest(req).ok,
+    resolveRunProjectId: (runId) => resolveNikiRunProjectId(runId),
   });
 
   if (fs.existsSync(STATIC_DIR)) {
@@ -3370,7 +3430,7 @@ export async function startServer({
   // version (the user_version PRAGMA we use for migrations), and
   // per-table row counts. Useful for ops sanity-checking
   // deployments + comparing 'expected' vs. 'actual' table rosters.
-  app.get('/api/daemon/db', async (_req, res) => {
+  app.get('/api/daemon/db', requireLocalDaemonRequest, async (_req, res) => {
     try {
       const { inspectSqliteDatabase } = await import('./storage/db-inspect.js');
       const file = path.join(RUNTIME_DATA_DIR, 'app.sqlite');
@@ -4135,6 +4195,7 @@ export async function startServer({
     getAppVersion: () => cachedAppVersion?.version ?? '0.0.0',
     readAnalyticsContext,
   };
+  resolveNikiRunProjectId = (runId) => design.runs.get(runId)?.projectId;
 
   // PostHog runtime config — gated on BOTH a server-side key (POSTHOG_KEY)
   // and the user's opt-in metrics consent (Privacy → "Share usage data").
@@ -4337,6 +4398,8 @@ export async function startServer({
     getLiveMediaTask: (taskId) => getLiveMediaTask(db, taskId),
     mediaTaskSnapshot,
     listMediaTasksByProject,
+    reconcileDirectLoanPosterProject: (projectId) =>
+      reconcileDirectLoanPosterProject(db, projectId),
     listElevenLabsVoiceOptions,
   };
   const appConfigDeps = { readAppConfig, writeAppConfig };
@@ -4430,6 +4493,7 @@ export async function startServer({
     ids: idDeps,
     telemetry: { reportFinalizedMessage },
     validation: validationDeps,
+    plugins: { ensureRegistryInitialized: ensurePluginRegistryInitialized },
   });
   registerDeviceBridgeRoutes(app, deviceBridge);
   registerCanvasRoutes(app, { db, http: httpDeps });
@@ -4481,7 +4545,7 @@ export async function startServer({
     paths: pathDeps,
     projects: { getProject },
   });
-  app.use('/artifacts', express.static(ARTIFACTS_DIR));
+  app.use('/artifacts', requireNikiWebSession(db), express.static(ARTIFACTS_DIR));
   registerDeployRoutes(app, {
     db,
     http: httpDeps,
@@ -4508,7 +4572,7 @@ export async function startServer({
     handoff: handoffDeps,
   });
   registerDeploymentCheckRoutes(app, { db, http: httpDeps, deploy: deployDeps });
-  app.use('/frames', express.static(FRAMES_DIR));
+  app.use('/frames', requireNikiWebSession(db), express.static(FRAMES_DIR));
   registerProjectExportRoutes(app, {
     db,
     http: httpDeps,
@@ -7977,6 +8041,16 @@ export async function startServer({
       if (req.headers.origin === 'null') {
         res.header('Access-Control-Allow-Origin', '*');
       }
+      if (req.query.download === '1') {
+        const filename = String(relPath).split('/').filter(Boolean).pop() || 'download';
+        const asciiFallback = filename
+          .replace(/[^\x20-\x7E]/g, '_')
+          .replace(/["\\]/g, '_');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        );
+      }
       res.type(file.mime).send(file.buffer);
     } catch (err) {
       const status = err && err.code === 'ENOENT' ? 404 : 400;
@@ -8350,6 +8424,9 @@ export async function startServer({
         prompt: req.body?.prompt,
         output: req.body?.output,
         aspect: req.body?.aspect,
+        quality: req.body?.quality,
+        loanPosterOutput:
+          project.metadata?.directGeneration?.kind === 'loan-poster',
         length:
           typeof req.body?.length === 'number' ? req.body.length : undefined,
         duration:
@@ -8551,7 +8628,13 @@ export async function startServer({
   // main: file-upload routes lifted to a dedicated module. Keep alongside the
   // inline routes garnet still owns above; duplicate registrations resolve in
   // a follow-up after route-routes.ts vs garnet inline coverage is audited.
-  registerProjectUploadRoutes(app, { http: httpDeps, uploads: uploadDeps, node: nodeDeps });
+  registerProjectUploadRoutes(app, {
+    db,
+    http: httpDeps,
+    uploads: uploadDeps,
+    node: nodeDeps,
+    paths: pathDeps,
+  });
 
   const composeDaemonSystemPrompt = async ({
     agentId,
@@ -9655,6 +9738,9 @@ export async function startServer({
       OD_BIN,
       OD_NODE_BIN,
       OD_DAEMON_URL: daemonUrl,
+      ...(currentNikiSessionToken()
+        ? { OD_NIKI_SESSION_TOKEN: currentNikiSessionToken() }
+        : {}),
       ...(typeof projectId === 'string' && projectId && cwd
         ? {
             OD_PROJECT_ID: projectId,
@@ -10834,7 +10920,10 @@ export async function startServer({
 
   app.get('/api/runs', (req, res) => {
     const { projectId, conversationId, status } = req.query;
-    const runs = design.runs.list({ projectId, conversationId, status });
+    const user = currentNikiUser();
+    const runs = design.runs
+      .list({ projectId, conversationId, status })
+      .filter((run) => !user || !run.projectId || Boolean(getProject(db, run.projectId)));
     /** @type {import('@open-design/contracts').ChatRunListResponse} */
     const body = { runs: runs.map(design.runs.statusBody) };
     res.json(body);

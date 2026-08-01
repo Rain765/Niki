@@ -549,6 +549,7 @@ export const esES: Dict = {
   'avatar.codeAgent': 'Agente de código',
   'avatar.rescan': 'Reescanear PATH',
   'avatar.settings': 'Ajustes',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Volver a los proyectos',
   'avatar.metaActive': 'activo',
   'avatar.metaOffline': 'sin conexión',

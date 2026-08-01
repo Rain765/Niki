@@ -238,6 +238,127 @@ export function listRecentMediaTasks(
   return rows.map(normalizeRow);
 }
 
+/**
+ * A direct loan-poster batch is accepted asynchronously, so the project is
+ * persisted as `queued` before provider work finishes. Once every image task
+ * from that batch is terminal, persist its final state so clients can rebuild
+ * an ordered generation timeline after navigation or a daemon restart.
+ */
+export function reconcileDirectLoanPosterProject(
+  db: Database.Database,
+  projectId: string,
+  options: { now?: number } = {},
+): boolean {
+  const project = db.prepare(
+    `SELECT metadata_json AS metadataJson
+       FROM projects
+      WHERE id = ?`,
+  ).get(projectId) as { metadataJson: string | null } | undefined;
+  if (!project?.metadataJson) return false;
+
+  const metadata = parseJson(project.metadataJson);
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return false;
+  const directGeneration = (metadata as Record<string, unknown>).directGeneration;
+  if (
+    !directGeneration
+    || typeof directGeneration !== 'object'
+    || Array.isArray(directGeneration)
+  ) {
+    return false;
+  }
+  const lifecycle = directGeneration as Record<string, unknown>;
+  if (
+    lifecycle.kind !== 'loan-poster'
+    || (lifecycle.status !== 'queued' && lifecycle.status !== 'preparing')
+  ) {
+    return false;
+  }
+  const requestedAt = lifecycle.requestedAt;
+  const rawBatches = Array.isArray(lifecycle.batches)
+    ? lifecycle.batches.filter((batch): batch is Record<string, unknown> => (
+      Boolean(batch) && typeof batch === 'object' && !Array.isArray(batch)
+    ))
+    : [];
+  const activeBatchId = typeof lifecycle.activeBatchId === 'string'
+    ? lifecycle.activeBatchId
+    : null;
+  const activeBatch = activeBatchId
+    ? rawBatches.find((batch) => batch.id === activeBatchId)
+    : rawBatches.at(-1);
+  const batchRequestedAt = activeBatch?.requestedAt ?? requestedAt;
+  if (typeof batchRequestedAt !== 'number' || !Number.isFinite(batchRequestedAt)) return false;
+
+  const expectedBatchOutputs = activeBatch?.expectedOutputs;
+  const expectedTaskCount = typeof expectedBatchOutputs === 'number'
+    && Number.isFinite(expectedBatchOutputs)
+    && expectedBatchOutputs > 0
+    ? Math.floor(expectedBatchOutputs)
+    : null;
+  const candidateTasks = listMediaTasksByProject(db, projectId, { includeTerminal: true })
+    .filter((task) => task.surface === 'image' && task.startedAt >= batchRequestedAt)
+    .sort((a, b) => a.startedAt - b.startedAt);
+  if (expectedTaskCount !== null && candidateTasks.length < expectedTaskCount) return false;
+  const batchTasks = expectedTaskCount === null
+    ? candidateTasks
+    : candidateTasks.slice(0, expectedTaskCount);
+  if (
+    batchTasks.length === 0
+    || batchTasks.some((task) => !TERMINAL_STATUSES.has(task.status))
+  ) {
+    return false;
+  }
+  const failures = batchTasks
+    .filter((task) => task.status === 'failed' || task.status === 'interrupted')
+    .sort((a, b) => (b.endedAt ?? b.updatedAt) - (a.endedAt ?? a.updatedAt));
+  const latestFailure = failures[0];
+  const latestTaskAt = batchTasks.reduce(
+    (latest, task) => Math.max(latest, task.endedAt ?? task.updatedAt),
+    0,
+  ) || options.now || Date.now();
+  const interrupted = failures.length > 0
+    && failures.every((task) => task.status === 'interrupted');
+  const status = latestFailure
+    ? interrupted ? 'interrupted' : 'failed'
+    : 'complete';
+  const transitionAt = latestFailure
+    ? latestFailure.endedAt ?? latestFailure.updatedAt ?? options.now ?? Date.now()
+    : latestTaskAt;
+  const lastError = latestFailure?.error?.message
+    ?? (latestFailure ? 'media generation failed' : undefined);
+  const nextBatches = activeBatch
+    ? rawBatches.map((batch) => (
+      batch === activeBatch
+        ? {
+          ...batch,
+          status,
+          ...(status === 'complete'
+            ? { completedAt: transitionAt }
+            : { failedAt: transitionAt, lastError }),
+        }
+        : batch
+    ))
+    : undefined;
+  const nextMetadata = {
+    ...(metadata as Record<string, unknown>),
+    directGeneration: {
+      ...lifecycle,
+      status,
+      ...(status === 'complete'
+        ? { completedAt: transitionAt, failedAt: undefined, lastError: undefined }
+        : { failedAt: transitionAt, lastError }),
+      ...(nextBatches ? { batches: nextBatches } : {}),
+    },
+  };
+  const result = db.prepare(
+    `UPDATE projects
+        SET metadata_json = ?,
+            updated_at = ?
+      WHERE id = ?
+        AND metadata_json = ?`,
+  ).run(JSON.stringify(nextMetadata), transitionAt, projectId, project.metadataJson);
+  return result.changes === 1;
+}
+
 export function deleteMediaTask(db: Database.Database, id: string): void {
   db.prepare(`DELETE FROM media_tasks WHERE id = ?`).run(id);
 }
@@ -264,6 +385,17 @@ export function reconcileMediaTasksOnBoot(
           WHERE status IN ('queued', 'running')`,
       )
       .run(JSON.stringify(interruptedError), now, now).changes;
+
+    const failedProjectIds = db
+      .prepare(
+        `SELECT DISTINCT project_id AS projectId
+           FROM media_tasks
+          WHERE status IN ('failed', 'interrupted')`,
+      )
+      .all() as Array<{ projectId: string }>;
+    for (const { projectId } of failedProjectIds) {
+      reconcileDirectLoanPosterProject(db, projectId, { now });
+    }
 
     const deleted = db
       .prepare(

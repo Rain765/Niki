@@ -255,6 +255,7 @@ export function CanvasView({ projectId }: { projectId: string }) {
     <div
       ref={surfaceRef}
       className="canvas-surface"
+      data-testid="canvas-surface"
       style={{ position: 'relative', width: '100%', height: '100%' }}
     >
       <Tldraw onMount={handleMount} />

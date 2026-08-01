@@ -87,8 +87,65 @@ export interface DesignSystemReviewEntry {
   agentTask?: DesignSystemReviewAgentTask;
 }
 
+export type DirectLoanPosterBatchStatus =
+  | 'preparing'
+  | 'queued'
+  | 'complete'
+  | 'failed'
+  | 'interrupted';
+
+/**
+ * One user-triggered poster generation. Exact output names keep repeated
+ * generations addressable as a timeline instead of one cumulative gallery.
+ */
+export interface DirectLoanPosterBatch {
+  id: string;
+  status: DirectLoanPosterBatchStatus;
+  requestedAt: number;
+  queuedAt?: number;
+  completedAt?: number;
+  failedAt?: number;
+  expectedOutputs: number;
+  outputNames: string[];
+  brand?: 'zamloan' | 'biumoney';
+  aspectRatio?: MediaAspect;
+  lastError?: string;
+}
+
 export interface ProjectMetadata {
   kind: ProjectKind;
+  /**
+   * Marks projects whose first deliverables are started directly through the
+   * media API instead of through a chat/agent turn. The web uses this to show
+   * generation progress without exposing an internal execution prompt as a
+   * draft user message.
+   */
+  directGeneration?: {
+    kind: 'loan-poster';
+    expectedOutputs: number;
+    outputPrefix: string;
+    /**
+     * Direct generation is a two-phase operation: project setup first, then
+     * media-task admission. Persist the phase so a rejected admission cannot
+     * leave every client rendering an endless spinner.
+     */
+    status?: DirectLoanPosterBatchStatus;
+    requestedAt?: number;
+    queuedAt?: number;
+    completedAt?: number;
+    failedAt?: number;
+    lastError?: string;
+    /** Local calendar day used to keep Home one-click generations together. */
+    sessionDate?: string;
+    /** Every output prefix used by batches accumulated in this project. */
+    outputPrefixes?: string[];
+    /** Number of one-click generation batches accumulated in this project. */
+    batchCount?: number;
+    /** Ordered generation history; legacy projects may not have this field. */
+    batches?: DirectLoanPosterBatch[];
+    /** Batch currently preparing or queued, retained after completion for history. */
+    activeBatchId?: string;
+  };
   intent?: 'live-artifact';
   fidelity?: 'wireframe' | 'high-fidelity';
   speakerNotes?: boolean;

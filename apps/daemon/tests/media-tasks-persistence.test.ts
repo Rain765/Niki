@@ -7,6 +7,7 @@ import {
   listMediaTasksByProject,
   listRecentMediaTasks,
   migrateMediaTasks,
+  reconcileDirectLoanPosterProject,
   reconcileMediaTasksOnBoot,
   updateMediaTask,
 } from '../src/media-tasks.js';
@@ -19,6 +20,7 @@ function freshDb(): Database.Database {
     CREATE TABLE projects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      metadata_json TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -152,6 +154,140 @@ describe('media task persistence', () => {
     expect(done?.status).toBe('done');
   });
 
+  it('marks a queued direct loan-poster project failed after its media batch terminates with errors', () => {
+    const requestedAt = 1_000;
+    db.prepare(
+      `UPDATE projects
+          SET metadata_json = ?
+        WHERE id = 'p1'`,
+    ).run(JSON.stringify({
+      kind: 'image',
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'queued',
+        requestedAt,
+        expectedOutputs: 2,
+        activeBatchId: 'batch-1',
+        batches: [{
+          id: 'batch-1',
+          status: 'queued',
+          requestedAt,
+          expectedOutputs: 2,
+          outputNames: ['poster-001.png', 'poster-002.png'],
+        }],
+      },
+    }));
+    insertMediaTask(db, {
+      id: 'failed',
+      projectId: 'p1',
+      status: 'failed',
+      surface: 'image',
+      startedAt: 1_100,
+      endedAt: 1_200,
+      error: { message: 'provider unavailable', status: 502 },
+    });
+    insertMediaTask(db, {
+      id: 'running',
+      projectId: 'p1',
+      status: 'running',
+      surface: 'image',
+      startedAt: 1_110,
+    });
+
+    expect(reconcileDirectLoanPosterProject(db, 'p1', { now: 1_300 })).toBe(false);
+
+    updateMediaTask(db, 'running', {
+      status: 'failed',
+      endedAt: 1_400,
+      error: { message: 'fetch failed', status: 400 },
+    });
+
+    expect(reconcileDirectLoanPosterProject(db, 'p1', { now: 1_500 })).toBe(true);
+    const project = db.prepare(
+      `SELECT metadata_json AS metadataJson, updated_at AS updatedAt
+         FROM projects
+        WHERE id = 'p1'`,
+    ).get() as { metadataJson: string; updatedAt: number };
+    expect(JSON.parse(project.metadataJson)).toMatchObject({
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'failed',
+        failedAt: 1_400,
+        lastError: 'fetch failed',
+        batches: [{
+          id: 'batch-1',
+          status: 'failed',
+          failedAt: 1_400,
+          lastError: 'fetch failed',
+        }],
+      },
+    });
+    expect(project.updatedAt).toBe(1_400);
+  });
+
+  it('persists a successful direct loan-poster batch as complete', () => {
+    const requestedAt = 1_000;
+    db.prepare(
+      `UPDATE projects
+          SET metadata_json = ?
+        WHERE id = 'p1'`,
+    ).run(JSON.stringify({
+      kind: 'image',
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'queued',
+        requestedAt,
+        expectedOutputs: 2,
+        activeBatchId: 'batch-2',
+        batches: [
+          {
+            id: 'batch-1',
+            status: 'complete',
+            requestedAt: 100,
+            completedAt: 500,
+            expectedOutputs: 1,
+            outputNames: ['poster-001.png'],
+          },
+          {
+            id: 'batch-2',
+            status: 'queued',
+            requestedAt,
+            expectedOutputs: 1,
+            outputNames: ['poster-002.png'],
+          },
+        ],
+      },
+    }));
+    insertMediaTask(db, {
+      id: 'done-batch-2',
+      projectId: 'p1',
+      status: 'done',
+      surface: 'image',
+      startedAt: 1_100,
+      endedAt: 1_250,
+      updatedAt: 1_250,
+      file: { name: 'poster-002.png' },
+    });
+
+    expect(reconcileDirectLoanPosterProject(db, 'p1', { now: 1_300 })).toBe(true);
+    const project = db.prepare(
+      `SELECT metadata_json AS metadataJson, updated_at AS updatedAt
+         FROM projects
+        WHERE id = 'p1'`,
+    ).get() as { metadataJson: string; updatedAt: number };
+    expect(JSON.parse(project.metadataJson)).toMatchObject({
+      directGeneration: {
+        status: 'complete',
+        activeBatchId: 'batch-2',
+        batches: [
+          { id: 'batch-1', status: 'complete' },
+          { id: 'batch-2', status: 'complete', completedAt: 1_250 },
+        ],
+      },
+    });
+    expect(project.updatedAt).toBe(1_250);
+  });
+
   it('keeps recent terminal rows and deletes expired terminal rows by TTL', () => {
     insertMediaTask(db, {
       id: 'recent',
@@ -180,6 +316,49 @@ describe('media task persistence', () => {
     expect(getMediaTask(db, 'expired')).toBeNull();
     expect(listRecentMediaTasks(db, { terminalTtlMs: 5_000, now: 10_000 }).map((t) => t.id))
       .toEqual(['recent']);
+  });
+
+  it('reconciles an expired failed poster task before deleting its row', () => {
+    db.prepare(
+      `UPDATE projects
+          SET metadata_json = ?
+        WHERE id = 'p1'`,
+    ).run(JSON.stringify({
+      kind: 'image',
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'queued',
+        requestedAt: 1_000,
+        expectedOutputs: 1,
+      },
+    }));
+    insertMediaTask(db, {
+      id: 'expired-poster-failure',
+      projectId: 'p1',
+      status: 'failed',
+      surface: 'image',
+      startedAt: 1_100,
+      endedAt: 1_500,
+      updatedAt: 1_500,
+      error: { message: 'provider connection lost' },
+    });
+
+    const result = reconcileMediaTasksOnBoot(db, {
+      terminalTtlMs: 5_000,
+      now: 10_000,
+    });
+
+    expect(result.deleted).toBe(1);
+    expect(getMediaTask(db, 'expired-poster-failure')).toBeNull();
+    const project = db.prepare(
+      `SELECT metadata_json AS metadataJson FROM projects WHERE id = 'p1'`,
+    ).get() as { metadataJson: string };
+    expect(JSON.parse(project.metadataJson)).toMatchObject({
+      directGeneration: {
+        status: 'failed',
+        lastError: 'provider connection lost',
+      },
+    });
   });
 
   it('cascades task deletion when a project is deleted', () => {

@@ -154,6 +154,26 @@ describe('FileWorkspace upload input', () => {
     );
   });
 
+  it('uses Canvas as the only project root surface for direct poster projects', () => {
+    const markup = renderToStaticMarkup(
+      <FileWorkspace
+        projectId="project-1"
+        projectKind="image"
+        files={[]}
+        liveArtifacts={[]}
+        onRefreshFiles={vi.fn()}
+        isDeck={false}
+        tabsState={{ tabs: [], active: '__design_files__' }}
+        onTabsStateChange={vi.fn()}
+        canvasOnly
+      />,
+    );
+
+    expect(markup).toContain('data-testid="canvas-surface"');
+    expect(markup).not.toContain('data-testid="design-files-tab"');
+    expect(markup).not.toContain('data-testid="canvas-tab"');
+  });
+
   it('keeps the Design Files picker aligned with drag-and-drop file support', () => {
     const markup = renderToStaticMarkup(
       <FileWorkspace
@@ -528,6 +548,7 @@ describe('projectSplitClassName', () => {
   it('marks the project split as focused so the chat pane can collapse globally', () => {
     expect(projectSplitClassName(false)).toBe('split');
     expect(projectSplitClassName(true)).toBe('split split-focus');
+    expect(projectSplitClassName(false, true)).toBe('split split-workspace-collapsed');
   });
 });
 

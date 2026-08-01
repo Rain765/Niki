@@ -1389,6 +1389,10 @@ export function projectFileUrl(projectId: string, name: string): string {
   return projectRawUrl(projectId, name);
 }
 
+export function projectFileDownloadUrl(projectId: string, name: string): string {
+  return `${projectRawUrl(projectId, name)}?download=1`;
+}
+
 export interface ProjectFilePreviewSection {
   title: string;
   lines: string[];
@@ -1700,6 +1704,27 @@ export function projectRawUrl(projectId: string, filePath: string): string {
     .map((seg) => encodeURIComponent(seg))
     .join('/');
   return `/api/projects/${encodeURIComponent(projectId)}/raw/${safePath}`;
+}
+
+export function projectImagePreviewUrl(
+  projectId: string,
+  filePath: string,
+  variant: 'thumbnail' | 'mobile' | 'preview' = 'preview',
+  version?: number,
+): string {
+  if (/\.(?:gif|svg)$/i.test(filePath)) {
+    const rawUrl = projectRawUrl(projectId, filePath);
+    return version === undefined ? rawUrl : `${rawUrl}?v=${Math.round(version)}`;
+  }
+  const safePath = filePath
+    .split('/')
+    .map((seg) => encodeURIComponent(seg))
+    .join('/');
+  const previewUrl =
+    `/api/projects/${encodeURIComponent(projectId)}/image-preview/${safePath}?variant=${variant}`;
+  return version === undefined
+    ? previewUrl
+    : `${previewUrl}&v=${Math.round(version)}`;
 }
 
 function looksLikeImage(name: string): boolean {

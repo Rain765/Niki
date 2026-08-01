@@ -7,7 +7,7 @@
 // surface by lifting its plugin orchestration up here so the prompt
 // textarea can live centered in the hero.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ApplyResult,
   ConnectorDetail,
@@ -34,6 +34,7 @@ import {
 } from '../state/projects';
 import { fetchMcpServers } from '../state/mcp';
 import { useI18n } from '../i18n';
+import { useNikiAuth } from '../auth/NikiAuth';
 import { fetchElevenLabsVoiceOptions } from '../providers/elevenlabs-voices';
 import type { Project, ProjectMetadata, PromptTemplateSummary, SkillSummary } from '../types';
 import { inlineMentionToken } from '../utils/inlineMentions';
@@ -56,19 +57,28 @@ import {
 import {
   AUTO_POSTER_DEFAULT_ASPECT_RATIO,
   AUTO_POSTER_DEFAULT_BRAND,
-  autoPosterBrandLabel,
-  buildLoanPosterPrompt,
-  LOAN_POSTER_SKILL_ID,
-  loadZambiaPosterReference,
   normalizeZambiaPosterCount,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
   ZAMBIA_POSTER_DEFAULT_COUNT,
 } from './home-hero/zambia-posters';
-import { PluginDetailsModal } from './PluginDetailsModal';
-import { PluginsHomeSection } from './PluginsHomeSection';
+import {
+  isDirectLoanPosterAuthenticationError,
+  startDirectLoanPosterProject,
+} from './home-hero/direct-loan-posters';
 import type { PluginLoopSubmit } from './PluginLoopHome';
 import type { PluginUseAction } from './plugins-home/useActions';
+
+const PluginDetailsModal = lazy(() =>
+  import('./PluginDetailsModal').then((module) => ({
+    default: module.PluginDetailsModal,
+  })),
+);
+const PluginsHomeSection = lazy(() =>
+  import('./PluginsHomeSection').then((module) => ({
+    default: module.PluginsHomeSection,
+  })),
+);
 
 interface ActivePlugin {
   record: InstalledPluginRecord;
@@ -141,6 +151,7 @@ interface Props {
   projectsLoading?: boolean;
   onSubmit: (payload: PluginLoopSubmit) => void;
   onOpenProject?: (id: string) => void;
+  onProjectCreated?: (project: Project) => void;
   onViewAllProjects?: () => void;
   onBrowseRegistry?: () => void;
   // Stage B: optional callbacks the rail's migration chips need.
@@ -152,11 +163,17 @@ interface Props {
   skills?: SkillSummary[];
   skillsLoading?: boolean;
   connectors?: ConnectorDetail[];
+  connectorsLoading?: boolean;
   promptTemplates?: PromptTemplateSummary[];
+  extensionsRequested?: boolean;
+  extensionsLoading?: boolean;
+  onLoadExtensions?: () => Promise<void> | void;
 }
 
 export function HomeView({
   onSubmit,
+  onOpenProject,
+  onProjectCreated,
   onBrowseRegistry,
   onImportFolder,
   onOpenNewProject,
@@ -164,9 +181,14 @@ export function HomeView({
   skills = [],
   skillsLoading = false,
   connectors = [],
+  connectorsLoading = false,
   promptTemplates = [],
+  extensionsRequested = true,
+  extensionsLoading = false,
+  onLoadExtensions,
 }: Props) {
   const { locale, t } = useI18n();
+  const { user } = useNikiAuth();
   const analytics = useAnalytics();
   // P0 page_view page_name=home — fire once on mount. ref-keyed to survive
   // re-renders that flip parent state without remounting HomeView.
@@ -177,7 +199,7 @@ export function HomeView({
     trackPageView(analytics.track, { page_name: 'home' });
   }, [analytics.track]);
   const [plugins, setPlugins] = useState<InstalledPluginRecord[]>([]);
-  const [pluginsLoading, setPluginsLoading] = useState(true);
+  const [pluginsLoading, setPluginsLoading] = useState(false);
   const [pendingApplyId, setPendingApplyId] = useState<string | null>(null);
   const [pendingChipId, setPendingChipId] = useState<string | null>(null);
   const [pendingAuthoringChipId, setPendingAuthoringChipId] = useState<string | null>(null);
@@ -202,8 +224,12 @@ export function HomeView({
     AUTO_POSTER_DEFAULT_BRAND,
   );
   const [autoPosterPending, setAutoPosterPending] = useState(false);
+  const [autoPosterStarted, setAutoPosterStarted] = useState<{
+    project: Project;
+    count: number;
+  } | null>(null);
   const [mcpServers, setMcpServers] = useState<McpServerConfig[]>([]);
-  const [mcpLoading, setMcpLoading] = useState(true);
+  const [mcpLoading, setMcpLoading] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [elevenLabsVoices, setElevenLabsVoices] = useState<AudioVoiceOption[]>([]);
@@ -235,8 +261,13 @@ export function HomeView({
   const activePluginApplyRequestRef = useRef(0);
 
   useEffect(() => {
+    if (!extensionsRequested) {
+      setPluginsLoading(false);
+      return;
+    }
     let cancelled = false;
     const load = () => {
+      setPluginsLoading(true);
       void listPlugins().then((rows) => {
         if (cancelled) return;
         setPlugins(rows);
@@ -249,10 +280,15 @@ export function HomeView({
       cancelled = true;
       window.removeEventListener('open-design:plugins-changed', load);
     };
-  }, []);
+  }, [extensionsRequested]);
 
   useEffect(() => {
+    if (!extensionsRequested) {
+      setMcpLoading(false);
+      return;
+    }
     let cancelled = false;
+    setMcpLoading(true);
     void fetchMcpServers().then((result) => {
       if (cancelled) return;
       setMcpServers(result?.servers ?? []);
@@ -261,7 +297,7 @@ export function HomeView({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [extensionsRequested]);
 
   useEffect(() => {
     if (active?.mediaSurface !== 'audio' || active.inputs.model !== 'elevenlabs-v3') return;
@@ -1015,28 +1051,10 @@ export function HomeView({
 
   async function generateLoanPosters() {
     if (autoPosterPending) return;
-    const mediaPlugin = plugins.find((plugin) => plugin.id === 'od-media-generation');
-    if (!mediaPlugin) {
-      setError(t('homeHero.autoPosterError'));
-      return;
-    }
-
-    const count = normalizeZambiaPosterCount(autoPosterCount);
-    const brandLabel = autoPosterBrandLabel(autoPosterBrand);
-    const composer = buildHomeMediaComposer(
-      'image',
-      promptTemplates,
-      {
-        mediaKind: 'image',
-        subject: `${count} unified ${brandLabel} Zambia loan posters`,
-        style: `premium realistic commercial photography with consistent ${brandLabel} red brand art direction`,
-        aspect: autoPosterAspectRatio,
-        ratio: autoPosterAspectRatio,
-      },
-    );
-
     setAutoPosterPending(true);
+    setAutoPosterStarted(null);
     setError(null);
+    let openedProjectId: string | null = null;
     trackHomeChatComposerClick(analytics.track, {
       page_name: 'home',
       area: 'chat_composer',
@@ -1044,35 +1062,35 @@ export function HomeView({
     });
 
     try {
-      const [applyResult, referenceFile] = await Promise.all([
-        applyPlugin(mediaPlugin.id, { locale, inputs: composer.inputs }),
-        loadZambiaPosterReference(),
-      ]);
-      if (!applyResult) {
-        setError(t('homeHero.autoPosterError'));
+      const count = normalizeZambiaPosterCount(autoPosterCount);
+      const { projectId } = await startDirectLoanPosterProject({
+        count,
+        aspectRatio: autoPosterAspectRatio,
+        brand: autoPosterBrand,
+        sessionScope: user.id,
+      }, (project) => {
+        onProjectCreated?.(project);
+        setAutoPosterStarted({ project, count });
+        // Enter the selected project as soon as its record exists. Reference
+        // upload and media-task submission continue in this async flow, while
+        // the project screen immediately provides visible generation status.
+        if (openedProjectId !== project.id) {
+          openedProjectId = project.id;
+          onOpenProject?.(project.id);
+        }
+      });
+      if (!onProjectCreated) {
+        console.info('[home] direct loan-poster project ready', projectId);
+      }
+    } catch (reason) {
+      if (isDirectLoanPosterAuthenticationError(reason)) {
+        window.location.reload();
         return;
       }
-
-      onSubmit({
-        prompt: buildLoanPosterPrompt({
-          count,
-          aspectRatio: autoPosterAspectRatio,
-          brand: autoPosterBrand,
-        }),
-        projectName: `${brandLabel} ${t('homeHero.autoPosterProjectName')}`,
-        pluginId: mediaPlugin.id,
-        skillId: LOAN_POSTER_SKILL_ID,
-        appliedPluginSnapshotId: applyResult.appliedPlugin?.snapshotId ?? null,
-        pluginTitle: mediaPlugin.title,
-        taskKind: applyResult.appliedPlugin?.taskKind ?? null,
-        pluginInputs: composer.inputs,
-        projectKind: composer.projectKind,
-        projectMetadata: metadataForHomeMediaComposer('image', composer.inputs, promptTemplates),
-        attachments: [referenceFile],
-        attachmentVisibility: 'internal',
-      });
-    } catch {
-      setError(t('homeHero.autoPosterError'));
+      console.warn('[home] direct loan-poster generation failed', reason);
+      setError(reason instanceof Error && reason.message
+        ? reason.message
+        : t('homeHero.autoPosterError'));
     } finally {
       setAutoPosterPending(false);
     }
@@ -1113,7 +1131,7 @@ export function HomeView({
         autoPosterAspectRatio={autoPosterAspectRatio}
         autoPosterBrand={autoPosterBrand}
         autoPosterPending={autoPosterPending}
-        autoPosterDisabled={pluginsLoading || Boolean(pendingApplyId) || Boolean(pendingAuthoringChipId)}
+        autoPosterDisabled={Boolean(pendingApplyId) || Boolean(pendingAuthoringChipId)}
         onAutoPosterCountChange={(count) => setAutoPosterCount(normalizeZambiaPosterCount(count))}
         onAutoPosterAspectRatioChange={setAutoPosterAspectRatio}
         onAutoPosterBrandChange={setAutoPosterBrand}
@@ -1125,6 +1143,15 @@ export function HomeView({
         mcpOptions={enabledMcpServers}
         mcpLoading={mcpLoading}
         connectorOptions={connectors.filter((connector) => connector.status === 'connected')}
+        extensionsRequested={extensionsRequested}
+        extensionsLoading={
+          extensionsLoading
+          || pluginsLoading
+          || mcpLoading
+          || connectorsLoading
+          || skillsLoading
+        }
+        onLoadExtensions={onLoadExtensions}
         pendingPluginId={pendingApplyId}
         pendingChipId={pendingChipId}
         submitDisabled={
@@ -1141,24 +1168,59 @@ export function HomeView({
         error={error}
       />
 
-      <PluginsHomeSection
-        plugins={plugins}
-        loading={pluginsLoading}
-        activePluginId={active?.record.id ?? null}
-        pendingApplyId={pendingApplyId}
-        onUse={(record, action) => requestPluginContextUse(record, action)}
-        onOpenDetails={setDetailsRecord}
-        onCreatePlugin={(goal) => queuePluginAuthoring(null, goal)}
-        onBrowseRegistry={onBrowseRegistry}
-      />
+      {autoPosterStarted ? (
+        <div
+          className="home-auto-poster-status"
+          data-testid="home-auto-poster-status"
+          role="status"
+        >
+          <span className="home-auto-poster-status__indicator" aria-hidden="true" />
+          <div className="home-auto-poster-status__copy">
+            <strong>
+              {t('homeHero.autoPosterStarted', { n: autoPosterStarted.count })}
+            </strong>
+            <span>
+              {t('homeHero.autoPosterStartedDetail', {
+                name: autoPosterStarted.project.name,
+              })}
+            </span>
+          </div>
+          {onOpenProject ? (
+            <button
+              type="button"
+              className="home-auto-poster-status__open"
+              onClick={() => onOpenProject(autoPosterStarted.project.id)}
+            >
+              {t('homeHero.autoPosterOpenProject')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {extensionsRequested ? (
+        <Suspense fallback={null}>
+          <PluginsHomeSection
+            plugins={plugins}
+            loading={pluginsLoading}
+            activePluginId={active?.record.id ?? null}
+            pendingApplyId={pendingApplyId}
+            onUse={(record, action) => requestPluginContextUse(record, action)}
+            onOpenDetails={setDetailsRecord}
+            onCreatePlugin={(goal) => queuePluginAuthoring(null, goal)}
+            onBrowseRegistry={onBrowseRegistry}
+          />
+        </Suspense>
+      ) : null}
 
       {detailsRecord ? (
-        <PluginDetailsModal
-          record={detailsRecord}
-          onClose={() => setDetailsRecord(null)}
-          onUse={(record) => requestPluginContextUse(record, 'use')}
-          isApplying={pendingApplyId === detailsRecord.id}
-        />
+        <Suspense fallback={null}>
+          <PluginDetailsModal
+            record={detailsRecord}
+            onClose={() => setDetailsRecord(null)}
+            onUse={(record) => requestPluginContextUse(record, 'use')}
+            isApplying={pendingApplyId === detailsRecord.id}
+          />
+        </Suspense>
       ) : null}
       {pendingReplacement ? (
         <div className="home-hero-confirm__backdrop" role="presentation">

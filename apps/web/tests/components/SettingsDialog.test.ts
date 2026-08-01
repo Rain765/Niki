@@ -17,6 +17,7 @@ import {
   updateAgentCliEnvValue,
   updateCurrentApiProtocolConfig,
 } from '../../src/components/SettingsDialog';
+import { KNOWN_PROVIDERS } from '../../src/state/config';
 import type { AppConfig, ConnectionTestResponse } from '../../src/types';
 
 const originalFetch = globalThis.fetch;
@@ -107,9 +108,22 @@ describe('SettingsDialog API protocol switching', () => {
       apiProtocol: 'openai',
       apiKey: '',
       baseUrl: 'https://api.openai.com/v1',
-      model: 'gpt-4o',
+      model: 'gpt-5.6-sol',
       apiProviderBaseUrl: 'https://api.openai.com/v1',
     });
+  });
+
+  it('offers the current GPT-5.6 family first for OpenAI', () => {
+    const openai = KNOWN_PROVIDERS.find(
+      (provider) => provider.label === 'OpenAI' && provider.protocol === 'openai',
+    );
+
+    expect(openai?.model).toBe('gpt-5.6-sol');
+    expect(openai?.models?.slice(0, 3)).toEqual([
+      'gpt-5.6-sol',
+      'gpt-5.6-terra',
+      'gpt-5.6-luna',
+    ]);
   });
 
   it('auto-fills Google defaults when switching from a selected known provider', () => {

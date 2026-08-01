@@ -690,6 +690,8 @@ export interface Dict {
   'homeHero.contextSearchResults': string;
   'homeHero.contextSurfaces': string;
   'homeHero.loadingContext': string;
+  'homeHero.loadExtensions': string;
+  'homeHero.loadExtensionsDescription': string;
   'homeHero.noResults': string;
   'homeHero.searchPrompt': string;
   'homeHero.parameters': string;
@@ -700,12 +702,17 @@ export interface Dict {
   'homeHero.typeSomethingToRun': string;
   'homeHero.autoPoster': string;
   'homeHero.autoPosterPreparing': string;
+  'homeHero.autoPosterPrompt': string;
+  'homeHero.autoPosterWelcome': string;
   'homeHero.autoPosterCountAria': string;
   'homeHero.autoPosterCountOption': string;
   'homeHero.autoPosterSizeAria': string;
   'homeHero.autoPosterBrandAria': string;
   'homeHero.autoPosterProjectName': string;
   'homeHero.autoPosterError': string;
+  'homeHero.autoPosterStarted': string;
+  'homeHero.autoPosterStartedDetail': string;
+  'homeHero.autoPosterOpenProject': string;
   'homeHero.railAria': string;
   'homeHero.confirmReplaceTitle': string;
   'homeHero.confirmReplaceBody': string;
@@ -1416,6 +1423,7 @@ export interface Dict {
   'avatar.codeAgent': string;
   'avatar.rescan': string;
   'avatar.settings': string;
+  'avatar.shortcuts': string;
   'avatar.backToProjects': string;
   'avatar.metaActive': string;
   'avatar.metaOffline': string;

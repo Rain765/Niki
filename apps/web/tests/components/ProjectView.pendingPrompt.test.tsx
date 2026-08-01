@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -18,7 +18,10 @@ import {
   listConversations,
   listMessages,
 } from '../../src/state/projects';
-import { fetchPreviewComments } from '../../src/providers/registry';
+import {
+  fetchPreviewComments,
+  fetchProjectFiles,
+} from '../../src/providers/registry';
 
 vi.mock('../../src/i18n', () => ({
   useT: () => (key: string) => key,
@@ -91,7 +94,16 @@ vi.mock('../../src/components/AvatarMenu', () => ({
 }));
 
 vi.mock('../../src/components/FileWorkspace', () => ({
-  FileWorkspace: () => <div data-testid="file-workspace" />,
+  FileWorkspace: ({
+    openRequest,
+  }: {
+    openRequest: { name: string; nonce: number } | null;
+  }) => (
+    <div
+      data-testid="file-workspace"
+      data-open-request={openRequest?.name ?? ''}
+    />
+  ),
 }));
 
 vi.mock('../../src/components/Loading', () => ({
@@ -112,6 +124,7 @@ const mockedListConversations = vi.mocked(listConversations);
 const mockedCreateConversation = vi.mocked(createConversation);
 const mockedListMessages = vi.mocked(listMessages);
 const mockedFetchPreviewComments = vi.mocked(fetchPreviewComments);
+const mockedFetchProjectFiles = vi.mocked(fetchProjectFiles);
 
 const config: AppConfig = {
   mode: 'api',
@@ -179,6 +192,7 @@ describe('ProjectView pending prompt seeding', () => {
     );
     mockedListMessages.mockResolvedValue([]);
     mockedFetchPreviewComments.mockResolvedValue([]);
+    mockedFetchProjectFiles.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -202,6 +216,85 @@ describe('ProjectView pending prompt seeding', () => {
     await waitFor(() => {
       expect(composerValue()).toBe('');
     });
+  });
+
+  it('clears but never displays legacy direct-poster execution prompts', async () => {
+    const onClearPendingPrompt = vi.fn();
+    renderProjectView({
+      ...project('direct-poster', 'Internal media execution instructions'),
+      skillId: 'loan-poster-skill-v1-1',
+      metadata: { kind: 'image' },
+    }, onClearPendingPrompt);
+
+    await waitFor(() => {
+      expect(composerValue()).toBe('');
+    });
+    expect(onClearPendingPrompt).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts direct-poster projects with the design workspace collapsed', async () => {
+    const view = renderProjectView({
+      ...project('direct-poster-collapsed'),
+      skillId: 'loan-poster-skill-v1-1',
+      metadata: { kind: 'image' },
+    });
+
+    await waitFor(() => {
+      expect(view.container.querySelector('.split')?.className).toContain(
+        'split-workspace-collapsed',
+      );
+    });
+    expect(view.container.querySelector('.app')?.className).toContain(
+      'app--direct-poster',
+    );
+    expect(screen.getByTestId('project-surface-switch').closest('header')?.className)
+      .toContain('direct-poster-topbar');
+
+    fireEvent.click(screen.getByTestId('project-mobile-design-files-toggle'));
+
+    expect(view.container.querySelector('.split')?.className).not.toContain(
+      'split-workspace-collapsed',
+    );
+    expect(screen.getByTestId('project-mobile-design-files-toggle')
+      .getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.click(screen.getByTestId('project-chat-surface-tab'));
+
+    expect(view.container.querySelector('.split')?.className).toContain(
+      'split-workspace-collapsed',
+    );
+    expect(screen.getByTestId('project-chat-surface-tab')
+      .getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('keeps the secondary file workspace tucked when a poster is shown in chat', async () => {
+    mockedFetchProjectFiles.mockResolvedValue([{
+      name: 'zamloan-poster-01.png',
+      size: 1_913_840,
+      mtime: 2,
+      kind: 'image',
+      mime: 'image/png',
+    }]);
+
+    const view = renderProjectView({
+      ...project('direct-poster-with-output'),
+      skillId: 'loan-poster-skill-v1-1',
+      metadata: {
+        kind: 'image',
+        directGeneration: {
+          kind: 'loan-poster',
+          expectedOutputs: 1,
+          outputPrefix: 'zamloan-poster',
+        },
+      },
+    });
+
+    await waitFor(() => {
+      expect(view.container.querySelector('.split')?.className).toContain(
+        'split-workspace-collapsed',
+      );
+    });
+    expect(screen.getByTestId('file-workspace').dataset.openRequest).toBe('');
   });
 
   it('does not leak a prior project prompt into a template project without one', async () => {

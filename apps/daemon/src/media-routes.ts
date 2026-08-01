@@ -1,6 +1,11 @@
 import type { Express } from 'express';
 
 import { appendImageNodes } from './canvas-store.js';
+import { currentNikiUser } from './niki-auth-context.js';
+import {
+  assertNikiGenerationAllowed,
+  NikiQuotaExceededError,
+} from './niki-quota.js';
 import type { RouteDeps } from './server-context.js';
 
 export interface RegisterMediaRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'ids' | 'media' | 'appConfig' | 'orbit' | 'nativeDialogs' | 'projectStore' | 'projectFiles' | 'conversations' | 'research'> {}
@@ -10,7 +15,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   const { sendApiError, requireLocalDaemonRequest, isLocalSameOrigin, resolvedPortRef } = ctx.http;
   const { PROJECT_ROOT, PROJECTS_DIR, RUNTIME_DATA_DIR } = ctx.paths;
   const { randomUUID } = ctx.ids;
-  const { MEDIA_PROVIDERS, IMAGE_MODELS, VIDEO_MODELS, AUDIO_MODELS_BY_KIND, MEDIA_ASPECTS, VIDEO_LENGTHS_SEC, AUDIO_DURATIONS_SEC, readMaskedConfig, writeConfig, generateMedia, createMediaTask, persistMediaTask, appendTaskProgress, notifyTaskWaiters, getLiveMediaTask, mediaTaskSnapshot, listMediaTasksByProject, listElevenLabsVoiceOptions } = ctx.media;
+  const { MEDIA_PROVIDERS, IMAGE_MODELS, VIDEO_MODELS, AUDIO_MODELS_BY_KIND, MEDIA_ASPECTS, VIDEO_LENGTHS_SEC, AUDIO_DURATIONS_SEC, readMaskedConfig, writeConfig, generateMedia, createMediaTask, persistMediaTask, appendTaskProgress, notifyTaskWaiters, getLiveMediaTask, mediaTaskSnapshot, listMediaTasksByProject, reconcileDirectLoanPosterProject, listElevenLabsVoiceOptions } = ctx.media;
   const { readAppConfig, writeAppConfig } = ctx.appConfig;
   const { orbitService } = ctx.orbit;
   const { openNativeFolderDialog } = ctx.nativeDialogs;
@@ -141,7 +146,12 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   });
 
   app.post('/api/projects/:id/media/generate', async (req, res) => {
-    if (!isLocalSameOrigin(req, getResolvedPort())) {
+    // Niki's authenticated web UI may run inside an embedded webview that
+    // omits the Origin header. The auth middleware has already resolved the
+    // session and project ownership before this route runs, so an authenticated
+    // Niki user is allowed here. Auth-disabled daemon installs retain the
+    // original local UI / CLI restriction.
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
       return res.status(403).json({
         error:
           'cross-origin request rejected: media generation is restricted to the local UI / CLI',
@@ -152,6 +162,14 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       const projectId = req.params.id;
       const project = getProject(db, projectId);
       if (!project) return res.status(404).json({ error: 'project not found' });
+      const nikiUser = currentNikiUser();
+      if (nikiUser) {
+        await assertNikiGenerationAllowed(
+          db,
+          PROJECTS_DIR,
+          nikiUser.id,
+        );
+      }
 
       const taskId = randomUUID();
       const task = createMediaTask(taskId, projectId, {
@@ -176,6 +194,9 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         prompt: req.body?.prompt,
         output: req.body?.output,
         aspect: req.body?.aspect,
+        quality: req.body?.quality,
+        loanPosterOutput:
+          project.metadata?.directGeneration?.kind === 'loan-poster',
         length:
           typeof req.body?.length === 'number' ? req.body.length : undefined,
         duration:
@@ -198,6 +219,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           task.file = meta;
           task.endedAt = Date.now();
           persistMediaTask(task);
+          reconcileDirectLoanPosterProject(projectId);
           notifyTaskWaiters(task);
           // Drop generated images onto the project canvas. The canvas store
           // emits a `node-added` SSE event so an open canvas surface shows the
@@ -234,6 +256,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           };
           task.endedAt = Date.now();
           persistMediaTask(task);
+          reconcileDirectLoanPosterProject(projectId);
           notifyTaskWaiters(task);
           console.error(
             `[task ${taskId.slice(0, 8)}] failed status=${task.error.status} ` +
@@ -247,6 +270,13 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         startedAt: task.startedAt,
       });
     } catch (err: any) {
+      if (err instanceof NikiQuotaExceededError) {
+        return res.status(err.status).json({
+          error: err.message,
+          code: err.code,
+          quota: err.statusBody,
+        });
+      }
       const status = typeof err?.status === 'number' ? err.status : 400;
       const code = err?.code;
       const body: any = { error: String(err && err.message ? err.message : err) };

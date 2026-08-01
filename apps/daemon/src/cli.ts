@@ -11,6 +11,17 @@ import { splitResearchSubcommand } from './research/cli-args.js';
 import { resolveDaemonUrl } from './daemon-url.js';
 
 const argv = process.argv.slice(2);
+const nativeFetch = globalThis.fetch.bind(globalThis);
+const nikiSessionToken = process.env.OD_NIKI_SESSION_TOKEN?.trim();
+if (nikiSessionToken) {
+  globalThis.fetch = (input, init = {}) => {
+    const headers = new Headers(init.headers);
+    if (!headers.has('authorization')) {
+      headers.set('authorization', `Bearer ${nikiSessionToken}`);
+    }
+    return nativeFetch(input, { ...init, headers });
+  };
+}
 
 // ---- Subcommand router ----------------------------------------------------
 //
@@ -41,6 +52,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'prompt',
   'output',
   'aspect',
+  'quality',
   'length',
   'duration',
   'prompt-influence',
@@ -148,7 +160,7 @@ const DAEMON_STRING_FLAGS = new Set([
   'daemon-url', 'port', 'host',
 ]);
 const DAEMON_BOOLEAN_FLAGS = new Set([
-  'help', 'h', 'json', 'headless', 'serve-web', 'no-open',
+  'help', 'h', 'json', 'headless', 'serve-web', 'no-open', 'quick',
 ]);
 const LIBRARY_STRING_FLAGS = new Set(['daemon-url', 'query', 'tag']);
 const LIBRARY_BOOLEAN_FLAGS = new Set(['help', 'h', 'json']);
@@ -231,12 +243,209 @@ const SUBCOMMAND_MAP = {
   'design-systems': runDesignSystems,
   craft: runCraft,
   diagnostics: runDiagnostics,
+  auth: runAuth,
   device: runDevice,
   status: runStatus,
   version: runVersion,
   doctor: runDoctor,
   config: runConfig,
 };
+
+async function runAuth(args) {
+  if (args.length === 0 || args[0] === 'help' || args.includes('--help') || args.includes('-h')) {
+    console.log(`Usage:
+  od auth status [--json] [--daemon-url <url>]
+  od auth users list [--json] [--daemon-url <url>]
+  od auth users create --username <id> --name <display-name>
+      --password-file <path|-> [--json] [--daemon-url <url>]
+  od auth users set-password --user <user-id> --password-file <path|->
+      [--json] [--daemon-url <url>]
+  od auth users set-quota --user <user-id> --storage-gb <number>
+      --daily-generations <number> [--json] [--daemon-url <url>]
+  od auth users disable --user <user-id> [--json] [--daemon-url <url>]
+
+Reports whether Niki Feishu authentication is enabled and whether the
+current OD_NIKI_SESSION_TOKEN belongs to a signed-in user.
+
+Password accounts can only be administered with an administrator session in
+OD_NIKI_SESSION_TOKEN. Passwords are read from a file or stdin and are never
+accepted as a command-line argument.`);
+    process.exit(args.length === 0 ? 2 : 0);
+  }
+  const sub = args[0];
+  const flags = parseFlags(args.slice(1), {
+    string: new Set([
+      'daemon-url', 'username', 'name', 'password-file', 'user',
+      'storage-gb', 'daily-generations',
+    ]),
+    boolean: new Set(['json', 'help', 'h']),
+  });
+  if (sub !== 'status' && sub !== 'users') {
+    console.error(`unknown subcommand: od auth ${sub}`);
+    process.exit(2);
+  }
+  const base = (await resolveDaemonUrl({ flagUrl: flags['daemon-url'] })).replace(/\/$/, '');
+  if (sub === 'users') {
+    const action = args[1];
+    if (!['list', 'create', 'set-password', 'set-quota', 'disable'].includes(action)) {
+      console.error('expected one of: od auth users list|create|set-password|set-quota|disable');
+      process.exit(2);
+    }
+    if (!nikiSessionToken) {
+      console.error('OD_NIKI_SESSION_TOKEN is required for administrator account management');
+      process.exit(2);
+    }
+    if (action === 'list') {
+      const response = await fetch(`${base}/api/auth/users`);
+      if (!response.ok) return structuredHttpFailure(response);
+      const body = await response.json();
+      if (flags.json) {
+        process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+        return;
+      }
+      for (const account of body.users ?? []) {
+        console.log([
+          account.user?.id ?? '',
+          account.provider ?? '',
+          account.username ?? '-',
+          account.user?.name ?? '',
+          account.isActive ? 'active' : 'disabled',
+          `${Math.round((account.usage?.storageBytes ?? 0) / 1024 / 1024)}MiB/${Math.round((account.quota?.storageBytes ?? 0) / 1024 / 1024)}MiB`,
+          `${account.usage?.dailyGenerations ?? 0}/${account.quota?.dailyGenerations ?? 0}`,
+        ].join('\t'));
+      }
+      return;
+    }
+    if (action === 'create') {
+      if (!flags.username || !flags.name || !flags['password-file']) {
+        console.error('create requires --username, --name, and --password-file <path|->');
+        process.exit(2);
+      }
+      const password = await readSecretFile(flags['password-file']);
+      const response = await fetch(`${base}/api/auth/password-users`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          username: flags.username,
+          name: flags.name,
+          password,
+        }),
+      });
+      if (!response.ok) return structuredHttpFailure(response);
+      const body = await response.json();
+      if (flags.json) {
+        process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+      } else {
+        console.log(`created\t${body.account.username}\t${body.account.user.name}`);
+      }
+      return;
+    }
+    if (action === 'set-password') {
+      if (!flags.user || !flags['password-file']) {
+        console.error('set-password requires --user <user-id> and --password-file <path|->');
+        process.exit(2);
+      }
+      const password = await readSecretFile(flags['password-file']);
+      const response = await fetch(
+        `${base}/api/auth/password-users/${encodeURIComponent(flags.user)}/password`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ password }),
+        },
+      );
+      if (!response.ok) return structuredHttpFailure(response);
+      const body = await response.json();
+      if (flags.json) process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+      else console.log(`password-updated\t${flags.user}`);
+      return;
+    }
+    if (action === 'set-quota') {
+      if (!flags.user || !flags['storage-gb'] || !flags['daily-generations']) {
+        console.error(
+          'set-quota requires --user, --storage-gb, and --daily-generations',
+        );
+        process.exit(2);
+      }
+      const storageGb = Number(flags['storage-gb']);
+      const dailyGenerations = Number(flags['daily-generations']);
+      if (
+        !Number.isFinite(storageGb)
+        || storageGb <= 0
+        || !Number.isSafeInteger(dailyGenerations)
+        || dailyGenerations <= 0
+      ) {
+        console.error('storage-gb must be positive and daily-generations must be a positive integer');
+        process.exit(2);
+      }
+      const response = await fetch(
+        `${base}/api/auth/users/${encodeURIComponent(flags.user)}/quota`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            storageBytes: Math.round(storageGb * 1024 * 1024 * 1024),
+            dailyGenerations,
+          }),
+        },
+      );
+      if (!response.ok) return structuredHttpFailure(response);
+      const body = await response.json();
+      if (flags.json) process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+      else {
+        console.log(
+          `quota-updated\t${flags.user}\t${storageGb}GiB\t${dailyGenerations}/24h`,
+        );
+      }
+      return;
+    }
+    if (!flags.user) {
+      console.error('disable requires --user <user-id>');
+      process.exit(2);
+    }
+    const response = await fetch(
+      `${base}/api/auth/password-users/${encodeURIComponent(flags.user)}`,
+      { method: 'DELETE' },
+    );
+    if (!response.ok) return structuredHttpFailure(response);
+    const body = await response.json();
+    if (flags.json) process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+    else console.log(`disabled\t${flags.user}`);
+    return;
+  }
+  const configResponse = await fetch(`${base}/api/auth/config`);
+  if (!configResponse.ok) return structuredHttpFailure(configResponse);
+  const config = await configResponse.json();
+  let user = null;
+  if (config.enabled && config.ready && nikiSessionToken) {
+    const meResponse = await fetch(`${base}/api/auth/me`);
+    if (meResponse.ok) user = (await meResponse.json()).user ?? null;
+  }
+  const output = {
+    ...config,
+    authenticated: !config.enabled || Boolean(user),
+    user,
+  };
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+  console.log(`provider\t${config.provider ?? 'local'}`);
+  console.log(`enabled\t${config.enabled ? 'yes' : 'no'}`);
+  console.log(`ready\t${config.ready ? 'yes' : 'no'}`);
+  console.log(`authenticated\t${output.authenticated ? 'yes' : 'no'}`);
+  if (user) console.log(`user\t${user.name}\t${user.role}`);
+}
+
+async function readSecretFile(path) {
+  if (path === '-') {
+    const chunks = [];
+    for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+    return Buffer.concat(chunks).toString('utf8').replace(/\r?\n$/, '');
+  }
+  const { readFile } = await import('node:fs/promises');
+  return (await readFile(path, 'utf8')).replace(/\r?\n$/, '');
+}
 
 if (argv[0] === 'mcp' && argv[1] === 'live-artifacts') {
   try {
@@ -569,6 +778,7 @@ async function runMediaGenerate(rawArgs) {
     prompt: flags.prompt,
     output: flags.output,
     aspect: flags.aspect,
+    quality: flags.quality,
     voice: flags.voice,
     audioKind: flags['audio-kind'],
     compositionDir: flags['composition-dir'],
@@ -1061,6 +1271,7 @@ function printMediaHelp() {
 Required:
   --surface  image | video | audio
   --model    Model id from /api/media/models (e.g. gpt-image-2, seedance-2, suno-v5).
+  --quality  Image quality: low | medium | high | auto.
   --project  Project id. Auto-resolved from OD_PROJECT_ID when invoked by the daemon.
 
 Common options:

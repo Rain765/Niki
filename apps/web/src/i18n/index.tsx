@@ -9,25 +9,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { de } from './locales/de';
 import { en } from './locales/en';
-import { id } from './locales/id';
-import { esES } from './locales/es-ES';
-import { fa } from './locales/fa';
-import { ar } from './locales/ar';
-import { ja } from './locales/ja';
-import { ko } from './locales/ko';
-import { ptBR } from './locales/pt-BR';
-import { ru } from './locales/ru';
 import { zhCN } from './locales/zh-CN';
-import { zhTW } from './locales/zh-TW';
-import { pl } from './locales/pl';
-import { hu } from './locales/hu';
-import { fr } from './locales/fr';
-import { uk } from './locales/uk';
-import { tr } from './locales/tr';
-import { th } from './locales/th';
-import { it } from './locales/it';
 import { LOCALES, type Dict, type Locale } from './types';
 
 export { LOCALES, LOCALE_LABEL } from './types';
@@ -35,27 +18,36 @@ export type { Locale } from './types';
 
 type DictKey = keyof Dict;
 
-const DICTS: Record<Locale, Dict> = {
+const SYNC_DICTS: Partial<Record<Locale, Dict>> = {
   'en': en,
-  'id': id,
-  'de': de,
   'zh-CN': zhCN,
-  'zh-TW': zhTW,
-  'pt-BR': ptBR,
-  'es-ES': esES,
-  'ru': ru,
-  'fa': fa,
-  'ar': ar,
-  'ja': ja,
-  'ko': ko,
-  'pl': pl,
-  'hu': hu,
-  'fr': fr,
-  'uk': uk,
-  'tr': tr,
-  'th': th,
-  'it': it,
 };
+
+const ASYNC_DICT_LOADERS: Partial<Record<Locale, () => Promise<Dict>>> = {
+  'id': () => import('./locales/id').then((module) => module.id),
+  'de': () => import('./locales/de').then((module) => module.de),
+  'zh-TW': () => import('./locales/zh-TW').then((module) => module.zhTW),
+  'pt-BR': () => import('./locales/pt-BR').then((module) => module.ptBR),
+  'es-ES': () => import('./locales/es-ES').then((module) => module.esES),
+  'ru': () => import('./locales/ru').then((module) => module.ru),
+  'fa': () => import('./locales/fa').then((module) => module.fa),
+  'ar': () => import('./locales/ar').then((module) => module.ar),
+  'ja': () => import('./locales/ja').then((module) => module.ja),
+  'ko': () => import('./locales/ko').then((module) => module.ko),
+  'pl': () => import('./locales/pl').then((module) => module.pl),
+  'hu': () => import('./locales/hu').then((module) => module.hu),
+  'fr': () => import('./locales/fr').then((module) => module.fr),
+  'uk': () => import('./locales/uk').then((module) => module.uk),
+  'tr': () => import('./locales/tr').then((module) => module.tr),
+  'th': () => import('./locales/th').then((module) => module.th),
+  'it': () => import('./locales/it').then((module) => module.it),
+};
+
+async function loadDict(locale: Locale): Promise<Dict> {
+  const sync = SYNC_DICTS[locale];
+  if (sync) return sync;
+  return ASYNC_DICT_LOADERS[locale]?.() ?? en;
+}
 
 const LS_KEY = 'open-design:locale';
 
@@ -111,13 +103,59 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 interface ProviderProps {
   initial?: Locale;
+  deferUntilClient?: boolean;
   children: ReactNode;
 }
 
 const RTL_LOCALES: Locale[] = ['ar', 'fa'];
 
-export function I18nProvider({ initial, children }: ProviderProps) {
-  const [locale, setLocaleState] = useState<Locale>(() => initial ?? detectInitialLocale());
+export function I18nProvider({ initial, deferUntilClient = false, children }: ProviderProps) {
+  // Keep the server render and the browser's first render deterministic.
+  // Reading localStorage or navigator in the state initializer makes the
+  // browser render a different language than the prerendered HTML, forcing
+  // React to discard and rebuild the whole page during hydration.
+  const initialLocale = initial ?? 'en';
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
+  const [dict, setDict] = useState<Dict>(() => SYNC_DICTS[initialLocale] ?? en);
+  const [ready, setReady] = useState(initial != null || !deferUntilClient);
+
+  const activateLocale = useCallback((next: Locale) => {
+    // Language metadata is UI state, not part of the lazy payload. Update it
+    // immediately so direction, accessibility metadata, and locale controls
+    // respond synchronously while a non-default dictionary downloads.
+    setLocaleState(next);
+    const sync = SYNC_DICTS[next];
+    if (sync) {
+      setDict(sync);
+      return;
+    }
+    void loadDict(next).then((loaded) => {
+      setDict(loaded);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (initial != null) return;
+    const detected = detectInitialLocale();
+    let active = true;
+    setLocaleState(detected);
+
+    const sync = SYNC_DICTS[detected];
+    if (sync) {
+      setDict(sync);
+      setReady(true);
+      return;
+    }
+
+    void loadDict(detected).then((loaded) => {
+      if (!active) return;
+      setDict(loaded);
+      setReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [initial]);
 
   // Keep <html lang="…" dir="…"> in sync so screen readers and CSS hooks
   // pick the right language token and direction without each component
@@ -131,17 +169,16 @@ export function I18nProvider({ initial, children }: ProviderProps) {
   }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
+    activateLocale(next);
     try {
       window.localStorage.setItem(LS_KEY, next);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [activateLocale]);
 
   const t = useCallback(
     (key: DictKey, vars?: Record<string, string | number>): string => {
-      const dict = DICTS[locale] ?? en;
       const raw = dict[key] ?? en[key] ?? key;
       if (!vars) return raw;
       return raw.replace(/\{(\w+)\}/g, (_, name: string) => {
@@ -149,13 +186,28 @@ export function I18nProvider({ initial, children }: ProviderProps) {
         return v == null ? `{${name}}` : String(v);
       });
     },
-    [locale],
+    [dict],
   );
 
   const value = useMemo<I18nContextValue>(
     () => ({ locale, setLocale, t }),
     [locale, setLocale, t],
   );
+
+  if (deferUntilClient && !ready) {
+    return (
+      <div
+        className="locale-bootstrap"
+        data-testid="locale-bootstrap"
+        role="status"
+        aria-label="Niki"
+      >
+        <img className="locale-bootstrap__logo" src="/logo.svg" alt="" />
+        <span className="locale-bootstrap__name">Niki</span>
+        <span className="locale-bootstrap__spinner" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

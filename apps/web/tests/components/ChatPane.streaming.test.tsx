@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -130,6 +130,305 @@ Expected output:
 
     expect(screen.getByTestId('composer-streaming').textContent).toBe('idle');
     expect(screen.getByTestId('assistant-streaming-assistant-1').textContent).toBe('streaming');
+  });
+
+  it('shows direct poster progress instead of unrelated image starter prompts', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[{
+          name: 'zamloan-poster-01.png',
+          size: 1024,
+          mtime: 1,
+          kind: 'image',
+          mime: 'image/png',
+        }]}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 2,
+            outputPrefix: 'zamloan-poster',
+            status: 'queued',
+            requestedAt: Date.now(),
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('direct-poster-status').textContent).toContain('1/2');
+    expect(
+      screen.getByTestId('direct-poster-result-image-zamloan-poster-01.png')
+        .getAttribute('src'),
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-01.png?variant=preview&v=1',
+    );
+    expect(
+      screen.getByTestId('direct-poster-result-image-zamloan-poster-01.png')
+        .closest('picture')
+        ?.querySelector('source[media="(max-width: 900px)"]')
+        ?.getAttribute('srcset'),
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-01.png?variant=mobile&v=1',
+    );
+    expect(screen.queryByText('Editorial portrait')).toBeNull();
+    expect(screen.queryByText('Product hero')).toBeNull();
+    expect(screen.queryByText('Flat illustration')).toBeNull();
+    expect(screen.queryByTestId('conversation-history-trigger')).toBeNull();
+  });
+
+  it('shows a minimal centered loading state before the first direct poster arrives', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[]}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 1,
+            outputPrefix: 'zamloan-poster',
+            status: 'queued',
+            requestedAt: Date.now(),
+          },
+        }}
+      />,
+    );
+
+    const status = screen.getByTestId('direct-poster-status');
+    expect(status.classList.contains('is-loading')).toBe(true);
+    expect(status.textContent).toBe('正在生成贷款海报');
+    expect(screen.queryByLabelText(/海报生成进度/)).toBeNull();
+  });
+
+  it('shows one selected poster with a vertical thumbnail switcher', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[
+          {
+            name: 'zamloan-poster-01.png',
+            size: 1024,
+            mtime: 1,
+            kind: 'image',
+            mime: 'image/png',
+          },
+          {
+            name: 'zamloan-poster-02.png',
+            size: 1024,
+            mtime: 2,
+            kind: 'image',
+            mime: 'image/png',
+          },
+        ]}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 2,
+            outputPrefix: 'zamloan-poster',
+          },
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByTestId('direct-poster-result-image-zamloan-poster-01.png'),
+    ).not.toBeNull();
+    const selectedImage = screen.getByTestId(
+      'direct-poster-result-image-zamloan-poster-01.png',
+    );
+    const result = selectedImage.closest('.direct-poster-result');
+    const info = result?.querySelector('.direct-poster-result-info');
+    expect(info).toBeTruthy();
+    expect(
+      selectedImage.compareDocumentPosition(info as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(info?.firstElementChild?.textContent).toBe('zamloan-poster-01.png');
+    expect(info?.querySelector('.direct-poster-result-actions')?.children).toHaveLength(3);
+    expect(screen.queryByLabelText(/海报生成进度/)).toBeNull();
+    expect(
+      screen.queryByTestId('direct-poster-result-image-zamloan-poster-02.png'),
+    ).toBeNull();
+
+    fireEvent.click(
+      screen.getByTestId('direct-poster-thumbnail-zamloan-poster-02.png'),
+    );
+
+    const switchedImage = screen.getByTestId(
+      'direct-poster-result-image-zamloan-poster-02.png',
+    );
+    expect(switchedImage).not.toBe(selectedImage);
+    expect(switchedImage.getAttribute('src')).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-02.png?variant=preview&v=2',
+    );
+    expect(
+      switchedImage.closest('picture')
+        ?.querySelector('source[media="(max-width: 900px)"]')
+        ?.getAttribute('srcset'),
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-02.png?variant=mobile&v=2',
+    );
+    expect(
+      screen.getByTestId('direct-poster-thumbnail-zamloan-poster-01.png')
+        .getAttribute('src'),
+    ).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-01.png?variant=thumbnail&v=1',
+    );
+    expect(
+      screen.getByRole('button', { name: '查看第 2 张海报' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(screen.queryByText('designFiles.addToCanvas')).toBeNull();
+    expect(screen.queryByText('common.rename')).toBeNull();
+  });
+
+  it('keeps each direct generation batch separate and appends the active loader last', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[
+          {
+            name: 'zamloan-poster-20260731-001.png',
+            size: 1024,
+            mtime: 1,
+            kind: 'image',
+            mime: 'image/png',
+          },
+          {
+            name: 'zamloan-poster-20260731-002.png',
+            size: 1024,
+            mtime: 2,
+            kind: 'image',
+            mime: 'image/png',
+          },
+        ]}
+        projectFilesInitialized
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 3,
+            outputPrefix: 'zamloan-poster',
+            status: 'queued',
+            requestedAt: Date.now(),
+            activeBatchId: 'batch-2',
+            batches: [
+              {
+                id: 'batch-1',
+                status: 'complete',
+                requestedAt: Date.now() - 60_000,
+                completedAt: Date.now() - 30_000,
+                expectedOutputs: 2,
+                outputNames: [
+                  'zamloan-poster-20260731-001.png',
+                  'zamloan-poster-20260731-002.png',
+                ],
+              },
+              {
+                id: 'batch-2',
+                status: 'queued',
+                requestedAt: Date.now(),
+                expectedOutputs: 1,
+                outputNames: ['zamloan-poster-20260731-003.png'],
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    const firstBatch = screen.getByTestId('direct-poster-batch-batch-1');
+    const activeBatch = screen.getByTestId('direct-poster-batch-batch-2');
+    expect(firstBatch.textContent).toContain('第 1 批');
+    expect(firstBatch.textContent).toContain('已完成 2 张');
+    expect(firstBatch.querySelectorAll('.direct-poster-thumbnails button')).toHaveLength(2);
+    expect(activeBatch.textContent).toContain('第 2 批');
+    expect(activeBatch.textContent).toContain('正在生成');
+    expect(
+      firstBatch.compareDocumentPosition(activeBatch) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('surfaces an interrupted direct generation instead of spinning forever', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[]}
+        projectFilesInitialized
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 1,
+            outputPrefix: 'zamloan-poster',
+            status: 'queued',
+            requestedAt: Date.now() - 16 * 60_000,
+            queuedAt: Date.now() - 16 * 60_000,
+          },
+        }}
+      />,
+    );
+
+    const status = screen.getByTestId('direct-poster-status');
+    expect(status.classList.contains('is-failed')).toBe(true);
+    expect(status.textContent).toContain('海报生成已中断');
+    expect(status.textContent).toContain('请重新生成');
   });
 
   it('renders a stopped pinned todo after a terminal run without a final TodoWrite', () => {

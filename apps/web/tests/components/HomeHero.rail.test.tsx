@@ -19,6 +19,7 @@ import {
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 function renderHero(overrides: Partial<React.ComponentProps<typeof HomeHero>> = {}) {
@@ -47,7 +48,7 @@ function renderHero(overrides: Partial<React.ComponentProps<typeof HomeHero>> = 
 }
 
 describe('HomeHero intent rail', () => {
-  it('offers count, size, and brand selectors in order for one-click poster generation', () => {
+  it('offers product tags with count and aspect settings in one panel', () => {
     const onAutoPoster = vi.fn();
     const onAutoPosterCountChange = vi.fn();
     const onAutoPosterAspectRatioChange = vi.fn();
@@ -72,21 +73,25 @@ describe('HomeHero intent rail', () => {
     expect(size.value).toBe('16:9');
     expect(Array.from(brand.options).map((option) => option.value)).toEqual(['zamloan', 'biumoney']);
     expect(brand.value).toBe('zamloan');
-    expect(Array.from(controls.querySelectorAll('select')).map((select) => select.dataset.testid))
-      .toEqual([
-        'home-hero-auto-poster-count',
-        'home-hero-auto-poster-size',
-        'home-hero-auto-poster-brand',
-      ]);
-    expect(controls.querySelectorAll('.home-hero__auto-poster-select-icon')).toHaveLength(3);
+    expect(screen.getByTestId('home-hero-auto-poster-product-zamloan').textContent)
+      .toContain('Zamloan');
+    expect(screen.queryByTestId('home-hero-auto-poster-menu')).toBeNull();
 
-    fireEvent.change(count, { target: { value: '7' } });
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-zamloan'));
+    expect(screen.getByTestId('home-hero-auto-poster-menu')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-count-option-7'));
     expect(onAutoPosterCountChange).toHaveBeenCalledWith(7);
-    fireEvent.change(size, { target: { value: '1:1' } });
+
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-size-option-1:1'));
     expect(onAutoPosterAspectRatioChange).toHaveBeenCalledWith('1:1');
-    fireEvent.change(brand, { target: { value: 'biumoney' } });
+
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-biumoney'));
     expect(onAutoPosterBrandChange).toHaveBeenCalledWith('biumoney');
 
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-close'));
+    expect(screen.queryByTestId('home-hero-auto-poster-menu')).toBeNull();
+
+    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByTestId('home-hero-submit'));
     expect(onAutoPoster).toHaveBeenCalledTimes(1);
   });
@@ -104,10 +109,26 @@ describe('HomeHero intent rail', () => {
     fireEvent.click(screen.getByTestId('home-hero-send-menu'));
     expect(screen.getByTestId('home-hero-resource-picker')).toBeTruthy();
     expect(screen.getByTestId('home-hero-attach')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('home-hero-send-menu-close'));
+    expect(screen.getByTestId('home-hero-send-menu-panel').hasAttribute('hidden')).toBe(true);
 
     fireEvent.click(screen.getByTestId('home-hero-submit'));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onAutoPoster).not.toHaveBeenCalled();
+  });
+
+  it('keeps extension registries out of the light homepage until requested', () => {
+    const onLoadExtensions = vi.fn();
+    renderHero({
+      extensionsRequested: false,
+      onLoadExtensions,
+    });
+
+    fireEvent.click(screen.getByTestId('home-hero-send-menu'));
+    expect(screen.queryByTestId('home-hero-resource-picker')).toBeNull();
+    expect(screen.queryByTestId('home-hero-rail')).toBeNull();
+    fireEvent.click(screen.getByTestId('home-hero-load-extensions'));
+    expect(onLoadExtensions).toHaveBeenCalledTimes(1);
   });
 
   it('disables all auto-poster controls while a batch is being prepared', () => {
@@ -117,6 +138,49 @@ describe('HomeHero intent rail', () => {
     expect((screen.getByTestId('home-hero-auto-poster-count') as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByTestId('home-hero-auto-poster-size') as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByTestId('home-hero-auto-poster-brand') as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('places product tags above the capsule input', () => {
+    renderHero();
+
+    const controls = screen.getByTestId('home-hero-auto-poster-controls');
+    const capsule = screen.getByTestId('home-hero').querySelector('.home-hero__capsule');
+
+    expect(controls.nextElementSibling).toBe(capsule);
+    expect(document.querySelector('.home-hero__copy')).toBeNull();
+    expect(document.querySelector('.home-hero__command-bar')).toBeNull();
+    expect(screen.getByTestId('home-hero-input').getAttribute('placeholder')).toBe(
+      'Choose product, ratio, and quantity. Generate in one click',
+    );
+  });
+
+  it('expands mobile product settings inside the capsule composer and shows the Niki welcome state', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 680px)',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+
+    renderHero();
+
+    const welcome = screen.getByTestId('home-hero-welcome');
+    expect(welcome.textContent).toContain('Enter your copy and generate a loan poster in one click');
+    expect(welcome.querySelector('.home-hero__mascot')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-zamloan'));
+
+    const menu = screen.getByTestId('home-hero-auto-poster-menu');
+    const composer = screen.getByTestId('home-hero-poster-composer');
+    expect(composer.contains(menu)).toBe(true);
+    expect(menu.closest('.auto-poster-filter__portal')).toBeNull();
+    expect(composer.classList.contains('is-settings-open')).toBe(true);
+    expect(welcome.classList.contains('is-hidden')).toBe(true);
   });
 
   it('renders one chip per HOME_HERO_CHIPS entry', () => {
@@ -129,18 +193,21 @@ describe('HomeHero intent rail', () => {
     }
   });
 
-  it('keeps the intent rail in the input footer before the send control', () => {
+  it('portals the intent rail above footer overflow while keeping its trigger before send', () => {
     renderHero();
     const rail = screen.getByTestId('home-hero-rail');
+    const trigger = screen.getByTestId('home-hero-send-menu');
     const submit = screen.getByTestId('home-hero-submit');
     const footer = submit.closest('.home-hero__input-foot');
 
     expect(footer).toBeTruthy();
-    expect(footer?.contains(rail)).toBe(true);
+    expect(footer?.contains(trigger)).toBe(true);
+    expect(footer?.contains(rail)).toBe(false);
+    expect(rail.closest('.composer-add__portal')).toBeTruthy();
     expect(
-      rail.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING,
+      trigger.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText(/Shift/).closest('.home-hero__subtitle')).toBeTruthy();
+    expect(document.querySelector('.home-hero__subtitle')).toBeNull();
     expect(footer?.querySelector('.home-hero__hint')).toBeNull();
   });
 

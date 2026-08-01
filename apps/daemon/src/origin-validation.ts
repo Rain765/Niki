@@ -8,6 +8,7 @@ export interface RequestWithOriginHeaders {
   headers?: {
     host?: unknown;
     origin?: unknown;
+    'x-forwarded-host'?: unknown;
   };
 }
 
@@ -121,6 +122,7 @@ export function isAllowedBrowserOrigin(
   ports: number[],
   bindHost: string,
   extraAllowedOrigins: string[],
+  forwardedHostHeader?: unknown,
 ): boolean {
   if (extraAllowedOrigins.includes(String(origin))) return true;
 
@@ -131,6 +133,14 @@ export function isAllowedBrowserOrigin(
     return false;
   }
   if (parsedOrigin.protocol !== 'http:' && parsedOrigin.protocol !== 'https:') return false;
+
+  const forwardedHost = parseHostHeader(forwardedHostHeader);
+  if (
+    forwardedHost != null &&
+    parsedOrigin.host.toLowerCase() === forwardedHost.host.toLowerCase()
+  ) {
+    return true;
+  }
 
   const requestHost = parseHostHeader(hostHeader);
   if (!requestHost) return false;
@@ -158,6 +168,7 @@ export function isLocalSameOrigin(
 ): boolean {
   const host = String(headerValue(req.headers?.host) || '');
   const origin = headerValue(req.headers?.origin);
+  const forwardedHost = headerValue(req.headers?.['x-forwarded-host']);
   const ports = allowedBrowserPorts(port, env);
   const bindHost = env.OD_BIND_HOST || '127.0.0.1';
   const extraAllowedOrigins = configuredAllowedOrigins(env);
@@ -176,8 +187,20 @@ export function isLocalSameOrigin(
   // a client-supplied origin that exactly matches an explicitly allow-
   // listed entry is the documented escape hatch for these deployments.
   if (extraAllowedOrigins.includes(origin)) return true;
-  if (!isAllowedBrowserHost(host, ports, bindHost, extraAllowedOrigins)) return false;
-  return isAllowedBrowserOrigin(origin, host, ports, bindHost, extraAllowedOrigins);
+  if (
+    forwardedHost == null &&
+    !isAllowedBrowserHost(host, ports, bindHost, extraAllowedOrigins)
+  ) {
+    return false;
+  }
+  return isAllowedBrowserOrigin(
+    origin,
+    host,
+    ports,
+    bindHost,
+    extraAllowedOrigins,
+    forwardedHost,
+  );
 }
 
 function headerValue(value: unknown): string | undefined {

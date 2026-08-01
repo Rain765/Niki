@@ -45,6 +45,7 @@ import { execFile as execFileCb, spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import sharp from 'sharp';
 import { EnvHttpProxyAgent } from 'undici';
 import {
   AUDIO_DURATIONS_SEC,
@@ -70,6 +71,85 @@ const execFile = promisify(execFileCb);
 type ProviderConfig = { apiKey?: string; baseUrl?: string; model?: string };
 type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
+type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
+
+export async function optimizeLosslessPng(
+  input: Buffer,
+): Promise<{ bytes: Buffer; optimized: boolean; savedBytes: number }> {
+  try {
+    const optimized = await sharp(input)
+      .keepMetadata()
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+        palette: false,
+      })
+      .toBuffer();
+    if (optimized.length >= input.length) {
+      return { bytes: input, optimized: false, savedBytes: 0 };
+    }
+    return {
+      bytes: optimized,
+      optimized: true,
+      savedBytes: input.length - optimized.length,
+    };
+  } catch {
+    // Image generation must still succeed if a provider returns a malformed
+    // or unusual PNG that Sharp cannot optimize.
+    return { bytes: input, optimized: false, savedBytes: 0 };
+  }
+}
+
+/**
+ * Direct loan posters are primarily reviewed on phones. Halving both axes
+ * keeps the poster readable while reducing the stored pixel area to 25%.
+ * The resized pixels are then encoded as a lossless PNG.
+ */
+export async function optimizeLoanPosterPng(
+  input: Buffer,
+): Promise<{
+  bytes: Buffer;
+  optimized: boolean;
+  savedBytes: number;
+  pixelScale: number;
+}> {
+  try {
+    const metadata = await sharp(input).metadata();
+    if (!metadata.width || !metadata.height) {
+      const optimized = await optimizeLosslessPng(input);
+      return { ...optimized, pixelScale: 1 };
+    }
+    const targetWidth = Math.max(1, Math.round(metadata.width * 0.5));
+    const targetHeight = Math.max(1, Math.round(metadata.height * 0.5));
+    if (targetWidth === metadata.width && targetHeight === metadata.height) {
+      const optimized = await optimizeLosslessPng(input);
+      return { ...optimized, pixelScale: 1 };
+    }
+    const resized = await sharp(input)
+      .resize({
+        width: targetWidth,
+        height: targetHeight,
+        fit: 'fill',
+        kernel: sharp.kernel.lanczos3,
+      })
+      .png({
+        compressionLevel: 9,
+        adaptiveFiltering: true,
+        palette: false,
+      })
+      .toBuffer();
+    return {
+      bytes: resized,
+      optimized: true,
+      savedBytes: Math.max(0, input.length - resized.length),
+      pixelScale: 0.5,
+    };
+  } catch {
+    const optimized = await optimizeLosslessPng(input);
+    return { ...optimized, pixelScale: 1 };
+  }
+}
+
 type MediaContext = {
   surface: MediaSurface;
   /**
@@ -99,6 +179,7 @@ type MediaContext = {
   provider: MediaProvider | null;
   prompt: string;
   aspect: string | undefined;
+  quality: ImageQuality | undefined;
   length: number | undefined;
   duration: number | undefined;
   voice: string;
@@ -108,6 +189,7 @@ type MediaContext = {
   promptInfluence: number | undefined;
   compositionDir: string | null;
   imageRef: ImageRef | null;
+  signal?: AbortSignal;
 };
 type RenderResult = { bytes: Buffer; providerNote: string; suggestedExt?: string };
 type JsonRecord = Record<string, unknown>;
@@ -284,8 +366,10 @@ function clampWithWarning(value: unknown, allowed: number[], flagName: string): 
 export async function generateMedia(args: {
   projectRoot: string; projectsRoot: string; projectId: string; surface: MediaSurface; model: string;
   prompt?: string; output?: string; aspect?: string; length?: number; duration?: number; voice?: string;
+  quality?: ImageQuality;
+  loanPosterOutput?: boolean;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
-  compositionDir?: string; image?: string; onProgress?: ProgressFn;
+  compositionDir?: string; image?: string; onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
     projectRoot,
@@ -296,6 +380,8 @@ export async function generateMedia(args: {
     prompt,
     output,
     aspect,
+    quality,
+    loanPosterOutput,
     length,
     duration,
     voice,
@@ -322,6 +408,12 @@ export async function generateMedia(args: {
     throw new Error(
       `unsupported audioKind: ${audioKind}. Allowed: music | speech | sfx.`,
     );
+  }
+  if (
+    quality !== undefined
+    && !(['low', 'medium', 'high', 'auto'] as const).includes(quality)
+  ) {
+    throw new Error('unsupported image quality. Allowed: low | medium | high | auto.');
   }
   const def = findMediaModel(model);
   if (!def) {
@@ -398,6 +490,7 @@ export async function generateMedia(args: {
     provider: findProvider(def.provider),
     prompt: prompt || '',
     aspect: aspect || defaultAspectFor(surface),
+    quality: surface === 'image' ? quality : undefined,
     length: clampedLength,
     duration: clampedDuration,
     voice: voice || '',
@@ -414,6 +507,7 @@ export async function generateMedia(args: {
     // Resolved reference image for i2v / image-edit flows. `null` when
     // the agent didn't pass --image. See resolveProjectImage below.
     imageRef,
+    ...(args.signal ? { signal: args.signal } : {}),
   };
 
   const credentials = await resolveProviderConfig(projectRoot, def.provider);
@@ -632,6 +726,13 @@ export async function generateMedia(args: {
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
   }
+  if (surface === 'image' && /\.png$/i.test(finalOut)) {
+    bytes = (
+      loanPosterOutput
+        ? await optimizeLoanPosterPng(bytes)
+        : await optimizeLosslessPng(bytes)
+    ).bytes;
+  }
   const finalTarget = path.join(dir, finalOut);
   await writeFile(finalTarget, bytes);
   const st = await stat(finalTarget);
@@ -686,8 +787,9 @@ function defaultAspectFor(surface: MediaSurface): string | undefined {
 // ---------------------------------------------------------------------------
 
 const AZURE_DEFAULT_API_VERSION = '2024-02-01';
-const OPENAI_IMAGE_HEADERS_TIMEOUT_MS = 10 * 60 * 1000;
-const OPENAI_IMAGE_BODY_TIMEOUT_MS = 10 * 60 * 1000;
+const OPENAI_IMAGE_CONNECT_TIMEOUT_MS = 3_000;
+const OPENAI_IMAGE_HEADERS_TIMEOUT_MS = 3 * 60 * 1000;
+const OPENAI_IMAGE_BODY_TIMEOUT_MS = 3 * 60 * 1000;
 // Honor HTTP(S)_PROXY / NO_PROXY from the daemon's environment. Users in
 // regions that can only reach api.openai.com through a local proxy (e.g.
 // Clash) otherwise hit a connection timeout here — the chat agent has its own
@@ -695,9 +797,21 @@ const OPENAI_IMAGE_BODY_TIMEOUT_MS = 10 * 60 * 1000;
 // EnvHttpProxyAgent reads the proxy env when present and connects directly
 // when it is not, so it is inert for users without a proxy.
 const openAIImageDispatcher = new EnvHttpProxyAgent({
+  connectTimeout: OPENAI_IMAGE_CONNECT_TIMEOUT_MS,
   headersTimeout: OPENAI_IMAGE_HEADERS_TIMEOUT_MS,
   bodyTimeout: OPENAI_IMAGE_BODY_TIMEOUT_MS,
 });
+
+function openAIImageRequestTimeoutMs(): number {
+  const configured = Number(process.env.OD_OPENAI_IMAGE_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return 3 * 60 * 1000;
+  return Math.min(10 * 60 * 1000, Math.max(30_000, Math.floor(configured)));
+}
+
+function openAIImageRequestSignal(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(openAIImageRequestTimeoutMs());
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
 
 async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
   if (!credentials.apiKey) {
@@ -728,7 +842,7 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     body.quality = ctx.model === 'dall-e-3' ? 'hd' : 'standard';
   } else {
     // gpt-image-* accepts quality 'high' | 'medium' | 'low'.
-    body.quality = 'high';
+    body.quality = ctx.quality === 'auto' ? 'medium' : (ctx.quality ?? 'high');
   }
 
   const headers: Record<string, string> = {
@@ -742,11 +856,13 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     // headers, so this is harmless on the standard endpoint too.
     headers['api-key'] = credentials.apiKey;
   }
+  const signal = openAIImageRequestSignal(ctx.signal);
 
   const resp = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal,
     dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
   });
   const text = await resp.text();
@@ -766,7 +882,10 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
   if (entry.b64_json) {
     bytes = Buffer.from(entry.b64_json, 'base64');
   } else if (entry.url) {
-    const imgResp = await fetch(entry.url);
+    const imgResp = await fetch(entry.url, {
+      signal,
+      dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
+    });
     if (!imgResp.ok) throw new Error(`openai image fetch ${imgResp.status}`);
     const arr = await imgResp.arrayBuffer();
     bytes = Buffer.from(arr);

@@ -171,6 +171,39 @@ describe('normalizeDaemonProxyOriginHeader', () => {
     ).toBe('http://127.0.0.1:7456');
   });
 
+it('normalizes a matching public HTTPS browser origin to the daemon origin', () => {
+  expect(
+    normalizeDaemonProxyOriginHeader({
+      daemonOrigin: 'http://127.0.0.1:7456',
+      origin: 'https://niki.tail795f4a.ts.net',
+      requestHost: 'niki.tail795f4a.ts.net',
+      webPort: 8085,
+    }),
+  ).toBe('http://127.0.0.1:7456');
+});
+
+it('normalizes a matching public HTTPS browser origin with an explicit default port', () => {
+  expect(
+    normalizeDaemonProxyOriginHeader({
+      daemonOrigin: 'http://127.0.0.1:7456',
+      origin: 'https://niki.example.com',
+      requestHost: 'niki.example.com:443',
+      webPort: 8085,
+    }),
+  ).toBe('http://127.0.0.1:7456');
+});
+
+it('does not normalize a public HTTPS browser origin with a mismatched host', () => {
+  expect(
+    normalizeDaemonProxyOriginHeader({
+      daemonOrigin: 'http://127.0.0.1:7456',
+      origin: 'https://evil.example.com',
+      requestHost: 'niki.example.com',
+      webPort: 8085,
+    }),
+  ).toBe('https://evil.example.com');
+});
+
   it('does not normalize mismatched private LAN origins', () => {
     expect(
       normalizeDaemonProxyOriginHeader({

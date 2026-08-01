@@ -13,11 +13,22 @@
  */
 import { Fragment, type ReactNode } from 'react';
 
-export function renderMarkdown(input: string): ReactNode {
+export interface MarkdownRenderOptions {
+  /**
+   * Resolve a Markdown link to an in-app action. Returning a callback renders
+   * the label as a button instead of an external anchor.
+   */
+  resolveLinkAction?: (label: string, href: string) => (() => void) | undefined;
+}
+
+export function renderMarkdown(
+  input: string,
+  options: MarkdownRenderOptions = {},
+): ReactNode {
   const blocks = parseBlocks(input);
   return (
     <>
-      {blocks.map((b, i) => renderBlock(b, i))}
+      {blocks.map((b, i) => renderBlock(b, i, options))}
     </>
   );
 }
@@ -194,19 +205,23 @@ function parseBlocks(input: string): Block[] {
   return out;
 }
 
-function renderBlock(block: Block, key: number): ReactNode {
+function renderBlock(
+  block: Block,
+  key: number,
+  options: MarkdownRenderOptions,
+): ReactNode {
   if (block.kind === 'p') {
-    return <p key={key} className="md-p">{renderInline(block.text)}</p>;
+    return <p key={key} className="md-p">{renderInline(block.text, options)}</p>;
   }
   if (block.kind === 'h') {
     const Tag = (`h${block.level}` as 'h1' | 'h2' | 'h3' | 'h4');
-    return <Tag key={key} className={`md-h md-h${block.level}`}>{renderInline(block.text)}</Tag>;
+    return <Tag key={key} className={`md-h md-h${block.level}`}>{renderInline(block.text, options)}</Tag>;
   }
   if (block.kind === 'ul') {
     return (
       <ul key={key} className="md-ul">
         {block.items.map((item, i) => (
-          <li key={i}>{renderInline(item)}</li>
+          <li key={i}>{renderInline(item, options)}</li>
         ))}
       </ul>
     );
@@ -215,7 +230,7 @@ function renderBlock(block: Block, key: number): ReactNode {
     return (
       <ol key={key} className="md-ol">
         {block.items.map((item, i) => (
-          <li key={i}>{renderInline(item)}</li>
+          <li key={i}>{renderInline(item, options)}</li>
         ))}
       </ol>
     );
@@ -239,7 +254,7 @@ function renderBlock(block: Block, key: number): ReactNode {
           <thead>
             <tr>
               {headers.map((cell, idx) => (
-                <th key={idx} style={cellStyle(idx)}>{renderInline(cell)}</th>
+                <th key={idx} style={cellStyle(idx)}>{renderInline(cell, options)}</th>
               ))}
             </tr>
           </thead>
@@ -247,7 +262,7 @@ function renderBlock(block: Block, key: number): ReactNode {
             {rows.map((row, rIdx) => (
               <tr key={rIdx}>
                 {headers.map((_, cIdx) => (
-                  <td key={cIdx} style={cellStyle(cIdx)}>{renderInline(row[cIdx] ?? '')}</td>
+                  <td key={cIdx} style={cellStyle(cIdx)}>{renderInline(row[cIdx] ?? '', options)}</td>
                 ))}
               </tr>
             ))}
@@ -284,7 +299,7 @@ function isSafeMarkdownImageSrc(src: string): boolean {
 // and plain text. We walk the string with a regex that matches whichever
 // delimiter shows up next; everything between delimiters becomes a text
 // span (which itself still gets autolink scanning).
-function renderInline(text: string): ReactNode {
+function renderInline(text: string, options: MarkdownRenderOptions): ReactNode {
   const out: ReactNode[] = [];
   // Order matters:
   //  1. inline code first so its contents are not re-tokenized as bold/italic.
@@ -336,17 +351,31 @@ function renderInline(text: string): ReactNode {
         pushText(out, alt, key++);
       }
     } else if (m[4] && m[5]) {
-      out.push(
-        <a
-          key={key++}
-          className="md-link"
-          href={m[5]}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          {m[4]}
-        </a>,
-      );
+      const action = options.resolveLinkAction?.(m[4], m[5]);
+      if (action) {
+        out.push(
+          <button
+            key={key++}
+            type="button"
+            className="md-link md-link-action"
+            onClick={action}
+          >
+            {m[4]}
+          </button>,
+        );
+      } else {
+        out.push(
+          <a
+            key={key++}
+            className="md-link"
+            href={m[5]}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {m[4]}
+          </a>,
+        );
+      }
     } else if (m[6]) {
       // Bare URL — autolink with the URL as both href and visible text,
       // matching the Markdown `<https://…>` autolink convention.

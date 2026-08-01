@@ -47,6 +47,40 @@ afterEach(() => {
 });
 
 describe('HomeView media composer options', () => {
+  it('keeps auto-poster controls ready while the full plugin catalog is still loading', async () => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0);
+      return 0;
+    });
+    let resolvePlugins!: (response: Response) => void;
+    const pluginsResponse = new Promise<Response>((resolve) => {
+      resolvePlugins = resolve;
+    });
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (url) => {
+      if (url === '/api/plugins') return pluginsResponse;
+      if (url === '/api/mcp/servers') return json({ servers: [], templates: [] });
+      throw new Error(`unexpected fetch ${String(url)}`);
+    }));
+
+    renderHome();
+
+    expect((screen.getByTestId('home-hero-auto-poster-count') as HTMLSelectElement).disabled)
+      .toBe(false);
+    expect((screen.getByTestId('home-hero-auto-poster-size') as HTMLSelectElement).disabled)
+      .toBe(false);
+    expect((screen.getByTestId('home-hero-auto-poster-brand') as HTMLSelectElement).disabled)
+      .toBe(false);
+    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled)
+      .toBe(false);
+
+    resolvePlugins(json({ plugins: [MEDIA_PLUGIN, HYPERFRAMES_PLUGIN] }));
+    await waitFor(() => {
+      expect(
+        (screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+  });
+
   it('keeps the inline option popover outside the clipped textarea highlight overlay', async () => {
     stubFetch();
     renderHome();

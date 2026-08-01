@@ -1,0 +1,555 @@
+.workspace-shell--unified .workspace-shell__body {
+  padding-inline: 0;
+}
+
+.niki-workspace {
+  --niki-sidebar-width: 264px;
+  --niki-composer-width: min(900px, calc(100% - 96px));
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--niki-sidebar-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.workspace-shell--unified .entry-main__inner--home .home-hero__input-card {
+  width: var(--niki-composer-width);
+  min-width: 440px;
+}
+
+.niki-workspace__sidebar-slot {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  z-index: 40;
+}
+
+.niki-workspace__sidebar-resize {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 6;
+  width: 8px;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.niki-workspace__sidebar-resize::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 3px;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.niki-workspace__sidebar-resize:hover::after,
+.niki-workspace__sidebar-resize:focus-visible::after {
+  opacity: 1;
+}
+
+.niki-workspace__sidebar {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 14px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--bg-panel) 94%, var(--bg-subtle));
+  border-right: 1px solid var(--border);
+  color: var(--text);
+}
+
+.niki-workspace__sidebar-head {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 10px;
+}
+
+.niki-workspace__brand {
+  appearance: none;
+  min-width: 0;
+  padding: 3px 7px 3px 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.niki-workspace__brand:hover {
+  background: var(--bg-subtle);
+}
+
+.niki-workspace__brand-icon {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.niki-workspace__drawer-close {
+  display: none;
+}
+
+.niki-workspace__new,
+.niki-workspace__design-files {
+  appearance: none;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 620;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.niki-workspace__new:hover,
+.niki-workspace__new.is-active,
+.niki-workspace__design-files:hover,
+.niki-workspace__design-files.is-active {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+
+.niki-workspace__new.is-active,
+.niki-workspace__design-files.is-active {
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.niki-workspace__section-label {
+  padding: 20px 11px 8px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.niki-workspace__project-list {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.niki-workspace__empty {
+  padding: 10px 11px;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.niki-workspace__project-row {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  border-radius: 9px;
+  color: var(--text-muted);
+}
+
+.niki-workspace__project-row:hover,
+.niki-workspace__project-row.is-active {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+
+.niki-workspace__project-row.is-active {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.niki-workspace__project-link {
+  appearance: none;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 34px 0 11px;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.niki-workspace__project-link svg {
+  flex: 0 0 auto;
+}
+
+.niki-workspace__project-link span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.niki-workspace__project-actions {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  z-index: 3;
+}
+
+.niki-workspace__project-more,
+.niki-workspace__drawer-close,
+.niki-workspace__menu-button,
+.niki-workspace__mobile-new {
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.niki-workspace__drawer-close {
+  display: none;
+}
+
+.niki-workspace__project-more {
+  opacity: 0;
+}
+
+.niki-workspace__project-row:hover .niki-workspace__project-more,
+.niki-workspace__project-more[aria-expanded='true'],
+.niki-workspace__project-more:focus-visible {
+  opacity: 1;
+}
+
+.niki-workspace__project-more:hover,
+.niki-workspace__drawer-close:hover,
+.niki-workspace__menu-button:hover,
+.niki-workspace__mobile-new:hover {
+  background: color-mix(in srgb, var(--bg-elevated) 84%, transparent);
+  color: var(--text-strong);
+}
+
+.niki-workspace__project-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  width: 144px;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+.niki-workspace__project-menu button {
+  appearance: none;
+  min-height: 34px;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.niki-workspace__project-menu button:hover {
+  background: var(--bg-subtle);
+}
+
+.niki-workspace__project-menu button.is-danger {
+  color: var(--danger, #d4543b);
+}
+
+.niki-workspace__account-menu {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: 8px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 8px;
+}
+
+.niki-workspace__account-trigger {
+  appearance: none;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.niki-workspace__account-trigger:hover,
+.niki-workspace__account-trigger[aria-expanded='true'] {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+
+.niki-workspace__account-avatar {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bg-elevated) 84%, var(--accent-tint));
+  color: var(--text-strong);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.niki-workspace__account-name {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.niki-workspace__account-chevron {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+.niki-workspace__account-popover {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: min(320px, calc(100vw - 24px));
+  max-height: min(680px, calc(100dvh - 32px));
+  overflow: auto;
+}
+
+.niki-workspace__account-popover-head {
+  padding: 7px 9px 9px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.niki-workspace__account-popover .inline-switcher,
+.niki-workspace__account-popover .inline-switcher__chip {
+  width: 100%;
+}
+
+.niki-workspace__account-popover .inline-switcher__popover {
+  right: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+}
+
+.niki-workspace__shortcut-list {
+  display: grid;
+  gap: 2px;
+  margin: 2px 6px 6px 30px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--bg-subtle);
+}
+
+.niki-workspace__shortcut-row {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.niki-workspace__shortcut-row kbd {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-bottom-color: color-mix(in srgb, var(--border) 65%, black);
+  border-radius: 5px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.niki-workspace__main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.niki-workspace__main > .app,
+.niki-workspace__main > .entry-shell {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.niki-workspace__mobile-header,
+.niki-workspace__scrim {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .niki-workspace {
+    --niki-composer-width: calc(100% - 24px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: calc(52px + env(safe-area-inset-top, 0px)) minmax(0, 1fr);
+  }
+
+  .niki-workspace__mobile-header {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    padding: env(safe-area-inset-top, 0px) 10px 0;
+    display: flex;
+    align-items: center;
+    border-bottom: 0;
+    background: transparent;
+    z-index: 30;
+  }
+
+  .niki-workspace__menu-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .niki-workspace__main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .niki-workspace__sidebar-slot {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(86vw, 320px);
+    min-height: 100dvh;
+    transform: translateX(-102%);
+    transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: 80;
+  }
+
+  .niki-workspace__sidebar-resize {
+    display: none;
+  }
+
+  .niki-workspace.is-drawer-open .niki-workspace__sidebar-slot {
+    transform: translateX(0);
+    transition-duration: 200ms;
+  }
+
+  .niki-workspace__sidebar {
+    padding-top: max(14px, env(safe-area-inset-top, 0px));
+    border-right-color: color-mix(in srgb, var(--border) 82%, transparent);
+    box-shadow: 18px 0 44px rgba(0, 0, 0, 0.34);
+  }
+
+  .niki-workspace__drawer-close {
+    display: inline-flex;
+  }
+
+  .niki-workspace__project-more {
+    opacity: 1;
+  }
+
+  .niki-workspace__scrim {
+    position: fixed;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(0, 0, 0, 0.52);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: 70;
+  }
+
+  .niki-workspace.is-drawer-open .niki-workspace__scrim {
+    opacity: 1;
+    pointer-events: auto;
+    transition-duration: 200ms;
+  }
+
+  .niki-workspace__project-link {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .niki-workspace__new,
+  .niki-workspace__design-files {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  .workspace-shell--unified .entry-main__inner--home .home-hero__input-card {
+    min-width: 0;
+  }
+}

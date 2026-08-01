@@ -3,6 +3,11 @@ import { en } from './en';
 
 export const zhTW: Dict = {
   ...en,
+  'homeHero.autoPosterPrompt': '選擇產品、比例和張數，一鍵出圖',
+  'homeHero.autoPosterWelcome': '輸入文案，一鍵生成貸款海報',
+  'homeHero.autoPosterStarted': '正在生成 {n} 張海報',
+  'homeHero.autoPosterStartedDetail': '結果會儲存在左側專案「{name}」中。',
+  'homeHero.autoPosterOpenProject': '查看專案',
   'common.cancel': '取消',
   'common.save': '儲存',
   'common.close': '關閉',
@@ -738,6 +743,7 @@ export const zhTW: Dict = {
   'avatar.codeAgent': '程式碼代理',
   'avatar.rescan': '重新掃描 PATH',
   'avatar.settings': '設定',
+  'avatar.shortcuts': '鍵盤快速鍵',
   'avatar.backToProjects': '返回專案列表',
   'avatar.metaActive': '使用中',
   'avatar.metaOffline': '未執行',

@@ -1,5 +1,5 @@
 ---
-name: loan-poster-skill-v1.1
+name: loan-poster-skill-v1-1
 description: |
   Generate consistent Zamloan or BiuMoney Zambia loan posters in selectable 1:1 or 16:9 formats.
 triggers:

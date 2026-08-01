@@ -104,6 +104,13 @@ interface Props {
     details?: DesignSystemReviewDetails,
   ) => void;
   onUseDesignSystem?: (id: string, title: string) => void;
+  simplifiedImageActions?: boolean;
+  /**
+   * Direct-poster projects expose chat and canvas only. The cross-project
+   * Design Files library already lives in the app sidebar, so a second
+   * project-local Design Files root would be ambiguous.
+   */
+  canvasOnly?: boolean;
 }
 
 interface SketchState {
@@ -217,6 +224,8 @@ export function FileWorkspace({
   designSystemReview,
   onDesignSystemReviewDecision,
   onUseDesignSystem,
+  simplifiedImageActions = false,
+  canvasOnly = false,
 }: Props) {
   const t = useT();
   const analytics = useAnalytics();
@@ -230,7 +239,11 @@ export function FileWorkspace({
     fileManagerViewedProjectRef.current = projectId;
     trackPageView(analytics.track, { page_name: 'file_manager' });
   }, [projectId, analytics.track]);
-  const defaultRootTab = designSystemProject ? DESIGN_SYSTEM_TAB : DESIGN_FILES_TAB;
+  const defaultRootTab = canvasOnly
+    ? CANVAS_TAB
+    : designSystemProject
+      ? DESIGN_SYSTEM_TAB
+      : DESIGN_FILES_TAB;
   // Persisted tabs come from the parent. Active tab can transiently point
   // at a pending sketch — pending sketches are not in tabsState.tabs.
   const persistedTabs = tabsState.tabs;
@@ -805,7 +818,7 @@ export function FileWorkspace({
       ].filter(Boolean).join(' ')}
       data-testid="file-workspace"
     >
-      <div className="ws-tabs-shell">
+      {canvasOnly ? null : <div className="ws-tabs-shell">
         {onFocusModeChange && focusMode ? (
           <button
             type="button"
@@ -941,7 +954,7 @@ export function FileWorkspace({
             );
           })}
         </div>
-      </div>
+      </div>}
       <div className="ws-body">
         {/* Banner moved into DesignFilesPanel for the Design Files tab so
             single-click preview (which keeps activeTab on DESIGN_FILES_TAB)
@@ -962,7 +975,7 @@ export function FileWorkspace({
             </button>
           </div>
         ) : null}
-        {activeTab === CANVAS_TAB ? (
+        {canvasOnly || activeTab === CANVAS_TAB ? (
           <CanvasView projectId={projectId} />
         ) : activeTab === DESIGN_SYSTEM_TAB && designSystemProject ? (
           <DesignSystemProjectPanel
@@ -1035,6 +1048,7 @@ export function FileWorkspace({
             uploadError={uploadError}
             onClearUploadError={() => setUploadError(null)}
             onPluginFolderAgentAction={onPluginFolderAgentAction}
+            simplifiedImageActions={simplifiedImageActions}
           />
         ) : isActiveSketch && activeSketch && activeFile ? (
           activeSketch.loaded ? (

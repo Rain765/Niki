@@ -261,7 +261,6 @@ export function normalizeDaemonProxyOriginHeader(options: {
     isSameBrowserHostOrigin({
       origin: parsedOrigin,
       requestHost: options.requestHost,
-      webPort: options.webPort,
     })
   ) {
     return options.daemonOrigin;
@@ -293,77 +292,6 @@ function parseHttpOrigin(value: string): URL | null {
   }
 }
 
-function parseAllowedDevHost(value: string): string | null {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-  try {
-    return new URL(trimmed).hostname.toLowerCase();
-  } catch {
-    try {
-      return new URL(`http://${trimmed}`).hostname.toLowerCase();
-    } catch {
-      return null;
-    }
-  }
-}
-
-function configuredAllowedDevHosts(): Set<string> {
-  return new Set(
-    (process.env.OD_ALLOWED_DEV_ORIGINS ?? "")
-      .split(",")
-      .map(parseAllowedDevHost)
-      .filter((host): host is string => host != null),
-  );
-}
-
-function isAllowedDevHost(hostname: string, allowedHosts: Set<string>): boolean {
-  const host = hostname.toLowerCase();
-  if (allowedHosts.has(host)) return true;
-
-  for (const allowedHost of allowedHosts) {
-    if (!allowedHost.startsWith("*.")) continue;
-    const suffix = allowedHost.slice(1);
-    if (host.endsWith(suffix) && host.length > suffix.length) return true;
-  }
-
-  return false;
-}
-
-function parseIpv4(value: string): [number, number, number, number] | null {
-  const parts = value.split(".");
-  if (parts.length !== 4) return null;
-  if (!parts.every((part) => /^\d+$/.test(part))) return null;
-  const octets = parts.map((part) => Number(part));
-  if (!octets.every((octet) => Number.isInteger(octet) && octet >= 0 && octet <= 255)) return null;
-  return octets as [number, number, number, number];
-}
-
-function isPrivateLanIpv4(value: string): boolean {
-  const octets = parseIpv4(value);
-  if (octets == null) return false;
-  const [a, b] = octets;
-  return (
-    a === 10 ||
-    (a === 172 && b >= 16 && b <= 31) ||
-    (a === 192 && b === 168) ||
-    (a === 169 && b === 254) ||
-    (a === 100 && b >= 64 && b <= 127)
-  );
-}
-
-function isLoopbackOrPrivateLanHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  return (
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host === "::1" ||
-    host === "[::1]" ||
-    host === "0.0.0.0" ||
-    host === "::" ||
-    isPrivateLanIpv4(host)
-  );
-}
-
 function defaultPortForProtocol(protocol: string): string {
   return protocol === "https:" ? "443" : "80";
 }
@@ -371,19 +299,16 @@ function defaultPortForProtocol(protocol: string): string {
 function isSameBrowserHostOrigin(options: {
   origin: URL;
   requestHost?: string | string[];
-  webPort: number;
 }): boolean {
   const requestHost = parseHostHeader(options.requestHost);
   if (requestHost == null) return false;
 
   const originPort = options.origin.port || defaultPortForProtocol(options.origin.protocol);
-  const requestPort = requestHost.port || "80";
-  if (originPort !== String(options.webPort) || requestPort !== originPort) return false;
+  const requestPort = requestHost.port || defaultPortForProtocol(options.origin.protocol);
+  if (requestPort !== originPort) return false;
   if (requestHost.hostname.toLowerCase() !== options.origin.hostname.toLowerCase()) return false;
 
-  const allowedDevHosts = configuredAllowedDevHosts();
-  const originHost = options.origin.hostname.toLowerCase();
-  return isLoopbackOrPrivateLanHost(originHost) || isAllowedDevHost(originHost, allowedDevHosts);
+  return true;
 }
 
 async function proxyHttpRequest(
@@ -393,7 +318,16 @@ async function proxyHttpRequest(
   options: { daemonWebPort?: number } = {},
 ): Promise<void> {
   const proxyRequestFactory = target.protocol === "https:" ? createHttpsRequest : createHttpRequest;
-  const headers = { ...request.headers, host: target.host };
+  const browserHost = firstHeaderValue(request.headers.host);
+  const headers = {
+    ...request.headers,
+    host: target.host,
+    // The daemon is bound to loopback, so its Host header is replaced with
+    // the upstream address. Preserve the browser-visible host in a
+    // proxy-owned header so origin validation can still distinguish a
+    // legitimate same-origin request from a forged cross-origin request.
+    ...(browserHost == null ? {} : { "x-forwarded-host": browserHost }),
+  };
   if (options.daemonWebPort != null) {
     const origin = normalizeDaemonProxyOriginHeader({
       daemonOrigin: target.origin,

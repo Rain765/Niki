@@ -10,6 +10,74 @@
   align-self: stretch;
   width: 100%;
 }
+.home-auto-poster-status {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(720px, 100%);
+  margin-top: -20px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--green, #3fb950) 32%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--green, #3fb950) 8%, var(--bg-panel));
+}
+.home-auto-poster-status__indicator {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--green, #3fb950);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--green, #3fb950) 14%, transparent);
+}
+.home-auto-poster-status__copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  flex: 1;
+}
+.home-auto-poster-status__copy strong {
+  color: var(--text-strong);
+  font-size: 13px;
+}
+.home-auto-poster-status__copy span {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-auto-poster-status__open {
+  appearance: none;
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.home-auto-poster-status__open:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+.home-auto-poster-status__open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .home-auto-poster-status {
+    align-items: flex-start;
+    margin-top: -16px;
+  }
+  .home-auto-poster-status__copy span {
+    white-space: normal;
+  }
+}
 
 /* Hero — large centered prompt input */
 .home-hero {
@@ -684,6 +752,14 @@
   gap: 8px;
   min-width: 0;
 }
+.home-hero__foot-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+}
 .home-hero__auto-poster {
   display: inline-flex;
   align-items: stretch;
@@ -1016,6 +1092,9 @@
   }
   .home-hero__foot-left {
     flex-wrap: wrap;
+  }
+  .home-hero__foot-right {
+    gap: 6px;
   }
   .home-hero__hint {
     display: none;

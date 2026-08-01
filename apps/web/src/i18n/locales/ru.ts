@@ -681,6 +681,7 @@ export const ru: Dict = {
   'avatar.codeAgent': 'Код-агент',
   'avatar.rescan': 'Пересканировать PATH',
   'avatar.settings': 'Настройки',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Назад к проектам',
   'avatar.metaActive': 'активно',
   'avatar.metaOffline': 'офлайн',

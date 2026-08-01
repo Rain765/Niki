@@ -12,6 +12,7 @@ import { migrateCanvas } from './canvas-store.js';
 import { migrateCritique } from './critique/persistence.js';
 import { migrateMediaTasks } from './media-tasks.js';
 import { migratePlugins } from './plugins/persistence.js';
+import { currentNikiUser } from './niki-auth-context.js';
 
 type SqliteDb = Database.Database;
 type DbRow = Record<string, any>;
@@ -59,9 +60,80 @@ function migrate(db: SqliteDb): void {
       design_system_id TEXT,
       pending_prompt TEXT,
       metadata_json TEXT,
+      owner_user_id TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS niki_users (
+      id TEXT PRIMARY KEY,
+      feishu_tenant_key TEXT NOT NULL,
+      feishu_open_id TEXT NOT NULL,
+      feishu_union_id TEXT,
+      name TEXT NOT NULL,
+      avatar_url TEXT,
+      role TEXT NOT NULL DEFAULT 'member',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      storage_quota_bytes INTEGER NOT NULL DEFAULT 5368709120,
+      daily_generation_quota INTEGER NOT NULL DEFAULT 30,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(feishu_tenant_key, feishu_open_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS niki_auth_sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      last_seen_at INTEGER NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES niki_users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_niki_auth_sessions_user
+      ON niki_auth_sessions(user_id, expires_at);
+
+    CREATE TABLE IF NOT EXISTS niki_password_accounts (
+      user_id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      password_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES niki_users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS niki_oauth_states (
+      state_hash TEXT PRIMARY KEY,
+      return_to TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS niki_login_guards (
+      scope_hash TEXT PRIMARY KEY,
+      failed_count INTEGER NOT NULL,
+      window_started_at INTEGER NOT NULL,
+      locked_until INTEGER,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS niki_security_events (
+      id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      user_id TEXT,
+      account_hash TEXT,
+      ip_hash TEXT,
+      outcome TEXT NOT NULL,
+      metadata_json TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES niki_users(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_niki_security_events_created
+      ON niki_security_events(created_at DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_niki_security_events_user
+      ON niki_security_events(user_id, created_at DESC);
 
     CREATE TABLE IF NOT EXISTS templates (
       id TEXT PRIMARY KEY,
@@ -206,6 +278,26 @@ function migrate(db: SqliteDb): void {
   }
   if (!cols.some((c: DbRow) => c.name === 'custom_instructions')) {
     db.exec(`ALTER TABLE projects ADD COLUMN custom_instructions TEXT`);
+  }
+  if (!cols.some((c: DbRow) => c.name === 'owner_user_id')) {
+    db.exec(`ALTER TABLE projects ADD COLUMN owner_user_id TEXT`);
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_projects_owner_updated
+      ON projects(owner_user_id, updated_at DESC)
+  `);
+  const nikiUserCols = db.prepare(`PRAGMA table_info(niki_users)`).all() as DbRow[];
+  if (!nikiUserCols.some((c: DbRow) => c.name === 'storage_quota_bytes')) {
+    db.exec(`
+      ALTER TABLE niki_users
+      ADD COLUMN storage_quota_bytes INTEGER NOT NULL DEFAULT 5368709120
+    `);
+  }
+  if (!nikiUserCols.some((c: DbRow) => c.name === 'daily_generation_quota')) {
+    db.exec(`
+      ALTER TABLE niki_users
+      ADD COLUMN daily_generation_quota INTEGER NOT NULL DEFAULT 30
+    `);
   }
   const messageCols = db.prepare(`PRAGMA table_info(messages)`).all() as DbRow[];
   if (!messageCols.some((c: DbRow) => c.name === 'agent_id')) {
@@ -441,17 +533,25 @@ const PROJECT_COLS = `id, name, skill_id AS skillId,
   updated_at AS updatedAt`;
 
 export function listProjects(db: SqliteDb) {
-  const rows = db
-    .prepare(
+  const user = currentNikiUser();
+  const rows = user
+    ? db.prepare(
+      `SELECT ${PROJECT_COLS}
+         FROM projects
+        WHERE owner_user_id = ?
+        ORDER BY updated_at DESC`,
+    ).all(user.id) as DbRow[]
+    : db.prepare(
       `SELECT ${PROJECT_COLS}
          FROM projects
         ORDER BY updated_at DESC`,
-    )
-    .all() as DbRow[];
+    ).all() as DbRow[];
   return rows.map(normalizeProject);
 }
 
 export function listLatestProjectRunStatuses(db: SqliteDb) {
+  const user = currentNikiUser();
+  const projectFilter = user ? 'AND p.owner_user_id = ?' : '';
   const rows = db
     .prepare(
       `SELECT c.project_id AS projectId,
@@ -460,10 +560,12 @@ export function listLatestProjectRunStatuses(db: SqliteDb) {
               COALESCE(m.ended_at, m.started_at, m.created_at) AS updatedAt
          FROM messages m
          JOIN conversations c ON c.id = m.conversation_id
+         JOIN projects p ON p.id = c.project_id
         WHERE m.run_status IS NOT NULL
+          ${projectFilter}
         ORDER BY updatedAt DESC`,
     )
-    .all() as DbRow[];
+    .all(...(user ? [user.id] : [])) as DbRow[];
   const latestByProject = new Map<string, DbRow>();
   for (const row of rows) {
     if (!latestByProject.has(row.projectId)) {
@@ -478,6 +580,8 @@ export function listLatestProjectRunStatuses(db: SqliteDb) {
 }
 
 export function listProjectsAwaitingInput(db: SqliteDb) {
+  const user = currentNikiUser();
+  const projectFilter = user ? 'AND p.owner_user_id = ?' : '';
   const rows = db
     .prepare(
       `SELECT latest.projectId
@@ -492,8 +596,10 @@ export function listProjectsAwaitingInput(db: SqliteDb) {
                   ) AS rowNum
              FROM messages m
              JOIN conversations c ON c.id = m.conversation_id
+             JOIN projects p ON p.id = c.project_id
             WHERE m.role = 'assistant'
               AND LOWER(m.content) LIKE '%<question-form%'
+              ${projectFilter}
          ) latest
         WHERE latest.rowNum = 1
           AND NOT EXISTS (
@@ -507,23 +613,31 @@ export function listProjectsAwaitingInput(db: SqliteDb) {
                )
           )`,
     )
-    .all() as DbRow[];
+    .all(...(user ? [user.id] : [])) as DbRow[];
   return new Set((rows as DbRow[]).map((row: DbRow) => row.projectId));
 }
 
 export function getProject(db: SqliteDb, id: string) {
-  const row = db
-    .prepare(`SELECT ${PROJECT_COLS} FROM projects WHERE id = ?`)
-    .get(id) as DbRow | undefined;
+  const user = currentNikiUser();
+  const row = user
+    ? db.prepare(
+      `SELECT ${PROJECT_COLS}
+         FROM projects
+        WHERE id = ? AND owner_user_id = ?`,
+    ).get(id, user.id) as DbRow | undefined
+    : db.prepare(
+      `SELECT ${PROJECT_COLS} FROM projects WHERE id = ?`,
+    ).get(id) as DbRow | undefined;
   return row ? normalizeProject(row) : null;
 }
 
 export function insertProject(db: SqliteDb, p: DbRow) {
+  const ownerUserId = currentNikiUser()?.id ?? p.ownerUserId ?? null;
   db.prepare(
     `INSERT INTO projects
        (id, name, skill_id, design_system_id, pending_prompt,
-        metadata_json, custom_instructions, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        metadata_json, custom_instructions, owner_user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     p.id,
     p.name,
@@ -532,6 +646,7 @@ export function insertProject(db: SqliteDb, p: DbRow) {
     p.pendingPrompt ?? null,
     p.metadata ? JSON.stringify(p.metadata) : null,
     p.customInstructions ?? null,
+    ownerUserId,
     p.createdAt,
     p.updatedAt,
   );
@@ -539,6 +654,7 @@ export function insertProject(db: SqliteDb, p: DbRow) {
 }
 
 export function updateProject(db: SqliteDb, id: string, patch: DbRow) {
+  const user = currentNikiUser();
   const existing = getProject(db, id);
   if (!existing) return null;
   const merged = {
@@ -555,7 +671,8 @@ export function updateProject(db: SqliteDb, id: string, patch: DbRow) {
             metadata_json = ?,
             custom_instructions = ?,
             updated_at = ?
-      WHERE id = ?`,
+      WHERE id = ?
+        ${user ? 'AND owner_user_id = ?' : ''}`,
   ).run(
     merged.name,
     merged.skillId ?? null,
@@ -565,11 +682,19 @@ export function updateProject(db: SqliteDb, id: string, patch: DbRow) {
     merged.customInstructions ?? null,
     merged.updatedAt,
     id,
+    ...(user ? [user.id] : []),
   );
   return getProject(db, id);
 }
 
 export function deleteProject(db: SqliteDb, id: string) {
+  const user = currentNikiUser();
+  if (user) {
+    db.prepare(
+      `DELETE FROM projects WHERE id = ? AND owner_user_id = ?`,
+    ).run(id, user.id);
+    return;
+  }
   db.prepare(`DELETE FROM projects WHERE id = ?`).run(id);
 }
 

@@ -1,5 +1,476 @@
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap');
 @import './styles/design-system-flow.css';
+
+/* The server and the browser's first hydrated frame intentionally share this
+   locale-neutral shell. It prevents the English fallback UI from flashing
+   before the saved browser language has been resolved. */
+.locale-bootstrap {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg-app);
+  color: var(--text-strong);
+}
+
+.locale-bootstrap__logo {
+  width: 32px;
+  height: 32px;
+}
+
+.locale-bootstrap__name {
+  font: 600 22px/1 var(--sans);
+  letter-spacing: -0.02em;
+}
+
+.locale-bootstrap__spinner {
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border: 2px solid color-mix(in srgb, var(--text-muted) 28%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: locale-bootstrap-spin 700ms linear infinite;
+}
+
+@keyframes locale-bootstrap-spin {
+  to { transform: rotate(360deg); }
+}
+
+.niki-auth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 18%, rgb(254 82 0 / 18%), transparent 34%),
+    #08090b;
+  color: #f7f7f8;
+}
+
+.niki-auth__card {
+  width: min(100%, 440px);
+  padding: 36px;
+  border: 1px solid #2a2e35;
+  border-radius: 24px;
+  background: #111318;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 38%);
+}
+
+.niki-auth__logo {
+  width: 52px;
+  height: 52px;
+}
+
+.niki-auth h1 {
+  margin: 24px 0 10px;
+  font: 700 30px/1.2 var(--sans);
+}
+
+.niki-auth p {
+  margin: 0 0 22px;
+  color: #a8adb8;
+  font: 400 15px/1.65 var(--sans);
+}
+
+.niki-auth button {
+  width: 100%;
+  min-height: 50px;
+  border: 0;
+  border-radius: 14px;
+  background: #fe5200;
+  color: white;
+  font: 650 16px/1 var(--sans);
+  cursor: pointer;
+}
+
+.niki-auth button:hover {
+  background: #ff6a24;
+}
+
+.niki-auth button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.niki-auth__password-form {
+  display: grid;
+  gap: 14px;
+}
+
+.niki-auth__password-form label {
+  display: grid;
+  gap: 7px;
+  color: #c8ccd4;
+  font: 500 13px/1.2 var(--sans);
+}
+
+.niki-auth__password-form input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid #353b46;
+  border-radius: 12px;
+  outline: none;
+  background: #090b0f;
+  color: #f7f7f8;
+  font: 500 16px/1 var(--sans);
+}
+
+.niki-auth__password-form input:focus {
+  border-color: #fe5200;
+  box-shadow: 0 0 0 3px rgb(254 82 0 / 16%);
+}
+
+.niki-auth .niki-auth__text-button {
+  min-height: 42px;
+  margin-top: 8px;
+  background: transparent;
+  color: #a8adb8;
+  font-size: 14px;
+}
+
+.niki-auth .niki-auth__text-button:hover {
+  background: rgb(255 255 255 / 5%);
+  color: #f7f7f8;
+}
+
+.niki-auth__loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  color: #a8adb8;
+}
+
+.niki-auth__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgb(255 255 255 / 18%);
+  border-top-color: #fe5200;
+  border-radius: 50%;
+  animation: locale-bootstrap-spin 700ms linear infinite;
+}
+
+.niki-auth__hint {
+  margin-top: -12px !important;
+  color: #737986 !important;
+  font-size: 13px !important;
+}
+
+.niki-auth__error {
+  margin: -8px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 91 99 / 38%);
+  border-radius: 10px;
+  background: rgb(121 28 33 / 35%);
+  color: #ff9ca1;
+  font-size: 13px;
+}
+
+.niki-account-manager {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgb(0 0 0 / 38%);
+  backdrop-filter: blur(4px);
+}
+
+.niki-account-manager__dialog {
+  width: min(100%, 720px);
+  max-height: min(820px, calc(100dvh - 40px));
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+}
+
+.niki-account-manager__dialog > header,
+.niki-account-manager__list-head,
+.niki-account-manager__row {
+  display: flex;
+  align-items: center;
+}
+
+.niki-account-manager__dialog > header {
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.niki-account-manager__dialog h2 {
+  margin: 3px 0 0;
+  font-size: 24px;
+}
+
+.niki-account-manager__eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.niki-account-manager__dialog > header button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  line-height: 0;
+  cursor: pointer;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.niki-account-manager__dialog > header button:hover {
+  opacity: 0.72;
+}
+
+.niki-account-manager__dialog > header button svg {
+  width: 18px;
+  height: 18px;
+  overflow: visible;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.niki-account-manager__form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--bg-subtle);
+}
+
+.niki-account-manager__form label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.niki-account-manager__form input,
+.niki-account-manager__password-reset input {
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+.niki-account-manager__form > button {
+  grid-column: 1 / -1;
+  height: 44px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.niki-account-manager__form > button:hover:not(:disabled) {
+  background: var(--accent);
+  opacity: 0.82;
+}
+
+.niki-account-manager__form > button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.niki-account-manager__error,
+.niki-account-manager__notice {
+  margin-top: 14px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.niki-account-manager__error {
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+  color: var(--danger);
+}
+
+.niki-account-manager__notice {
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.niki-account-manager__list {
+  margin-top: 22px;
+}
+
+.niki-account-manager__list-head {
+  justify-content: space-between;
+  padding: 0 4px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.niki-account-manager__account {
+  border-top: 1px solid var(--border-soft);
+}
+
+.niki-account-manager__row {
+  gap: 14px;
+  min-height: 66px;
+  padding: 11px 4px;
+}
+
+.niki-account-manager__row > div {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+}
+
+.niki-account-manager__row > div span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.niki-account-manager__row > span {
+  font-size: 12px;
+}
+
+.niki-account-manager__row > span.is-active {
+  color: var(--success);
+}
+
+.niki-account-manager__row > span.is-disabled {
+  color: var(--text-muted);
+}
+
+.niki-account-manager__row > button {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.niki-account-manager__row > button:hover {
+  opacity: 0.68;
+}
+
+.niki-account-manager__row > button.is-secondary {
+  color: var(--text);
+}
+
+.niki-account-manager__row > button.is-danger {
+  color: var(--danger);
+}
+
+.niki-account-manager__password-reset {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 2px 4px 16px;
+}
+
+.niki-account-manager__password-reset label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.niki-account-manager__password-reset > div {
+  display: flex;
+  gap: 8px;
+}
+
+.niki-account-manager__password-reset button {
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  color: var(--text);
+  font-weight: 650;
+  cursor: pointer;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.niki-account-manager__password-reset button[type='submit'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.niki-account-manager__password-reset button:hover:not(:disabled) {
+  opacity: 0.78;
+}
+
+.niki-account-manager__password-reset button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+}
+
+.niki-account-manager__empty {
+  padding: 28px 4px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .niki-account-manager {
+    align-items: end;
+    padding: 0;
+  }
+
+  .niki-account-manager__dialog {
+    width: 100%;
+    max-height: 88dvh;
+    padding: 20px;
+    border-radius: 22px 22px 0 0;
+  }
+
+  .niki-account-manager__form {
+    grid-template-columns: 1fr;
+  }
+
+  .niki-account-manager__row {
+    flex-wrap: wrap;
+  }
+
+  .niki-account-manager__row > div {
+    flex-basis: calc(100% - 72px);
+  }
+
+  .niki-account-manager__password-reset {
+    grid-template-columns: 1fr;
+  }
+
+  .niki-account-manager__password-reset > div {
+    justify-content: flex-end;
+  }
+}
+
+.niki-workspace__account-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
 
 /* ============================================================
    Open Design — neutral product workspace
@@ -1162,6 +1633,42 @@ code {
   flex: 0 1 auto;
   min-width: 0;
 }
+.project-title-input {
+  width: min(320px, 46vw);
+  min-width: 120px;
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  outline: none;
+  background: var(--bg-panel);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 14px;
+  font-weight: var(--font-ui-strong);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.project-title-edit {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.project-title-edit:hover {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+.project-title-edit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .app-project-title .meta {
   color: var(--text-muted);
   font-size: 12px;
@@ -1847,6 +2354,54 @@ a.avatar-item:visited {
 }
 .msg.user .user-text-wrap .user-text {
   padding-inline-end: 28px;
+}
+.msg.user .user-prompt-collapsible {
+  min-width: min(320px, 100%);
+}
+.msg.user .user-prompt-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 7px 4px 1px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.msg.user .user-prompt-toggle:hover {
+  color: #fff;
+}
+.msg.user .user-prompt-toggle svg {
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.msg.user .user-prompt-toggle svg.is-expanded {
+  transform: rotate(180deg);
+}
+.msg.user .user-prompt-toggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.82);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.composer-auto-poster-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-muted);
+}
+.composer-auto-poster-status__spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--text-muted) 32%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: icon-spin 700ms linear infinite;
 }
 .msg.user .user-status-wrap {
   display: flex;
@@ -13047,6 +13602,382 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
 .chat-empty-title { font-weight: 600; color: var(--text-strong); font-size: 15px; }
 .chat-empty-hint { line-height: 1.6; }
 
+.direct-poster-timeline {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 28px;
+  width: 100%;
+  min-width: 0;
+  padding-block: 8px 20px;
+}
+.direct-poster-timeline.is-single-batch {
+  flex: 1;
+}
+.direct-poster-batch {
+  width: 100%;
+  min-width: 0;
+}
+.direct-poster-timeline.is-single-batch .direct-poster-batch {
+  display: flex;
+  flex: 1;
+}
+
+.direct-poster-status {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: auto 12px;
+  padding: 16px;
+  color: var(--text);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.direct-poster-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-radius: 12px;
+}
+.direct-poster-status-spinner {
+  animation: icon-spin 900ms linear infinite;
+}
+.direct-poster-status-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.direct-poster-status-copy strong {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 650;
+}
+.direct-poster-status-copy span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.direct-poster-status.is-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  color: var(--text);
+  text-align: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+.direct-poster-status.is-loading .direct-poster-status-icon {
+  width: auto;
+  height: auto;
+  background: transparent;
+  border-radius: 0;
+}
+.direct-poster-status.is-loading .direct-poster-status-copy {
+  align-items: center;
+}
+.direct-poster-status.is-loading.is-inline-loading {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: var(--direct-poster-content-width, min(50%, 720px));
+  min-width: 440px;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 16px 8px;
+  text-align: left;
+}
+.direct-poster-status.is-loading.is-inline-loading .direct-poster-status-copy {
+  align-items: flex-start;
+}
+.direct-poster-status.has-results {
+  width: var(--direct-poster-content-width, min(50%, 720px));
+  min-width: 440px;
+  margin: 0 auto;
+  align-self: flex-start;
+  background: transparent;
+  border-color: transparent;
+  padding: 8px;
+  overflow: visible;
+}
+.direct-poster-gallery {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  margin-top: 8px;
+}
+.direct-poster-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(128px, 30%);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+}
+.direct-poster-result-open {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+}
+.direct-poster-result-open picture {
+  display: block;
+}
+.direct-poster-result-open img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: min(46vh, 520px);
+  object-fit: contain;
+}
+.direct-poster-result figcaption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px 0;
+  border: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.direct-poster-result figcaption span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.direct-poster-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+}
+.direct-poster-result-actions button,
+.direct-poster-result-actions a {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 8px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.direct-poster-result-actions button:hover:not(:disabled),
+.direct-poster-result-actions a:hover {
+  color: var(--text);
+  background: var(--bg-subtle);
+}
+.direct-poster-result-actions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.direct-poster-result-actions .is-danger {
+  color: var(--red);
+}
+.direct-poster-thumbnails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 64px;
+  max-height: min(46vh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.direct-poster-thumbnails button {
+  appearance: none;
+  width: 64px;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  opacity: 0.68;
+  transition:
+    opacity 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.direct-poster-thumbnails button:hover,
+.direct-poster-thumbnails button.is-active {
+  opacity: 1;
+  border-color: var(--accent);
+}
+.direct-poster-thumbnails img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.pane.is-direct-loan-poster {
+  --direct-poster-content-width: var(--niki-composer-width, min(50%, 720px));
+}
+.pane.is-direct-loan-poster > .composer {
+  width: var(--direct-poster-content-width);
+  min-width: 440px;
+  margin: 0 auto 18px;
+  padding-inline: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+@media (max-width: 900px) {
+  .pane.is-direct-loan-poster {
+    --direct-poster-content-width: 100%;
+  }
+  .pane.is-direct-loan-poster .chat-log {
+    align-items: stretch;
+    padding: 0 0 24px;
+  }
+  .direct-poster-timeline {
+    gap: 24px;
+    padding-block: 8px 16px;
+  }
+  .direct-poster-status {
+    width: 100%;
+    margin: 0;
+    padding: 12px 16px;
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .direct-poster-status-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .direct-poster-status-copy {
+    justify-content: center;
+    min-height: 32px;
+  }
+  .direct-poster-status-copy strong,
+  .direct-poster-status-copy span {
+    overflow-wrap: anywhere;
+  }
+  .direct-poster-status.is-loading {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 12px 16px;
+  }
+  .direct-poster-status.is-loading.is-inline-loading {
+    grid-template-columns: 32px minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 12px 16px;
+  }
+  .direct-poster-status.has-results {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 12px 16px;
+  }
+  .pane.is-direct-loan-poster > .composer {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    min-width: 0;
+    width: 100%;
+    margin: 0;
+    padding: 8px 12px max(10px, env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, transparent, var(--bg-panel) 18%);
+  }
+  .direct-poster-result-open {
+    justify-self: center;
+    border-radius: 14px;
+  }
+  .direct-poster-result-open img {
+    width: auto;
+    max-width: min(50vw, 220px);
+    height: auto;
+    max-height: min(28vh, 220px);
+  }
+  .direct-poster-gallery {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 8px;
+  }
+  .direct-poster-result {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+  .direct-poster-thumbnails {
+    flex-direction: row;
+    justify-content: center;
+    width: min(100%, 320px);
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .direct-poster-thumbnails button {
+    width: 52px;
+    flex: 0 0 52px;
+  }
+  .direct-poster-result figcaption {
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding-inline: 4px;
+    text-align: center;
+  }
+  .direct-poster-result figcaption > span:first-child {
+    max-width: min(100%, 28ch);
+  }
+  .direct-poster-result-actions {
+    justify-content: center;
+    gap: 6px;
+  }
+  .direct-poster-result-actions button,
+  .direct-poster-result-actions a {
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+}
+
 .chat-examples {
   display: flex;
   flex-direction: column;
@@ -13257,6 +14188,17 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   text-decoration: underline;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+.prose-block .md-link-action {
+  appearance: none;
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  cursor: pointer;
 }
 .prose-block .md-link-bare {
   /* Long bare URLs (OAuth flows etc.) need to wrap mid-string so they
@@ -13681,6 +14623,26 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   border-radius: 4px;
   background: var(--bg-subtle);
 }
+.produced-file-thumbnail-button {
+  width: 52px;
+  height: 34px;
+  flex: 0 0 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  overflow: hidden;
+}
+.produced-file-open-target {
+  cursor: pointer;
+}
+.produced-file-open-target:disabled {
+  cursor: default;
+}
+.produced-file-open-target:not(:disabled):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .produced-file-name {
   flex: 1;
   min-width: 0;
@@ -13688,6 +14650,11 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--mono);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
 }
 .produced-file-size {
   font-size: 10.5px;
@@ -23746,6 +24713,19 @@ body.desktop-pet-shell .pet-task-item {
   flex-wrap: wrap;
 }
 .plugin-details-modal__stage-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
 /* Settings → Skills (functional) row stack.
    Mirrors the External MCP servers panel: a vertical list of
    collapsible rows. Each row's header is always visible; SKILL.md
@@ -24836,10 +25816,6 @@ body.desktop-pet-shell .pet-task-item {
    lives in `src/styles/home/`. Imported from `app/layout.tsx`
    alongside this file so upstream `index.css` rebases stay narrow.
    ============================================================ */
-  color: var(--text-faint);
-  transition: transform 160ms ease, color 120ms ease;
-  flex-shrink: 0;
-}
 .settings-skills .skills-row-summary-btn:hover .skills-row-chevron {
   color: var(--text-muted);
 }
@@ -25884,6 +26860,7 @@ body.desktop-pet-shell .pet-task-item {
 }
 
 .app {
+  position: relative;
   background: var(--bg-panel);
 }
 .app > .app-chrome-header {
@@ -25922,6 +26899,9 @@ body.desktop-pet-shell .pet-task-item {
   white-space: nowrap;
   cursor: pointer;
 }
+.app .project-workspace-mobile-toggle.is-direct-poster-toggle {
+  display: inline-flex;
+}
 .app .project-workspace-mobile-toggle:hover {
   background: var(--bg-subtle);
   border-color: var(--border-strong);
@@ -25957,13 +26937,94 @@ body.desktop-pet-shell .pet-task-item {
 }
 
 .app .split {
+  position: relative;
   background: var(--bg-panel);
+}
+.app.app--direct-poster {
+  grid-template-rows: 58px minmax(0, 1fr);
+}
+.app.app--direct-poster > .direct-poster-topbar {
+  grid-row: 1;
+  height: 58px;
+  min-height: 58px;
+  padding: 9px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-app);
+}
+.app.app--direct-poster > .split {
+  grid-row: 2;
+}
+.app .direct-poster-surface-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0 6px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.app .direct-poster-surface-switch button {
+  appearance: none;
+  position: relative;
+  min-height: 38px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--text-soft);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition:
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.app .direct-poster-surface-switch button:hover {
+  color: var(--text-strong);
+  background: transparent;
+}
+.app .direct-poster-surface-switch button.is-active {
+  color: var(--accent);
+  background: transparent;
+  box-shadow: none;
+}
+.app .direct-poster-surface-switch button.is-active::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  left: 4px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+.app .direct-poster-surface-switch button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .app .split:not(.split-focus) {
   grid-template-columns: minmax(320px, var(--chat-panel-width, 460px)) 8px minmax(400px, 1fr);
 }
 .app .split.split-focus {
   grid-template-columns: minmax(0, 1fr);
+}
+.app .split.split-workspace-collapsed {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.app .split.split-workspace-collapsed > .workspace {
+  display: none;
 }
 .app .split-chat-slot {
   padding: 0;
@@ -25986,6 +27047,21 @@ body.desktop-pet-shell .pet-task-item {
 }
 
 @media (max-width: 900px) {
+  .app.app--direct-poster {
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .app.app--direct-poster > .direct-poster-topbar {
+    display: none;
+  }
+  .app.app--direct-poster > .split {
+    grid-row: 1;
+  }
+  .niki-workspace.is-drawer-open .direct-poster-topbar {
+    visibility: hidden;
+  }
+  .app .direct-poster-surface-switch button {
+    min-height: 36px;
+  }
   .app .project-workspace-mobile-toggle {
     display: inline-flex;
   }
@@ -26098,6 +27174,26 @@ body.desktop-pet-shell .pet-task-item {
 }
 .app .msg.assistant {
   max-width: min(100%, 620px);
+}
+
+.niki-workspace .app .chat-log {
+  align-items: center;
+}
+
+.niki-workspace .app .chat-day-separator,
+.niki-workspace .app .msg,
+.niki-workspace .app .msg.user,
+.niki-workspace .app .msg.assistant {
+  align-self: center;
+  width: var(--niki-composer-width, min(900px, calc(100% - 32px)));
+  max-width: calc(100% - 32px);
+  margin-inline: auto;
+}
+
+.niki-workspace .app .msg.user .user-text-wrap,
+.niki-workspace .app .msg.user .user-text {
+  width: 100%;
+  max-width: 100%;
 }
 .app .msg .role {
   margin-bottom: 5px;
@@ -26630,6 +27726,15 @@ body.desktop-pet-shell .pet-task-item {
   outline: none;
 }
 
+/* Keep tldraw's fill/style palette below Niki's chat/canvas switcher. The
+   palette owns the canvas top-right corner, while the switcher sits in the
+   app chrome directly above it. Reserving the chrome height prevents the two
+   interactive layers from covering each other on both desktop and mobile. */
+.app--direct-poster .canvas-surface .tlui-style-panel__wrapper {
+  margin-top: 58px;
+  max-height: calc(100% - 66px);
+}
+
 /* Floating "add text" affordance over the canvas. Positioned top-centre to
    avoid tldraw's own chrome (menu top-left, style panel top-right, toolbar
    bottom-centre). */
@@ -26773,4 +27878,106 @@ body.desktop-pet-shell .pet-task-item {
 .app .ws-tabs-shell,
 .app .df-controls-row {
   background: var(--bg-app);
+}
+
+/* Product-first composer: the product tags sit immediately above this
+   one-line capsule, while attachments and applied context can still expand
+   into full-width rows without changing the primary input affordance. */
+.composer-shell--capsule {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 7px;
+}
+
+.app .composer-shell--capsule {
+  border-radius: 999px;
+  padding: 7px;
+}
+
+.composer-capsule-row {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.composer-capsule-row > .composer-input-wrap {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.composer-capsule-row > .composer-row {
+  display: contents;
+}
+
+.composer-capsule-row .composer-row > .composer-add {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.composer-capsule-row .composer-row > .composer-send,
+.composer-capsule-row .composer-row > .composer-send-split {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row > .composer-input-wrap {
+  grid-column: 1;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row .composer-add {
+  display: none;
+}
+
+.pane.is-direct-loan-poster .composer-capsule-row .composer-row > .composer-send,
+.pane.is-direct-loan-poster .composer-capsule-row .composer-row > .composer-send-split {
+  grid-column: 2;
+}
+
+.composer-shell--capsule .composer-spacer {
+  display: none;
+}
+
+.composer-shell--capsule .composer-textarea-layer,
+.composer-shell--capsule .composer-input-overlay,
+.composer-shell--capsule textarea,
+.app .composer-shell--capsule textarea {
+  min-height: 40px;
+}
+
+.composer-shell--capsule textarea {
+  padding: 10px 8px;
+}
+
+.composer-auto-poster {
+  width: 100%;
+  max-width: none;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 680px) {
+  .composer-shell--capsule,
+  .app .composer-shell--capsule {
+    padding: 6px;
+  }
+
+  .composer-auto-poster {
+    max-width: none;
+    margin-bottom: 7px;
+  }
+
+  .composer-shell--capsule textarea:placeholder-shown {
+    padding-inline: 5px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
 }

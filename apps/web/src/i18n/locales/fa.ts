@@ -682,6 +682,7 @@ export const fa: Dict = {
   'avatar.codeAgent': 'عامل کد',
   'avatar.rescan': 'اسکن مجدد PATH',
   'avatar.settings': 'تنظیمات',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'بازگشت به پروژه‌ها',
   'avatar.metaActive': 'فعال',
   'avatar.metaOffline': 'آفلاین',

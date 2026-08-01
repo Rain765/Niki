@@ -777,6 +777,7 @@ export const id: Dict = {
   'avatar.codeAgent': 'Code agent',
   'avatar.rescan': 'Pindai ulang PATH',
   'avatar.settings': 'Pengaturan',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Kembali ke proyek',
   'avatar.metaActive': 'aktif',
   'avatar.metaOffline': 'offline',

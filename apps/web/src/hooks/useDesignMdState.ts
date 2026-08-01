@@ -66,11 +66,21 @@ const INITIAL: Omit<DesignMdState, 'refresh'> = {
  *   conversation updatedAt as the user keeps working post-finalize.
  *   Defaults to 0 so call sites that don't need invalidation can omit it.
  */
-export function useDesignMdState(projectId: string, refreshKey: number = 0): DesignMdState {
-  const [state, setState] = useState<Omit<DesignMdState, 'refresh'>>(INITIAL);
+export function useDesignMdState(
+  projectId: string,
+  refreshKey: number = 0,
+  enabled: boolean = true,
+): DesignMdState {
+  const [state, setState] = useState<Omit<DesignMdState, 'refresh'>>(
+    enabled ? INITIAL : { ...INITIAL, loading: false },
+  );
 
   const compute = useCallback(
     async (signal?: AbortSignal): Promise<void> => {
+      if (!enabled) {
+        setState({ ...INITIAL, loading: false });
+        return;
+      }
       const projectIdEnc = encodeURIComponent(projectId);
       setState((prev) => ({ ...prev, loading: true, error: null }));
       try {
@@ -146,7 +156,7 @@ export function useDesignMdState(projectId: string, refreshKey: number = 0): Des
     // (file-changed events, chat-turn completion) re-runs compute without
     // forcing the caller to drill `refresh()` through props. Round 7
     // (mrcfps @ useDesignMdState.ts:131).
-    [projectId, refreshKey],
+    [enabled, projectId, refreshKey],
   );
 
   useEffect(() => {

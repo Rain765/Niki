@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import type { ReactNode } from 'react';
-import { I18nProvider } from '../src/i18n';
-import { AnalyticsProvider } from '../src/analytics/provider';
 import '../src/index.css';
 import '../src/styles/home/index.css';
 import '../src/styles/ndesign-system.css';
@@ -18,8 +17,77 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#FFFFFF',
+  themeColor: '#08090b',
 };
+
+/**
+ * Critical first-paint styles stay inline so a slow public connection cannot
+ * leave mobile users staring at the browser's default white canvas while the
+ * hashed application stylesheets download. The full rules in `src/index.css`
+ * take over as soon as they arrive because every selector here has zero
+ * specificity through `:where()`.
+ */
+const firstPaintStyle = `
+:where(html, body) {
+  min-height: 100%;
+  margin: 0;
+  background: #08090b;
+  color: #f7f7f8;
+}
+:where(.niki-auth, .locale-bootstrap) {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #08090b;
+  color: #f7f7f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+:where(.niki-auth) {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+:where(.niki-auth__card) {
+  width: min(100%, 440px);
+  box-sizing: border-box;
+  padding: 36px;
+  border: 1px solid #2a2e35;
+  border-radius: 24px;
+  background: #111318;
+}
+:where(.niki-auth__logo) {
+  width: 52px;
+  height: 52px;
+}
+:where(.niki-auth h1) {
+  margin: 24px 0 10px;
+  font-size: 30px;
+  line-height: 1.2;
+}
+:where(.niki-auth__loading, .locale-bootstrap) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+:where(.locale-bootstrap) {
+  justify-content: center;
+}
+:where(.locale-bootstrap__logo) {
+  width: 32px;
+  height: 32px;
+}
+:where(.niki-auth__spinner, .locale-bootstrap__spinner) {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgb(255 255 255 / 18%);
+  border-top-color: #fe5200;
+  border-radius: 50%;
+  animation: niki-first-paint-spin 700ms linear infinite;
+}
+@keyframes niki-first-paint-spin {
+  to { transform: rotate(360deg); }
+}
+`;
 
 /**
  * Inline script that runs before React hydrates to apply the saved theme
@@ -34,15 +102,19 @@ const themeInitScript = `(function(){try{var c=JSON.parse(localStorage.getItem('
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang='en' suppressHydrationWarning>
-      {/* eslint-disable-next-line @next/next/no-sync-scripts */}
       <head>
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: intentional theme-init inline script to prevent FOUC */}
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <style
+          id='niki-first-paint'
+          dangerouslySetInnerHTML={{ __html: firstPaintStyle }}
+        />
+        <Script
+          id='open-design-theme-init'
+          strategy='beforeInteractive'
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
       </head>
       <body suppressHydrationWarning>
-        <I18nProvider>
-          <AnalyticsProvider>{children}</AnalyticsProvider>
-        </I18nProvider>
+        {children}
       </body>
     </html>
   );
