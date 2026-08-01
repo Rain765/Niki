@@ -421,7 +421,7 @@ export const zhCN: Dict = {
   'homeHero.autoPosterPrompt': '选择产品、比例和张数，一键出图',
   'homeHero.autoPosterWelcome': '输入文案，一键生成贷款海报',
   'homeHero.autoPosterCountAria': '选择海报数量',
-  'homeHero.autoPosterCountOption': '{n} 张',
+  'homeHero.autoPosterCountOption': '{n}',
   'homeHero.autoPosterSizeAria': '选择海报尺寸',
   'homeHero.autoPosterBrandAria': '选择海报品牌',
   'homeHero.autoPosterProjectName': '贷款海报',

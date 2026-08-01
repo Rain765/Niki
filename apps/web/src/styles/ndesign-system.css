@@ -3502,7 +3502,8 @@ kbd,
 
   .composer-auto-poster {
     order: initial;
-    max-width: calc(100% - 88px);
+    width: 100%;
+    max-width: none;
   }
 
   .chat-composer__add-menu .composer-tools-tabs {

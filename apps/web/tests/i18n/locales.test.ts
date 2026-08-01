@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { resolveSystemLocale } from '../../src/i18n';
 import { en } from '../../src/i18n/locales/en';
 import { id } from '../../src/i18n/locales/id';
+import { zhCN } from '../../src/i18n/locales/zh-CN';
+import { zhTW } from '../../src/i18n/locales/zh-TW';
 import { LOCALES, LOCALE_LABEL, type Dict, type Locale } from '../../src/i18n/types';
 
 const EXPECTED_LOCALES = ['en', 'id', 'de', 'zh-CN', 'zh-TW', 'pt-BR', 'es-ES', 'ru', 'fa', 'ar', 'ja', 'ko', 'pl', 'hu', 'fr', 'uk', 'tr', 'th', 'it'];
@@ -49,6 +51,11 @@ describe('i18n locales', () => {
     expect((LOCALE_LABEL as Record<string, string>).de).toBe('Deutsch');
     expect((LOCALE_LABEL as Record<string, string>).it).toBe('Italiano');
     expect((LOCALE_LABEL as Record<string, string>).ja).toBe('日本語');
+  });
+
+  it('keeps Chinese poster count options numeric-only', () => {
+    expect(zhCN['homeHero.autoPosterCountOption']).toBe('{n}');
+    expect(zhTW['homeHero.autoPosterCountOption']).toBe('{n}');
   });
 
   it('keeps locale dictionaries aligned with English keys and placeholders', async () => {

@@ -44,6 +44,9 @@ describe('product composer responsive styles', () => {
     expect(indexCss).toMatch(
       /@media\s*\(max-width:\s*900px\)[\s\S]*\.pane\.is-direct-loan-poster\s*>\s*\.composer\s*\{[^}]*position:\s*sticky[^}]*bottom:\s*0/s,
     );
+    expect(ndesignCss).toMatch(
+      /@media\s*\(max-width:\s*680px\)[\s\S]*\.composer-auto-poster\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/s,
+    );
   });
 
   it('uses one centered mobile column for poster status, media and actions', () => {
