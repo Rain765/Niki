@@ -13866,6 +13866,10 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   .pane.is-direct-loan-poster .chat-log {
     align-items: stretch;
     padding: 0 0 24px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
   }
   .direct-poster-timeline {
     gap: 24px;
@@ -13925,14 +13929,19 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
     background: linear-gradient(180deg, transparent, var(--bg-panel) 18%);
   }
   .direct-poster-result-open {
+    width: 100%;
     justify-self: center;
     border-radius: 14px;
   }
+  .direct-poster-result-open picture {
+    width: 100%;
+  }
   .direct-poster-result-open img {
-    width: auto;
-    max-width: min(50vw, 220px);
+    width: 100%;
+    max-width: 100%;
     height: auto;
-    max-height: min(28vh, 220px);
+    max-height: min(62dvh, 680px);
+    object-fit: contain;
   }
   .direct-poster-gallery {
     grid-template-columns: minmax(0, 1fr);

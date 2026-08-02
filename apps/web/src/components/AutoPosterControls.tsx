@@ -31,6 +31,7 @@ interface Props {
   className?: string;
   inlineOnMobile?: boolean;
   onOpenChange?: (open: boolean) => void;
+  onGenerate?: () => void;
   onCountChange: (count: number) => void;
   onAspectRatioChange: (aspectRatio: AutoPosterAspectRatio) => void;
   onBrandChange: (brand: AutoPosterBrand) => void;
@@ -58,6 +59,7 @@ export function AutoPosterControls({
   className,
   inlineOnMobile = false,
   onOpenChange,
+  onGenerate,
   onCountChange,
   onAspectRatioChange,
   onBrandChange,
@@ -214,6 +216,12 @@ export function AutoPosterControls({
     setOpen(true);
   };
 
+  const generate = () => {
+    if (controlsDisabled || !onGenerate) return;
+    setOpen(false);
+    onGenerate();
+  };
+
   const portalStyle = desktopPosition
     ? ({
         left: desktopPosition.left,
@@ -285,6 +293,21 @@ export function AutoPosterControls({
           ))}
         </div>
       </div>
+
+      {onGenerate ? (
+        <div className="auto-poster-filter__footer">
+          <button
+            type="button"
+            className="auto-poster-filter__generate-action"
+            data-testid={`${testIdPrefix}-generate`}
+            disabled={controlsDisabled}
+            onClick={generate}
+          >
+            <Icon name={pending ? 'spinner' : 'sparkles'} size={18} />
+            <span>{t('homeHero.autoPoster')}</span>
+          </button>
+        </div>
+      ) : null}
     </div>
   ) : null;
 

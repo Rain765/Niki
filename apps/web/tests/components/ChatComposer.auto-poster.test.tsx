@@ -177,6 +177,45 @@ describe('ChatComposer automatic poster controls', () => {
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).style.height).toBe('40px');
   });
 
+  it('matches the mobile home composer with inline settings and one-click generation', async () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 680px)',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+    const onSend = vi.fn();
+
+    render(
+      <ChatComposer
+        projectId="project-1"
+        projectFiles={[]}
+        streaming={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={onSend}
+        onStop={vi.fn()}
+      />,
+    );
+
+    const composer = screen.getByTestId('chat-composer');
+    fireEvent.click(screen.getByTestId('chat-auto-poster-product-zamloan'));
+
+    const menu = screen.getByTestId('chat-auto-poster-menu');
+    expect(composer.contains(menu)).toBe(true);
+    expect(menu.closest('.auto-poster-filter__portal')).toBeNull();
+    expect(composer.classList.contains('is-settings-open')).toBe(true);
+
+    fireEvent.click(screen.getByTestId('chat-auto-poster-generate'));
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('chat-auto-poster-menu')).toBeNull();
+    expect(composer.classList.contains('is-settings-open')).toBe(false);
+  });
+
   it('renders the running stop action as a square icon-only button', () => {
     render(
       <ChatComposer
