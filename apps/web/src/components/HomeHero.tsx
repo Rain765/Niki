@@ -479,11 +479,6 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
 
   return (
     <section className="home-hero" data-testid="home-hero">
-      <div className="home-hero__backdrop" aria-hidden>
-        <span className="home-hero__backdrop-grid" />
-        <span className="home-hero__backdrop-scan" />
-      </div>
-
       <NikiPosterWelcome hidden={welcomeHidden} label={t('homeHero.autoPosterWelcome')} />
 
       <div
