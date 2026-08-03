@@ -1344,6 +1344,15 @@ export function ProjectView({
     requestOpenFile(routeFileName);
   }, [routeFileName, requestOpenFile]);
 
+  // Selecting a direct poster project from the sidebar can reuse the same
+  // ProjectView instance while changing the URL from `/files/...` back to
+  // the project route. Clear the legacy file tab in that transition too;
+  // the initial hydration guard above only covers a fresh project mount.
+  useEffect(() => {
+    if (!directLoanPosterProject || routeFileName || !openTabsState.active) return;
+    persistTabsState({ ...openTabsState, active: null });
+  }, [directLoanPosterProject, openTabsState, persistTabsState, routeFileName]);
+
   // Sync the URL when the active tab changes, so reload + share-link both
   // land back on the same view. Replace (not push) on tab activation so the
   // history stack doesn't fill with every tab click.
