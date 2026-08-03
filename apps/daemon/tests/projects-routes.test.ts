@@ -121,6 +121,36 @@ describe('GET /api/projects/:id resolvedDir', () => {
     expect(path.isAbsolute(detail.resolvedDir)).toBe(true);
   });
 
+  it('keeps image previews inline but serves requested downloads as attachments', async () => {
+    const folder = makeFolder();
+    const fileName = '贷款海报.png';
+    await writeFile(path.join(folder, fileName), Buffer.from('png fixture'));
+
+    const importResp = await fetch(`${baseUrl}/api/import/folder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseDir: folder }),
+    });
+    expect(importResp.status).toBe(200);
+    const importBody = (await importResp.json()) as { project: { id: string } };
+    const rawFileUrl =
+      `${baseUrl}/api/projects/${importBody.project.id}/raw/${encodeURIComponent(fileName)}`;
+
+    const previewResp = await fetch(rawFileUrl);
+    expect(previewResp.status).toBe(200);
+    expect(previewResp.headers.get('content-type')).toBe('image/png');
+    expect(previewResp.headers.get('content-disposition')).toBeNull();
+
+    const downloadResp = await fetch(`${rawFileUrl}?download=1`);
+
+    expect(downloadResp.status).toBe(200);
+    expect(downloadResp.headers.get('content-type')).toBe('application/octet-stream');
+    expect(downloadResp.headers.get('content-disposition')).toContain('attachment;');
+    expect(downloadResp.headers.get('content-disposition')).toContain(
+      `filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    );
+  });
+
   it('persists skipDiscoveryBrief for batch-created projects', async () => {
     const projectId = `proj-skip-discovery-${Date.now()}`;
     const createResp = await fetch(`${baseUrl}/api/projects`, {

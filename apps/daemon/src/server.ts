@@ -8034,6 +8034,7 @@ export async function startServer({
       const relPath = req.params[0];
       const project = getProject(db, req.params.id);
       const file = await readProjectFile(PROJECTS_DIR, req.params.id, relPath, project?.metadata);
+      const forceDownload = req.query.download === '1';
       // PreviewModal loads artifact HTML via srcdoc, giving the iframe Origin: "null".
       // data: URIs, file://, and some sandboxed iframes also send null — all are
       // local-only callers, so this is safe. Real cross-origin sites send a real
@@ -8041,7 +8042,7 @@ export async function startServer({
       if (req.headers.origin === 'null') {
         res.header('Access-Control-Allow-Origin', '*');
       }
-      if (req.query.download === '1') {
+      if (forceDownload) {
         const filename = String(relPath).split('/').filter(Boolean).pop() || 'download';
         const asciiFallback = filename
           .replace(/[^\x20-\x7E]/g, '_')
@@ -8051,7 +8052,9 @@ export async function startServer({
           `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
         );
       }
-      res.type(file.mime).send(file.buffer);
+      res.type(forceDownload ? 'application/octet-stream' : file.mime);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.send(file.buffer);
     } catch (err) {
       const status = err && err.code === 'ENOENT' ? 404 : 400;
       sendApiError(

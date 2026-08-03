@@ -1071,6 +1071,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
     try {
       const relPath = (req.params as any)[0];
       const project = getProject(db, req.params.id);
+      const forceDownload = req.query.download === '1';
       // PreviewModal loads artifact HTML via srcdoc, giving the iframe Origin: "null".
       // data: URIs, file://, and some sandboxed iframes also send null — all are
       // local-only callers, so this is safe. Real cross-origin sites send a real
@@ -1078,7 +1079,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
       if (req.headers.origin === 'null') {
         res.header('Access-Control-Allow-Origin', '*');
       }
-      if (req.query.download === '1') {
+      if (forceDownload) {
         const filename = String(relPath).split('/').filter(Boolean).pop() || 'download';
         const asciiFallback = filename
           .replace(/[^\x20-\x7E]/g, '_')
@@ -1103,7 +1104,11 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
 
       if (meta.mime.startsWith('video/') || meta.mime.startsWith('audio/')) {
         res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Content-Type', meta.mime);
+        res.setHeader(
+          'Content-Type',
+          forceDownload ? 'application/octet-stream' : meta.mime,
+        );
+        res.setHeader('X-Content-Type-Options', 'nosniff');
 
         if (meta.size === 0) {
           res.setHeader('Content-Length', '0');
@@ -1145,7 +1150,10 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         return;
       }
 
-      res.setHeader('Content-Type', meta.mime);
+      res.setHeader(
+        'Content-Type',
+        forceDownload ? 'application/octet-stream' : meta.mime,
+      );
       res.setHeader('Content-Length', String(meta.size));
       res.setHeader('X-Content-Type-Options', 'nosniff');
       streamResolvedFile(res, meta.filePath);
