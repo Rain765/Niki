@@ -9,6 +9,7 @@ import {
 import { useT } from '../i18n';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import {
+  projectImagePreviewUrl,
   projectFileDownloadUrl,
   projectRawUrl,
 } from '../providers/registry';
@@ -73,6 +74,9 @@ export function ImageLightbox({
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
   const [moreOpen, setMoreOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [shareFallbackOpen, setShareFallbackOpen] = useState(false);
+  const [imageState, setImageState] = useState<'loading' | 'loaded' | 'failed'>('loading');
+  const [imageRetry, setImageRetry] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [notice, setNotice] = useState<{
     message: string;
@@ -118,6 +122,9 @@ export function ImageLightbox({
     setScale(1);
     setOffset({ x: 0, y: 0 });
     setMoreOpen(false);
+    setShareFallbackOpen(false);
+    setImageState('loading');
+    setImageRetry(0);
     pointersRef.current.clear();
   }, [activeName]);
 
@@ -243,17 +250,22 @@ export function ImageLightbox({
     updateScale(scale + (event.deltaY < 0 ? 0.25 : -0.25));
   };
 
+  const showShareFallback = async () => {
+    setShareFallbackOpen(true);
+    const copied = await copyToClipboard(absoluteRawUrl);
+    setNotice({
+      message: t(copied ? 'imageViewer.linkCopied' : 'imageViewer.actionFailed'),
+      role: copied ? 'status' : 'alert',
+    });
+  };
+
   const handleShare = async () => {
     if (sharing) return;
     setSharing(true);
     setMoreOpen(false);
     try {
       if (typeof navigator.share !== 'function') {
-        const copied = await copyToClipboard(absoluteRawUrl);
-        setNotice({
-          message: t(copied ? 'imageViewer.linkCopied' : 'imageViewer.actionFailed'),
-          role: copied ? 'status' : 'alert',
-        });
+        await showShareFallback();
         return;
       }
 
@@ -271,11 +283,7 @@ export function ImageLightbox({
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      const copied = await copyToClipboard(absoluteRawUrl);
-      setNotice({
-        message: t(copied ? 'imageViewer.linkCopied' : 'imageViewer.actionFailed'),
-        role: copied ? 'status' : 'alert',
-      });
+      await showShareFallback();
     } finally {
       setSharing(false);
     }
@@ -287,6 +295,14 @@ export function ImageLightbox({
     setNotice({
       message: t(copied ? 'imageViewer.linkCopied' : 'imageViewer.actionFailed'),
       role: copied ? 'status' : 'alert',
+    });
+  };
+
+  const handleDownload = () => {
+    setMoreOpen(false);
+    setNotice({
+      message: t('imageViewer.downloadStarted'),
+      role: 'status',
     });
   };
 
@@ -378,7 +394,9 @@ export function ImageLightbox({
       </header>
 
       <div
-        className={`image-lightbox__stage${scale > 1 ? ' is-zoomed' : ''}`}
+        className={`image-lightbox__stage${scale > 1 ? ' is-zoomed' : ''}${
+          imageState === 'loaded' ? ' is-image-ready' : ''
+        }${imageState === 'failed' ? ' is-image-failed' : ''}`}
         onDoubleClick={() => {
           if (scale > 1) resetTransform();
           else updateScale(2);
@@ -389,16 +407,48 @@ export function ImageLightbox({
         onPointerCancel={handlePointerEnd}
         onWheel={handleWheel}
       >
-        <img
-          key={`${activeFile.name}:${activeFile.mtime}`}
-          src={`${projectRawUrl(projectId, activeFile.name)}?v=${Math.round(activeFile.mtime)}`}
-          alt={activeFile.name}
-          draggable={false}
-          style={{
-            transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
-          }}
-          data-testid="image-lightbox-image"
-        />
+        <span
+          className={`image-lightbox__image-skeleton${imageState === 'loaded' ? ' is-hidden' : ''}${
+            imageState === 'failed' ? ' is-failed' : ''
+          }`}
+          role={imageState === 'failed' ? 'alert' : undefined}
+          data-testid="image-lightbox-image-skeleton"
+        >
+          {imageState === 'failed' ? '图片加载失败，请点击重试' : '图片加载中…'}
+        </span>
+        <picture key={`${activeFile.name}:${activeFile.mtime}:${imageRetry}`}>
+          <source
+            media="(max-width: 900px)"
+            srcSet={projectImagePreviewUrl(
+              projectId,
+              activeFile.name,
+              'mobile',
+              activeFile.mtime + imageRetry,
+            )}
+          />
+          <img
+            src={projectImagePreviewUrl(
+              projectId,
+              activeFile.name,
+              'preview',
+              activeFile.mtime + imageRetry,
+            )}
+            alt={activeFile.name}
+            draggable={false}
+            onLoad={() => setImageState('loaded')}
+            onError={() => setImageState('failed')}
+            onClick={() => {
+              if (imageState === 'failed') {
+                setImageState('loading');
+                setImageRetry((value) => value + 1);
+              }
+            }}
+            style={{
+              transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${scale})`,
+            }}
+            data-testid="image-lightbox-image"
+          />
+        </picture>
         {images.length > 1 ? (
           <>
             <button
@@ -424,9 +474,34 @@ export function ImageLightbox({
       </div>
 
       <footer className="image-lightbox__footer">
+        <a
+          className="image-lightbox__footer-action"
+          href={projectFileDownloadUrl(projectId, activeFile.name)}
+          download={activeFile.name}
+          aria-label={t('designFiles.download')}
+          data-testid="image-lightbox-footer-download"
+          onClick={handleDownload}
+        >
+          <span className="image-lightbox__tool-icon">
+            <Icon name="download" size={23} />
+          </span>
+          <span>{t('designFiles.download')}</span>
+        </a>
+        <button
+          type="button"
+          className="image-lightbox__footer-action"
+          data-testid="image-lightbox-footer-copy"
+          onClick={() => void handleCopyLink()}
+        >
+          <span className="image-lightbox__tool-icon">
+            <Icon name="copy" size={23} />
+          </span>
+          <span>{t('designFiles.copy')}</span>
+        </button>
         {onEdit ? (
           <button
             type="button"
+            className="image-lightbox__footer-action"
             onClick={() => {
               onClose();
               onEdit(activeFile);
@@ -441,7 +516,7 @@ export function ImageLightbox({
         {onDelete ? (
           <button
             type="button"
-            className="is-danger"
+            className="image-lightbox__footer-action is-danger"
             disabled={deleting}
             onClick={() => void handleDelete()}
           >
@@ -461,6 +536,36 @@ export function ImageLightbox({
             ttlMs={2600}
             onDismiss={() => setNotice(null)}
           />
+        </div>
+      ) : null}
+
+      {shareFallbackOpen ? (
+        <div
+          className="image-lightbox__share-fallback"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('common.share')}
+          data-testid="image-lightbox-share-fallback"
+        >
+          <div className="image-lightbox__share-fallback-card">
+            <strong>{t('common.share')}</strong>
+            <p>系统分享不可用，可以复制图片链接分享。</p>
+            <input
+              readOnly
+              value={absoluteRawUrl}
+              aria-label="分享链接"
+              data-testid="image-lightbox-share-url"
+              onFocus={(event) => event.currentTarget.select()}
+            />
+            <div className="image-lightbox__share-fallback-actions">
+              <button type="button" onClick={() => setShareFallbackOpen(false)}>
+                {t('common.close')}
+              </button>
+              <button type="button" onClick={() => void handleCopyLink()}>
+                {t('designFiles.copy')}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

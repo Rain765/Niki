@@ -155,6 +155,53 @@
   cursor: zoom-in;
 }
 
+.image-lightbox__stage picture {
+  position: relative;
+  z-index: 1;
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  opacity: 0;
+  transition: opacity 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.image-lightbox__stage.is-image-ready picture {
+  opacity: 1;
+}
+
+.image-lightbox__image-skeleton {
+  position: absolute;
+  inset: 8% 8%;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--text-muted);
+  background-color: var(--bg-subtle);
+  background-image: linear-gradient(
+    90deg,
+    var(--bg-subtle) 0%,
+    var(--bg-muted) 50%,
+    var(--bg-subtle) 100%
+  );
+  background-size: 800px 100%;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  animation: shimmer 1.4s linear infinite;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.image-lightbox__image-skeleton.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.image-lightbox__image-skeleton.is-failed {
+  color: var(--text-strong);
+  background: var(--bg-subtle);
+  animation: none;
+}
+
 .image-lightbox__stage img {
   display: block;
   width: auto;
@@ -218,7 +265,8 @@
   background: var(--bg-app);
 }
 
-.image-lightbox__footer button {
+.image-lightbox__footer button,
+.image-lightbox__footer a {
   display: grid;
   justify-items: center;
   gap: 8px;
@@ -227,6 +275,7 @@
   background: transparent;
   color: var(--text);
   font-size: 13px;
+  text-decoration: none;
 }
 
 .image-lightbox__tool-icon {
@@ -244,12 +293,83 @@
 }
 
 .image-lightbox__footer button:hover .image-lightbox__tool-icon,
-.image-lightbox__footer button:focus-visible .image-lightbox__tool-icon {
+.image-lightbox__footer button:focus-visible .image-lightbox__tool-icon,
+.image-lightbox__footer a:hover .image-lightbox__tool-icon,
+.image-lightbox__footer a:focus-visible .image-lightbox__tool-icon {
   background: var(--bg-subtle);
 }
 
 .image-lightbox__footer button:active .image-lightbox__tool-icon {
   transform: scale(0.94);
+}
+
+.image-lightbox__footer a:active .image-lightbox__tool-icon {
+  transform: scale(0.94);
+}
+
+.image-lightbox__share-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg-app) 70%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.image-lightbox__share-fallback-card {
+  display: grid;
+  gap: 12px;
+  width: min(100%, 460px);
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+}
+
+.image-lightbox__share-fallback-card strong {
+  font-size: 18px;
+}
+
+.image-lightbox__share-fallback-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.image-lightbox__share-fallback-card input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-app);
+  color: var(--text);
+  font: 13px/1.2 var(--sans);
+}
+
+.image-lightbox__share-fallback-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.image-lightbox__share-fallback-actions button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+  font: 650 13px/1 var(--sans);
+}
+
+.image-lightbox__share-fallback-actions button:last-child {
+  border-color: transparent;
+  background: var(--text-strong);
+  color: var(--bg-app);
 }
 
 .image-lightbox__footer button.is-danger {
@@ -312,6 +432,11 @@
     max-height: 100%;
   }
 
+  .image-lightbox__stage picture {
+    width: 100%;
+    height: 100%;
+  }
+
   .image-lightbox__nav {
     display: none;
   }
@@ -343,6 +468,11 @@
 @media (prefers-reduced-motion: reduce) {
   .image-lightbox,
   .image-lightbox__menu {
+    animation: none;
+  }
+  .image-lightbox__stage picture,
+  .image-lightbox__image-skeleton {
+    transition: none;
     animation: none;
   }
 }

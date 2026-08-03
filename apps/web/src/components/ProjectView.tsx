@@ -986,13 +986,18 @@ export function ProjectView({
     (async () => {
       const state = await loadTabs(project.id);
       if (cancelled) return;
-      setOpenTabsState(state);
+      // Direct poster projects have their own chat-first surface. A stale
+      // image tab from the legacy file viewer must not win the initial route
+      // sync and reopen `/files/...` when the user selects a poster project
+      // from the sidebar. Keep the tab history available for an explicit
+      // Edit action, but always enter the project with no file active.
+      setOpenTabsState(directLoanPosterProject ? { ...state, active: null } : state);
       tabsLoadedRef.current = true;
     })();
     return () => {
       cancelled = true;
     };
-  }, [project.id]);
+  }, [directLoanPosterProject, project.id]);
 
   const persistTabsState = useCallback(
     (next: OpenTabsState) => {
@@ -3662,6 +3667,7 @@ export function ProjectView({
   }, []);
   const editProjectImage = useCallback((name: string) => {
     if (directLoanPosterProject) {
+      requestOpenFile(name);
       showDirectPosterCanvas();
       return;
     }

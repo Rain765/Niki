@@ -90,7 +90,7 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
     expect(
       screen.getByTestId('image-lightbox-image').getAttribute('src'),
     ).toBe(
-      `/api/projects/proj-1/raw/${fileName}?v=1700000000`,
+      `/api/projects/proj-1/image-preview/${fileName}?variant=preview&v=1700000000`,
     );
     expect(onRequestOpenFile).not.toHaveBeenCalled();
     expect(screen.queryByRole('link', { name: fileName })).toBeNull();
@@ -211,7 +211,7 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
     const preview = screen.getByRole('dialog', {
       name: 'Preview zambia-support-poster-01.png',
     });
-    expect(within(preview).getByRole('link', { name: 'Download' }).getAttribute('href')).toBe(
+    expect(within(preview).getByTestId('image-lightbox-footer-download').getAttribute('href')).toBe(
       '/api/projects/proj-1/raw/zambia-support-poster-01.png?download=1',
     );
     fireEvent.click(within(preview).getByRole('button', { name: 'Edit' }));

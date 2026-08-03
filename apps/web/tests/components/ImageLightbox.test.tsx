@@ -72,15 +72,36 @@ describe('ImageLightbox', () => {
     const dialog = screen.getByTestId('image-lightbox');
     expect(within(dialog).getByText('1 / 2')).toBeTruthy();
     expect(screen.getByTestId('image-lightbox-image').getAttribute('src')).toBe(
-      '/api/projects/project-1/raw/poster-01.png?v=1',
+      '/api/projects/project-1/image-preview/poster-01.png?variant=preview&v=1',
     );
-    expect(
-      within(dialog).getByRole('link', { name: 'designFiles.download' })
-        .getAttribute('href'),
-    ).toBe('/api/projects/project-1/raw/poster-01.png?download=1');
+    expect(within(dialog).getByTestId('image-lightbox-footer-download').getAttribute('href'))
+      .toBe('/api/projects/project-1/raw/poster-01.png?download=1');
     expect(within(dialog).getByRole('button', { name: 'common.share' })).toBeTruthy();
+    expect(within(dialog).getByTestId('image-lightbox-footer-download')).toBeTruthy();
+    expect(within(dialog).getByTestId('image-lightbox-footer-copy')).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'common.edit' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'designFiles.delete' })).toBeTruthy();
+    expect(within(dialog).getByTestId('image-lightbox-image-skeleton')).toBeTruthy();
+  });
+
+  it('keeps a mobile preview placeholder until the image load event', () => {
+    render(
+      <ImageLightbox
+        projectId="project-1"
+        images={images.slice(0, 1)}
+        activeName="poster-01.png"
+        onActiveNameChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const image = screen.getByTestId('image-lightbox-image');
+    const skeleton = screen.getByTestId('image-lightbox-image-skeleton');
+    expect(image.getAttribute('src')).toContain('/image-preview/poster-01.png');
+    expect(skeleton.classList.contains('is-hidden')).toBe(false);
+
+    fireEvent.load(image);
+    expect(skeleton.classList.contains('is-hidden')).toBe(true);
   });
 
   it('navigates images, zooms, traps focus, and restores the trigger focus on close', () => {
@@ -107,7 +128,7 @@ describe('ImageLightbox', () => {
     const close = screen.getByRole('button', { name: 'common.close' });
     close.focus();
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(screen.getByTestId('image-lightbox-next'));
+    expect(document.activeElement).toBe(screen.getByTestId('image-lightbox-footer-copy'));
 
     unmount();
     expect(document.activeElement).toBe(trigger);
@@ -133,6 +154,36 @@ describe('ImageLightbox', () => {
       );
     });
     expect(screen.getByText('imageViewer.linkCopied')).toBeTruthy();
+  });
+
+  it('keeps sharing usable when clipboard and native share are unavailable', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn(async () => { throw new Error('blocked'); }) },
+    });
+    Object.defineProperty(document, 'execCommand', {
+      configurable: true,
+      value: vi.fn(() => false),
+    });
+
+    render(
+      <ImageLightbox
+        projectId="project-1"
+        images={images.slice(0, 1)}
+        activeName="poster-01.png"
+        onActiveNameChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.share' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('image-lightbox-share-fallback')).toBeTruthy();
+    });
+    expect(screen.getByTestId('image-lightbox-share-url').getAttribute('value')).toContain(
+      '/api/projects/project-1/raw/poster-01.png',
+    );
   });
 
   it('confirms deletion and closes after the file is removed', async () => {

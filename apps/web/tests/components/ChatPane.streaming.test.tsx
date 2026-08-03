@@ -485,7 +485,7 @@ Expected output:
       screen.getByTestId('direct-poster-open-zamloan-poster-02.png'),
     );
     expect(screen.getByTestId('image-lightbox-image').getAttribute('src')).toBe(
-      '/api/projects/project-1/raw/zamloan-poster-02.png?v=2',
+      '/api/projects/project-1/image-preview/zamloan-poster-02.png?variant=preview&v=2',
     );
     expect(screen.getByText('2 / 2')).toBeTruthy();
     expect(screen.queryByText('designFiles.addToCanvas')).toBeNull();
