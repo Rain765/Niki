@@ -1,5 +1,6 @@
 import type {
   DirectLoanPosterBatchStatus,
+  MediaAspect,
   ProjectFile,
   ProjectMetadata,
 } from '@open-design/contracts';
@@ -16,6 +17,7 @@ export interface DirectPosterBatchView {
   files: ProjectFile[];
   batchNumber: number | null;
   legacyHistory: boolean;
+  aspectRatio?: MediaAspect;
 }
 
 /**
@@ -65,6 +67,7 @@ export function buildDirectPosterBatches(
       files: batchFiles,
       batchNumber: index + 1,
       legacyHistory: false,
+      aspectRatio: batch.aspectRatio,
     };
   });
   const legacyFiles = files.filter((file) => !claimedNames.has(file.name));

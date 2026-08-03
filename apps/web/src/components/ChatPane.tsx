@@ -1052,7 +1052,7 @@ function DirectLoanPosterTimeline({
       ].filter(Boolean).join(' ')}
       data-testid="direct-poster-timeline"
     >
-      {batches.map((batch) => (
+      {batches.map((batch, index) => (
         <div
           key={batch.id}
           className="direct-poster-batch"
@@ -1061,6 +1061,7 @@ function DirectLoanPosterTimeline({
           <DirectLoanPosterBatchCard
             batch={batch}
             compactLoading={batches.length > 1}
+            prioritizeImage={index === batches.length - 1}
             filesInitialized={filesInitialized}
             projectId={projectId}
             onEditProjectImage={onEditProjectImage}
@@ -1075,6 +1076,7 @@ function DirectLoanPosterTimeline({
 function DirectLoanPosterBatchCard({
   batch,
   compactLoading,
+  prioritizeImage,
   filesInitialized,
   projectId,
   onEditProjectImage,
@@ -1082,6 +1084,7 @@ function DirectLoanPosterBatchCard({
 }: {
   batch: DirectPosterBatchView;
   compactLoading: boolean;
+  prioritizeImage: boolean;
   filesInitialized: boolean;
   projectId: string | null;
   onEditProjectImage?: (name: string) => void;
@@ -1092,6 +1095,8 @@ function DirectLoanPosterBatchCard({
   const [lightboxFileName, setLightboxFileName] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [clientNow, setClientNow] = useState<number | null>(null);
+  const [previewStates, setPreviewStates] = useState<Record<string, 'loaded' | 'failed'>>({});
+  const [previewRetries, setPreviewRetries] = useState<Record<string, number>>({});
   const generatedFiles = batch.files;
   const expectedCount = batch.expectedCount;
   useEffect(() => {
@@ -1109,6 +1114,18 @@ function DirectLoanPosterBatchCard({
     generatedFiles.find((file) => file.name === selectedFileName)
     ?? generatedFiles[0]
     ?? null;
+  const selectedPreviewKey = selectedFile
+    ? `${selectedFile.name}:${selectedFile.mtime}`
+    : null;
+  const selectedPreviewState = selectedPreviewKey
+    ? previewStates[selectedPreviewKey]
+    : undefined;
+  const selectedPreviewRetry = selectedPreviewKey
+    ? previewRetries[selectedPreviewKey] ?? 0
+    : 0;
+  const selectedPreviewLoaded = selectedPreviewState === 'loaded';
+  const selectedPreviewFailed = selectedPreviewState === 'failed';
+  const posterAspectClass = batch.aspectRatio === '1:1' ? 'is-square' : 'is-landscape';
   const lifecycleStatus = batch.status;
   const hydrating = !filesInitialized;
   const legacyOrphaned = filesInitialized && lifecycleStatus == null && !hasResults;
@@ -1162,11 +1179,60 @@ function DirectLoanPosterBatchCard({
         ? '图片已生成。点击图片可查看、编辑或下载。'
       : '无需再次发送提示词。生成完成后，图片会自动显示在这里。';
 
-  // Opening an existing chat should never block the whole pane while its file
-  // list hydrates, nor should a persisted queue flag from an old/abandoned
-  // task be presented as a fresh generation. The stable chat shell and
-  // composer remain visible; once files arrive they mount independently.
-  if (hydrating && !activelyStarting) return null;
+  // Project metadata arrives before the file scan. Keep the batch's final
+  // image footprint visible during that gap so a slow mobile WebView never
+  // looks like the project contains no images.
+  if (hydrating && !activelyStarting) {
+    const hydrationTitle = batch.batchNumber === null
+      ? '正在加载海报'
+      : `第 ${batch.batchNumber} 批 · 正在加载海报`;
+    return (
+      <div
+        className="direct-poster-status is-hydrating"
+        role="status"
+        aria-live="polite"
+        data-testid="direct-poster-status"
+        data-batch-id={batch.id}
+        data-batch-number={batch.batchNumber ?? undefined}
+      >
+        <span className="direct-poster-status-icon">
+          <Icon name="image" size={19} />
+        </span>
+        <span className="direct-poster-status-copy">
+          <strong>{hydrationTitle}</strong>
+          <span>正在读取已生成的图片…</span>
+        </span>
+        <div
+          className={`direct-poster-hydration-skeleton ${posterAspectClass}`}
+          aria-hidden="true"
+          data-testid={`direct-poster-hydration-skeleton-${batch.id}`}
+        >
+          <span>图片加载中…</span>
+        </div>
+      </div>
+    );
+  }
+
+  const updateSelectedPreviewState = (state: 'loaded' | 'failed') => {
+    if (!selectedPreviewKey) return;
+    setPreviewStates((current) => (
+      current[selectedPreviewKey] === state
+        ? current
+        : { ...current, [selectedPreviewKey]: state }
+    ));
+  };
+  const retrySelectedPreview = () => {
+    if (!selectedPreviewKey) return;
+    setPreviewStates((current) => {
+      const next = { ...current };
+      delete next[selectedPreviewKey];
+      return next;
+    });
+    setPreviewRetries((current) => ({
+      ...current,
+      [selectedPreviewKey]: (current[selectedPreviewKey] ?? 0) + 1,
+    }));
+  };
 
   return (
     <>
@@ -1199,22 +1265,51 @@ function DirectLoanPosterBatchCard({
         {projectId && selectedFile ? (
           <div className="direct-poster-gallery">
             <figure className="direct-poster-result">
-              <div className="direct-poster-result-open">
+              <div
+                className={[
+                  'direct-poster-result-open',
+                  posterAspectClass,
+                  selectedPreviewLoaded ? 'is-image-ready' : 'is-image-pending',
+                  selectedPreviewFailed ? 'is-image-failed' : '',
+                ].filter(Boolean).join(' ')}
+              >
                 <button
                   type="button"
                   className="direct-poster-result-target"
-                  onClick={() => setLightboxFileName(selectedFile.name)}
-                  aria-label={`${t('common.preview')} ${selectedFile.name}`}
+                  onClick={() => {
+                    if (selectedPreviewFailed) {
+                      retrySelectedPreview();
+                    } else {
+                      setLightboxFileName(selectedFile.name);
+                    }
+                  }}
+                  aria-label={selectedPreviewFailed
+                    ? `重新加载 ${selectedFile.name}`
+                    : `${t('common.preview')} ${selectedFile.name}`}
                   data-testid={`direct-poster-open-${selectedFile.name}`}
                 >
-                  <picture key={`${selectedFile.name}:${selectedFile.mtime}`}>
+                  <span
+                    className={[
+                      'direct-poster-image-skeleton',
+                      selectedPreviewLoaded ? 'is-hidden' : '',
+                      selectedPreviewFailed ? 'is-failed' : '',
+                    ].filter(Boolean).join(' ')}
+                    aria-hidden="true"
+                    data-testid={`direct-poster-image-skeleton-${selectedFile.name}`}
+                  >
+                    {selectedPreviewFailed ? '图片加载失败，点击重试' : '图片加载中…'}
+                  </span>
+                  <picture
+                    key={`${selectedFile.name}:${selectedFile.mtime}:${selectedPreviewRetry}`}
+                    className={selectedPreviewLoaded ? 'is-loaded' : ''}
+                  >
                     <source
                       media="(max-width: 900px)"
                       srcSet={projectImagePreviewUrl(
                         projectId,
                         selectedFile.name,
                         'mobile',
-                        selectedFile.mtime,
+                        selectedFile.mtime + selectedPreviewRetry,
                       )}
                     />
                     <img
@@ -1222,11 +1317,14 @@ function DirectLoanPosterBatchCard({
                         projectId,
                         selectedFile.name,
                         'preview',
-                        selectedFile.mtime,
+                        selectedFile.mtime + selectedPreviewRetry,
                       )}
                       alt={`生成的贷款海报 ${generatedFiles.indexOf(selectedFile) + 1}`}
-                      loading="lazy"
+                      loading={prioritizeImage ? 'eager' : 'lazy'}
+                      fetchPriority={prioritizeImage ? 'high' : 'auto'}
                       draggable={false}
+                      onLoad={() => updateSelectedPreviewState('loaded')}
+                      onError={() => updateSelectedPreviewState('failed')}
                       data-testid={`direct-poster-result-image-${selectedFile.name}`}
                     />
                   </picture>
