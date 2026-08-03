@@ -63,6 +63,12 @@ describe('home hero light field', () => {
     expect(css).not.toContain('.home-hero__backdrop');
   });
 
+  it('uses the strong foreground color for the mobile welcome title', () => {
+    const mobileWelcomeTitle = cssBlock('.home-hero__welcome p');
+
+    expect(mobileWelcomeTitle).toContain('color: var(--text-strong);');
+  });
+
   it('uses Hermes Orange 6 with white foregrounds on brand-filled controls', () => {
     const light = cssBlock(':root');
     const dark = cssBlock("[data-theme='dark']");
