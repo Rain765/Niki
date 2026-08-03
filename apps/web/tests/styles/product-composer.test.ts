@@ -21,19 +21,19 @@ describe('product composer responsive styles', () => {
       /\.composer-send--arrow\[data-action=['"]generate['"]\][^{]*\{[^}]*background:\s*var\(--accent\)[^}]*color:\s*var\(--accent-contrast\)/s,
     );
     expect(ndesignCss).toMatch(
-      /\.auto-poster-filter__generate-action\s*\{[^}]*background:\s*var\(--accent\)[^}]*color:\s*var\(--accent-contrast\)/s,
+      /\.auto-poster-filter__generate-action\s*\{[^}]*border-radius:\s*999px[^}]*background:\s*var\(--accent\)[^}]*color:\s*var\(--accent-contrast\)/s,
     );
   });
 
-  it('keeps chat settings as a bottom sheet and gives the mobile home an integrated surface', () => {
+  it('shows a single generation action while mobile poster settings are open', () => {
     expect(ndesignCss).toMatch(
       /@media\s*\(max-width:\s*680px\)[\s\S]*\.auto-poster-filter__portal\s+\.auto-poster-filter__menu\s*\{[\s\S]*bottom:\s*calc\(8px\s*\+\s*env\(safe-area-inset-bottom\)\)/,
     );
     expect(ndesignCss).toMatch(
-      /\.home-hero__input-card\.is-settings-open\s+\.home-hero__capsule\s*\{[^}]*border-top:\s*1px\s+solid\s+var\(--border-soft\)[^}]*border-radius:\s*0\s+0\s+23px\s+23px/s,
+      /@media\s*\(max-width:\s*680px\)[\s\S]*\.home-hero__input-card\.is-settings-open\s+\.home-hero__capsule\s*\{[^}]*display:\s*none/s,
     );
     expect(ndesignCss).toMatch(
-      /\.pane\.is-direct-loan-poster\s*>\s*\.composer\.is-settings-open\s+\.composer-shell--capsule\s*\{[^}]*border-top:\s*1px\s+solid\s+var\(--border-soft\)[^}]*border-radius:\s*0\s+0\s+23px\s+23px/s,
+      /@media\s*\(max-width:\s*680px\)[\s\S]*\.pane\.is-direct-loan-poster\s*>\s*\.composer\.is-settings-open\s+\.composer-shell--capsule\s*\{[^}]*display:\s*none/s,
     );
   });
 

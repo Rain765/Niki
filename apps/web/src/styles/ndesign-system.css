@@ -2939,7 +2939,7 @@ kbd,
   gap: 8px;
   padding: 10px 16px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--accent);
   color: var(--accent-contrast);
   font: inherit;
@@ -3422,18 +3422,7 @@ kbd,
   }
 
   .home-hero__input-card.is-settings-open .home-hero__capsule {
-    margin: 0;
-    padding: 7px;
-    border: 0;
-    border-top: 1px solid var(--border-soft);
-    border-radius: 0 0 23px 23px;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .home-hero__input-card.is-settings-open .home-hero__capsule:focus-within {
-    border-color: var(--border-soft);
-    box-shadow: none;
+    display: none;
   }
 
   .pane.is-direct-loan-poster > .composer.is-settings-open {
@@ -3448,18 +3437,7 @@ kbd,
   }
 
   .pane.is-direct-loan-poster > .composer.is-settings-open .composer-shell--capsule {
-    margin: 0;
-    padding: 7px;
-    border: 0;
-    border-top: 1px solid var(--border-soft);
-    border-radius: 0 0 23px 23px;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .pane.is-direct-loan-poster > .composer.is-settings-open .composer-shell--capsule:focus-within {
-    border-color: var(--border-soft);
-    box-shadow: none;
+    display: none;
   }
 
   .auto-poster-filter__submenu {
