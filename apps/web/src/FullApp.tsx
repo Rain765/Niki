@@ -10,9 +10,28 @@ const App = lazy(() => import('./App').then((module) => ({ default: module.App }
 function AppBootstrap() {
   return (
     <div className="locale-bootstrap" role="status" aria-label="正在加载 Niki">
-      <img className="locale-bootstrap__logo" src="/logo.svg" alt="" />
-      <span className="locale-bootstrap__name">Niki</span>
-      <span className="locale-bootstrap__spinner" aria-hidden="true" />
+      <div className="locale-bootstrap__brand">
+        <img className="locale-bootstrap__logo" src="/logo.svg" alt="" />
+        <span className="locale-bootstrap__name">Niki</span>
+        <span className="locale-bootstrap__spinner" aria-hidden="true" />
+      </div>
+      <div className="locale-bootstrap__surface" aria-hidden="true">
+        <aside className="locale-bootstrap__rail">
+          <span className="locale-bootstrap__rail-line is-title" />
+          <span className="locale-bootstrap__rail-line" />
+          <span className="locale-bootstrap__rail-line" />
+          <span className="locale-bootstrap__rail-line is-short" />
+        </aside>
+        <main className="locale-bootstrap__main">
+          <span className="locale-bootstrap__hero-line is-title" />
+          <span className="locale-bootstrap__hero-line" />
+          <span className="locale-bootstrap__hero-line is-short" />
+          <div className="locale-bootstrap__composer">
+            <span />
+            <b />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

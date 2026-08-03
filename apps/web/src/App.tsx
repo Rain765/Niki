@@ -1009,6 +1009,10 @@ export function App() {
   }, []);
 
   const handleOpenProject = useCallback((id: string) => {
+    // Start fetching the project view chunk before the route changes. On a
+    // mobile WebView this removes a second blank interval after the project
+    // list has already resolved.
+    void loadProjectView();
     navigate({ kind: 'project', projectId: id, fileName: null });
   }, []);
 
@@ -1354,7 +1358,7 @@ export function App() {
       />
     );
   } else if (route.kind === 'project') {
-    appMain = <CenteredLoader label={t('common.loading')} />;
+    appMain = <CenteredLoader variant="chat" />;
   } else {
     appMain = (
       <EntryView
@@ -1465,7 +1469,11 @@ export function App() {
       onThemeChange={handleThemeChange}
       onOpenSettings={openSettings}
     >
-      <Suspense fallback={<CenteredLoader label={t('common.loading')} />}>
+      <Suspense
+        fallback={route.kind === 'project'
+          ? <CenteredLoader variant="chat" />
+          : <CenteredLoader label={t('common.loading')} />}
+      >
         {appMain}
       </Suspense>
     </NikiWorkspaceShell>

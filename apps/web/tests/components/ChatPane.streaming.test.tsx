@@ -289,6 +289,49 @@ Expected output:
     expect(screen.getByText('第 1 批 · 正在加载海报')).toBeTruthy();
   });
 
+  it('keeps the poster skeleton visible while an active batch hydrates', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[]}
+        projectFilesInitialized={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 3,
+            outputPrefix: 'zamloan-poster',
+            status: 'queued',
+            activeBatchId: 'batch-active',
+            requestedAt: Date.now(),
+            batches: [{
+              id: 'batch-active',
+              status: 'queued',
+              expectedOutputs: 3,
+              requestedAt: Date.now(),
+              outputNames: [],
+              aspectRatio: '16:9',
+            }],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('direct-poster-hydration-skeleton-batch-active')).toBeTruthy();
+    expect(screen.queryByText('正在生成贷款海报')).toBeNull();
+  });
+
   it('keeps an image skeleton visible until the preview loads and offers retry on failure', () => {
     render(
       <ChatPane

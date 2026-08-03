@@ -3976,7 +3976,7 @@ export function ProjectView({
             />
           ) : (
             <div className="pane" data-testid="chat-pane-loading">
-              <CenteredLoader />
+              <CenteredLoader variant="chat" />
             </div>
           )}
         </div>

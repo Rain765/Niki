@@ -70,6 +70,90 @@ const firstPaintStyle = `
 }
 :where(.locale-bootstrap) {
   justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 22px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+:where(.locale-bootstrap__brand) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+:where(.locale-bootstrap__name) {
+  font-size: 16px;
+  font-weight: 650;
+}
+:where(.locale-bootstrap__surface) {
+  display: grid;
+  grid-template-columns: minmax(92px, 18%) minmax(0, 1fr);
+  width: min(100%, 760px);
+  min-height: min(58vh, 520px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid #2a2e35;
+  border-radius: 18px;
+  background: #111318;
+}
+:where(.locale-bootstrap__rail) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 14px;
+  border-right: 1px solid #2a2e35;
+}
+:where(.locale-bootstrap__rail-line, .locale-bootstrap__hero-line, .locale-bootstrap__composer span, .locale-bootstrap__composer b) {
+  display: block;
+  background: linear-gradient(90deg, #1a1e25 0%, #252a33 50%, #1a1e25 100%);
+  background-size: 500px 100%;
+  animation: niki-first-paint-shimmer 1.4s linear infinite;
+}
+:where(.locale-bootstrap__rail-line) {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+}
+:where(.locale-bootstrap__rail-line.is-title) {
+  width: 72%;
+  height: 14px;
+  margin-bottom: 6px;
+}
+:where(.locale-bootstrap__rail-line.is-short) { width: 58%; }
+:where(.locale-bootstrap__main) {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 26px;
+}
+:where(.locale-bootstrap__hero-line) {
+  width: 58%;
+  height: 13px;
+  border-radius: 999px;
+}
+:where(.locale-bootstrap__hero-line.is-title) {
+  width: 42%;
+  height: 18px;
+  margin-bottom: 2px;
+}
+:where(.locale-bootstrap__hero-line.is-short) { width: 32%; }
+:where(.locale-bootstrap__composer) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  margin-top: 18px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid #2a2e35;
+  border-radius: 16px;
+}
+:where(.locale-bootstrap__composer span) { flex: 1; height: 12px; border-radius: 999px; }
+:where(.locale-bootstrap__composer b) { width: 28px; height: 28px; border-radius: 50%; }
+@keyframes niki-first-paint-shimmer {
+  0% { background-position: -250px 0; }
+  100% { background-position: 250px 0; }
 }
 :where(.locale-bootstrap__logo) {
   width: 32px;

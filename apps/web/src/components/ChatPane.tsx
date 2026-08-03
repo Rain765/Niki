@@ -1182,7 +1182,7 @@ function DirectLoanPosterBatchCard({
   // Project metadata arrives before the file scan. Keep the batch's final
   // image footprint visible during that gap so a slow mobile WebView never
   // looks like the project contains no images.
-  if (hydrating && !activelyStarting) {
+  if (hydrating) {
     const hydrationTitle = batch.batchNumber === null
       ? '正在加载海报'
       : `第 ${batch.batchNumber} 批 · 正在加载海报`;
