@@ -479,11 +479,6 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
 
   return (
     <section className="home-hero" data-testid="home-hero">
-      <div className="home-hero__backdrop" aria-hidden>
-        <span className="home-hero__backdrop-grid" />
-        <span className="home-hero__backdrop-scan" />
-      </div>
-
       <NikiPosterWelcome hidden={welcomeHidden} label={t('homeHero.autoPosterWelcome')} />
 
       <div
@@ -1008,25 +1003,6 @@ function NikiPosterWelcome({ hidden, label }: { hidden: boolean; label: string }
       data-testid="home-hero-welcome"
       aria-hidden={hidden || undefined}
     >
-      <div className="home-hero__mascot" aria-hidden>
-        <span className="home-hero__mascot-halo" />
-        <svg viewBox="0 0 88 88" role="presentation">
-          <defs>
-            <linearGradient id="niki-mascot-fill" x1="18" y1="12" x2="70" y2="78" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#ff8a3d" />
-              <stop offset="1" stopColor="#d94a18" />
-            </linearGradient>
-            <radialGradient id="niki-mascot-glow" cx="0" cy="0" r="1" gradientTransform="translate(30 22) rotate(48) scale(58)">
-              <stop stopColor="#fff" stopOpacity=".34" />
-              <stop offset=".72" stopColor="#fff" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          <circle cx="44" cy="44" r="36" fill="url(#niki-mascot-fill)" />
-          <circle cx="44" cy="44" r="36" fill="url(#niki-mascot-glow)" />
-          <path className="home-hero__mascot-mark" d="M27 55V32c0-4 5-5 7-2l20 25V32c0-3 2-5 5-5s5 2 5 5v23c0 5-6 7-9 3L37 35v20c0 3-2 5-5 5s-5-2-5-5Z" />
-          <ellipse className="home-hero__mascot-shine" cx="31" cy="25" rx="8" ry="4" transform="rotate(-28 31 25)" />
-        </svg>
-      </div>
       <p>{label}</p>
     </div>
   );
