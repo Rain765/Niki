@@ -856,16 +856,15 @@ export function ChatPane({
         <>
           <div className="chat-log-wrap">
             <div className="chat-log" ref={logRef}>
-              {messages.length === 0 ? (
-                directLoanPosterProject ? (
-                  <DirectLoanPosterTimeline
-                    batches={directPosterBatches}
-                    filesInitialized={projectFilesInitialized}
-                    projectId={projectId}
-                    onEditProjectImage={onEditProjectImage}
-                    onDeleteProjectFile={onDeleteProjectFile}
-                  />
-                ) : (
+              {directLoanPosterProject ? (
+                <DirectLoanPosterTimeline
+                  batches={directPosterBatches}
+                  filesInitialized={projectFilesInitialized}
+                  projectId={projectId}
+                  onEditProjectImage={onEditProjectImage}
+                  onDeleteProjectFile={onDeleteProjectFile}
+                />
+              ) : messages.length === 0 ? (
                   <div className="chat-empty-wrap">
                     <div className="chat-empty">
                       <span className="chat-empty-title">
@@ -907,9 +906,8 @@ export function ChatPane({
                       ))}
                     </div>
                   </div>
-                )
               ) : null}
-              {messages.map((m, i) => {
+              {!directLoanPosterProject ? messages.map((m, i) => {
                 const showDaySeparator = shouldShowDaySeparator(messages[i - 1], m);
                 const messageStreaming = isAssistantMessageStreaming(
                   m,
@@ -967,7 +965,7 @@ export function ChatPane({
                     )}
                   </Fragment>
                 );
-              })}
+              }) : null}
               {error ? <div className="msg error">{error}</div> : null}
             </div>
             {/* Always mounted so the CSS transition can play in both
@@ -986,12 +984,14 @@ export function ChatPane({
               <span>{t('chat.jumpToLatest')}</span>
             </button>
           </div>
-          <PinnedTodoSlot
-            messages={messages}
-            streaming={streaming}
-            dismissedKey={dismissedPinnedTodoKey}
-            onDismiss={setDismissedPinnedTodoKey}
-          />
+          {!directLoanPosterProject ? (
+            <PinnedTodoSlot
+              messages={messages}
+              streaming={streaming}
+              dismissedKey={dismissedPinnedTodoKey}
+              onDismiss={setDismissedPinnedTodoKey}
+            />
+          ) : null}
           <ChatComposer
             ref={composerRef}
             projectId={projectId}

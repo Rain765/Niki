@@ -188,6 +188,63 @@ Expected output:
     expect(screen.queryByTestId('conversation-history-trigger')).toBeNull();
   });
 
+  it('keeps completed direct poster batches visible when the project has historical messages', () => {
+    render(
+      <ChatPane
+        messages={[{
+          id: 'historical-user-message',
+          role: 'user',
+          content: 'An older poster prompt',
+          createdAt: 1,
+        }]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[{
+          name: 'biumoney-poster-20260803-011.png',
+          size: 1024,
+          mtime: 11,
+          kind: 'image',
+          mime: 'image/png',
+        }]}
+        projectFilesInitialized
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 1,
+            outputPrefix: 'biumoney-poster',
+            status: 'complete',
+            activeBatchId: 'batch-5',
+            batches: [{
+              id: 'batch-5',
+              status: 'complete',
+              requestedAt: 1,
+              completedAt: 2,
+              expectedOutputs: 1,
+              outputNames: ['biumoney-poster-20260803-011.png'],
+            }],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('direct-poster-batch-batch-5').textContent)
+      .toContain('已完成 1 张');
+    expect(
+      screen.getByTestId('direct-poster-result-image-biumoney-poster-20260803-011.png'),
+    ).not.toBeNull();
+    expect(screen.queryByText('An older poster prompt')).toBeNull();
+  });
+
   it('shows a minimal centered loading state before the first direct poster arrives', () => {
     render(
       <ChatPane
