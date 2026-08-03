@@ -4,7 +4,11 @@ import { trackChatPanelClick } from '../analytics/events';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
-import { projectImagePreviewUrl, projectRawUrl } from '../providers/registry';
+import {
+  projectFileDownloadUrl,
+  projectImagePreviewUrl,
+  projectRawUrl,
+} from '../providers/registry';
 import type { TodoItem } from '../runtime/todos';
 import type { AppliedPluginSnapshot } from '@open-design/contracts';
 import type { TrackingProjectKind } from '@open-design/contracts/analytics';
@@ -31,6 +35,8 @@ import {
   isLoanPosterOutputName,
 } from './home-hero/zambia-posters';
 import { Icon } from './Icon';
+import { ImageLightbox } from './ImageLightbox';
+import { Toast } from './Toast';
 import {
   buildDirectPosterBatches,
   type DirectPosterBatchView,
@@ -255,6 +261,7 @@ interface Props {
   // FileWorkspace's openRequest. Tool cards, attachment chips, and
   // produced-file chips all call this.
   onRequestOpenFile?: (name: string) => void;
+  onEditProjectImage?: (name: string) => void;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
   onRequestPluginFolderAgentAction?: (
     relativePath: string,
@@ -335,6 +342,7 @@ export function ChatPane({
   onSend,
   onStop,
   onRequestOpenFile,
+  onEditProjectImage,
   onDeleteProjectFile,
   onRequestPluginFolderAgentAction,
   initialDraft,
@@ -854,6 +862,7 @@ export function ChatPane({
                     batches={directPosterBatches}
                     filesInitialized={projectFilesInitialized}
                     projectId={projectId}
+                    onEditProjectImage={onEditProjectImage}
                     onDeleteProjectFile={onDeleteProjectFile}
                   />
                 ) : (
@@ -933,6 +942,8 @@ export function ChatPane({
                         projectFiles={projectFiles}
                         projectFileNames={projectFileNames}
                         onRequestOpenFile={onRequestOpenFile}
+                        onEditImage={onEditProjectImage}
+                        onDeleteProjectFile={onDeleteProjectFile}
                         onRequestPluginFolderAgentAction={onRequestPluginFolderAgentAction}
                         isLast={m.id === lastAssistantId}
                         nextUserContent={nextUserContentByAssistantId.get(m.id)}
@@ -1024,11 +1035,13 @@ function DirectLoanPosterTimeline({
   batches,
   filesInitialized,
   projectId,
+  onEditProjectImage,
   onDeleteProjectFile,
 }: {
   batches: DirectPosterBatchView[];
   filesInitialized: boolean;
   projectId: string | null;
+  onEditProjectImage?: (name: string) => void;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
 }) {
   return (
@@ -1050,6 +1063,7 @@ function DirectLoanPosterTimeline({
             compactLoading={batches.length > 1}
             filesInitialized={filesInitialized}
             projectId={projectId}
+            onEditProjectImage={onEditProjectImage}
             onDeleteProjectFile={onDeleteProjectFile}
           />
         </div>
@@ -1063,16 +1077,20 @@ function DirectLoanPosterBatchCard({
   compactLoading,
   filesInitialized,
   projectId,
+  onEditProjectImage,
   onDeleteProjectFile,
 }: {
   batch: DirectPosterBatchView;
   compactLoading: boolean;
   filesInitialized: boolean;
   projectId: string | null;
+  onEditProjectImage?: (name: string) => void;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
 }) {
   const t = useT();
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [lightboxFileName, setLightboxFileName] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [clientNow, setClientNow] = useState<number | null>(null);
   const generatedFiles = batch.files;
   const expectedCount = batch.expectedCount;
@@ -1137,11 +1155,11 @@ function DirectLoanPosterBatchCard({
     : failed
     ? batch.lastError ?? '生成任务没有成功入队，请返回首页重试。'
     : visuallyComplete
-    ? '图片已生成。可复制、下载或删除。'
+    ? '图片已生成。点击图片可查看、编辑或下载。'
     : hasResults && activelyStarting
       ? '已完成的图片会先显示在这里，其余海报生成后会自动出现。'
       : hasResults
-        ? '图片已生成。可复制、下载或删除。'
+        ? '图片已生成。点击图片可查看、编辑或下载。'
       : '无需再次发送提示词。生成完成后，图片会自动显示在这里。';
 
   // Opening an existing chat should never block the whole pane while its file
@@ -1151,132 +1169,147 @@ function DirectLoanPosterBatchCard({
   if (hydrating && !activelyStarting) return null;
 
   return (
-    <div
-      className={[
-        'direct-poster-status',
-        visuallyComplete ? 'is-complete' : '',
-        failed ? 'is-failed' : '',
-        hasResults ? 'has-results' : '',
-        !hasResults && !failed ? 'is-loading' : '',
-        compactLoading && !hasResults && !failed ? 'is-inline-loading' : '',
-      ].filter(Boolean).join(' ')}
-      role="status"
-      aria-live="polite"
-      data-testid="direct-poster-status"
-      data-batch-id={batch.id}
-      data-batch-number={batch.batchNumber ?? undefined}
-    >
-      <span className="direct-poster-status-icon">
-        <Icon
-          name={hasResults || failed ? 'image' : 'spinner'}
-          size={19}
-          className={hasResults || failed ? undefined : 'direct-poster-status-spinner'}
+    <>
+      <div
+        className={[
+          'direct-poster-status',
+          visuallyComplete ? 'is-complete' : '',
+          failed ? 'is-failed' : '',
+          hasResults ? 'has-results' : '',
+          !hasResults && !failed ? 'is-loading' : '',
+          compactLoading && !hasResults && !failed ? 'is-inline-loading' : '',
+        ].filter(Boolean).join(' ')}
+        role="status"
+        aria-live="polite"
+        data-testid="direct-poster-status"
+        data-batch-id={batch.id}
+        data-batch-number={batch.batchNumber ?? undefined}
+      >
+        <span className="direct-poster-status-icon">
+          <Icon
+            name={hasResults || failed ? 'image' : 'spinner'}
+            size={19}
+            className={hasResults || failed ? undefined : 'direct-poster-status-spinner'}
+          />
+        </span>
+        <span className="direct-poster-status-copy">
+          <strong>{title}</strong>
+          {hasResults || failed ? <span>{description}</span> : null}
+        </span>
+        {projectId && selectedFile ? (
+          <div className="direct-poster-gallery">
+            <figure className="direct-poster-result">
+              <div className="direct-poster-result-open">
+                <button
+                  type="button"
+                  className="direct-poster-result-target"
+                  onClick={() => setLightboxFileName(selectedFile.name)}
+                  aria-label={`${t('common.preview')} ${selectedFile.name}`}
+                  data-testid={`direct-poster-open-${selectedFile.name}`}
+                >
+                  <picture key={`${selectedFile.name}:${selectedFile.mtime}`}>
+                    <source
+                      media="(max-width: 900px)"
+                      srcSet={projectImagePreviewUrl(
+                        projectId,
+                        selectedFile.name,
+                        'mobile',
+                        selectedFile.mtime,
+                      )}
+                    />
+                    <img
+                      src={projectImagePreviewUrl(
+                        projectId,
+                        selectedFile.name,
+                        'preview',
+                        selectedFile.mtime,
+                      )}
+                      alt={`生成的贷款海报 ${generatedFiles.indexOf(selectedFile) + 1}`}
+                      loading="lazy"
+                      draggable={false}
+                      data-testid={`direct-poster-result-image-${selectedFile.name}`}
+                    />
+                  </picture>
+                </button>
+                <span className="direct-poster-result-overlay-actions">
+                  {onEditProjectImage ? (
+                    <button
+                      type="button"
+                      onClick={() => onEditProjectImage(selectedFile.name)}
+                    >
+                      <Icon name="edit" size={17} />
+                      <span>{t('common.edit')}</span>
+                    </button>
+                  ) : null}
+                  <a
+                    href={projectFileDownloadUrl(projectId, selectedFile.name)}
+                    download={selectedFile.name}
+                    aria-label={t('designFiles.download')}
+                    title={t('designFiles.download')}
+                    onClick={() => setNotice(t('imageViewer.downloadStarted'))}
+                  >
+                    <Icon name="download" size={19} />
+                  </a>
+                </span>
+              </div>
+              <figcaption className="sr-only">{selectedFile.name}</figcaption>
+            </figure>
+            {generatedCount > 1 ? (
+              <div className="direct-poster-thumbnails" aria-label="生成的海报">
+                {generatedFiles.map((file, index) => (
+                  <button
+                    type="button"
+                    key={file.name}
+                    className={file.name === selectedFile.name ? 'is-active' : ''}
+                    aria-label={`查看第 ${index + 1} 张海报`}
+                    aria-pressed={file.name === selectedFile.name}
+                    aria-current={file.name === selectedFile.name ? 'true' : undefined}
+                    onClick={() => setSelectedFileName(file.name)}
+                    data-testid={`direct-poster-thumbnail-button-${file.name}`}
+                  >
+                    <img
+                      src={projectImagePreviewUrl(
+                        projectId,
+                        file.name,
+                        'thumbnail',
+                        file.mtime,
+                      )}
+                      alt=""
+                      loading="lazy"
+                      draggable={false}
+                      data-testid={`direct-poster-thumbnail-${file.name}`}
+                    />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      {projectId && lightboxFileName ? (
+        <ImageLightbox
+          projectId={projectId}
+          images={generatedFiles}
+          activeName={lightboxFileName}
+          onActiveNameChange={(name) => {
+            setLightboxFileName(name);
+            setSelectedFileName(name);
+          }}
+          onClose={() => setLightboxFileName(null)}
+          onEdit={onEditProjectImage
+            ? (file) => onEditProjectImage(file.name)
+            : undefined}
+          onDelete={onDeleteProjectFile}
         />
-      </span>
-      <span className="direct-poster-status-copy">
-        <strong>{title}</strong>
-        {hasResults || failed ? <span>{description}</span> : null}
-      </span>
-      {projectId && selectedFile ? (
-        <div className="direct-poster-gallery">
-          <figure className="direct-poster-result">
-            <div className="direct-poster-result-open">
-              <picture key={`${selectedFile.name}:${selectedFile.mtime}`}>
-                <source
-                  media="(max-width: 900px)"
-                  srcSet={projectImagePreviewUrl(
-                    projectId,
-                    selectedFile.name,
-                    'mobile',
-                    selectedFile.mtime,
-                  )}
-                />
-                <img
-                  src={projectImagePreviewUrl(
-                    projectId,
-                    selectedFile.name,
-                    'preview',
-                    selectedFile.mtime,
-                  )}
-                  alt={`生成的贷款海报 ${generatedFiles.indexOf(selectedFile) + 1}`}
-                  loading="lazy"
-                  draggable={false}
-                  data-testid={`direct-poster-result-image-${selectedFile.name}`}
-                />
-              </picture>
-            </div>
-            <figcaption className="direct-poster-result-info">
-              <span>{selectedFile.name}</span>
-              <span className="direct-poster-result-actions">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const url = new URL(
-                      projectRawUrl(projectId, selectedFile.name),
-                      window.location.href,
-                    ).href;
-                    void copyToClipboard(url);
-                  }}
-                >
-                  {t('designFiles.copy')}
-                </button>
-                <a
-                  href={`${projectRawUrl(projectId, selectedFile.name)}?download=1`}
-                  download={selectedFile.name}
-                >
-                  {t('designFiles.download')}
-                </a>
-                <button
-                  type="button"
-                  className="is-danger"
-                  disabled={!onDeleteProjectFile}
-                  onClick={() => {
-                    if (
-                      !onDeleteProjectFile
-                      || !window.confirm(
-                        t('workspace.deleteFileConfirm', { name: selectedFile.name }),
-                      )
-                    ) return;
-                    void onDeleteProjectFile(selectedFile.name);
-                  }}
-                >
-                  {t('designFiles.delete')}
-                </button>
-              </span>
-            </figcaption>
-          </figure>
-          {generatedCount > 1 ? (
-            <div className="direct-poster-thumbnails" aria-label="生成的海报">
-              {generatedFiles.map((file, index) => (
-                <button
-                  type="button"
-                  key={file.name}
-                  className={file.name === selectedFile.name ? 'is-active' : ''}
-                  aria-label={`查看第 ${index + 1} 张海报`}
-                  aria-pressed={file.name === selectedFile.name}
-                  aria-current={file.name === selectedFile.name ? 'true' : undefined}
-                  onClick={() => setSelectedFileName(file.name)}
-                  data-testid={`direct-poster-thumbnail-button-${file.name}`}
-                >
-                  <img
-                    src={projectImagePreviewUrl(
-                      projectId,
-                      file.name,
-                      'thumbnail',
-                      file.mtime,
-                    )}
-                    alt=""
-                    loading="lazy"
-                    draggable={false}
-                    data-testid={`direct-poster-thumbnail-${file.name}`}
-                  />
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
       ) : null}
-    </div>
+      {notice ? (
+        <Toast
+          message={notice}
+          ttlMs={2600}
+          onDismiss={() => setNotice(null)}
+        />
+      ) : null}
+    </>
   );
 }
 

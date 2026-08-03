@@ -1,4 +1,5 @@
 @import './styles/design-system-flow.css';
+@import './styles/image-lightbox.css';
 
 /* The server and the browser's first hydrated frame intentionally share this
    locale-neutral shell. It prevents the English fallback UI from flashing
@@ -13728,13 +13729,13 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
 }
 .direct-poster-result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(128px, 30%);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 14px;
   min-width: 0;
   margin: 0;
 }
 .direct-poster-result-open {
+  position: relative;
   display: block;
   width: fit-content;
   max-width: 100%;
@@ -13744,6 +13745,20 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow-sm);
+}
+.direct-poster-result-target {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.direct-poster-result-target:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
 }
 .direct-poster-result-open picture {
   display: block;
@@ -13756,61 +13771,54 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
   max-height: min(46vh, 520px);
   object-fit: contain;
 }
-.direct-poster-result figcaption {
+.direct-poster-result-overlay-actions {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  z-index: 2;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 10px;
-  min-width: 0;
-  padding: 4px 0;
-  border: 0;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.direct-poster-result figcaption span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.direct-poster-result-actions {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  width: 100%;
+  justify-content: space-between;
+  gap: 10px;
+  pointer-events: none;
 }
-.direct-poster-result-actions button,
-.direct-poster-result-actions a {
+.direct-poster-result-overlay-actions button,
+.direct-poster-result-overlay-actions a {
   appearance: none;
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 4px 8px;
-  color: var(--text-muted);
-  background: transparent;
-  border: 0;
-  border-radius: 7px;
-  font: inherit;
+  justify-content: center;
+  gap: 7px;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-app) 82%, transparent);
+  backdrop-filter: blur(14px);
+  color: var(--text-strong);
+  font: 650 13px/1 var(--sans);
   text-decoration: none;
   cursor: pointer;
+  pointer-events: auto;
   transition:
-    color 140ms cubic-bezier(0.23, 1, 0.32, 1),
-    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-.direct-poster-result-actions button:hover:not(:disabled),
-.direct-poster-result-actions a:hover {
-  color: var(--text);
-  background: var(--bg-subtle);
+.direct-poster-result-overlay-actions a {
+  width: 48px;
+  padding: 0;
 }
-.direct-poster-result-actions button:disabled {
-  cursor: default;
-  opacity: 0.45;
+.direct-poster-result-overlay-actions button:hover,
+.direct-poster-result-overlay-actions button:focus-visible,
+.direct-poster-result-overlay-actions a:hover,
+.direct-poster-result-overlay-actions a:focus-visible {
+  background: var(--bg-panel);
 }
-.direct-poster-result-actions .is-danger {
-  color: var(--red);
+.direct-poster-result-overlay-actions button:active,
+.direct-poster-result-overlay-actions a:active {
+  transform: scale(0.94);
 }
 .direct-poster-thumbnails {
   display: flex;
@@ -13966,24 +13974,10 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
     width: 52px;
     flex: 0 0 52px;
   }
-  .direct-poster-result figcaption {
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding-inline: 4px;
-    text-align: center;
-  }
-  .direct-poster-result figcaption > span:first-child {
-    max-width: min(100%, 28ch);
-  }
-  .direct-poster-result-actions {
-    justify-content: center;
-    gap: 6px;
-  }
-  .direct-poster-result-actions button,
-  .direct-poster-result-actions a {
-    min-height: 44px;
-    padding-inline: 12px;
+  .direct-poster-result-overlay-actions {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
   }
 }
 

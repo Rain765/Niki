@@ -27,6 +27,7 @@ import {
 } from "./design-files/pluginFolders";
 import type { PluginFolderAgentAction } from "./design-files/pluginFolderActions";
 import { Icon } from "./Icon";
+import { ImageLightbox } from "./ImageLightbox";
 import { useT } from "../i18n";
 import { deriveFileOps, type FileOpEntry } from "../runtime/file-ops";
 import { unfinishedTodosFromEvents, type TodoItem } from "../runtime/todos";
@@ -63,6 +64,8 @@ interface Props {
   projectFiles?: ProjectFile[];
   projectFileNames?: Set<string>;
   onRequestOpenFile?: (name: string) => void;
+  onEditImage?: (name: string) => void;
+  onDeleteProjectFile?: (name: string) => Promise<boolean>;
   onRequestPluginFolderAgentAction?: (
     relativePath: string,
     action: PluginFolderAgentAction,
@@ -101,6 +104,8 @@ export function AssistantMessage({
   projectFiles = [],
   projectFileNames,
   onRequestOpenFile,
+  onEditImage,
+  onDeleteProjectFile,
   onRequestPluginFolderAgentAction,
   isLast,
   nextUserContent,
@@ -180,31 +185,25 @@ export function AssistantMessage({
       ),
     [produced, projectFiles],
   );
-  const [previewFile, setPreviewFile] = useState<ProjectFile | null>(null);
+  const previewableImageList = useMemo(
+    () => [...previewableImages.values()],
+    [previewableImages],
+  );
+  const [previewFileName, setPreviewFileName] = useState<string | null>(null);
+  const previewFile = previewFileName
+    ? previewableImages.get(previewFileName) ?? null
+    : null;
   const requestLinkedFile = useCallback(
     (name: string) => {
       const image = previewableImages.get(name);
       if (image && projectId) {
-        setPreviewFile(image);
+        setPreviewFileName(image.name);
         return;
       }
       onRequestOpenFile?.(name);
     },
     [onRequestOpenFile, previewableImages, projectId],
   );
-  useEffect(() => {
-    if (!previewFile) return;
-    const previousOverflow = document.body.style.overflow;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPreviewFile(null);
-    };
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [previewFile]);
   const openableProjectFileNames = useMemo(
     () =>
       new Set([
@@ -345,7 +344,7 @@ export function AssistantMessage({
             files={produced}
             projectId={projectId}
             onRequestOpenFile={onRequestOpenFile}
-            onPreviewFile={setPreviewFile}
+            onPreviewFile={(file) => setPreviewFileName(file.name)}
           />
         ) : null}
         {!streaming && projectId && pluginActionFolders.length > 0 ? (
@@ -398,65 +397,15 @@ export function AssistantMessage({
         ) : null}
       </div>
       {previewFile && projectId ? (
-        <div
-          className="global-design-files__preview"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${t("common.preview")} ${previewFile.name}`}
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setPreviewFile(null);
-          }}
-        >
-          <div className="global-design-files__preview-card">
-            <header className="global-design-files__preview-header">
-              <div>
-                <strong>{previewFile.name}</strong>
-              </div>
-              <button
-                type="button"
-                className="global-design-files__preview-close"
-                aria-label={t("common.close")}
-                title={t("common.close")}
-                onClick={() => setPreviewFile(null)}
-              >
-                <Icon name="close" size={18} />
-              </button>
-            </header>
-            <div className="global-design-files__preview-stage">
-              <img
-                src={projectImagePreviewUrl(
-                  projectId,
-                  previewFile.name,
-                  "preview",
-                  previewFile.mtime,
-                )}
-                alt={previewFile.name}
-                data-testid="assistant-image-preview"
-              />
-            </div>
-            <footer className="global-design-files__preview-actions">
-              <a
-                href={projectFileDownloadUrl(projectId, previewFile.name)}
-                download
-              >
-                <Icon name="download" size={17} />
-                <span>{t("assistant.downloadFile")}</span>
-              </a>
-              {onRequestOpenFile ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPreviewFile(null);
-                    onRequestOpenFile(previewFile.name);
-                  }}
-                >
-                  <Icon name="grid" size={17} />
-                  <span>{t("assistant.openFile")}</span>
-                </button>
-              ) : null}
-            </footer>
-          </div>
-        </div>
+        <ImageLightbox
+          projectId={projectId}
+          images={previewableImageList}
+          activeName={previewFile.name}
+          onActiveNameChange={setPreviewFileName}
+          onClose={() => setPreviewFileName(null)}
+          onEdit={onEditImage ? (file) => onEditImage(file.name) : undefined}
+          onDelete={onDeleteProjectFile}
+        />
       ) : null}
     </div>
   );

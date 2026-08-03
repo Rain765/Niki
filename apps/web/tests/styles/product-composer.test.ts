@@ -49,7 +49,7 @@ describe('product composer responsive styles', () => {
     );
   });
 
-  it('uses one centered mobile column for poster status, media and actions', () => {
+  it('uses one centered mobile column with image-overlay actions', () => {
     expect(indexCss).toMatch(
       /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-status\s*\{[^}]*width:\s*100%[^}]*margin:\s*0[^}]*padding:\s*12px 16px/s,
     );
@@ -60,7 +60,7 @@ describe('product composer responsive styles', () => {
       /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-result-open\s+img\s*\{[^}]*width:\s*100%[^}]*max-width:\s*100%[^}]*max-height:\s*min\(62dvh,\s*680px\)/s,
     );
     expect(indexCss).toMatch(
-      /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-result\s+figcaption\s*\{[^}]*align-items:\s*center[^}]*text-align:\s*center/s,
+      /@media\s*\(max-width:\s*900px\)[\s\S]*\.direct-poster-result-overlay-actions\s*\{[^}]*right:\s*12px[^}]*bottom:\s*12px[^}]*left:\s*12px/s,
     );
     expect(indexCss).toMatch(
       /@media\s*\(max-width:\s*900px\)[\s\S]*\.pane\.is-direct-loan-poster\s+\.chat-log\s*\{[^}]*overflow-y:\s*auto[^}]*overscroll-behavior-y:\s*contain/s,

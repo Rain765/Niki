@@ -39,6 +39,10 @@ export interface Dict {
   'common.edit': string;
   'common.preview': string;
   'common.share': string;
+  'imageViewer.downloadStarted': string;
+  'imageViewer.linkCopied': string;
+  'imageViewer.actionFailed': string;
+  'imageViewer.deleteFailed': string;
   'common.search': string;
   'common.searchEllipsis': string;
   'common.loading': string;

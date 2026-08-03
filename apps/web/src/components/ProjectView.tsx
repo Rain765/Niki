@@ -3660,6 +3660,13 @@ export function ProjectView({
       setWorkspaceFocused(true);
     }
   }, []);
+  const editProjectImage = useCallback((name: string) => {
+    if (directLoanPosterProject) {
+      showDirectPosterCanvas();
+      return;
+    }
+    requestOpenFile(name);
+  }, [directLoanPosterProject, requestOpenFile, showDirectPosterCanvas]);
 
   return (
     <div
@@ -3905,6 +3912,7 @@ export function ProjectView({
               onSend={handleSend}
               onStop={handleStop}
               onRequestOpenFile={requestOpenFile}
+              onEditProjectImage={editProjectImage}
               onDeleteProjectFile={async (name) => {
                 const deleted = await deleteProjectFile(project.id, name);
                 if (deleted) await refreshWorkspaceItems();
