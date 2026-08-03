@@ -359,6 +359,122 @@ export function reconcileDirectLoanPosterProject(
   return result.changes === 1;
 }
 
+/**
+ * Direct poster admission is split across two requests: the web first stores
+ * `preparing`/`queued` project metadata, then asks the daemon to create media
+ * tasks. If the client disconnects between those requests, no task exists to
+ * drive the project into a terminal state. Expire those orphaned queue flags
+ * while preserving any project that still has real queued/running work.
+ */
+export function reconcileStaleDirectLoanPosterProjects(
+  db: Database.Database,
+  options: { staleAfterMs: number; now?: number },
+): number {
+  const now = options.now ?? Date.now();
+  const staleAfterMs = Math.max(0, options.staleAfterMs);
+  const clockSkewAllowanceMs = 60_000;
+  const expiredMessage = 'media generation queue expired before task admission';
+  const projects = db.prepare(
+    `SELECT id, metadata_json AS metadataJson
+       FROM projects
+      WHERE metadata_json IS NOT NULL`,
+  ).all() as Array<{ id: string; metadataJson: string }>;
+  const hasActiveTask = db.prepare(
+    `SELECT 1
+       FROM media_tasks
+      WHERE project_id = ?
+        AND status IN ('queued', 'running')
+      LIMIT 1`,
+  );
+  const updateProject = db.prepare(
+    `UPDATE projects
+        SET metadata_json = ?,
+            updated_at = ?
+      WHERE id = ?
+        AND metadata_json = ?`,
+  );
+
+  const tx = db.transaction(() => {
+    let interrupted = 0;
+    for (const project of projects) {
+      const metadata = parseJson(project.metadataJson);
+      if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) continue;
+      const directGeneration = (metadata as Record<string, unknown>).directGeneration;
+      if (
+        !directGeneration
+        || typeof directGeneration !== 'object'
+        || Array.isArray(directGeneration)
+      ) {
+        continue;
+      }
+      const lifecycle = directGeneration as Record<string, unknown>;
+      if (
+        lifecycle.kind !== 'loan-poster'
+        || (lifecycle.status !== 'preparing' && lifecycle.status !== 'queued')
+      ) {
+        continue;
+      }
+
+      const batches = Array.isArray(lifecycle.batches)
+        ? lifecycle.batches.filter((batch): batch is Record<string, unknown> => (
+          Boolean(batch) && typeof batch === 'object' && !Array.isArray(batch)
+        ))
+        : [];
+      const activeBatchId = typeof lifecycle.activeBatchId === 'string'
+        ? lifecycle.activeBatchId
+        : null;
+      const activeBatch = activeBatchId
+        ? batches.find((batch) => batch.id === activeBatchId)
+        : batches.at(-1);
+      const startedAt = [
+        activeBatch?.queuedAt,
+        activeBatch?.requestedAt,
+        lifecycle.queuedAt,
+        lifecycle.requestedAt,
+      ].find((value): value is number => typeof value === 'number' && Number.isFinite(value));
+      const recentlyStarted = startedAt !== undefined
+        && startedAt <= now + clockSkewAllowanceMs
+        && now - startedAt < staleAfterMs;
+      if (recentlyStarted || hasActiveTask.get(project.id)) continue;
+
+      const nextBatches = activeBatch
+        ? batches.map((batch) => (
+          batch === activeBatch
+          && (batch.status === 'preparing' || batch.status === 'queued')
+            ? {
+              ...batch,
+              status: 'interrupted',
+              completedAt: undefined,
+              failedAt: now,
+              lastError: expiredMessage,
+            }
+            : batch
+        ))
+        : undefined;
+      const nextMetadata = {
+        ...(metadata as Record<string, unknown>),
+        directGeneration: {
+          ...lifecycle,
+          status: 'interrupted',
+          completedAt: undefined,
+          failedAt: now,
+          lastError: expiredMessage,
+          ...(nextBatches ? { batches: nextBatches } : {}),
+        },
+      };
+      interrupted += updateProject.run(
+        JSON.stringify(nextMetadata),
+        now,
+        project.id,
+        project.metadataJson,
+      ).changes;
+    }
+    return interrupted;
+  });
+
+  return tx() as number;
+}
+
 export function deleteMediaTask(db: Database.Database, id: string): void {
   db.prepare(`DELETE FROM media_tasks WHERE id = ?`).run(id);
 }

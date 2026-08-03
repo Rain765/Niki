@@ -9,6 +9,7 @@ import {
   migrateMediaTasks,
   reconcileDirectLoanPosterProject,
   reconcileMediaTasksOnBoot,
+  reconcileStaleDirectLoanPosterProjects,
   updateMediaTask,
 } from '../src/media-tasks.js';
 
@@ -152,6 +153,97 @@ describe('media task persistence', () => {
     });
     expect(running?.status).toBe('interrupted');
     expect(done?.status).toBe('done');
+  });
+
+  it('interrupts an expired direct loan-poster queue that never created a media task', () => {
+    db.prepare(
+      `UPDATE projects
+          SET metadata_json = ?
+        WHERE id = 'p1'`,
+    ).run(JSON.stringify({
+      kind: 'image',
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'queued',
+        requestedAt: 1_000,
+        queuedAt: 1_100,
+        activeBatchId: 'batch-1',
+        batches: [{
+          id: 'batch-1',
+          status: 'queued',
+          requestedAt: 1_000,
+          queuedAt: 1_100,
+          expectedOutputs: 1,
+          outputNames: ['poster-001.png'],
+        }],
+      },
+    }));
+
+    const interrupted = reconcileStaleDirectLoanPosterProjects(db, {
+      staleAfterMs: 15_000,
+      now: 20_000,
+    });
+
+    expect(interrupted).toBe(1);
+    const project = db.prepare(
+      `SELECT metadata_json AS metadataJson, updated_at AS updatedAt
+         FROM projects
+        WHERE id = 'p1'`,
+    ).get() as { metadataJson: string; updatedAt: number };
+    expect(JSON.parse(project.metadataJson)).toMatchObject({
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'interrupted',
+        failedAt: 20_000,
+        lastError: 'media generation queue expired before task admission',
+        batches: [{
+          id: 'batch-1',
+          status: 'interrupted',
+          failedAt: 20_000,
+          lastError: 'media generation queue expired before task admission',
+        }],
+      },
+    });
+    expect(project.updatedAt).toBe(20_000);
+  });
+
+  it('keeps recent or actively running direct loan-poster queues', () => {
+    const projectMetadata = (requestedAt: number) => JSON.stringify({
+      kind: 'image',
+      directGeneration: {
+        kind: 'loan-poster',
+        status: 'queued',
+        requestedAt,
+        expectedOutputs: 1,
+      },
+    });
+    db.prepare(`UPDATE projects SET metadata_json = ? WHERE id = 'p1'`)
+      .run(projectMetadata(10_000));
+    db.prepare(`UPDATE projects SET metadata_json = ? WHERE id = 'p2'`)
+      .run(projectMetadata(1_000));
+    insertMediaTask(db, {
+      id: 'active-poster',
+      projectId: 'p2',
+      status: 'running',
+      surface: 'image',
+      startedAt: 2_000,
+      updatedAt: 2_000,
+    });
+
+    const interrupted = reconcileStaleDirectLoanPosterProjects(db, {
+      staleAfterMs: 15_000,
+      now: 20_000,
+    });
+
+    expect(interrupted).toBe(0);
+    for (const projectId of ['p1', 'p2']) {
+      const project = db.prepare(
+        `SELECT metadata_json AS metadataJson FROM projects WHERE id = ?`,
+      ).get(projectId) as { metadataJson: string };
+      expect(JSON.parse(project.metadataJson)).toMatchObject({
+        directGeneration: { status: 'queued' },
+      });
+    }
   });
 
   it('marks a queued direct loan-poster project failed after its media batch terminates with errors', () => {

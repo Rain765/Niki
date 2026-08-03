@@ -239,6 +239,7 @@ import {
   listRecentMediaTasks,
   reconcileDirectLoanPosterProject,
   reconcileMediaTasksOnBoot,
+  reconcileStaleDirectLoanPosterProjects,
   updateMediaTask,
 } from './media-tasks.js';
 import {
@@ -2592,6 +2593,8 @@ function sendMulterError(res, err) {
 
 const mediaTasks = new Map();
 const TASK_TTL_AFTER_DONE_MS = 10 * 60 * 1000;
+const DIRECT_LOAN_POSTER_QUEUE_STALE_AFTER_MS = 15 * 60 * 1000;
+const DIRECT_LOAN_POSTER_QUEUE_SWEEP_INTERVAL_MS = 60 * 1000;
 const MEDIA_TERMINAL_STATUSES = new Set(['done', 'failed', 'interrupted']);
 
 function hydrateMediaTask(row) {
@@ -3235,6 +3238,25 @@ export async function startServer({
         `deleted ${mediaReconcile.deleted} expired terminal task(s)`,
     );
   }
+  const sweepStaleDirectLoanPosterQueues = () => {
+    const interrupted = reconcileStaleDirectLoanPosterProjects(db, {
+      staleAfterMs: DIRECT_LOAN_POSTER_QUEUE_STALE_AFTER_MS,
+    });
+    if (interrupted > 0) {
+      console.warn(
+        `[media] interrupted ${interrupted} expired direct loan-poster queue(s) without active tasks`,
+      );
+    }
+  };
+  sweepStaleDirectLoanPosterQueues();
+  const directLoanPosterQueueSweep = setInterval(() => {
+    try {
+      sweepStaleDirectLoanPosterQueues();
+    } catch (error) {
+      console.error('[media] failed to reconcile expired direct loan-poster queues', error);
+    }
+  }, DIRECT_LOAN_POSTER_QUEUE_SWEEP_INTERVAL_MS);
+  directLoanPosterQueueSweep.unref?.();
   mediaTasks.clear();
   const recentMediaTasks = listRecentMediaTasks(db, {
     terminalTtlMs: TASK_TTL_AFTER_DONE_MS,
@@ -11325,6 +11347,7 @@ export async function startServer({
   return await new Promise((resolve, reject) => {
     let daemonShutdownStarted = false;
     const cleanupDaemonBackgroundWork = () => {
+      clearInterval(directLoanPosterQueueSweep);
       composioConnectorProvider.stopCatalogRefreshLoop();
       orbitService.stop();
       routineService?.stop();
