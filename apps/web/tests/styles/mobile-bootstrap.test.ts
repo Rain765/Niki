@@ -37,4 +37,16 @@ describe('mobile bootstrap styles', () => {
     expect(rootLayout).not.toContain("../src/styles/home/index.css");
     expect(rootLayout).not.toContain("../src/styles/ndesign-system.css");
   });
+
+  it('keeps the Feishu login action responsive while OAuth navigation starts', () => {
+    expect(indexCss).toMatch(
+      /\.niki-auth button:active:not\(:disabled\)\s*\{[^}]*transform:\s*scale\(0\.985\)/s,
+    );
+    expect(indexCss).toMatch(
+      /\.niki-auth \.niki-auth__primary-button\.is-loading\s*\{[^}]*opacity:\s*1/s,
+    );
+    expect(indexCss).toMatch(
+      /\.niki-auth__button-spinner\s*\{[^}]*animation:\s*locale-bootstrap-spin 700ms linear infinite/s,
+    );
+  });
 });

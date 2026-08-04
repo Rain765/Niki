@@ -189,15 +189,22 @@ function NikiAuthScreen({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [feishuSubmitting, setFeishuSubmitting] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const authError = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('authError') ?? '';
   const login = () => {
+    if (feishuSubmitting) return;
+    setFeishuSubmitting(true);
     const returnTo = authReturnTo();
-    window.location.assign(
-      `/api/auth/feishu/start?returnTo=${encodeURIComponent(returnTo)}`,
-    );
+    const loginUrl = `/api/auth/feishu/start?returnTo=${encodeURIComponent(returnTo)}`;
+    // Let React commit and paint the pressed/loading state before navigation
+    // starts. This keeps the control responsive while the OAuth endpoint and
+    // the Feishu webview are preparing the next page.
+    window.requestAnimationFrame(() => {
+      window.location.assign(loginUrl);
+    });
   };
   const loginWithPassword = async () => {
     if (!username.trim() || !password) {
@@ -312,7 +319,22 @@ function NikiAuthScreen({
               </form>
             ) : (
               <>
-                <button type="button" onClick={login}>使用飞书登录</button>
+                <button
+                  type="button"
+                  className={`niki-auth__primary-button${
+                    feishuSubmitting ? ' is-loading' : ''
+                  }`}
+                  onClick={login}
+                  disabled={feishuSubmitting}
+                  aria-busy={feishuSubmitting}
+                >
+                  {feishuSubmitting ? (
+                    <>
+                      <span className="niki-auth__button-spinner" aria-hidden />
+                      <span>正在前往飞书…</span>
+                    </>
+                  ) : '使用飞书登录'}
+                </button>
                 <button
                   type="button"
                   className="niki-auth__text-button"
@@ -320,6 +342,7 @@ function NikiAuthScreen({
                     clearAuthErrorFromLocation();
                     setPasswordMode(true);
                   }}
+                  disabled={feishuSubmitting}
                 >
                   账号密码登录
                 </button>

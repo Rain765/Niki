@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { NikiAuthGate, useNikiAuth } from '../../src/auth/NikiAuth';
@@ -124,6 +124,35 @@ describe('NikiAuthGate', () => {
     expect(await screen.findByRole('button', { name: '使用飞书登录' }))
       .toBeTruthy();
     expect(screen.queryByText(/signed in as/)).toBeNull();
+  });
+
+  it('shows immediate feedback while the Feishu login redirect is starting', async () => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        provider: 'feishu',
+        ready: true,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401 },
+      )));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    const loginButton = await screen.findByRole('button', { name: '使用飞书登录' });
+    fireEvent.click(loginButton);
+
+    expect(loginButton.getAttribute('aria-busy')).toBe('true');
+    expect((loginButton as HTMLButtonElement).disabled).toBe(true);
+    expect(loginButton.textContent).toContain('正在前往飞书');
+    expect(loginButton.querySelector('.niki-auth__button-spinner')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '账号密码登录' })).toHaveProperty('disabled', true);
   });
 
   it('renders the authenticated Feishu identity for the workspace', async () => {
