@@ -12,6 +12,8 @@ export const hu: Dict = {
   'common.preview': 'Előnézet',
   'common.share': 'Megosztás',
   'imageViewer.downloadStarted': 'A kép letöltése elindult',
+  'imageViewer.imageCopied': 'Kép másolva',
+  'imageViewer.editUnavailable': 'A képszerkesztés hamarosan elérhető',
   'imageViewer.linkCopied': 'A kép hivatkozása másolva',
   'imageViewer.actionFailed': 'A művelet nem hajtható végre',
   'imageViewer.deleteFailed': 'A kép nem törölhető',

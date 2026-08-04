@@ -12,6 +12,8 @@ export const pl: Dict = {
   'common.preview': 'Podgląd',
   'common.share': 'Udostępnij',
   'imageViewer.downloadStarted': 'Rozpoczęto pobieranie obrazu',
+  'imageViewer.imageCopied': 'Obraz skopiowano',
+  'imageViewer.editUnavailable': 'Edycja obrazów wkrótce będzie dostępna',
   'imageViewer.linkCopied': 'Skopiowano link do obrazu',
   'imageViewer.actionFailed': 'Nie udało się wykonać działania',
   'imageViewer.deleteFailed': 'Nie udało się usunąć obrazu',

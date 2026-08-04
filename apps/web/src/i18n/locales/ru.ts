@@ -12,6 +12,8 @@ export const ru: Dict = {
   'common.preview': 'Предпросмотр',
   'common.share': 'Поделиться',
   'imageViewer.downloadStarted': 'Загрузка изображения началась',
+  'imageViewer.imageCopied': 'Изображение скопировано',
+  'imageViewer.editUnavailable': 'Редактирование изображений скоро появится',
   'imageViewer.linkCopied': 'Ссылка на изображение скопирована',
   'imageViewer.actionFailed': 'Не удалось выполнить действие',
   'imageViewer.deleteFailed': 'Не удалось удалить изображение',

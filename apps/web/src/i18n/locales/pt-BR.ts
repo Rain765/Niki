@@ -12,6 +12,8 @@ export const ptBR: Dict = {
   'common.preview': 'Prévia',
   'common.share': 'Compartilhar',
   'imageViewer.downloadStarted': 'Download da imagem iniciado',
+  'imageViewer.imageCopied': 'Imagem copiada',
+  'imageViewer.editUnavailable': 'A edição de imagens estará disponível em breve',
   'imageViewer.linkCopied': 'Link da imagem copiado',
   'imageViewer.actionFailed': 'Não foi possível concluir a ação',
   'imageViewer.deleteFailed': 'Não foi possível excluir a imagem',

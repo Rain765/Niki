@@ -12,6 +12,8 @@ export const esES: Dict = {
   'common.preview': 'Vista previa',
   'common.share': 'Compartir',
   'imageViewer.downloadStarted': 'Descarga de imagen iniciada',
+  'imageViewer.imageCopied': 'Imagen copiada',
+  'imageViewer.editUnavailable': 'La edición de imágenes estará disponible pronto',
   'imageViewer.linkCopied': 'Enlace de imagen copiado',
   'imageViewer.actionFailed': 'No se pudo completar la acción',
   'imageViewer.deleteFailed': 'No se pudo eliminar la imagen',

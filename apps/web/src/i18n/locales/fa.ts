@@ -12,6 +12,8 @@ export const fa: Dict = {
   'common.preview': 'پیش‌نمایش',
   'common.share': 'اشتراک‌گذاری',
   'imageViewer.downloadStarted': 'بارگیری تصویر آغاز شد',
+  'imageViewer.imageCopied': 'تصویر کپی شد',
+  'imageViewer.editUnavailable': 'ویرایش تصویر به‌زودی ارائه می‌شود',
   'imageViewer.linkCopied': 'پیوند تصویر کپی شد',
   'imageViewer.actionFailed': 'انجام این عملیات ممکن نیست',
   'imageViewer.deleteFailed': 'حذف تصویر ممکن نیست',

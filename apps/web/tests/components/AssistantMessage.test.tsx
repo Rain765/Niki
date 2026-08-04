@@ -211,11 +211,9 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
     const preview = screen.getByRole('dialog', {
       name: 'Preview zambia-support-poster-01.png',
     });
-    expect(within(preview).getByTestId('image-lightbox-footer-download').getAttribute('href')).toBe(
-      '/api/projects/proj-1/raw/zambia-support-poster-01.png?download=1',
-    );
+    expect(within(preview).getByTestId('image-lightbox-footer-download').tagName).toBe('BUTTON');
     fireEvent.click(within(preview).getByRole('button', { name: 'Edit' }));
-    expect(onRequestOpenFile).toHaveBeenCalledWith('zambia-support-poster-01.png');
+    expect(onRequestOpenFile).not.toHaveBeenCalled();
   });
 
   it('shows the feedback widget after a successful turn that produced files', () => {

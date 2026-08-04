@@ -12,6 +12,8 @@ export const th: Dict = {
   'common.preview': 'ดูตัวอย่าง',
   'common.share': 'แชร์',
   'imageViewer.downloadStarted': 'เริ่มดาวน์โหลดรูปภาพแล้ว',
+  'imageViewer.imageCopied': 'คัดลอกรูปภาพแล้ว',
+  'imageViewer.editUnavailable': 'การแก้ไขรูปภาพจะพร้อมใช้งานเร็ว ๆ นี้',
   'imageViewer.linkCopied': 'คัดลอกลิงก์รูปภาพแล้ว',
   'imageViewer.actionFailed': 'ไม่สามารถดำเนินการได้',
   'imageViewer.deleteFailed': 'ไม่สามารถลบรูปภาพได้',

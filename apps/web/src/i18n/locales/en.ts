@@ -10,6 +10,8 @@ export const en: Dict = {
   'common.preview': 'Preview',
   'common.share': 'Share',
   'imageViewer.downloadStarted': 'Image download started',
+  'imageViewer.imageCopied': 'Image copied',
+  'imageViewer.editUnavailable': 'Image editing is coming soon',
   'imageViewer.linkCopied': 'Image link copied',
   'imageViewer.actionFailed': 'Could not complete that action',
   'imageViewer.deleteFailed': 'Could not delete the image',

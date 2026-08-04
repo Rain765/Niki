@@ -19,6 +19,8 @@ export const zhTW: Dict = {
   'common.preview': '預覽',
   'common.share': '分享',
   'imageViewer.downloadStarted': '圖片下載已開始',
+  'imageViewer.imageCopied': '圖片已複製',
+  'imageViewer.editUnavailable': '圖片編輯功能即將上線',
   'imageViewer.linkCopied': '圖片連結已複製',
   'imageViewer.actionFailed': '無法完成此操作',
   'imageViewer.deleteFailed': '圖片刪除失敗',

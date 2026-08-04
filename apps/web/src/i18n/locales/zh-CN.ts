@@ -10,6 +10,8 @@ export const zhCN: Dict = {
   'common.preview': '预览',
   'common.share': '分享',
   'imageViewer.downloadStarted': '图片下载已开始',
+  'imageViewer.imageCopied': '图片已复制',
+  'imageViewer.editUnavailable': '图片编辑功能即将上线',
   'imageViewer.linkCopied': '图片链接已复制',
   'imageViewer.actionFailed': '无法完成此操作',
   'imageViewer.deleteFailed': '图片删除失败',

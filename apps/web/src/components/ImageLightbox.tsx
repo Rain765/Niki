@@ -9,8 +9,11 @@ import {
 import { useT } from '../i18n';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import {
+  copyImageBlobToClipboard,
+  downloadImageBlob,
+} from '../lib/image-file-actions';
+import {
   projectImagePreviewUrl,
-  projectFileDownloadUrl,
   projectRawUrl,
 } from '../providers/registry';
 import type { ProjectFile } from '../types';
@@ -74,6 +77,7 @@ export function ImageLightbox({
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
   const [moreOpen, setMoreOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [shareFallbackOpen, setShareFallbackOpen] = useState(false);
   const [imageState, setImageState] = useState<'loading' | 'loaded' | 'failed'>('loading');
   const [imageRetry, setImageRetry] = useState(0);
@@ -298,12 +302,39 @@ export function ImageLightbox({
     });
   };
 
-  const handleDownload = () => {
+  const handleCopyImage = async () => {
     setMoreOpen(false);
-    setNotice({
-      message: t('imageViewer.downloadStarted'),
-      role: 'status',
-    });
+    try {
+      await copyImageBlobToClipboard(
+        projectRawUrl(projectId, activeFile.name),
+        activeFile.mime || 'image/png',
+      );
+      setNotice({ message: t('imageViewer.imageCopied'), role: 'status' });
+    } catch {
+      setNotice({ message: t('imageViewer.actionFailed'), role: 'alert' });
+    }
+  };
+
+  const handleDownload = async () => {
+    if (downloading) return;
+    setMoreOpen(false);
+    setDownloading(true);
+    try {
+      await downloadImageBlob(
+        projectRawUrl(projectId, activeFile.name),
+        activeFile.name,
+      );
+      setNotice({ message: t('imageViewer.downloadStarted'), role: 'status' });
+    } catch {
+      setNotice({ message: t('imageViewer.actionFailed'), role: 'alert' });
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleEditUnavailable = () => {
+    setMoreOpen(false);
+    setNotice({ message: t('imageViewer.editUnavailable'), role: 'status' });
   };
 
   const handleDelete = async () => {
@@ -358,29 +389,23 @@ export function ImageLightbox({
             </button>
             {moreOpen ? (
               <div className="image-lightbox__menu" role="menu">
-                <button type="button" role="menuitem" onClick={() => void handleCopyLink()}>
+                <button type="button" role="menuitem" onClick={() => void handleCopyImage()}>
                   <Icon name="copy" size={17} />
                   <span>{t('designFiles.copy')}</span>
                 </button>
               </div>
             ) : null}
           </div>
-          <a
+          <button
+            type="button"
             className="image-lightbox__round-action"
-            href={projectFileDownloadUrl(projectId, activeFile.name)}
-            download={activeFile.name}
+            disabled={downloading}
             aria-label={t('designFiles.download')}
             title={t('designFiles.download')}
-            onClick={() => {
-              setMoreOpen(false);
-              setNotice({
-                message: t('imageViewer.downloadStarted'),
-                role: 'status',
-              });
-            }}
+            onClick={() => void handleDownload()}
           >
-            <Icon name="download" size={22} />
-          </a>
+            <Icon name={downloading ? 'spinner' : 'download'} size={22} />
+          </button>
           <button
             type="button"
             className="image-lightbox__share-action"
@@ -474,24 +499,24 @@ export function ImageLightbox({
       </div>
 
       <footer className="image-lightbox__footer">
-        <a
+        <button
+          type="button"
           className="image-lightbox__footer-action"
-          href={projectFileDownloadUrl(projectId, activeFile.name)}
-          download={activeFile.name}
           aria-label={t('designFiles.download')}
           data-testid="image-lightbox-footer-download"
-          onClick={handleDownload}
+          disabled={downloading}
+          onClick={() => void handleDownload()}
         >
           <span className="image-lightbox__tool-icon">
-            <Icon name="download" size={23} />
+            <Icon name={downloading ? 'spinner' : 'download'} size={23} />
           </span>
           <span>{t('designFiles.download')}</span>
-        </a>
+        </button>
         <button
           type="button"
           className="image-lightbox__footer-action"
           data-testid="image-lightbox-footer-copy"
-          onClick={() => void handleCopyLink()}
+          onClick={() => void handleCopyImage()}
         >
           <span className="image-lightbox__tool-icon">
             <Icon name="copy" size={23} />
@@ -502,10 +527,7 @@ export function ImageLightbox({
           <button
             type="button"
             className="image-lightbox__footer-action"
-            onClick={() => {
-              onClose();
-              onEdit(activeFile);
-            }}
+            onClick={handleEditUnavailable}
           >
             <span className="image-lightbox__tool-icon">
               <Icon name="edit" size={23} />

@@ -12,6 +12,8 @@ export const fr: Dict = {
   'common.preview': 'Aperçu',
   'common.share': 'Partager',
   'imageViewer.downloadStarted': "Téléchargement de l’image lancé",
+  'imageViewer.imageCopied': 'Image copiée',
+  'imageViewer.editUnavailable': 'La retouche d’image arrive bientôt',
   'imageViewer.linkCopied': "Lien de l’image copié",
   'imageViewer.actionFailed': "Impossible d’effectuer cette action",
   'imageViewer.deleteFailed': "Impossible de supprimer l’image",

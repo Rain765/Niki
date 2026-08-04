@@ -40,6 +40,8 @@ export interface Dict {
   'common.preview': string;
   'common.share': string;
   'imageViewer.downloadStarted': string;
+  'imageViewer.imageCopied': string;
+  'imageViewer.editUnavailable': string;
   'imageViewer.linkCopied': string;
   'imageViewer.actionFailed': string;
   'imageViewer.deleteFailed': string;

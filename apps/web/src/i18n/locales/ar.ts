@@ -12,6 +12,8 @@ export const ar: Dict = {
   'common.preview': 'معاينة',
   'common.share': 'مشاركة',
   'imageViewer.downloadStarted': 'بدأ تنزيل الصورة',
+  'imageViewer.imageCopied': 'تم نسخ الصورة',
+  'imageViewer.editUnavailable': 'سيُتاح تعديل الصور قريبًا',
   'imageViewer.linkCopied': 'تم نسخ رابط الصورة',
   'imageViewer.actionFailed': 'تعذر إكمال الإجراء',
   'imageViewer.deleteFailed': 'تعذر حذف الصورة',

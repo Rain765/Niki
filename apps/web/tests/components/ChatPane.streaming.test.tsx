@@ -490,7 +490,8 @@ Expected output:
     expect(result?.querySelector('.direct-poster-result-overlay-actions')?.children)
       .toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: 'common.edit' }));
-    expect(onEditProjectImage).toHaveBeenCalledWith('zamloan-poster-01.png');
+    expect(onEditProjectImage).not.toHaveBeenCalled();
+    expect(screen.getByText('imageViewer.editUnavailable')).toBeTruthy();
     expect(screen.queryByLabelText(/海报生成进度/)).toBeNull();
     expect(
       screen.queryByTestId('direct-poster-result-image-zamloan-poster-02.png'),

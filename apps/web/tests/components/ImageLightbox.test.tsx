@@ -40,9 +40,15 @@ const images: ProjectFile[] = [
 
 beforeEach(() => {
   vi.stubGlobal('confirm', vi.fn(() => true));
+  vi.stubGlobal('ClipboardItem', class TestClipboardItem {
+    constructor(public readonly data: Record<string, Blob>) {}
+  });
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
-    value: { writeText: vi.fn(async () => undefined) },
+    value: {
+      write: vi.fn(async () => undefined),
+      writeText: vi.fn(async () => undefined),
+    },
   });
   Object.defineProperty(navigator, 'share', {
     configurable: true,
@@ -74,8 +80,7 @@ describe('ImageLightbox', () => {
     expect(screen.getByTestId('image-lightbox-image').getAttribute('src')).toBe(
       '/api/projects/project-1/image-preview/poster-01.png?variant=preview&v=1',
     );
-    expect(within(dialog).getByTestId('image-lightbox-footer-download').getAttribute('href'))
-      .toBe('/api/projects/project-1/raw/poster-01.png?download=1');
+    expect(within(dialog).getByTestId('image-lightbox-footer-download').tagName).toBe('BUTTON');
     expect(within(dialog).getByRole('button', { name: 'common.share' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-download')).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-copy')).toBeTruthy();
@@ -102,6 +107,65 @@ describe('ImageLightbox', () => {
 
     fireEvent.load(image);
     expect(skeleton.classList.contains('is-hidden')).toBe(true);
+  });
+
+  it('copies the image blob instead of the image link', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(['image'], { type: 'image/png' }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(
+      <ImageLightbox
+        projectId="project-1"
+        images={images.slice(0, 1)}
+        activeName="poster-01.png"
+        onActiveNameChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('image-lightbox-footer-copy'));
+
+    await waitFor(() => {
+      expect(navigator.clipboard.write).toHaveBeenCalledTimes(1);
+    });
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/projects/project-1/raw/poster-01.png',
+      { credentials: 'include' },
+    );
+    expect(screen.getByText('imageViewer.imageCopied')).toBeTruthy();
+  });
+
+  it('downloads a blob without navigating to the raw image viewer', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(['image'], { type: 'image/png' }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const createObjectURL = vi.fn(() => 'blob:test');
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL });
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL });
+    render(
+      <ImageLightbox
+        projectId="project-1"
+        images={images.slice(0, 1)}
+        activeName="poster-01.png"
+        onActiveNameChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId('image-lightbox-footer-download'));
+
+    await waitFor(() => expect(screen.getByText('imageViewer.downloadStarted')).toBeTruthy());
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/projects/project-1/raw/poster-01.png',
+      { credentials: 'include' },
+    );
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
   });
 
   it('navigates images, zooms, traps focus, and restores the trigger focus on close', () => {
@@ -184,6 +248,26 @@ describe('ImageLightbox', () => {
     expect(screen.getByTestId('image-lightbox-share-url').getAttribute('value')).toContain(
       '/api/projects/project-1/raw/poster-01.png',
     );
+  });
+
+  it('keeps the edit UI safe while editing is unavailable', () => {
+    const onEdit = vi.fn();
+    render(
+      <ImageLightbox
+        projectId="project-1"
+        images={images.slice(0, 1)}
+        activeName="poster-01.png"
+        onActiveNameChange={vi.fn()}
+        onClose={vi.fn()}
+        onEdit={onEdit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.edit' }));
+
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(screen.getByText('imageViewer.editUnavailable')).toBeTruthy();
+    expect(screen.getByTestId('image-lightbox')).toBeTruthy();
   });
 
   it('confirms deletion and closes after the file is removed', async () => {

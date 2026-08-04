@@ -12,6 +12,8 @@ export const ko: Dict = {
   'common.preview': '미리보기',
   'common.share': '공유',
   'imageViewer.downloadStarted': '이미지 다운로드를 시작했습니다',
+  'imageViewer.imageCopied': '이미지를 복사했습니다',
+  'imageViewer.editUnavailable': '이미지 편집 기능이 곧 제공됩니다',
   'imageViewer.linkCopied': '이미지 링크를 복사했습니다',
   'imageViewer.actionFailed': '작업을 완료할 수 없습니다',
   'imageViewer.deleteFailed': '이미지를 삭제할 수 없습니다',

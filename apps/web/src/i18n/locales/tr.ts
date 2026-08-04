@@ -12,6 +12,8 @@ export const tr: Dict = {
   'common.preview': 'Önizleme',
   'common.share': 'Paylaş',
   'imageViewer.downloadStarted': 'Görsel indirme başladı',
+  'imageViewer.imageCopied': 'Görsel kopyalandı',
+  'imageViewer.editUnavailable': 'Görsel düzenleme yakında geliyor',
   'imageViewer.linkCopied': 'Görsel bağlantısı kopyalandı',
   'imageViewer.actionFailed': 'İşlem tamamlanamadı',
   'imageViewer.deleteFailed': 'Görsel silinemedi',

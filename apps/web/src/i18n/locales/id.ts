@@ -12,6 +12,8 @@ export const id: Dict = {
   'common.preview': 'Pratinjau',
   'common.share': 'Bagikan',
   'imageViewer.downloadStarted': 'Unduhan gambar dimulai',
+  'imageViewer.imageCopied': 'Gambar disalin',
+  'imageViewer.editUnavailable': 'Pengeditan gambar segera hadir',
   'imageViewer.linkCopied': 'Tautan gambar disalin',
   'imageViewer.actionFailed': 'Tindakan tidak dapat diselesaikan',
   'imageViewer.deleteFailed': 'Gambar tidak dapat dihapus',

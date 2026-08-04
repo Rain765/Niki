@@ -4,8 +4,8 @@ import { trackChatPanelClick } from '../analytics/events';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
+import { downloadImageBlob } from '../lib/image-file-actions';
 import {
-  projectFileDownloadUrl,
   projectImagePreviewUrl,
   projectRawUrl,
 } from '../providers/registry';
@@ -1094,6 +1094,7 @@ function DirectLoanPosterBatchCard({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [lightboxFileName, setLightboxFileName] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [clientNow, setClientNow] = useState<number | null>(null);
   const [previewStates, setPreviewStates] = useState<Record<string, 'loaded' | 'failed'>>({});
   const [previewRetries, setPreviewRetries] = useState<Record<string, number>>({});
@@ -1234,6 +1235,22 @@ function DirectLoanPosterBatchCard({
     }));
   };
 
+  const handlePosterDownload = async () => {
+    if (!projectId || !selectedFile || downloading) return;
+    setDownloading(true);
+    try {
+      await downloadImageBlob(
+        projectRawUrl(projectId, selectedFile.name),
+        selectedFile.name,
+      );
+      setNotice(t('imageViewer.downloadStarted'));
+    } catch {
+      setNotice(t('imageViewer.actionFailed'));
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <>
       <div
@@ -1333,21 +1350,21 @@ function DirectLoanPosterBatchCard({
                   {onEditProjectImage ? (
                     <button
                       type="button"
-                      onClick={() => onEditProjectImage(selectedFile.name)}
+                      onClick={() => setNotice(t('imageViewer.editUnavailable'))}
                     >
                       <Icon name="edit" size={17} />
                       <span>{t('common.edit')}</span>
                     </button>
                   ) : null}
-                  <a
-                    href={projectFileDownloadUrl(projectId, selectedFile.name)}
-                    download={selectedFile.name}
+                  <button
+                    type="button"
+                    disabled={downloading}
                     aria-label={t('designFiles.download')}
                     title={t('designFiles.download')}
-                    onClick={() => setNotice(t('imageViewer.downloadStarted'))}
+                    onClick={() => void handlePosterDownload()}
                   >
-                    <Icon name="download" size={19} />
-                  </a>
+                    <Icon name={downloading ? 'spinner' : 'download'} size={19} />
+                  </button>
                 </span>
               </div>
               <figcaption className="sr-only">{selectedFile.name}</figcaption>

@@ -12,6 +12,8 @@ export const ja: Dict = {
   'common.preview': 'プレビュー',
   'common.share': '共有',
   'imageViewer.downloadStarted': '画像のダウンロードを開始しました',
+  'imageViewer.imageCopied': '画像をコピーしました',
+  'imageViewer.editUnavailable': '画像編集は近日公開予定です',
   'imageViewer.linkCopied': '画像のリンクをコピーしました',
   'imageViewer.actionFailed': '操作を完了できませんでした',
   'imageViewer.deleteFailed': '画像を削除できませんでした',

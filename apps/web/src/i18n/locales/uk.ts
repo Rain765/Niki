@@ -12,6 +12,8 @@ export const uk: Dict = {
   'common.preview': 'Переглянути',
   'common.share': 'Поділитися',
   'imageViewer.downloadStarted': 'Завантаження зображення розпочато',
+  'imageViewer.imageCopied': 'Зображення скопійовано',
+  'imageViewer.editUnavailable': 'Редагування зображень скоро з’явиться',
   'imageViewer.linkCopied': 'Посилання на зображення скопійовано',
   'imageViewer.actionFailed': 'Не вдалося виконати дію',
   'imageViewer.deleteFailed': 'Не вдалося видалити зображення',
