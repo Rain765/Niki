@@ -73,6 +73,36 @@ describe('NikiAuthGate', () => {
     expect(await screen.findByText('signed in as niki')).toBeTruthy();
   });
 
+  it('keeps the visible bootstrap screen and retries while daemon starts', async () => {
+    let configAttempts = 0;
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === '/api/auth/config') {
+        configAttempts += 1;
+        if (configAttempts === 1) {
+          return Promise.resolve(new Response('starting', { status: 502 }));
+        }
+        return Promise.resolve(new Response(JSON.stringify({
+          enabled: false,
+          provider: null,
+          ready: true,
+        }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({
+        error: 'Authentication required',
+      }), { status: 401 }));
+    }));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    expect(screen.getByText('正在连接 Niki…')).toBeTruthy();
+    expect(await screen.findByText('signed in as niki', {}, { timeout: 1_500 })).toBeTruthy();
+    expect(configAttempts).toBe(2);
+  });
+
   it('shows the Feishu login entry when no browser session exists', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({

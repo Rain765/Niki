@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import nextConfig from '../../next.config';
-import * as spaShellRoute from '../../app/[[...slug]]/page';
+import * as spaShellRoute from '../../app/workspace/[[...slug]]/page';
 
 describe('SPA shell export route', () => {
   it('stays compatible with static export builds', () => {

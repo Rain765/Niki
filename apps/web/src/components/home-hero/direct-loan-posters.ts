@@ -10,7 +10,7 @@ import {
 import type { DirectLoanPosterBatch } from '@open-design/contracts';
 import type { Project, ProjectMetadata } from '../../types';
 import { fetchProjectFiles } from '../../providers/registry';
-import { listProjects, patchProject } from '../../state/projects';
+import { getProject, listProjects, patchProject } from '../../state/projects';
 
 const IMAGE_MODEL = 'gpt-image-2';
 
@@ -80,6 +80,12 @@ export function resetDirectLoanPosterSession(sessionScope?: string): void {
   }
 }
 
+export function getDirectLoanPosterProjectId(sessionScope?: string): string | null {
+  if (typeof window === 'undefined') return null;
+  const projectId = window.localStorage.getItem(lastProjectStorageKey(sessionScope));
+  return projectId && projectId !== NEW_CHAT_SESSION ? projectId : null;
+}
+
 export class DirectLoanPosterRequestError extends Error {
   readonly stage: DirectLoanPosterStage;
   readonly status: number;
@@ -136,19 +142,18 @@ export async function startDirectLoanPosterProject(
   const dateKey = localDateKey();
   const storageKey = lastProjectStorageKey(options.sessionScope);
   const storedProjectId = window.localStorage.getItem(storageKey);
-  const projects = await listProjects();
-  let reusableProject = storedProjectId === NEW_CHAT_SESSION
-    ? null
-    : projects.find((project) => (
-      project.id === storedProjectId
-      && project.metadata?.directGeneration?.kind === 'loan-poster'
-    )) ?? (
-      storedProjectId === null && !options.sessionScope
-        ? [...projects]
-          .filter((project) => project.metadata?.directGeneration?.kind === 'loan-poster')
-          .sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null
-        : null
-    );
+  const storedProject = storedProjectId && storedProjectId !== NEW_CHAT_SESSION
+    ? await getProject(storedProjectId)
+    : null;
+  let reusableProject = storedProject?.metadata?.directGeneration?.kind === 'loan-poster'
+    ? storedProject
+    : null;
+  if (!reusableProject && storedProjectId === null && !options.sessionScope) {
+    const projects = await listProjects();
+    reusableProject = [...projects]
+      .filter((project) => project.metadata?.directGeneration?.kind === 'loan-poster')
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
+  }
   const prefix = `${options.brand}-poster`;
   let project: Project | null = null;
   let existingFiles: Awaited<ReturnType<typeof fetchProjectFiles>> = [];

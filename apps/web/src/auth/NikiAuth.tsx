@@ -34,6 +34,13 @@ const NikiAuthContext = createContext<NikiAuthContextValue>({
 });
 
 const AUTH_BOOTSTRAP_TIMEOUT_MS = 8_000;
+const AUTH_BOOTSTRAP_RETRY_MS = 350;
+
+class RetryableAuthBootstrapError extends Error {}
+
+function waitForAuthRetry(): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, AUTH_BOOTSTRAP_RETRY_MS));
+}
 
 function authReturnTo(): string {
   const url = new URL(window.location.href);
@@ -68,38 +75,56 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
       controller.abort();
     }, AUTH_BOOTSTRAP_TIMEOUT_MS);
     try {
-      const requestInit: RequestInit = {
-        credentials: 'include',
-        cache: 'no-store',
-        signal: controller.signal,
-      };
-      const configRequest = fetch('/api/auth/config', requestInit);
-      const meRequest = fetch('/api/auth/me', requestInit)
-        .then((response) => ({ response }))
-        .catch((error: unknown) => ({ error }));
-      const configResponse = await configRequest;
-      if (!configResponse.ok) throw new Error('无法读取登录配置');
-      const config = await configResponse.json() as NikiAuthConfigResponse;
-      if (!config.enabled) {
-        clearAuthErrorFromLocation();
-        setState({ status: 'authenticated', enabled: false, user: LOCAL_USER });
-        return;
+      while (!controller.signal.aborted) {
+        try {
+          const requestInit: RequestInit = {
+            credentials: 'include',
+            cache: 'no-store',
+            signal: controller.signal,
+          };
+          const configRequest = fetch('/api/auth/config', requestInit);
+          const meRequest = fetch('/api/auth/me', requestInit)
+            .then((response) => ({ response }))
+            .catch((error: unknown) => ({ error }));
+          const configResponse = await configRequest;
+          if (!configResponse.ok) {
+            if (configResponse.status >= 500) throw new RetryableAuthBootstrapError();
+            throw new Error('无法读取登录配置');
+          }
+          const config = await configResponse.json() as NikiAuthConfigResponse;
+          if (!config.enabled) {
+            clearAuthErrorFromLocation();
+            setState({ status: 'authenticated', enabled: false, user: LOCAL_USER });
+            return;
+          }
+          if (!config.ready) {
+            setState({ status: 'unauthenticated', ready: false });
+            return;
+          }
+          const meResult = await meRequest;
+          if ('error' in meResult) throw meResult.error;
+          const { response: meResponse } = meResult;
+          if (meResponse.status === 401) {
+            setState({ status: 'unauthenticated', ready: true });
+            return;
+          }
+          if (!meResponse.ok) {
+            if (meResponse.status >= 500) throw new RetryableAuthBootstrapError();
+            throw new Error('无法读取登录状态');
+          }
+          const me = await meResponse.json() as NikiAuthMeResponse;
+          clearAuthErrorFromLocation();
+          setState({ status: 'authenticated', enabled: true, user: me.user });
+          return;
+        } catch (error) {
+          if (controller.signal.aborted) throw error;
+          if (!(error instanceof RetryableAuthBootstrapError) && !(error instanceof TypeError)) {
+            throw error;
+          }
+          await waitForAuthRetry();
+        }
       }
-      if (!config.ready) {
-        setState({ status: 'unauthenticated', ready: false });
-        return;
-      }
-      const meResult = await meRequest;
-      if ('error' in meResult) throw meResult.error;
-      const { response: meResponse } = meResult;
-      if (meResponse.status === 401) {
-        setState({ status: 'unauthenticated', ready: true });
-        return;
-      }
-      if (!meResponse.ok) throw new Error('无法读取登录状态');
-      const me = await meResponse.json() as NikiAuthMeResponse;
-      clearAuthErrorFromLocation();
-      setState({ status: 'authenticated', enabled: true, user: me.user });
+      throw new DOMException('Auth bootstrap timed out', 'AbortError');
     } catch (error) {
       setState({
         status: 'error',
@@ -211,7 +236,7 @@ function NikiAuthScreen({
           alt=""
           draggable={false}
         />
-        <h1>登录 Niki</h1>
+        <h1>{state.status === 'loading' ? 'Niki 海报' : '登录 Niki'}</h1>
         {state.status === 'loading' ? (
           <div className="niki-auth__loading">
             <span className="niki-auth__spinner" aria-hidden />

@@ -9,13 +9,13 @@ vi.mock('../../src/FullApp', () => ({
   },
 }));
 
-import { ClientApp } from '../../app/[[...slug]]/client-app';
+import { ClientApp } from '../../app/workspace/[[...slug]]/client-app';
 
 afterEach(() => {
   cleanup();
 });
 
-it('renders the full workspace as the only root application', () => {
+it('keeps the full workspace isolated under the workspace route', () => {
   render(<ClientApp />);
 
   expect(screen.getByTestId('full-app')).toBeTruthy();

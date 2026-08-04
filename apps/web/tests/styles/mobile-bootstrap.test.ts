@@ -27,7 +27,14 @@ describe('mobile bootstrap styles', () => {
     expect(rootLayout).toContain("id='niki-first-paint'");
     expect(rootLayout).toMatch(/:where\(html,\s*body\)\s*\{[^}]*background:\s*#08090b/s);
     expect(rootLayout).toMatch(
-      /:where\(\.niki-auth,\s*\.locale-bootstrap\)\s*\{[^}]*min-height:\s*100dvh/s,
+      /:where\(\.niki-auth,\s*\.poster-app\)\s*\{[^}]*min-height:\s*100dvh/s,
     );
+  });
+
+  it('does not load the full workspace styles on the poster-only root route', () => {
+    expect(rootLayout).toContain("import './poster.css';");
+    expect(rootLayout).not.toContain("../src/index.css");
+    expect(rootLayout).not.toContain("../src/styles/home/index.css");
+    expect(rootLayout).not.toContain("../src/styles/ndesign-system.css");
   });
 });
