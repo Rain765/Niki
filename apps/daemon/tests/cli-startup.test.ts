@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -100,6 +100,69 @@ describe('CLI startup boundaries', () => {
       });
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('logs in with a password file and requests a bearer session for other CLI commands', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'od-cli-auth-'));
+    const passwordFile = join(root, 'password.txt');
+    await writeFile(passwordFile, 'correct horse battery staple\n', { mode: 0o600 });
+    let requestBody = '';
+    let sessionTransport = '';
+    const server = http.createServer((req, res) => {
+      sessionTransport = String(req.headers['x-niki-session-transport'] ?? '');
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => {
+        requestBody += chunk;
+      });
+      req.on('end', () => {
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({
+          user: { id: 'user-1', name: 'Owner', role: 'admin' },
+          sessionToken: 'session-token',
+          expiresAt: Date.now() + 60_000,
+        }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('server not listening');
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          cliEntry,
+          'auth',
+          'login',
+          '--username',
+          'owner',
+          '--password-file',
+          passwordFile,
+          '--json',
+          '--daemon-url',
+          `http://127.0.0.1:${address.port}`,
+        ],
+        {
+          cwd: daemonRoot,
+          env: { ...process.env, OD_NIKI_SESSION_TOKEN: '' },
+        },
+      );
+
+      expect(sessionTransport).toBe('bearer');
+      expect(JSON.parse(requestBody)).toEqual({
+        username: 'owner',
+        password: 'correct horse battery staple',
+      });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        user: { name: 'Owner', role: 'admin' },
+        sessionToken: 'session-token',
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await rm(root, { recursive: true, force: true });
     }
   });
 });

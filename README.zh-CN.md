@@ -56,7 +56,18 @@ Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看
 
 ## 登录与账号管理
 
-仅本机开发时默认不启用登录。线上部署可以通过以下环境变量启用 Niki 登录：
+仅本机开发时默认不启用登录。私有部署无需飞书即可启用独立账号密码登录：
+
+    NIKI_AUTH_MODE=password
+    NIKI_PUBLIC_URL=https://your-niki-domain.example
+
+daemon 启动后，需要从同一台机器执行一次首个管理员初始化。Docker Compose 部署可运行：
+
+    printf '%s\n' 'choose-a-strong-password' | \
+      docker compose exec -T open-design node apps/daemon/dist/cli.js \
+      auth bootstrap-admin --username owner --name Owner --password-file -
+
+初始化接口只接受 daemon 本机请求，并会在首个用户创建后永久关闭。密码长度必须为 10–128 个字符。若需同时提供密码和飞书登录，可使用 `NIKI_AUTH_MODE=hybrid`；原有飞书模式仍可按以下方式配置：
 
     NIKI_AUTH_MODE=feishu
     FEISHU_APP_ID=your_app_id
@@ -66,11 +77,13 @@ Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看
 启用登录后，管理员可以在 Niki 账号管理界面或通过 `od auth` CLI 管理密码账号与用户额度：
 
     od auth status
+    od auth login --username <id> --password-file <path|->
+    od auth change-password --current-password-file <path|-> --password-file <path|->
     od auth users list
     od auth users create --username <id> --name <display-name> --password-file <path|->
     od auth users set-quota --user <user-id> --storage-gb <number> --daily-generations <number>
 
-管理员 CLI 操作需要在 `OD_NIKI_SESSION_TOKEN` 中提供管理员会话。密码只从文件或标准输入读取，不会作为命令行参数直接传入。
+`od auth login` 会输出新的 `OD_NIKI_SESSION_TOKEN` 导出命令；管理员 CLI 操作需要在该环境变量中提供管理员会话。密码只从文件或标准输入读取，不会作为命令行参数直接传入。
 
 ## 远程设备配对
 

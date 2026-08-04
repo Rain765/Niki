@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { NikiAuthGate, useNikiAuth } from '../../src/auth/NikiAuth';
@@ -94,6 +94,81 @@ describe('NikiAuthGate', () => {
     expect(await screen.findByRole('button', { name: '使用飞书登录' }))
       .toBeTruthy();
     expect(screen.queryByText(/signed in as/)).toBeNull();
+  });
+
+  it('shows password login directly when the server runs in password-only mode', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        mode: 'password',
+        provider: 'password',
+        providers: ['password'],
+        ready: true,
+        passwordLogin: true,
+        feishuLogin: false,
+        bootstrapRequired: false,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401 },
+      ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    const username = await screen.findByRole('textbox', { name: '用户名' });
+    expect(screen.getByLabelText('密码')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '使用飞书登录' })).toBeNull();
+
+    fireEvent.change(username, { target: { value: 'owner' } });
+    fireEvent.change(screen.getByLabelText('密码'), {
+      target: { value: 'correct horse battery staple' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '登录' }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/auth/password/login',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            username: 'owner',
+            password: 'correct horse battery staple',
+          }),
+        }),
+      );
+    });
+  });
+
+  it('shows the local bootstrap command before the first password user exists', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        mode: 'password',
+        provider: 'password',
+        providers: ['password'],
+        ready: true,
+        passwordLogin: true,
+        feishuLogin: false,
+        bootstrapRequired: true,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401 },
+      )));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    expect(await screen.findByText(/od auth bootstrap-admin/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '登录' })).toBeNull();
   });
 
   it('renders the authenticated Feishu identity for the workspace', async () => {

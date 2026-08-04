@@ -3,13 +3,22 @@ export interface NikiAuthUser {
   name: string;
   avatarUrl?: string;
   role: 'admin' | 'member';
+  provider?: NikiAuthProvider;
 }
+
+export type NikiAuthMode = 'disabled' | 'password' | 'feishu' | 'hybrid';
+export type NikiAuthProvider = 'password' | 'feishu';
 
 export interface NikiAuthConfigResponse {
   enabled: boolean;
-  provider: 'feishu' | null;
+  mode: NikiAuthMode;
+  /** Primary provider retained for clients that predate multi-provider auth. */
+  provider: NikiAuthProvider | null;
+  providers: NikiAuthProvider[];
   ready: boolean;
   passwordLogin: boolean;
+  feishuLogin: boolean;
+  bootstrapRequired: boolean;
 }
 
 export interface NikiAuthMeResponse {
@@ -88,4 +97,22 @@ export interface NikiPasswordAccountPasswordUpdateResponse {
 export interface NikiPasswordLoginRequest {
   username: string;
   password: string;
+}
+
+export interface NikiPasswordLoginResponse extends NikiAuthMeResponse {
+  /** Returned only when the client explicitly requests bearer transport. */
+  sessionToken?: string;
+  expiresAt?: number;
+}
+
+export type NikiPasswordAdminBootstrapRequest = NikiPasswordAccountCreateRequest;
+export type NikiPasswordAdminBootstrapResponse = NikiPasswordAccountCreateResponse;
+
+export interface NikiPasswordChangeRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface NikiPasswordChangeResponse extends NikiPasswordLoginResponse {
+  ok: true;
 }

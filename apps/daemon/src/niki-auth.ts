@@ -34,7 +34,12 @@ export interface CreatePasswordUserInput {
 export class NikiPasswordAccountError extends Error {
   constructor(
     message: string,
-    readonly code: 'invalid-username' | 'invalid-name' | 'weak-password' | 'username-taken',
+    readonly code:
+      | 'invalid-username'
+      | 'invalid-name'
+      | 'weak-password'
+      | 'username-taken'
+      | 'already-initialized',
   ) {
     super(message);
     this.name = 'NikiPasswordAccountError';
@@ -43,12 +48,18 @@ export class NikiPasswordAccountError extends Error {
 
 const PASSWORD_TENANT_KEY = '__niki_password__';
 const SCRYPT_KEY_LENGTH = 64;
+const SCRYPT_VERSION = 'v1';
+const SCRYPT_N = 16_384;
+const SCRYPT_R = 8;
+const SCRYPT_P = 1;
+const SCRYPT_MAXMEM = 64 * 1024 * 1024;
 const MAX_ACTIVE_SESSIONS_PER_USER = 10;
 const DUMMY_PASSWORD_SALT = Buffer.from('niki-password-dummy-salt-v1');
 const scryptAsync = promisify(scryptCallback) as (
   password: string,
   salt: Buffer,
   keyLength: number,
+  options: { N: number; r: number; p: number; maxmem: number },
 ) => Promise<Buffer>;
 
 function tokenHash(token: string): string {
@@ -179,8 +190,8 @@ function normalizeUsername(username: string): string {
 }
 
 function validatePassword(password: string): void {
-  if (password.length < 4 || password.length > 128) {
-    throw new NikiPasswordAccountError('密码需为 4–128 个字符', 'weak-password');
+  if (password.length < 10 || password.length > 128) {
+    throw new NikiPasswordAccountError('密码需为 10–128 个字符', 'weak-password');
   }
 }
 
@@ -205,23 +216,75 @@ function validatePasswordAccountInput(input: CreatePasswordUserInput): {
 
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
-  const derived = await scryptAsync(password, salt, SCRYPT_KEY_LENGTH);
-  return `scrypt$${salt.toString('base64url')}$${derived.toString('base64url')}`;
+  const derived = await derivePassword(password, salt, SCRYPT_KEY_LENGTH, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+  });
+  return [
+    'scrypt',
+    SCRYPT_VERSION,
+    String(SCRYPT_N),
+    String(SCRYPT_R),
+    String(SCRYPT_P),
+    salt.toString('base64url'),
+    derived.toString('base64url'),
+  ].join('$');
 }
 
-async function passwordMatches(password: string, storedHash: string): Promise<boolean> {
-  const [algorithm, saltText, hashText] = storedHash.split('$');
-  if (algorithm !== 'scrypt' || !saltText || !hashText) return false;
+async function derivePassword(
+  password: string,
+  salt: Buffer,
+  keyLength: number,
+  parameters: { N: number; r: number; p: number },
+): Promise<Buffer> {
+  return scryptAsync(password, salt, keyLength, {
+    ...parameters,
+    maxmem: SCRYPT_MAXMEM,
+  });
+}
+
+async function passwordMatches(
+  password: string,
+  storedHash: string,
+): Promise<{ matches: boolean; needsUpgrade: boolean }> {
+  const parts = storedHash.split('$');
+  if (parts[0] !== 'scrypt') return { matches: false, needsUpgrade: false };
+  const versioned = parts[1] === SCRYPT_VERSION;
+  const saltText = versioned ? parts[5] : parts[1];
+  const hashText = versioned ? parts[6] : parts[2];
+  const N = versioned ? Number(parts[2]) : SCRYPT_N;
+  const r = versioned ? Number(parts[3]) : SCRYPT_R;
+  const p = versioned ? Number(parts[4]) : SCRYPT_P;
+  if (
+    !saltText
+    || !hashText
+    || !Number.isSafeInteger(N)
+    || !Number.isSafeInteger(r)
+    || !Number.isSafeInteger(p)
+    || N < 2
+    || r < 1
+    || p < 1
+  ) {
+    return { matches: false, needsUpgrade: false };
+  }
   try {
     const expected = Buffer.from(hashText, 'base64url');
-    const actual = await scryptAsync(
+    const actual = await derivePassword(
       password,
       Buffer.from(saltText, 'base64url'),
       expected.length,
+      { N, r, p },
     );
-    return expected.length === actual.length && timingSafeEqual(expected, actual);
+    return {
+      matches: expected.length === actual.length && timingSafeEqual(expected, actual),
+      needsUpgrade: !versioned
+        || N !== SCRYPT_N
+        || r !== SCRYPT_R
+        || p !== SCRYPT_P,
+    };
   } catch {
-    return false;
+    return { matches: false, needsUpgrade: false };
   }
 }
 
@@ -289,6 +352,54 @@ export async function createPasswordUser(
   return transaction();
 }
 
+/**
+ * Creates the first password identity as the workspace administrator. The
+ * empty-workspace check and inserts share one SQLite transaction, making this
+ * safe even if two local bootstrap commands race.
+ */
+export async function bootstrapPasswordAdmin(
+  db: SqliteDb,
+  input: CreatePasswordUserInput,
+  now = Date.now(),
+): Promise<NikiPasswordAccount> {
+  const { username, name } = validatePasswordAccountInput(input);
+  const passwordHash = await hashPassword(input.password);
+  const id = randomUUID();
+  const transaction = db.transaction(() => {
+    const userCount = Number(
+      (db.prepare('SELECT COUNT(*) AS count FROM niki_users').get() as { count: number }).count,
+    );
+    if (userCount !== 0) {
+      throw new NikiPasswordAccountError(
+        '工作区已经完成管理员初始化',
+        'already-initialized',
+      );
+    }
+    db.prepare(
+      `INSERT INTO niki_users
+        (id, feishu_tenant_key, feishu_open_id, feishu_union_id, name,
+         avatar_url, role, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, NULL, ?, NULL, 'admin', 1, ?, ?)`,
+    ).run(id, PASSWORD_TENANT_KEY, `password:${id}`, name, now, now);
+    db.prepare(
+      `INSERT INTO niki_password_accounts
+        (user_id, username, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).run(id, username, passwordHash, now, now);
+    db.prepare(
+      'UPDATE projects SET owner_user_id = ? WHERE owner_user_id IS NULL',
+    ).run(id);
+    const row = db.prepare(
+      `SELECT ${PASSWORD_ACCOUNT_COLS}
+         FROM niki_password_accounts accounts
+         JOIN niki_users users ON users.id = accounts.user_id
+        WHERE accounts.user_id = ?`,
+    ).get(id) as Record<string, unknown>;
+    return normalizePasswordAccount(row);
+  });
+  return transaction();
+}
+
 export async function verifyPasswordUser(
   db: SqliteDb,
   username: string,
@@ -306,12 +417,23 @@ export async function verifyPasswordUser(
   if (!row || typeof row.passwordHash !== 'string') {
     // Keep nonexistent usernames on the same expensive code path as wrong
     // passwords so the response time does not reveal whether an account exists.
-    await scryptAsync(password, DUMMY_PASSWORD_SALT, SCRYPT_KEY_LENGTH);
+    await derivePassword(password, DUMMY_PASSWORD_SALT, SCRYPT_KEY_LENGTH, {
+      N: SCRYPT_N,
+      r: SCRYPT_R,
+      p: SCRYPT_P,
+    });
     return null;
   }
-  return await passwordMatches(password, row.passwordHash)
-    ? normalizeUser(row)
-    : null;
+  const result = await passwordMatches(password, row.passwordHash);
+  if (!result.matches) return null;
+  if (result.needsUpgrade) {
+    db.prepare(
+      `UPDATE niki_password_accounts
+          SET password_hash = ?, updated_at = ?
+        WHERE user_id = ?`,
+    ).run(await hashPassword(password), Date.now(), row.id);
+  }
+  return normalizeUser(row);
 }
 
 export function listPasswordUsers(db: SqliteDb): NikiPasswordAccount[] {
@@ -344,6 +466,23 @@ export async function updatePasswordUser(
     return true;
   });
   return transaction();
+}
+
+export async function changeOwnPassword(
+  db: SqliteDb,
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+  now = Date.now(),
+): Promise<NikiAuthUser | null> {
+  const account = db.prepare(
+    'SELECT username FROM niki_password_accounts WHERE user_id = ?',
+  ).get(userId) as { username: string } | undefined;
+  if (!account) return null;
+  const verified = await verifyPasswordUser(db, account.username, currentPassword);
+  if (!verified || verified.id !== userId) return null;
+  await updatePasswordUser(db, userId, newPassword, now);
+  return verified;
 }
 
 export function disablePasswordUser(db: SqliteDb, userId: string, now = Date.now()): boolean {
