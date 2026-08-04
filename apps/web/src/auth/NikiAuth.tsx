@@ -96,12 +96,15 @@ function authReturnTo(): string {
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-function clearAuthErrorFromLocation(): void {
+function consumeAuthResultFromLocation(): { wechatLinked: boolean } {
   const url = new URL(window.location.href);
+  const result = {
+    wechatLinked: url.searchParams.get('wechatLinked') === '1',
+  };
   if (
     !url.searchParams.has('authError')
     && !url.searchParams.has('wechatLinked')
-  ) return;
+  ) return result;
   url.searchParams.delete('authError');
   url.searchParams.delete('wechatLinked');
   window.history.replaceState(
@@ -109,6 +112,7 @@ function clearAuthErrorFromLocation(): void {
     '',
     `${url.pathname}${url.search}${url.hash}`,
   );
+  return result;
 }
 
 type AuthState =
@@ -124,6 +128,7 @@ type AuthState =
 
 export function NikiAuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     setState({ status: 'loading' });
@@ -147,7 +152,8 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
         await configResponse.json() as NikiAuthConfigResponse,
       );
       if (!config.enabled) {
-        clearAuthErrorFromLocation();
+        const authResult = consumeAuthResultFromLocation();
+        if (authResult.wechatLinked) setNotice('微信绑定成功');
         setState({
           status: 'authenticated',
           enabled: false,
@@ -169,7 +175,8 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
       }
       if (!meResponse.ok) throw new Error('无法读取登录状态');
       const me = await meResponse.json() as NikiAuthMeResponse;
-      clearAuthErrorFromLocation();
+      const authResult = consumeAuthResultFromLocation();
+      if (authResult.wechatLinked) setNotice('微信绑定成功');
       setState({
         status: 'authenticated',
         enabled: true,
@@ -194,6 +201,12 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timeoutId = window.setTimeout(() => setNotice(''), 4_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [notice]);
 
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', {
@@ -240,6 +253,14 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
   return (
     <NikiAuthContext.Provider value={contextValue}>
       {children}
+      <div
+        className={`niki-auth-notice${notice ? ' is-active' : ''}`}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {notice}
+      </div>
     </NikiAuthContext.Provider>
   );
 }
@@ -294,7 +315,7 @@ function NikiAuthScreen({
         const body = await response.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error || '登录失败，请重试');
       }
-      clearAuthErrorFromLocation();
+      consumeAuthResultFromLocation();
       setPassword('');
       await onRetry();
     } catch (error) {
@@ -380,7 +401,7 @@ function NikiAuthScreen({
                   type="button"
                   className="niki-auth__text-button"
                   onClick={() => {
-                    clearAuthErrorFromLocation();
+                    consumeAuthResultFromLocation();
                     setPasswordMode(false);
                     setPasswordError('');
                   }}
@@ -410,7 +431,7 @@ function NikiAuthScreen({
                     type="button"
                     className="niki-auth__text-button"
                     onClick={() => {
-                      clearAuthErrorFromLocation();
+                      consumeAuthResultFromLocation();
                       setPasswordMode(true);
                     }}
                   >

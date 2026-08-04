@@ -13,6 +13,7 @@ function UserProbe() {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.history.replaceState({}, '', '/');
 });
 
 describe('NikiAuthGate', () => {
@@ -152,5 +153,43 @@ describe('NikiAuthGate', () => {
     );
 
     expect(await screen.findByText('signed in as 飞书同事')).toBeTruthy();
+  });
+
+  it('shows a success notice and consumes the WeChat linking result', async () => {
+    window.history.replaceState({}, '', '/workspace?wechatLinked=1&view=home');
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        provider: 'wechat',
+        ready: true,
+        passwordLogin: true,
+        providers: {
+          feishu: { enabled: false, ready: false },
+          wechat: {
+            enabled: true,
+            ready: true,
+            website: true,
+            officialAccount: true,
+          },
+        },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        user: {
+          id: 'user-1',
+          name: '已绑定用户',
+          role: 'member',
+          providers: ['wechat'],
+        },
+      }), { status: 200 })));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    expect((await screen.findByRole('status')).textContent).toBe('微信绑定成功');
+    expect(window.location.pathname).toBe('/workspace');
+    expect(window.location.search).toBe('?view=home');
   });
 });

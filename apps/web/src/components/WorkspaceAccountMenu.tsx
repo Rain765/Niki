@@ -32,6 +32,7 @@ interface Props {
   avatarUrl?: string;
   onLogout?: () => Promise<void>;
   onLinkWechat?: () => void;
+  wechatLinked?: boolean;
   wechatLinkAvailable?: boolean;
   isAdmin?: boolean;
   config: AppConfig;
@@ -74,6 +75,7 @@ export function WorkspaceAccountMenu({
   avatarUrl,
   onLogout,
   onLinkWechat,
+  wechatLinked = false,
   wechatLinkAvailable = false,
   isAdmin = false,
   config,
@@ -342,7 +344,18 @@ export function WorkspaceAccountMenu({
             </button>
           ) : null}
 
-          {wechatLinkAvailable && onLinkWechat ? (
+          {wechatLinked ? (
+            <div
+              className="avatar-item avatar-item--status"
+              role="status"
+              data-testid="niki-account-wechat-linked"
+            >
+              <span className="avatar-item-icon" aria-hidden>
+                <Icon name="check" size={14} />
+              </span>
+              <span>微信已绑定</span>
+            </div>
+          ) : wechatLinkAvailable && onLinkWechat ? (
             <button
               type="button"
               className="avatar-item"

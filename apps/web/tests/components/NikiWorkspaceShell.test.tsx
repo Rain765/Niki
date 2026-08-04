@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Project } from '../../src/types';
 import { I18nProvider } from '../../src/i18n';
 import { NikiWorkspaceShell } from '../../src/components/NikiWorkspaceShell';
+import { WorkspaceAccountMenu } from '../../src/components/WorkspaceAccountMenu';
 import { DEFAULT_CONFIG } from '../../src/state/config';
 
 const projects: Project[] = [
@@ -124,5 +125,36 @@ describe('NikiWorkspaceShell', () => {
 
     fireEvent.click(screen.getByTestId('niki-account-open-settings'));
     expect(props.onOpenSettings).toHaveBeenCalledWith(undefined);
+  });
+});
+
+describe('WorkspaceAccountMenu', () => {
+  it('shows that WeChat is already linked instead of offering another link action', () => {
+    render(
+      <I18nProvider initial="zh-CN">
+        <WorkspaceAccountMenu
+          username="已绑定用户"
+          wechatLinked
+          wechatLinkAvailable
+          onLinkWechat={vi.fn()}
+          config={DEFAULT_CONFIG}
+          agents={[]}
+          daemonLive
+          onModeChange={vi.fn()}
+          onAgentChange={vi.fn()}
+          onAgentModelChange={vi.fn()}
+          onApiProtocolChange={vi.fn()}
+          onApiModelChange={vi.fn()}
+          onThemeChange={vi.fn()}
+          onOpenSettings={vi.fn()}
+        />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByTestId('niki-account-menu-trigger'));
+
+    expect(screen.getByTestId('niki-account-wechat-linked').textContent)
+      .toContain('微信已绑定');
+    expect(screen.queryByTestId('niki-account-link-wechat')).toBeNull();
   });
 });

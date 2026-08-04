@@ -358,6 +358,7 @@ export function NikiWorkspaceShell({
         avatarUrl={nikiAuth.user.avatarUrl}
         isAdmin={nikiAuth.user.role === 'admin'}
         onLogout={nikiAuth.enabled ? nikiAuth.logout : undefined}
+        wechatLinked={nikiAuth.user.providers?.includes('wechat') ?? false}
         wechatLinkAvailable={nikiAuth.wechatLinkAvailable}
         onLinkWechat={nikiAuth.linkWechat}
         config={config}
