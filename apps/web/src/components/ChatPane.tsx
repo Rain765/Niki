@@ -1173,11 +1173,11 @@ function DirectLoanPosterBatchCard({
     : failed
     ? batch.lastError ?? '生成任务没有成功入队，请返回首页重试。'
     : visuallyComplete
-    ? '图片已生成。点击图片可查看、编辑或下载。'
+    ? '图片已生成。点击图片可查看或下载。'
     : hasResults && activelyStarting
       ? '已完成的图片会先显示在这里，其余海报生成后会自动出现。'
       : hasResults
-        ? '图片已生成。点击图片可查看、编辑或下载。'
+        ? '图片已生成。点击图片可查看或下载。'
       : '无需再次发送提示词。生成完成后，图片会自动显示在这里。';
 
   // Project metadata arrives before the file scan. Keep the batch's final
