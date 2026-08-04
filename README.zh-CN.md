@@ -1,12 +1,10 @@
 # Niki
 
-**面向真实移动端工作流的一键 AI 贷款海报生成平台。**
+**一键生成可直接审核的贷款营销海报。**
 
-Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看和管理贷款营销海报。选择产品、画面比例和张数，输入活动文案后即可直接开始出图，无需编写提示词，也不需要操作智能体对话。
+Niki 是面向贷款营销团队的专用海报工作区。选择产品、画面比例和生成张数，输入活动文案后即可开始出图。每次结果按批次保留，方便在电脑或手机上持续查看和审核。
 
-本仓库当前对应 Niki 产品。底层仍基于 Open Design 运行时，但主要产品体验已经调整为下文所述的 Niki 海报工作流。
-
-<p align="center"><a href="README.md">English</a> · <a href="README.es.md">Español</a> · <a href="README.pt-BR.md">Português (Brasil)</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a> · <b>简体中文</b> · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.ko.md">한국어</a> · <a href="README.ja-JP.md">日本語</a> · <a href="README.ar.md">العربية</a> · <a href="README.ru.md">Русский</a> · <a href="README.uk.md">Українська</a> · <a href="README.tr.md">Türkçe</a></p>
+<p align="center"><a href="README.md">English</a> · <b>简体中文</b></p>
 
 <p align="center">
   <a href="https://github.com/Rain765/Niki/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Rain765/Niki?style=flat-square" /></a>
@@ -14,24 +12,24 @@ Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看
   <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat-square" /></a>
 </p>
 
-## Niki 能做什么
+## 目前可以做什么
 
-- **一键生成海报**：选择 BiuMoney 或 Zamloan，再选择画面比例和海报张数，输入文案即可开始生成。
-- **产品专属创意规则**：不同产品使用各自的参考素材、版式约束和精简文案规则。
-- **生成批次时间线**：每次请求单独显示为一个批次；旧结果保留在上方，新批次与加载状态追加在下方，刷新后仍能恢复排队、完成、失败或中断状态。
-- **移动端优先查看**：输入区、加载状态、图片传输和结果网格同时适配手机与桌面浏览器。
-- **带登录的用户工作区**：线上部署可使用飞书 OAuth，并支持管理员创建的密码账号。
-- **用户隔离与额度管理**：项目按账号隔离，可分别设置存储空间和每日生成次数。
-- **持久化本地运行时**：项目、消息、任务状态和生成文件都会落盘，之后可以继续查看和编辑。
+- **一键生成海报**：输入活动文案即可开始出图，不需要编写提示词。
+- **选择产品样式**：支持 Zamloan 和 BiuMoney，并使用对应的参考素材与版式规则。
+- **控制每次生成**：可选择 `1:1` 或 `16:9`，每批生成 1–10 张海报。
+- **保留全部结果**：新批次不会覆盖旧图片，刷新后仍能看到生成中断或失败的状态。
+- **手机和电脑均可审核**：输入区、进度状态和结果画廊同时适配移动端与桌面端。
+- **隔离用户数据**：线上部署可以按账号隔离项目，并分别设置存储空间和每日生成次数。
 
 ## 使用流程
 
 1. 登录 Niki。
-2. 选择 **BiuMoney** 或 **Zamloan**、画面比例和海报张数。
-3. 输入活动文案并开始生成。
-4. 在项目时间线中查看每个生成批次；继续生成时不会覆盖之前的结果。
+2. 选择 **Zamloan** 或 **BiuMoney**。
+3. 选择画面比例和海报张数。
+4. 输入活动文案并开始生成。
+5. 在项目时间线中查看图片，或继续创建下一批海报。
 
-## 快速开始
+## 本地开发
 
 ### 环境要求
 
@@ -40,47 +38,38 @@ Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看
 - macOS、Linux、WSL2 或 Windows
 - 已在 Niki 设置中配置图片生成服务
 
-### 启动网页工作区
+### 启动 Niki
 
-    corepack enable
-    pnpm install
-    pnpm tools-dev start web
+```bash
+git clone https://github.com/Rain765/Niki.git
+cd Niki
+corepack enable
+pnpm install
+pnpm tools-dev start web
+```
 
 打开 `tools-dev` 输出的网页地址。
 
 如果需要同时启动 daemon、网页和 Electron 桌面端：
 
-    pnpm tools-dev
+```bash
+pnpm tools-dev
+```
 
 可以使用 `pnpm tools-dev status`、`pnpm tools-dev logs` 和 `pnpm tools-dev stop` 查看或停止托管运行时。
 
-## 登录与账号管理
+## 登录与额度
 
-仅本机开发时默认不启用登录。线上部署可以通过以下环境变量启用 Niki 登录：
+仅本机开发时默认不启用登录。线上部署可以通过以下环境变量启用飞书登录：
 
-    NIKI_AUTH_MODE=feishu
-    FEISHU_APP_ID=your_app_id
-    FEISHU_APP_SECRET=your_app_secret
-    NIKI_PUBLIC_URL=https://your-niki-domain.example
+```env
+NIKI_AUTH_MODE=feishu
+FEISHU_APP_ID=your_app_id
+FEISHU_APP_SECRET=your_app_secret
+NIKI_PUBLIC_URL=https://your-niki-domain.example
+```
 
-启用登录后，管理员可以在 Niki 账号管理界面或通过 `od auth` CLI 管理密码账号与用户额度：
-
-    od auth status
-    od auth users list
-    od auth users create --username <id> --name <display-name> --password-file <path|->
-    od auth users set-quota --user <user-id> --storage-gb <number> --daily-generations <number>
-
-管理员 CLI 操作需要在 `OD_NIKI_SESSION_TOKEN` 中提供管理员会话。密码只从文件或标准输入读取，不会作为命令行参数直接传入。
-
-## 远程设备配对
-
-Niki 提供安全设备中继基础能力，用于将本地 daemon 与线上服务配对：
-
-    od device pair --relay-url <url> --name <device-name>
-    od device status
-    od device disconnect
-
-当前设备桥接功能仅包含配对、在线状态和 Ping/Pong 健康检查，暂不执行远程命令。
+管理员可以在账号管理界面创建密码账号、停用账号、重置密码，并设置每位用户的存储空间和每日生成次数。
 
 ## 数据与安全
 
@@ -89,34 +78,29 @@ Niki 提供安全设备中继基础能力，用于将本地 daemon 与线上服�
 - 登录用户拥有相互隔离的项目目录。
 - 会话令牌以哈希形式保存并设置有效期。
 - 密码登录包含失败记录和频率限制。
-- daemon 会强制执行每位用户的存储与每日生成额度。
+- daemon 会强制执行每位用户的存储与生成额度。
 
-不要提交 `.od/`、`.tmp/` 中的本地运行数据、日志、数据库和临时生成文件。
+不要提交 `.od/`、`.tmp/` 中的本地数据、日志、数据库和临时生成文件。
 
 ## 仓库结构
 
 | 路径 | 职责 |
 |---|---|
-| `apps/web` | Niki 网页工作区、海报输入区、登录界面和项目时间线 |
-| `apps/daemon` | HTTP API、持久化、登录、额度、媒体任务和 `od` CLI |
+| `apps/web` | 海报输入区、项目时间线、结果画廊和账号界面 |
+| `apps/daemon` | HTTP API、持久化、登录、额度和媒体任务 |
 | `apps/desktop` | Electron 桌面端外壳 |
-| `apps/relay` | 安全设备配对中继 |
 | `packages/contracts` | 共享 API 与事件契约 |
-| `tools/dev` | 受支持的本地生命周期控制面 |
+| `tools/dev` | 本地生命周期管理命令 |
 
-## 开发与验证
+## 参与贡献
 
-提交改动前，请按涉及的包执行对应检查：
+提交改动前，请阅读 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)，并按改动范围执行对应检查。仓库的标准检查为：
 
-    pnpm guard
-    pnpm typecheck
-    pnpm --filter @open-design/web test
-    pnpm --filter @open-design/daemon test
+```bash
+pnpm guard
+pnpm typecheck
+```
 
-本地生命周期统一使用 `pnpm tools-dev`。仓库边界和贡献要求请参阅 [AGENTS.md](AGENTS.md) 与 [CONTRIBUTING.zh-CN.md](CONTRIBUTING.zh-CN.md)。
-
-## 上游项目与许可证
-
-Niki 基于 [Open Design](https://github.com/nexu-io/open-design) 开发，并保留其智能体运行时、项目工作区和可扩展设计基础。当前 Niki 产品层新增并重点维护贷款海报工作流、账号管理、用户额度、移动端适配、生成批次持久化和安全设备配对。
+## 许可证
 
 本项目使用 [Apache License 2.0](LICENSE)。
