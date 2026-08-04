@@ -30,4 +30,16 @@ describe('mobile bootstrap styles', () => {
       /:where\(\.niki-auth,\s*\.locale-bootstrap\)\s*\{[^}]*min-height:\s*100dvh/s,
     );
   });
+
+  it('keeps the Feishu login action responsive while OAuth navigation starts', () => {
+    expect(indexCss).toMatch(
+      /\.niki-auth button:active:not\(:disabled\)\s*\{[^}]*transform:\s*scale\(0\.985\)/s,
+    );
+    expect(indexCss).toMatch(
+      /\.niki-auth \.niki-auth__primary-button\.is-loading\s*\{[^}]*opacity:\s*1/s,
+    );
+    expect(indexCss).toMatch(
+      /\.niki-auth__button-spinner\s*\{[^}]*animation:\s*locale-bootstrap-spin 700ms linear infinite/s,
+    );
+  });
 });
