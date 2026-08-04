@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   copyOrShareImageBlobMock,
@@ -83,6 +83,11 @@ beforeEach(() => {
   }));
 });
 
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
+
 describe('PosterApp mobile-safe flow', () => {
   it('shows a gallery placeholder immediately while restoring the server project', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(() => undefined));
@@ -106,5 +111,101 @@ describe('PosterApp mobile-safe flow', () => {
       );
     });
     expect(await screen.findByText('图片已复制')).toBeTruthy();
+  });
+
+  it('pins the newest batch above collapsed history with its own ratio and count', async () => {
+    const batchedProject = {
+      ...project,
+      updatedAt: 30,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: {
+          kind: 'loan-poster' as const,
+          expectedOutputs: 3,
+          status: 'complete' as const,
+          activeBatchId: 'batch-new',
+          batches: [{
+            id: 'batch-old',
+            status: 'complete' as const,
+            requestedAt: 10,
+            completedAt: 20,
+            expectedOutputs: 2,
+            outputNames: [
+              'biumoney-poster-20260804-001.png',
+              'biumoney-poster-20260804-002.png',
+            ],
+            brand: 'biumoney' as const,
+            aspectRatio: '16:9' as const,
+          }, {
+            id: 'batch-new',
+            status: 'complete' as const,
+            requestedAt: 30,
+            completedAt: 40,
+            expectedOutputs: 1,
+            outputNames: ['biumoney-poster-20260804-003.png'],
+            brand: 'biumoney' as const,
+            aspectRatio: '1:1' as const,
+          }],
+        },
+      },
+    };
+    const files = [{
+      name: 'biumoney-poster-20260804-001.png',
+      kind: 'image',
+      mime: 'image/png',
+      size: 100,
+      mtime: 10,
+    }, {
+      name: 'biumoney-poster-20260804-002.png',
+      kind: 'image',
+      mime: 'image/png',
+      size: 100,
+      mtime: 20,
+    }, {
+      name: 'biumoney-poster-20260804-003.png',
+      kind: 'image',
+      mime: 'image/png',
+      size: 100,
+      mtime: 40,
+    }];
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(batchedProject);
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/projects/project-1/files') {
+        return new Response(JSON.stringify({ files }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1') {
+        return new Response(JSON.stringify({ project: batchedProject }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    render(<PosterApp />);
+
+    const latestRegion = await screen.findByRole('region', { name: '本次生成' });
+    const newestImage = within(latestRegion).getByRole('img', {
+      name: 'biumoney-poster-20260804-003.png',
+    });
+    expect(newestImage.getAttribute('loading')).toBe('eager');
+    expect(newestImage.closest('button')?.className).toContain('is-square');
+    expect(screen.getByText('本批已生成 1 张海报')).toBeTruthy();
+    expect(screen.queryByRole('img', {
+      name: 'biumoney-poster-20260804-001.png',
+    })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '历史海报（2 张）' }));
+
+    const historyRegion = screen.getByRole('region', { name: '历史海报' });
+    const olderImage = within(historyRegion).getByRole('img', {
+      name: 'biumoney-poster-20260804-002.png',
+    });
+    expect(olderImage.getAttribute('loading')).toBe('lazy');
+    expect(olderImage.closest('button')?.className).toContain('is-landscape');
   });
 });

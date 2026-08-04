@@ -1,7 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
+import {
+  buildDirectPosterBatches,
+  type DirectPosterBatchView,
+} from '../components/direct-poster-batches';
 import {
   resolveDirectLoanPosterProject,
   startDirectLoanPosterProject,
@@ -55,28 +59,30 @@ async function fetchPosterFiles(projectId: string): Promise<ProjectFile[]> {
   return body.files ?? [];
 }
 
-function generationCopy(project: Project | null, fileCount: number): {
+function generationCopy(batch: DirectPosterBatchView | null): {
   detail: string;
   state: 'idle' | 'working' | 'complete' | 'failed';
   title: string;
 } {
-  const generation = project?.metadata?.directGeneration;
-  if (!generation) {
+  if (!batch) {
     return { state: 'idle', title: '准备生成', detail: '选择数量和比例，然后点击一次生成。' };
   }
-  const expected = Math.max(fileCount, generation.expectedOutputs ?? 0);
-  if (generation.status === 'failed' || generation.status === 'interrupted') {
+  const fileCount = batch.files.length;
+  const expected = Math.max(fileCount, batch.expectedCount ?? 0);
+  if (batch.status === 'failed' || batch.status === 'interrupted') {
     return {
       state: 'failed',
       title: '本批生成未完成',
-      detail: generation.lastError ?? '生成服务未完成任务，请重新生成。',
+      detail: batch.lastError ?? '生成服务未完成任务，请重新生成。',
     };
   }
-  if (generation.status === 'complete') {
+  if (batch.status === 'complete') {
     return {
       state: 'complete',
-      title: `已生成 ${fileCount} 张海报`,
-      detail: '图片已保存，可以预览、下载、复制或分享。',
+      title: fileCount > 0 ? `本批已生成 ${fileCount} 张海报` : '本批图片已删除',
+      detail: fileCount > 0
+        ? '最新图片已置顶，可以预览、下载、复制或分享。'
+        : '可以点击一键生成新的海报。',
     };
   }
   return {
@@ -101,17 +107,66 @@ export function PosterApp() {
   const [previewNotice, setPreviewNotice] = useState<Notice | null>(null);
   const [activeAction, setActiveAction] = useState<'copy' | 'download' | 'share' | null>(null);
   const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
+  const [showHistory, setShowHistory] = useState(false);
+  const latestBatchRef = useRef<HTMLElement | null>(null);
+  const observedBatchIdRef = useRef<string | null>(null);
 
   const posterFiles = useMemo(
     () => files
       .filter((file) => file.kind === 'image' && isLoanPosterOutputName(file.name))
-      .sort((left, right) => left.mtime - right.mtime),
+      .sort((left, right) => right.mtime - left.mtime),
     [files],
   );
+  const batches = useMemo(
+    () => project
+      ? buildDirectPosterBatches(
+        posterFiles,
+        project.metadata?.directGeneration ?? null,
+      )
+      : [],
+    [posterFiles, project?.metadata?.directGeneration],
+  );
+  const latestBatch = batches.at(-1) ?? null;
+  const historyBatches = useMemo(
+    () => batches.slice(0, -1).reverse(),
+    [batches],
+  );
+  const historyFiles = useMemo(
+    () => historyBatches
+      .flatMap((batch) => batch.files.map((file) => ({
+        aspectRatio: batch.aspectRatio,
+        file,
+      })))
+      .sort((left, right) => right.file.mtime - left.file.mtime),
+    [historyBatches],
+  );
+  const aspectRatioByFile = useMemo(() => new Map(
+    batches.flatMap((batch) => batch.files.map((file) => [file.name, batch.aspectRatio] as const)),
+  ), [batches]);
   const previewFile = previewName
     ? posterFiles.find((file) => file.name === previewName) ?? null
     : null;
-  const status = generationCopy(project, posterFiles.length);
+  const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
+  const status = generationCopy(latestBatch);
+
+  useEffect(() => {
+    const batchId = latestBatch?.id ?? null;
+    if (!batchId) return;
+    if (observedBatchIdRef.current === null) {
+      observedBatchIdRef.current = batchId;
+      return;
+    }
+    if (observedBatchIdRef.current === batchId) return;
+    observedBatchIdRef.current = batchId;
+    setShowHistory(false);
+    const timer = window.setTimeout(() => {
+      const section = latestBatchRef.current;
+      if (!section) return;
+      section.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      section.focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [latestBatch?.id]);
 
   const refreshProject = useCallback(async (id: string, quiet = false) => {
     if (!quiet) setLoadingProject(true);
@@ -177,12 +232,26 @@ export function PosterApp() {
 
   useEffect(() => {
     if (!projectId) return undefined;
-    const intervalId = window.setInterval(() => {
+    const reconcile = () => {
       if (document.visibilityState === 'visible') {
         void refreshProject(projectId, true);
       }
+    };
+    const intervalId = window.setInterval(() => {
+      reconcile();
     }, status.state === 'working' ? 1_500 : 5_000);
-    return () => window.clearInterval(intervalId);
+    const onVisibilityChange = () => reconcile();
+    window.addEventListener('focus', reconcile);
+    window.addEventListener('online', reconcile);
+    window.addEventListener('pageshow', reconcile);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', reconcile);
+      window.removeEventListener('online', reconcile);
+      window.removeEventListener('pageshow', reconcile);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [projectId, refreshProject, status.state]);
 
   const generate = async () => {
@@ -306,6 +375,51 @@ export function PosterApp() {
     await refreshProject(projectId, true);
   };
 
+  const renderPoster = (
+    file: ProjectFile,
+    options: { aspectRatio?: string; eager: boolean; index: number },
+  ) => {
+    if (!projectId) return null;
+    const useRawImage = rawFallbackNames.has(file.name);
+    const aspectClass = options.aspectRatio === '1:1' ? 'is-square' : 'is-landscape';
+    return (
+      <button
+        type="button"
+        className={`poster-app__poster ${aspectClass}`}
+        key={`${file.name}:${file.mtime}`}
+        onClick={() => {
+          setPreviewNotice(null);
+          setPreviewName(file.name);
+        }}
+      >
+        <picture>
+          {!useRawImage ? (
+            <source media="(max-width: 900px)" srcSet={previewUrl(projectId, file, 'mobile')} />
+          ) : null}
+          <img
+            src={useRawImage
+              ? rawUrl(projectId, file.name)
+              : previewUrl(projectId, file, 'preview')}
+            alt={file.name}
+            loading={options.eager ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={options.eager && options.index < 2 ? 'high' : 'auto'}
+            onLoad={(event) => {
+              event.currentTarget.closest('.poster-app__poster')?.classList.add('is-loaded');
+            }}
+            onError={(event) => {
+              if (useRawImage) {
+                event.currentTarget.closest('.poster-app__poster')?.classList.add('is-error');
+                return;
+              }
+              setRawFallbackNames((current) => new Set(current).add(file.name));
+            }}
+          />
+        </picture>
+      </button>
+    );
+  };
+
   return (
     <main className="poster-app">
       <header className="poster-app__header">
@@ -392,52 +506,57 @@ export function PosterApp() {
         </button>
       ) : null}
 
-      <section className="poster-app__gallery" aria-label="生成的海报">
-        {posterFiles.map((file, index) => {
-          const useRawImage = rawFallbackNames.has(file.name);
-          return (
+      <section
+        ref={latestBatchRef}
+        className="poster-app__batch-section poster-app__latest-batch"
+        aria-label="本次生成"
+        tabIndex={-1}
+      >
+        <header className="poster-app__section-header">
+          <div>
+            <h2>本次生成</h2>
+            <span>{latestBatch?.aspectRatio ?? aspectRatio}</span>
+          </div>
+          {latestBatch?.files.length ? <span>{latestBatch.files.length} 张</span> : null}
+        </header>
+        <div className="poster-app__gallery">
+          {latestBatch?.files.map((file, index) => renderPoster(file, {
+            aspectRatio: latestBatch.aspectRatio,
+            eager: true,
+            index,
+          }))}
+          {loadingProject || status.state === 'working' ? (
+            <div className={`poster-app__poster-skeleton${(
+              latestBatch?.aspectRatio ?? aspectRatio
+            ) === '1:1' ? ' is-square' : ''}`}>
+              <span>{loadingProject ? '正在读取最近海报…' : '图片生成中…'}</span>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {historyFiles.length > 0 ? (
+        <section className="poster-app__batch-section poster-app__history" aria-label="历史海报">
           <button
             type="button"
-            className="poster-app__poster"
-            key={`${file.name}:${file.mtime}`}
-            onClick={() => {
-              setPreviewNotice(null);
-              setPreviewName(file.name);
-            }}
+            className="poster-app__history-toggle"
+            aria-expanded={showHistory}
+            onClick={() => setShowHistory((current) => !current)}
           >
-            <picture>
-              {!useRawImage ? (
-                <source media="(max-width: 900px)" srcSet={previewUrl(projectId!, file, 'mobile')} />
-              ) : null}
-              <img
-                src={useRawImage
-                  ? rawUrl(projectId!, file.name)
-                  : previewUrl(projectId!, file, 'preview')}
-                alt={file.name}
-                loading="eager"
-                decoding="async"
-                fetchPriority={index < 2 ? 'high' : 'auto'}
-                onLoad={(event) => {
-                  event.currentTarget.closest('.poster-app__poster')?.classList.add('is-loaded');
-                }}
-                onError={(event) => {
-                  if (useRawImage) {
-                    event.currentTarget.closest('.poster-app__poster')?.classList.add('is-error');
-                    return;
-                  }
-                  setRawFallbackNames((current) => new Set(current).add(file.name));
-                }}
-              />
-            </picture>
+            <span>历史海报（{historyFiles.length} 张）</span>
+            <span aria-hidden="true">{showHistory ? '收起' : '展开'}</span>
           </button>
-          );
-        })}
-        {loadingProject || status.state === 'working' ? (
-          <div className={`poster-app__poster-skeleton${aspectRatio === '1:1' ? ' is-square' : ''}`}>
-            <span>{loadingProject ? '正在读取最近海报…' : '图片生成中…'}</span>
-          </div>
-        ) : null}
-      </section>
+          {showHistory ? (
+            <div className="poster-app__gallery poster-app__history-gallery">
+              {historyFiles.map(({ aspectRatio: fileAspectRatio, file }, index) => renderPoster(file, {
+                aspectRatio: fileAspectRatio,
+                eager: false,
+                index,
+              }))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       {previewFile && projectId ? (
         <div className="poster-preview" role="dialog" aria-modal="true" aria-label={previewFile.name}>
@@ -458,7 +577,7 @@ export function PosterApp() {
             </button>
           ) : null}
           <div className="poster-preview__stage">
-            <picture>
+            <picture className={previewAspectRatio === '1:1' ? 'is-square' : 'is-landscape'}>
               {!rawFallbackNames.has(previewFile.name) ? (
                 <source media="(max-width: 900px)" srcSet={previewUrl(projectId, previewFile, 'mobile')} />
               ) : null}
