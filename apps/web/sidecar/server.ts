@@ -319,6 +319,7 @@ async function proxyHttpRequest(
 ): Promise<void> {
   const proxyRequestFactory = target.protocol === "https:" ? createHttpsRequest : createHttpRequest;
   const browserHost = firstHeaderValue(request.headers.host);
+  const browserAddress = request.socket.remoteAddress?.trim();
   const headers = {
     ...request.headers,
     host: target.host,
@@ -327,6 +328,12 @@ async function proxyHttpRequest(
     // proxy-owned header so origin validation can still distinguish a
     // legitimate same-origin request from a forged cross-origin request.
     ...(browserHost == null ? {} : { "x-forwarded-host": browserHost }),
+    // Never forward a browser-supplied chain. The sidecar owns this hop and
+    // records the peer it actually accepted so daemon login throttling can
+    // distinguish clients instead of treating every proxied user as loopback.
+    ...(browserAddress == null || browserAddress.length === 0
+      ? {}
+      : { "x-forwarded-for": browserAddress }),
   };
   if (options.daemonWebPort != null) {
     const origin = normalizeDaemonProxyOriginHeader({

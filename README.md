@@ -56,7 +56,18 @@ Use `pnpm tools-dev status`, `pnpm tools-dev logs`, and `pnpm tools-dev stop` to
 
 ## Authentication and account management
 
-Authentication is disabled for local-only development. A hosted deployment can enable Niki authentication with:
+Authentication is disabled for local-only development. A private deployment can enable standalone password authentication without Feishu:
+
+    NIKI_AUTH_MODE=password
+    NIKI_PUBLIC_URL=https://your-niki-domain.example
+
+After the daemon starts, create the first administrator once from the same machine. For Docker Compose, run:
+
+    printf '%s\n' 'choose-a-strong-password' | \
+      docker compose exec -T open-design node apps/daemon/dist/cli.js \
+      auth bootstrap-admin --username owner --name Owner --password-file -
+
+The bootstrap endpoint accepts only local daemon requests and closes permanently after the first user is created. Passwords must contain 10–128 characters. Use `NIKI_AUTH_MODE=hybrid` to offer both password and Feishu login, or keep the legacy Feishu setup with:
 
     NIKI_AUTH_MODE=feishu
     FEISHU_APP_ID=your_app_id
@@ -66,11 +77,13 @@ Authentication is disabled for local-only development. A hosted deployment can e
 When authentication is enabled, administrators can manage password accounts and quotas in the Niki account panel or through the `od auth` CLI:
 
     od auth status
+    od auth login --username <id> --password-file <path|->
+    od auth change-password --current-password-file <path|-> --password-file <path|->
     od auth users list
     od auth users create --username <id> --name <display-name> --password-file <path|->
     od auth users set-quota --user <user-id> --storage-gb <number> --daily-generations <number>
 
-Administrator CLI operations require an administrator session in `OD_NIKI_SESSION_TOKEN`. Passwords are read from a file or standard input and are never accepted directly as a CLI argument.
+`od auth login` prints a new `OD_NIKI_SESSION_TOKEN` export command; administrator CLI operations require an administrator token in that environment variable. Passwords are read from a file or standard input and are never accepted directly as a CLI argument.
 
 ## Remote device pairing
 

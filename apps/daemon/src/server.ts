@@ -3383,6 +3383,17 @@ export async function startServer({
     db,
     projectsRoot: PROJECTS_DIR,
     isLocalOperatorRequest: (req) => validateLocalDaemonRequest(req).ok,
+    isTrustedBrowserRequest: (req) => isLocalSameOrigin(req, resolvedPort),
+    resolveClientIp: (req) => {
+      const peerAddress = req.socket?.remoteAddress ?? '';
+      if (isLoopbackPeerAddress(peerAddress)) {
+        const forwardedAddress = req.get('x-forwarded-for')
+          ?.split(',')[0]
+          ?.trim();
+        if (forwardedAddress) return forwardedAddress;
+      }
+      return peerAddress || req.ip || 'unknown';
+    },
     resolveRunProjectId: (runId) => resolveNikiRunProjectId(runId),
   });
 

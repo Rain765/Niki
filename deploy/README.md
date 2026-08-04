@@ -19,10 +19,24 @@ Defaults:
 - Node heap cap: `--max-old-space-size=192`
 - Compose memory cap: `384m` (`OPEN_DESIGN_MEM_LIMIT=256m` to override)
 
-Do not publish the daemon directly on a public or shared LAN interface. The API is
-unauthenticated for non-browser clients, so remote deployments should keep Compose
-bound to localhost and put an authenticated reverse proxy, SSH tunnel, or VPN in
-front of it.
+Do not publish the daemon directly on a public or shared LAN interface. Remote
+deployments should keep Compose bound to localhost and put a reverse proxy, SSH
+tunnel, or VPN in front of it. Niki's application login protects workspace APIs,
+but the proxy remains responsible for TLS and limiting network exposure.
+
+To enable standalone username/password login, set `NIKI_AUTH_MODE=password` and
+the public HTTPS origin used by browsers:
+
+```bash
+NIKI_AUTH_MODE=password NIKI_PUBLIC_URL=https://od.example.com docker compose up -d --no-build
+printf '%s\n' 'choose-a-strong-password' | \
+  docker compose exec -T open-design node apps/daemon/dist/cli.js \
+  auth bootstrap-admin --username owner --name Owner --password-file -
+```
+
+The bootstrap command must reach the daemon locally and succeeds only while no
+users exist. `NIKI_AUTH_MODE=hybrid` enables password plus configured Feishu
+OAuth; `NIKI_AUTH_MODE=feishu` retains the existing Feishu-first behavior.
 
 When exposing the service through an authenticated public IP, domain, or reverse
 proxy, set `OPEN_DESIGN_ALLOWED_ORIGINS` to the browser origins that should be

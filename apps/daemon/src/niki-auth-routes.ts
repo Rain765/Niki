@@ -3,17 +3,26 @@ import type Database from 'better-sqlite3';
 import type {
   NikiAuthConfigResponse,
   NikiAuthMeResponse,
+  NikiAuthMode,
+  NikiAuthUser,
   NikiManagedUserListResponse,
+  NikiPasswordAdminBootstrapRequest,
+  NikiPasswordAdminBootstrapResponse,
+  NikiPasswordChangeRequest,
+  NikiPasswordChangeResponse,
   NikiPasswordAccountCreateRequest,
   NikiPasswordAccountCreateResponse,
   NikiPasswordAccountListResponse,
   NikiPasswordAccountPasswordUpdateRequest,
   NikiPasswordAccountPasswordUpdateResponse,
   NikiPasswordLoginRequest,
+  NikiPasswordLoginResponse,
   NikiUserQuotaStatus,
   NikiUserQuotaUpdateRequest,
 } from '@open-design/contracts';
 import {
+  bootstrapPasswordAdmin,
+  changeOwnPassword,
   consumeNikiOAuthState,
   createPasswordUser,
   createNikiOAuthState,
@@ -51,7 +60,10 @@ const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface NikiAuthRuntimeConfig {
   enabled: boolean;
+  mode: NikiAuthMode;
   ready: boolean;
+  passwordLogin: boolean;
+  feishuLogin: boolean;
   appId: string;
   appSecret: string;
   publicUrl: string;
@@ -64,6 +76,7 @@ interface RegisterNikiAuthRoutesOptions {
   fetchImpl?: FetchLike;
   env?: NodeJS.ProcessEnv;
   isLocalOperatorRequest?: (req: Request) => boolean;
+  isTrustedBrowserRequest?: (req: Request) => boolean;
   resolveClientIp?: (req: Request) => string;
   resolveRunProjectId?: (runId: string) => string | null | undefined;
 }
@@ -78,13 +91,25 @@ const LOCAL_OPERATOR_API_PATHS = new Set([
 export function readNikiAuthRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): NikiAuthRuntimeConfig {
-  const enabled = env.NIKI_AUTH_MODE?.trim().toLowerCase() === 'feishu';
+  const requestedMode = env.NIKI_AUTH_MODE?.trim().toLowerCase();
+  const mode: NikiAuthMode = requestedMode === 'password'
+    || requestedMode === 'feishu'
+    || requestedMode === 'hybrid'
+    ? requestedMode
+    : 'disabled';
+  const enabled = mode !== 'disabled';
   const appId = env.FEISHU_APP_ID?.trim() ?? '';
   const appSecret = env.FEISHU_APP_SECRET?.trim() ?? '';
   const publicUrl = normalizePublicUrl(env.NIKI_PUBLIC_URL ?? '');
+  const feishuConfigured = Boolean(appId && appSecret && publicUrl);
+  const passwordLogin = mode === 'password' || mode === 'hybrid' || mode === 'feishu';
+  const feishuLogin = (mode === 'feishu' || mode === 'hybrid') && feishuConfigured;
   return {
     enabled,
-    ready: !enabled || Boolean(appId && appSecret && publicUrl),
+    mode,
+    ready: mode === 'feishu' ? feishuConfigured : true,
+    passwordLogin,
+    feishuLogin,
     appId,
     appSecret,
     publicUrl,
@@ -101,11 +126,19 @@ export function registerNikiAuthRoutes(
 
   app.get('/api/auth/config', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
+    const providers = [
+      ...(config.feishuLogin ? ['feishu'] as const : []),
+      ...(config.passwordLogin ? ['password'] as const : []),
+    ];
     const body: NikiAuthConfigResponse = {
       enabled: config.enabled,
-      provider: config.enabled ? 'feishu' : null,
+      mode: config.mode,
+      provider: providers[0] ?? null,
+      providers,
       ready: config.ready,
-      passwordLogin: config.enabled,
+      passwordLogin: config.passwordLogin,
+      feishuLogin: config.feishuLogin,
+      bootstrapRequired: passwordBootstrapRequired(db, config),
     };
     res.json(body);
   });
@@ -126,19 +159,14 @@ export function registerNikiAuthRoutes(
     const user = resolveNikiSession(db, sessionToken);
     if (!user) return res.status(401).json({ error: 'Authentication required' });
     const body: NikiAuthMeResponse = {
-      user: {
-        id: user.id,
-        name: user.name,
-        ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
-        role: user.role,
-      },
+      user: publicAuthUser(user),
     };
     return res.json(body);
   });
 
   app.get('/api/auth/feishu/start', (req, res) => {
     if (!config.enabled) return res.redirect('/');
-    if (!config.ready) {
+    if (!config.feishuLogin) {
       return res.status(503).json({
         error: 'Feishu authentication is not configured on this server',
       });
@@ -164,7 +192,7 @@ export function registerNikiAuthRoutes(
   });
 
   app.get('/api/auth/feishu/callback', async (req, res) => {
-    if (!config.enabled || !config.ready) {
+    if (!config.enabled || !config.feishuLogin) {
       return res.redirect('/?authError=not_configured');
     }
     const code = typeof req.query.code === 'string' ? req.query.code : '';
@@ -195,6 +223,7 @@ export function registerNikiAuthRoutes(
   });
 
   app.post('/api/auth/logout', (req, res) => {
+    if (!requireTrustedMutation(options, req, res)) return;
     const token = requestSessionToken(req);
     if (token) deleteNikiSession(db, token);
     clearCookie(res, SESSION_COOKIE, config.publicUrl.startsWith('https://'));
@@ -203,7 +232,8 @@ export function registerNikiAuthRoutes(
 
   app.post('/api/auth/password/login', async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    if (!config.enabled) {
+    if (!requireTrustedMutation(options, req, res)) return;
+    if (!config.passwordLogin) {
       return res.status(404).json({ error: 'Password login is not enabled' });
     }
     const clientIp = options.resolveClientIp?.(req)
@@ -244,10 +274,79 @@ export function registerNikiAuthRoutes(
       maxAgeSeconds: SESSION_TTL_SECONDS,
       secure: config.publicUrl.startsWith('https://'),
     });
-    const response: NikiAuthMeResponse = {
+    const response: NikiPasswordLoginResponse = {
       user: publicAuthUser(user),
+      ...(req.get('x-niki-session-transport')?.toLowerCase() === 'bearer'
+        ? { sessionToken: session.token, expiresAt: session.expiresAt }
+        : {}),
     };
     return res.json(response);
+  });
+
+  app.post('/api/auth/bootstrap/password-admin', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!config.passwordLogin || config.mode === 'feishu') {
+      return res.status(404).json({ error: 'Password bootstrap is not enabled' });
+    }
+    if (!isDirectLocalOperatorRequest(options, req)) {
+      return res.status(403).json({ error: 'Local operator access required' });
+    }
+    const body = req.body as Partial<NikiPasswordAdminBootstrapRequest> | undefined;
+    try {
+      const account = await bootstrapPasswordAdmin(db, {
+        username: typeof body?.username === 'string' ? body.username : '',
+        name: typeof body?.name === 'string' ? body.name : '',
+        password: typeof body?.password === 'string' ? body.password : '',
+      });
+      const response: NikiPasswordAdminBootstrapResponse = { account };
+      return res.status(201).json(response);
+    } catch (error) {
+      if (error instanceof NikiPasswordAccountError) {
+        const status = error.code === 'already-initialized' ? 409 : 400;
+        return res.status(status).json({ error: error.message, code: error.code });
+      }
+      throw error;
+    }
+  });
+
+  app.post('/api/auth/password/change', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!requireTrustedMutation(options, req, res)) return;
+    if (!config.passwordLogin) {
+      return res.status(404).json({ error: 'Password login is not enabled' });
+    }
+    const user = requireSignedInUser(db, req, res);
+    if (!user) return;
+    const body = req.body as Partial<NikiPasswordChangeRequest> | undefined;
+    try {
+      const changedUser = await changeOwnPassword(
+        db,
+        user.id,
+        typeof body?.currentPassword === 'string' ? body.currentPassword : '',
+        typeof body?.newPassword === 'string' ? body.newPassword : '',
+      );
+      if (!changedUser) {
+        return res.status(401).json({ error: '当前密码不正确或账号不支持密码登录' });
+      }
+      const session = createNikiSession(db, changedUser.id);
+      setCookie(res, SESSION_COOKIE, session.token, {
+        maxAgeSeconds: SESSION_TTL_SECONDS,
+        secure: config.publicUrl.startsWith('https://'),
+      });
+      const response: NikiPasswordChangeResponse = {
+        ok: true,
+        user: publicAuthUser(changedUser),
+        ...(req.get('x-niki-session-transport')?.toLowerCase() === 'bearer'
+          ? { sessionToken: session.token, expiresAt: session.expiresAt }
+          : {}),
+      };
+      return res.json(response);
+    } catch (error) {
+      if (error instanceof NikiPasswordAccountError) {
+        return res.status(400).json({ error: error.message, code: error.code });
+      }
+      throw error;
+    }
   });
 
   app.get('/api/auth/password-users', (req, res) => {
@@ -261,6 +360,7 @@ export function registerNikiAuthRoutes(
   });
 
   app.post('/api/auth/password-users', async (req, res) => {
+    if (!requireTrustedMutation(options, req, res)) return;
     const admin = requireAdmin(db, req, res);
     if (!admin) return;
     const body = req.body as Partial<NikiPasswordAccountCreateRequest> | undefined;
@@ -282,6 +382,7 @@ export function registerNikiAuthRoutes(
   });
 
   app.patch('/api/auth/password-users/:userId/password', async (req, res) => {
+    if (!requireTrustedMutation(options, req, res)) return;
     const admin = requireAdmin(db, req, res);
     if (!admin) return;
     const body = req.body as Partial<NikiPasswordAccountPasswordUpdateRequest> | undefined;
@@ -303,6 +404,7 @@ export function registerNikiAuthRoutes(
   });
 
   app.delete('/api/auth/password-users/:userId', (req, res) => {
+    if (!requireTrustedMutation(options, req, res)) return;
     const admin = requireAdmin(db, req, res);
     if (!admin) return;
     const disabled = disablePasswordUser(db, req.params.userId);
@@ -342,6 +444,7 @@ export function registerNikiAuthRoutes(
 
   app.patch('/api/auth/users/:userId/quota', async (req, res, next) => {
     try {
+      if (!requireTrustedMutation(options, req, res)) return;
       const admin = requireAdmin(db, req, res);
       if (!admin) return;
       const body = req.body as Partial<NikiUserQuotaUpdateRequest> | undefined;
@@ -422,7 +525,40 @@ function isPublicApiPath(pathname: string): boolean {
     || pathname === '/auth/feishu/start'
     || pathname === '/auth/feishu/callback'
     || pathname === '/auth/password/login'
+    || pathname === '/auth/bootstrap/password-admin'
     || pathname === '/auth/logout';
+}
+
+function requireTrustedMutation(
+  options: RegisterNikiAuthRoutesOptions,
+  req: Request,
+  res: Response,
+): boolean {
+  if (req.headers.authorization) return true;
+  if (req.get('x-niki-session-transport')?.toLowerCase() === 'bearer') return true;
+  if (isDirectLocalOperatorRequest(options, req)) return true;
+  if (options.isTrustedBrowserRequest?.(req) === true) return true;
+  res.status(403).json({ error: 'Request origin is not allowed' });
+  return false;
+}
+
+function isDirectLocalOperatorRequest(
+  options: RegisterNikiAuthRoutesOptions,
+  req: Request,
+): boolean {
+  if (req.get('x-forwarded-host') || req.get('x-forwarded-for')) return false;
+  return options.isLocalOperatorRequest?.(req) === true;
+}
+
+function passwordBootstrapRequired(
+  db: SqliteDb,
+  config: NikiAuthRuntimeConfig,
+): boolean {
+  if (!config.passwordLogin || config.mode === 'feishu') return false;
+  const row = db.prepare('SELECT COUNT(*) AS count FROM niki_users').get() as {
+    count: number;
+  };
+  return Number(row.count) === 0;
 }
 
 function requireAdmin(
@@ -458,13 +594,14 @@ function requireSignedInUser(
 function publicAuthUser(
   user: ReturnType<typeof resolveNikiSession> extends infer U
     ? Exclude<U, null>
-    : never,
-) {
+  : never,
+): NikiAuthUser {
   return {
     id: user.id,
     name: user.name,
     ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
     role: user.role,
+    provider: user.openId.startsWith('password:') ? 'password' : 'feishu',
   };
 }
 

@@ -255,6 +255,13 @@ async function runAuth(args) {
   if (args.length === 0 || args[0] === 'help' || args.includes('--help') || args.includes('-h')) {
     console.log(`Usage:
   od auth status [--json] [--daemon-url <url>]
+  od auth bootstrap-admin --username <id> --name <display-name>
+      --password-file <path|-> [--json] [--daemon-url <url>]
+  od auth login --username <id> --password-file <path|->
+      [--json] [--daemon-url <url>]
+  od auth change-password --current-password-file <path|->
+      --password-file <path|-> [--json] [--daemon-url <url>]
+  od auth logout [--json] [--daemon-url <url>]
   od auth users list [--json] [--daemon-url <url>]
   od auth users create --username <id> --name <display-name>
       --password-file <path|-> [--json] [--daemon-url <url>]
@@ -264,27 +271,119 @@ async function runAuth(args) {
       --daily-generations <number> [--json] [--daemon-url <url>]
   od auth users disable --user <user-id> [--json] [--daemon-url <url>]
 
-Reports whether Niki Feishu authentication is enabled and whether the
+Reports whether Niki authentication is enabled and whether the
 current OD_NIKI_SESSION_TOKEN belongs to a signed-in user.
 
-Password accounts can only be administered with an administrator session in
-OD_NIKI_SESSION_TOKEN. Passwords are read from a file or stdin and are never
-accepted as a command-line argument.`);
+bootstrap-admin is accepted only by the local daemon and only before the first
+user exists. login returns an OD_NIKI_SESSION_TOKEN for subsequent od commands.
+Password accounts can only be administered with an administrator session.
+Passwords are read from a file or stdin and are never accepted as a command-line
+argument.`);
     process.exit(args.length === 0 ? 2 : 0);
   }
   const sub = args[0];
   const flags = parseFlags(args.slice(1), {
     string: new Set([
       'daemon-url', 'username', 'name', 'password-file', 'user',
-      'storage-gb', 'daily-generations',
+      'current-password-file', 'storage-gb', 'daily-generations',
     ]),
     boolean: new Set(['json', 'help', 'h']),
   });
-  if (sub !== 'status' && sub !== 'users') {
+  if (!['status', 'bootstrap-admin', 'login', 'change-password', 'logout', 'users'].includes(sub)) {
     console.error(`unknown subcommand: od auth ${sub}`);
     process.exit(2);
   }
   const base = (await resolveDaemonUrl({ flagUrl: flags['daemon-url'] })).replace(/\/$/, '');
+  if (sub === 'bootstrap-admin') {
+    if (!flags.username || !flags.name || !flags['password-file']) {
+      console.error('bootstrap-admin requires --username, --name, and --password-file <path|->');
+      process.exit(2);
+    }
+    const password = await readSecretFile(flags['password-file']);
+    const response = await fetch(`${base}/api/auth/bootstrap/password-admin`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        username: flags.username,
+        name: flags.name,
+        password,
+      }),
+    });
+    if (!response.ok) return structuredHttpFailure(response);
+    const body = await response.json();
+    if (flags.json) process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+    else console.log(`bootstrapped\t${body.account.username}\t${body.account.user.name}`);
+    return;
+  }
+  if (sub === 'login') {
+    if (!flags.username || !flags['password-file']) {
+      console.error('login requires --username and --password-file <path|->');
+      process.exit(2);
+    }
+    const password = await readSecretFile(flags['password-file']);
+    const response = await nativeFetch(`${base}/api/auth/password/login`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-niki-session-transport': 'bearer',
+      },
+      body: JSON.stringify({ username: flags.username, password }),
+    });
+    if (!response.ok) return structuredHttpFailure(response);
+    const body = await response.json();
+    if (flags.json) {
+      process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+    } else {
+      console.log(`logged-in\t${body.user.name}\t${body.user.role}`);
+      console.log(`export OD_NIKI_SESSION_TOKEN='${body.sessionToken}'`);
+    }
+    return;
+  }
+  if (sub === 'change-password') {
+    if (!nikiSessionToken) {
+      console.error('OD_NIKI_SESSION_TOKEN is required to change the current password');
+      process.exit(2);
+    }
+    if (!flags['current-password-file'] || !flags['password-file']) {
+      console.error('change-password requires --current-password-file and --password-file <path|->');
+      process.exit(2);
+    }
+    if (flags['current-password-file'] === '-' && flags['password-file'] === '-') {
+      console.error('only one password file may use stdin');
+      process.exit(2);
+    }
+    const currentPassword = await readSecretFile(flags['current-password-file']);
+    const newPassword = await readSecretFile(flags['password-file']);
+    const response = await fetch(`${base}/api/auth/password/change`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-niki-session-transport': 'bearer',
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!response.ok) return structuredHttpFailure(response);
+    const body = await response.json();
+    if (flags.json) {
+      process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+    } else {
+      console.log(`password-updated\t${body.user.name}`);
+      console.log(`export OD_NIKI_SESSION_TOKEN='${body.sessionToken}'`);
+    }
+    return;
+  }
+  if (sub === 'logout') {
+    if (!nikiSessionToken) {
+      console.error('OD_NIKI_SESSION_TOKEN is required to log out');
+      process.exit(2);
+    }
+    const response = await fetch(`${base}/api/auth/logout`, { method: 'POST' });
+    if (!response.ok) return structuredHttpFailure(response);
+    const body = await response.json();
+    if (flags.json) process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+    else console.log('logged-out\nunset OD_NIKI_SESSION_TOKEN');
+    return;
+  }
   if (sub === 'users') {
     const action = args[1];
     if (!['list', 'create', 'set-password', 'set-quota', 'disable'].includes(action)) {
@@ -430,7 +529,8 @@ accepted as a command-line argument.`);
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
     return;
   }
-  console.log(`provider\t${config.provider ?? 'local'}`);
+  console.log(`mode\t${config.mode ?? (config.provider ?? 'local')}`);
+  console.log(`providers\t${(config.providers ?? []).join(',') || 'local'}`);
   console.log(`enabled\t${config.enabled ? 'yes' : 'no'}`);
   console.log(`ready\t${config.ready ? 'yes' : 'no'}`);
   console.log(`authenticated\t${output.authenticated ? 'yes' : 'no'}`);

@@ -10,6 +10,7 @@ import type {
 import { Icon } from './Icon';
 import { InlineModelSwitcher } from './InlineModelSwitcher';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
+import { PasswordChangeDialog } from '../auth/PasswordChangeDialog';
 
 type SettingsSection =
   | 'execution'
@@ -32,6 +33,7 @@ interface Props {
   avatarUrl?: string;
   onLogout?: () => Promise<void>;
   isAdmin?: boolean;
+  canChangePassword?: boolean;
   config: AppConfig;
   agents: AgentInfo[];
   daemonLive: boolean;
@@ -72,6 +74,7 @@ export function WorkspaceAccountMenu({
   avatarUrl,
   onLogout,
   isAdmin = false,
+  canChangePassword = false,
   config,
   agents,
   daemonLive,
@@ -90,6 +93,7 @@ export function WorkspaceAccountMenu({
   const [appearanceExpanded, setAppearanceExpanded] = useState(false);
   const [shortcutsExpanded, setShortcutsExpanded] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
+  const [passwordChangeOpen, setPasswordChangeOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const normalizedUsername = username.trim() || 'niki';
   const avatarLabel = Array.from(normalizedUsername)[0]?.toUpperCase() ?? 'N';
@@ -338,6 +342,23 @@ export function WorkspaceAccountMenu({
             </button>
           ) : null}
 
+          {canChangePassword ? (
+            <button
+              type="button"
+              className="avatar-item"
+              onClick={() => {
+                setOpen(false);
+                setPasswordChangeOpen(true);
+              }}
+              data-testid="niki-account-change-password"
+            >
+              <span className="avatar-item-icon" aria-hidden>
+                <Icon name="settings" size={14} />
+              </span>
+              <span>修改密码</span>
+            </button>
+          ) : null}
+
           {onLogout ? (
             <button
               type="button"
@@ -359,6 +380,10 @@ export function WorkspaceAccountMenu({
       <PasswordAccountManager
         open={accountManagerOpen}
         onClose={() => setAccountManagerOpen(false)}
+      />
+      <PasswordChangeDialog
+        open={passwordChangeOpen}
+        onClose={() => setPasswordChangeOpen(false)}
       />
     </div>
   );

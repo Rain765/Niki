@@ -357,6 +357,7 @@ export function NikiWorkspaceShell({
         username={nikiAuth.user.name}
         avatarUrl={nikiAuth.user.avatarUrl}
         isAdmin={nikiAuth.user.role === 'admin'}
+        canChangePassword={nikiAuth.user.provider === 'password'}
         onLogout={nikiAuth.enabled ? nikiAuth.logout : undefined}
         config={config}
         agents={agents}

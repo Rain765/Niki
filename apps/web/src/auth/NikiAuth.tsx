@@ -55,8 +55,28 @@ function clearAuthErrorFromLocation(): void {
 type AuthState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'unauthenticated'; ready: boolean }
-  | { status: 'authenticated'; enabled: boolean; user: NikiAuthUser };
+  | { status: 'unauthenticated'; config: NikiAuthConfigResponse }
+  | {
+      status: 'authenticated';
+      enabled: boolean;
+      user: NikiAuthUser;
+    };
+
+function normalizeAuthConfig(config: NikiAuthConfigResponse): NikiAuthConfigResponse {
+  const feishuLogin = config.feishuLogin ?? config.provider === 'feishu';
+  const passwordLogin = config.passwordLogin ?? false;
+  return {
+    ...config,
+    mode: config.mode ?? (config.enabled ? 'feishu' : 'disabled'),
+    providers: config.providers ?? [
+      ...(feishuLogin ? ['feishu'] as const : []),
+      ...(passwordLogin ? ['password'] as const : []),
+    ],
+    feishuLogin,
+    passwordLogin,
+    bootstrapRequired: config.bootstrapRequired ?? false,
+  };
+}
 
 export function NikiAuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
@@ -79,27 +99,37 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
         .catch((error: unknown) => ({ error }));
       const configResponse = await configRequest;
       if (!configResponse.ok) throw new Error('无法读取登录配置');
-      const config = await configResponse.json() as NikiAuthConfigResponse;
+      const config = normalizeAuthConfig(
+        await configResponse.json() as NikiAuthConfigResponse,
+      );
       if (!config.enabled) {
         clearAuthErrorFromLocation();
-        setState({ status: 'authenticated', enabled: false, user: LOCAL_USER });
+        setState({
+          status: 'authenticated',
+          enabled: false,
+          user: LOCAL_USER,
+        });
         return;
       }
       if (!config.ready) {
-        setState({ status: 'unauthenticated', ready: false });
+        setState({ status: 'unauthenticated', config });
         return;
       }
       const meResult = await meRequest;
       if ('error' in meResult) throw meResult.error;
       const { response: meResponse } = meResult;
       if (meResponse.status === 401) {
-        setState({ status: 'unauthenticated', ready: true });
+        setState({ status: 'unauthenticated', config });
         return;
       }
       if (!meResponse.ok) throw new Error('无法读取登录状态');
       const me = await meResponse.json() as NikiAuthMeResponse;
       clearAuthErrorFromLocation();
-      setState({ status: 'authenticated', enabled: true, user: me.user });
+      setState({
+        status: 'authenticated',
+        enabled: true,
+        user: me.user,
+      });
     } catch (error) {
       setState({
         status: 'error',
@@ -124,8 +154,8 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
       method: 'POST',
       credentials: 'include',
     }).catch(() => {});
-    setState({ status: 'unauthenticated', ready: true });
-  }, []);
+    await load();
+  }, [load]);
 
   const contextValue = useMemo<NikiAuthContextValue | null>(() => (
     state.status === 'authenticated'
@@ -160,7 +190,9 @@ function NikiAuthScreen({
   state: Exclude<AuthState, { status: 'authenticated' }>;
   onRetry: () => Promise<void>;
 }) {
-  const [passwordMode, setPasswordMode] = useState(false);
+  const [selectedLoginMethod, setSelectedLoginMethod] = useState<
+    'feishu' | 'password' | null
+  >(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -168,6 +200,12 @@ function NikiAuthScreen({
   const authError = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('authError') ?? '';
+  const config = state.status === 'unauthenticated' ? state.config : null;
+  const passwordOnly = Boolean(
+    config?.passwordLogin && !config.feishuLogin,
+  );
+  const passwordMode = selectedLoginMethod === 'password'
+    || (selectedLoginMethod == null && passwordOnly);
   const login = () => {
     const returnTo = authReturnTo();
     window.location.assign(
@@ -222,10 +260,17 @@ function NikiAuthScreen({
             <p>{state.message}</p>
             <button type="button" onClick={() => void onRetry()}>重新连接</button>
           </>
-        ) : !state.ready ? (
+        ) : !state.config.ready ? (
           <>
-            <p>服务器尚未完成飞书登录配置。</p>
-            <p className="niki-auth__hint">请先在 Mac mini 写入 App ID 和 App Secret。</p>
+            <p>服务器尚未完成登录配置。</p>
+            <p className="niki-auth__hint">请检查当前鉴权模式所需的服务端配置。</p>
+          </>
+        ) : state.config.bootstrapRequired ? (
+          <>
+            <p>工作区还没有管理员账号。</p>
+            <p className="niki-auth__hint">
+              请在运行 Niki 的机器上执行 od auth bootstrap-admin 完成一次性初始化。
+            </p>
           </>
         ) : (
           <>
@@ -272,32 +317,38 @@ function NikiAuthScreen({
                 <button type="submit" disabled={submitting}>
                   {submitting ? '正在登录…' : '登录'}
                 </button>
-                <button
-                  type="button"
-                  className="niki-auth__text-button"
-                  onClick={() => {
-                    clearAuthErrorFromLocation();
-                    setPasswordMode(false);
-                    setPasswordError('');
-                  }}
-                  disabled={submitting}
-                >
-                  返回飞书登录
-                </button>
+                {state.config.feishuLogin ? (
+                  <button
+                    type="button"
+                    className="niki-auth__text-button"
+                    onClick={() => {
+                      clearAuthErrorFromLocation();
+                      setSelectedLoginMethod('feishu');
+                      setPasswordError('');
+                    }}
+                    disabled={submitting}
+                  >
+                    返回飞书登录
+                  </button>
+                ) : null}
               </form>
             ) : (
               <>
-                <button type="button" onClick={login}>使用飞书登录</button>
-                <button
-                  type="button"
-                  className="niki-auth__text-button"
-                  onClick={() => {
-                    clearAuthErrorFromLocation();
-                    setPasswordMode(true);
-                  }}
-                >
-                  账号密码登录
-                </button>
+                {state.config.feishuLogin ? (
+                  <button type="button" onClick={login}>使用飞书登录</button>
+                ) : null}
+                {state.config.passwordLogin ? (
+                  <button
+                    type="button"
+                    className="niki-auth__text-button"
+                    onClick={() => {
+                      clearAuthErrorFromLocation();
+                      setSelectedLoginMethod('password');
+                    }}
+                  >
+                    账号密码登录
+                  </button>
+                ) : null}
               </>
             )}
           </>

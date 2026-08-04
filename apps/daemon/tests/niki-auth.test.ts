@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { scryptSync } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -11,11 +12,13 @@ import {
   openDatabase,
 } from '../src/db.js';
 import {
+  bootstrapPasswordAdmin,
   consumeNikiOAuthState,
   createNikiOAuthState,
   createNikiSession,
   resolveNikiSession,
   upsertFeishuUser,
+  verifyPasswordUser,
 } from '../src/niki-auth.js';
 import {
   currentNikiSessionToken,
@@ -139,5 +142,76 @@ describe('Niki Feishu authentication persistence', () => {
       'session-for-child-cli',
     )).toBe('session-for-child-cli');
     expect(currentNikiSessionToken()).toBeNull();
+  });
+
+  it('bootstraps a password admin, claims legacy projects, and stores versioned scrypt', async () => {
+    const db = openDatabase(tempDir, { dataDir: tempDir });
+    insertProject(db, {
+      id: 'legacy-project',
+      name: 'Legacy',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    const account = await bootstrapPasswordAdmin(db, {
+      username: 'Owner',
+      name: 'Workspace owner',
+      password: 'correct horse battery staple',
+    });
+    const stored = db.prepare(
+      'SELECT password_hash AS passwordHash FROM niki_password_accounts',
+    ).get() as { passwordHash: string };
+
+    expect(account.username).toBe('owner');
+    expect(account.user.role).toBe('admin');
+    expect(stored.passwordHash).toMatch(/^scrypt\$v1\$16384\$8\$1\$/);
+    expect((await verifyPasswordUser(
+      db,
+      'OWNER',
+      'correct horse battery staple',
+    ))?.id).toBe(account.user.id);
+    expect(runAsNikiUser(
+      {
+        ...account.user,
+        tenantKey: '__niki_password__',
+        openId: `password:${account.user.id}`,
+        createdAt: account.createdAt,
+        updatedAt: account.createdAt,
+      },
+      () => getProject(db, 'legacy-project'),
+    )?.id).toBe('legacy-project');
+  });
+
+  it('rejects weak bootstrap passwords', async () => {
+    const db = openDatabase(tempDir, { dataDir: tempDir });
+
+    await expect(bootstrapPasswordAdmin(db, {
+      username: 'owner',
+      name: 'Workspace owner',
+      password: 'too-short',
+    })).rejects.toMatchObject({ code: 'weak-password' });
+  });
+
+  it('accepts legacy password hashes and upgrades them after a successful login', async () => {
+    const db = openDatabase(tempDir, { dataDir: tempDir });
+    const password = 'correct horse battery staple';
+    const account = await bootstrapPasswordAdmin(db, {
+      username: 'owner',
+      name: 'Workspace owner',
+      password,
+    });
+    const salt = Buffer.from('legacy-password-salt');
+    const legacyHash = `scrypt$${salt.toString('base64url')}`
+      + `$${scryptSync(password, salt, 64).toString('base64url')}`;
+    db.prepare(
+      'UPDATE niki_password_accounts SET password_hash = ? WHERE user_id = ?',
+    ).run(legacyHash, account.user.id);
+
+    expect((await verifyPasswordUser(db, 'owner', password))?.id)
+      .toBe(account.user.id);
+    const upgraded = db.prepare(
+      'SELECT password_hash AS passwordHash FROM niki_password_accounts',
+    ).get() as { passwordHash: string };
+    expect(upgraded.passwordHash).toMatch(/^scrypt\$v1\$16384\$8\$1\$/);
   });
 });

@@ -6,7 +6,34 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { closeDatabase, openDatabase } from '../src/db.js';
-import { registerNikiAuthRoutes } from '../src/niki-auth-routes.js';
+import {
+  readNikiAuthRuntimeConfig,
+  registerNikiAuthRoutes,
+} from '../src/niki-auth-routes.js';
+
+describe('Niki authentication runtime modes', () => {
+  it('keeps Feishu mode gated on OAuth configuration', () => {
+    expect(readNikiAuthRuntimeConfig({ NIKI_AUTH_MODE: 'feishu' }))
+      .toMatchObject({
+        mode: 'feishu',
+        enabled: true,
+        ready: false,
+        passwordLogin: true,
+        feishuLogin: false,
+      });
+  });
+
+  it('lets hybrid mode bootstrap by password before Feishu is configured', () => {
+    expect(readNikiAuthRuntimeConfig({ NIKI_AUTH_MODE: 'hybrid' }))
+      .toMatchObject({
+        mode: 'hybrid',
+        enabled: true,
+        ready: true,
+        passwordLogin: true,
+        feishuLogin: false,
+      });
+  });
+});
 
 describe('Niki Feishu authentication routes', () => {
   let tempDir: string;
@@ -39,6 +66,7 @@ describe('Niki Feishu authentication routes', () => {
       fetchImpl: feishuFetch,
       isLocalOperatorRequest: (req) =>
         req.get('x-test-local-operator') === 'yes',
+      isTrustedBrowserRequest: () => true,
       env: {
         NIKI_AUTH_MODE: 'feishu',
         NIKI_PUBLIC_URL: 'https://niki.example.test',
@@ -103,6 +131,7 @@ describe('Niki Feishu authentication routes', () => {
       user: {
         name: 'First teammate',
         role: 'admin',
+        provider: 'feishu',
       },
     });
 
@@ -194,5 +223,178 @@ describe('Niki Feishu authentication routes', () => {
         },
       }],
     });
+  });
+});
+
+describe('Niki standalone password authentication routes', () => {
+  let tempDir: string;
+  let server: http.Server;
+  let baseUrl: string;
+
+  beforeEach(async () => {
+    tempDir = mkdtempSync(path.join(os.tmpdir(), 'niki-password-auth-routes-'));
+    const db = openDatabase(tempDir, { dataDir: tempDir });
+    const app = express();
+    app.use(express.json());
+    registerNikiAuthRoutes(app, {
+      db,
+      projectsRoot: path.join(tempDir, 'projects'),
+      isLocalOperatorRequest: (req) =>
+        req.get('x-test-local-operator') === 'yes',
+      isTrustedBrowserRequest: (req) =>
+        req.get('origin') !== 'https://evil.example.test',
+      env: { NIKI_AUTH_MODE: 'password' },
+    });
+    app.get('/api/private', (_req, res) => res.json({ ok: true }));
+
+    server = http.createServer(app);
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('server not listening');
+    baseUrl = `http://127.0.0.1:${address.port}`;
+  });
+
+  afterEach(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    closeDatabase();
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('is ready without Feishu credentials and reports that bootstrap is required', async () => {
+    const response = await fetch(`${baseUrl}/api/auth/config`);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      enabled: true,
+      mode: 'password',
+      provider: 'password',
+      providers: ['password'],
+      ready: true,
+      passwordLogin: true,
+      feishuLogin: false,
+      bootstrapRequired: true,
+    });
+  });
+
+  it('bootstraps exactly one local administrator and accepts its password login', async () => {
+    const input = {
+      username: 'owner',
+      name: 'Workspace owner',
+      password: 'correct horse battery staple',
+    };
+    const remoteBootstrap = await fetch(`${baseUrl}/api/auth/bootstrap/password-admin`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    expect(remoteBootstrap.status).toBe(403);
+
+    const proxiedBootstrap = await fetch(`${baseUrl}/api/auth/bootstrap/password-admin`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': '203.0.113.10',
+        'x-test-local-operator': 'yes',
+      },
+      body: JSON.stringify(input),
+    });
+    expect(proxiedBootstrap.status).toBe(403);
+
+    const bootstrap = await fetch(`${baseUrl}/api/auth/bootstrap/password-admin`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-test-local-operator': 'yes',
+      },
+      body: JSON.stringify(input),
+    });
+    expect(bootstrap.status).toBe(201);
+    await expect(bootstrap.json()).resolves.toMatchObject({
+      account: {
+        username: 'owner',
+        user: { name: 'Workspace owner', role: 'admin' },
+      },
+    });
+
+    const duplicate = await fetch(`${baseUrl}/api/auth/bootstrap/password-admin`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-test-local-operator': 'yes',
+      },
+      body: JSON.stringify({ ...input, username: 'another-owner' }),
+    });
+    expect(duplicate.status).toBe(409);
+
+    const crossOriginLogin = await fetch(`${baseUrl}/api/auth/password/login`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example.test',
+      },
+      body: JSON.stringify({ username: input.username, password: input.password }),
+    });
+    expect(crossOriginLogin.status).toBe(403);
+
+    const wrongPassword = await fetch(`${baseUrl}/api/auth/password/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ username: input.username, password: 'wrong password' }),
+    });
+    expect(wrongPassword.status).toBe(401);
+
+    const login = await fetch(`${baseUrl}/api/auth/password/login`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-niki-session-transport': 'bearer',
+      },
+      body: JSON.stringify({ username: input.username, password: input.password }),
+    });
+    expect(login.status).toBe(200);
+    const loginBody = await login.json() as {
+      sessionToken?: string;
+      expiresAt?: number;
+      user?: { provider?: string };
+    };
+    expect(loginBody.sessionToken).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(loginBody.expiresAt).toBeGreaterThan(Date.now());
+    expect(loginBody.user?.provider).toBe('password');
+
+    const authenticated = await fetch(`${baseUrl}/api/private`, {
+      headers: { authorization: `Bearer ${loginBody.sessionToken}` },
+    });
+    expect(authenticated.status).toBe(200);
+
+    const changed = await fetch(`${baseUrl}/api/auth/password/change`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${loginBody.sessionToken}`,
+        'content-type': 'application/json',
+        'x-niki-session-transport': 'bearer',
+      },
+      body: JSON.stringify({
+        currentPassword: input.password,
+        newPassword: 'a different strong password',
+      }),
+    });
+    expect(changed.status).toBe(200);
+    const changedBody = await changed.json() as { sessionToken?: string };
+    expect(changedBody.sessionToken).toBeTruthy();
+    expect(changedBody.sessionToken).not.toBe(loginBody.sessionToken);
+
+    const invalidatedSession = await fetch(`${baseUrl}/api/private`, {
+      headers: { authorization: `Bearer ${loginBody.sessionToken}` },
+    });
+    expect(invalidatedSession.status).toBe(401);
+    const replacementSession = await fetch(`${baseUrl}/api/private`, {
+      headers: { authorization: `Bearer ${changedBody.sessionToken}` },
+    });
+    expect(replacementSession.status).toBe(200);
+
+    const config = await fetch(`${baseUrl}/api/auth/config`);
+    await expect(config.json()).resolves.toMatchObject({ bootstrapRequired: false });
   });
 });
