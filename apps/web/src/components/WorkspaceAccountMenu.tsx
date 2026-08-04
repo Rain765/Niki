@@ -31,6 +31,8 @@ interface Props {
   username: string;
   avatarUrl?: string;
   onLogout?: () => Promise<void>;
+  onLinkWechat?: () => void;
+  wechatLinkAvailable?: boolean;
   isAdmin?: boolean;
   config: AppConfig;
   agents: AgentInfo[];
@@ -71,6 +73,8 @@ export function WorkspaceAccountMenu({
   username,
   avatarUrl,
   onLogout,
+  onLinkWechat,
+  wechatLinkAvailable = false,
   isAdmin = false,
   config,
   agents,
@@ -335,6 +339,23 @@ export function WorkspaceAccountMenu({
                 <Icon name="settings" size={14} />
               </span>
               <span>账号管理</span>
+            </button>
+          ) : null}
+
+          {wechatLinkAvailable && onLinkWechat ? (
+            <button
+              type="button"
+              className="avatar-item"
+              onClick={() => {
+                setOpen(false);
+                onLinkWechat();
+              }}
+              data-testid="niki-account-link-wechat"
+            >
+              <span className="avatar-item-icon" aria-hidden>
+                <Icon name="link" size={14} />
+              </span>
+              <span>绑定微信</span>
             </button>
           ) : null}
 

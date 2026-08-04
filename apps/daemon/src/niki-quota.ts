@@ -2,6 +2,7 @@ import { lstat, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import type Database from 'better-sqlite3';
 import type {
+  NikiAuthProvider,
   NikiManagedUser,
   NikiUserQuota,
   NikiUserQuotaStatus,
@@ -41,6 +42,7 @@ interface ManagedUserRow extends QuotaRow {
   isActive: number;
   createdAt: number;
   username: string | null;
+  providersText: string | null;
 }
 
 function normalizeQuota(row: QuotaRow): NikiUserQuota {
@@ -232,13 +234,26 @@ export async function listNikiManagedUsers(
             users.created_at AS createdAt,
             users.storage_quota_bytes AS storageQuotaBytes,
             users.daily_generation_quota AS dailyGenerationQuota,
-            accounts.username
+            accounts.username,
+            GROUP_CONCAT(DISTINCT identities.provider) AS providersText
        FROM niki_users users
        LEFT JOIN niki_password_accounts accounts ON accounts.user_id = users.id
+       LEFT JOIN niki_identities identities ON identities.user_id = users.id
+      GROUP BY users.id
       ORDER BY users.created_at ASC`,
   ).all() as ManagedUserRow[];
   return await Promise.all(rows.map(async (row) => {
     const status = await getNikiQuotaStatus(db, projectsRoot, row.id, options);
+    const providers = (row.providersText ?? '')
+      .split(',')
+      .filter((provider): provider is NikiAuthProvider => (
+        provider === 'feishu' || provider === 'wechat' || provider === 'password'
+      ));
+    const provider: NikiAuthProvider = row.username
+      ? 'password'
+      : providers.includes('feishu')
+        ? 'feishu'
+        : 'wechat';
     return {
       user: {
         id: row.id,
@@ -246,7 +261,8 @@ export async function listNikiManagedUsers(
         ...(row.avatarUrl ? { avatarUrl: row.avatarUrl } : {}),
         role: row.role === 'admin' ? 'admin' : 'member',
       },
-      provider: row.username ? 'password' : 'feishu',
+      provider,
+      providers,
       ...(row.username ? { username: row.username } : {}),
       isActive: row.isActive === 1,
       createdAt: row.createdAt,

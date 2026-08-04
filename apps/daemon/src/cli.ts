@@ -264,7 +264,7 @@ async function runAuth(args) {
       --daily-generations <number> [--json] [--daemon-url <url>]
   od auth users disable --user <user-id> [--json] [--daemon-url <url>]
 
-Reports whether Niki Feishu authentication is enabled and whether the
+Reports which Niki authentication providers are enabled and whether the
 current OD_NIKI_SESSION_TOKEN belongs to a signed-in user.
 
 Password accounts can only be administered with an administrator session in
@@ -306,7 +306,7 @@ accepted as a command-line argument.`);
       for (const account of body.users ?? []) {
         console.log([
           account.user?.id ?? '',
-          account.provider ?? '',
+          account.providers?.join(',') ?? account.provider ?? '',
           account.username ?? '-',
           account.user?.name ?? '',
           account.isActive ? 'active' : 'disabled',
@@ -431,6 +431,11 @@ accepted as a command-line argument.`);
     return;
   }
   console.log(`provider\t${config.provider ?? 'local'}`);
+  if (config.providers) {
+    console.log(`feishu\t${config.providers.feishu.ready ? 'ready' : 'unavailable'}`);
+    console.log(`wechat-website\t${config.providers.wechat.website ? 'ready' : 'unavailable'}`);
+    console.log(`wechat-official-account\t${config.providers.wechat.officialAccount ? 'ready' : 'unavailable'}`);
+  }
   console.log(`enabled\t${config.enabled ? 'yes' : 'no'}`);
   console.log(`ready\t${config.ready ? 'yes' : 'no'}`);
   console.log(`authenticated\t${output.authenticated ? 'yes' : 'no'}`);

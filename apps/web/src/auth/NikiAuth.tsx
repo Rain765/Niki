@@ -19,6 +19,8 @@ interface NikiAuthContextValue {
   enabled: boolean;
   user: NikiAuthUser;
   logout: () => Promise<void>;
+  wechatLinkAvailable: boolean;
+  linkWechat: () => void;
 }
 
 const LOCAL_USER: NikiAuthUser = {
@@ -27,13 +29,66 @@ const LOCAL_USER: NikiAuthUser = {
   role: 'admin',
 };
 
+const LOCAL_AUTH_CONFIG: NikiAuthConfigResponse = {
+  enabled: false,
+  provider: null,
+  ready: true,
+  passwordLogin: false,
+  providers: {
+    feishu: { enabled: false, ready: false },
+    wechat: {
+      enabled: false,
+      ready: false,
+      website: false,
+      officialAccount: false,
+    },
+  },
+};
+
 const NikiAuthContext = createContext<NikiAuthContextValue>({
   enabled: false,
   user: LOCAL_USER,
   logout: async () => {},
+  wechatLinkAvailable: false,
+  linkWechat: () => {},
 });
 
 const AUTH_BOOTSTRAP_TIMEOUT_MS = 8_000;
+
+function normalizeAuthConfig(config: NikiAuthConfigResponse): NikiAuthConfigResponse {
+  if (config.providers) return config;
+  return {
+    ...config,
+    passwordLogin: config.passwordLogin ?? config.enabled,
+    providers: {
+      feishu: {
+        enabled: config.provider === 'feishu',
+        ready: config.provider === 'feishu' && config.ready,
+      },
+      wechat: {
+        enabled: config.provider === 'wechat',
+        ready: config.provider === 'wechat' && config.ready,
+        website: false,
+        officialAccount: false,
+      },
+    },
+  };
+}
+
+function wechatLoginContext(config: NikiAuthConfigResponse): {
+  inWechat: boolean;
+  available: boolean;
+} {
+  const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+  const inWechat = /MicroMessenger/i.test(userAgent);
+  const mobileBrowser = /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
+  return {
+    inWechat,
+    available: inWechat
+      ? config.providers.wechat.officialAccount
+      : !mobileBrowser && config.providers.wechat.website,
+  };
+}
 
 function authReturnTo(): string {
   const url = new URL(window.location.href);
@@ -43,8 +98,12 @@ function authReturnTo(): string {
 
 function clearAuthErrorFromLocation(): void {
   const url = new URL(window.location.href);
-  if (!url.searchParams.has('authError')) return;
+  if (
+    !url.searchParams.has('authError')
+    && !url.searchParams.has('wechatLinked')
+  ) return;
   url.searchParams.delete('authError');
+  url.searchParams.delete('wechatLinked');
   window.history.replaceState(
     window.history.state,
     '',
@@ -55,8 +114,13 @@ function clearAuthErrorFromLocation(): void {
 type AuthState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'unauthenticated'; ready: boolean }
-  | { status: 'authenticated'; enabled: boolean; user: NikiAuthUser };
+  | { status: 'unauthenticated'; config: NikiAuthConfigResponse }
+  | {
+    status: 'authenticated';
+    enabled: boolean;
+    user: NikiAuthUser;
+    config: NikiAuthConfigResponse;
+  };
 
 export function NikiAuthGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
@@ -79,27 +143,39 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
         .catch((error: unknown) => ({ error }));
       const configResponse = await configRequest;
       if (!configResponse.ok) throw new Error('无法读取登录配置');
-      const config = await configResponse.json() as NikiAuthConfigResponse;
+      const config = normalizeAuthConfig(
+        await configResponse.json() as NikiAuthConfigResponse,
+      );
       if (!config.enabled) {
         clearAuthErrorFromLocation();
-        setState({ status: 'authenticated', enabled: false, user: LOCAL_USER });
+        setState({
+          status: 'authenticated',
+          enabled: false,
+          user: LOCAL_USER,
+          config,
+        });
         return;
       }
       if (!config.ready) {
-        setState({ status: 'unauthenticated', ready: false });
+        setState({ status: 'unauthenticated', config });
         return;
       }
       const meResult = await meRequest;
       if ('error' in meResult) throw meResult.error;
       const { response: meResponse } = meResult;
       if (meResponse.status === 401) {
-        setState({ status: 'unauthenticated', ready: true });
+        setState({ status: 'unauthenticated', config });
         return;
       }
       if (!meResponse.ok) throw new Error('无法读取登录状态');
       const me = await meResponse.json() as NikiAuthMeResponse;
       clearAuthErrorFromLocation();
-      setState({ status: 'authenticated', enabled: true, user: me.user });
+      setState({
+        status: 'authenticated',
+        enabled: true,
+        user: me.user,
+        config,
+      });
     } catch (error) {
       setState({
         status: 'error',
@@ -124,14 +200,33 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
       method: 'POST',
       credentials: 'include',
     }).catch(() => {});
-    setState({ status: 'unauthenticated', ready: true });
+    setState((current) => ({
+      status: 'unauthenticated',
+      config: current.status === 'authenticated'
+        ? current.config
+        : LOCAL_AUTH_CONFIG,
+    }));
+  }, []);
+
+  const linkWechat = useCallback(() => {
+    const returnTo = authReturnTo();
+    window.location.assign(
+      `/api/auth/wechat/start?link=1&returnTo=${encodeURIComponent(returnTo)}`,
+    );
   }, []);
 
   const contextValue = useMemo<NikiAuthContextValue | null>(() => (
     state.status === 'authenticated'
-      ? { enabled: state.enabled, user: state.user, logout }
+      ? {
+        enabled: state.enabled,
+        user: state.user,
+        logout,
+        wechatLinkAvailable: wechatLoginContext(state.config).available
+          && !state.user.providers?.includes('wechat'),
+        linkWechat,
+      }
       : null
-  ), [logout, state]);
+  ), [linkWechat, logout, state]);
 
   if (!contextValue) {
     return (
@@ -168,10 +263,17 @@ function NikiAuthScreen({
   const authError = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('authError') ?? '';
-  const login = () => {
+  const config = state.status === 'unauthenticated'
+    ? state.config
+    : LOCAL_AUTH_CONFIG;
+  const {
+    inWechat,
+    available: wechatLoginAvailable,
+  } = wechatLoginContext(config);
+  const login = (provider: 'feishu' | 'wechat') => {
     const returnTo = authReturnTo();
     window.location.assign(
-      `/api/auth/feishu/start?returnTo=${encodeURIComponent(returnTo)}`,
+      `/api/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`,
     );
   };
   const loginWithPassword = async () => {
@@ -222,21 +324,23 @@ function NikiAuthScreen({
             <p>{state.message}</p>
             <button type="button" onClick={() => void onRetry()}>重新连接</button>
           </>
-        ) : !state.ready ? (
+        ) : !config.ready ? (
           <>
-            <p>服务器尚未完成飞书登录配置。</p>
-            <p className="niki-auth__hint">请先在 Mac mini 写入 App ID 和 App Secret。</p>
+            <p>服务器尚未完成登录配置。</p>
+            <p className="niki-auth__hint">请先配置飞书或微信 App ID 与 App Secret。</p>
           </>
         ) : (
           <>
             <p>
               {passwordMode
                 ? '使用管理员为你创建的 Niki 账号登录。'
-                : '使用公司飞书身份登录。每位用户拥有独立的项目和图片。'}
+                : '选择快捷登录方式。每位用户拥有独立的项目和图片。'}
             </p>
             {authError ? (
               <div className="niki-auth__error">
-                飞书登录未完成，请重试。
+                {authError === 'wechat_identity_conflict'
+                  ? '这个微信已经绑定到另一个 Niki 账号。'
+                  : '登录未完成，请重试。'}
               </div>
             ) : null}
             {passwordMode ? (
@@ -282,22 +386,37 @@ function NikiAuthScreen({
                   }}
                   disabled={submitting}
                 >
-                  返回飞书登录
+                  返回其他登录方式
                 </button>
               </form>
             ) : (
               <>
-                <button type="button" onClick={login}>使用飞书登录</button>
-                <button
-                  type="button"
-                  className="niki-auth__text-button"
-                  onClick={() => {
-                    clearAuthErrorFromLocation();
-                    setPasswordMode(true);
-                  }}
-                >
-                  账号密码登录
-                </button>
+                {wechatLoginAvailable ? (
+                  <button type="button" onClick={() => login('wechat')}>
+                    {inWechat ? '微信快捷登录' : '微信扫码登录'}
+                  </button>
+                ) : null}
+                {config.providers?.feishu.ready ? (
+                  <button
+                    type="button"
+                    className={wechatLoginAvailable ? 'niki-auth__text-button' : undefined}
+                    onClick={() => login('feishu')}
+                  >
+                    使用飞书登录
+                  </button>
+                ) : null}
+                {config.passwordLogin ? (
+                  <button
+                    type="button"
+                    className="niki-auth__text-button"
+                    onClick={() => {
+                      clearAuthErrorFromLocation();
+                      setPasswordMode(true);
+                    }}
+                  >
+                    账号密码登录
+                  </button>
+                ) : null}
               </>
             )}
           </>

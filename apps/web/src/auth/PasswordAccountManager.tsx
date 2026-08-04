@@ -16,6 +16,15 @@ function passwordValidationError(password: string, confirmation: string): string
   return '';
 }
 
+function accountIdentityLabel(account: NikiManagedUser): string {
+  const labels = account.providers.map((provider) => {
+    if (provider === 'password') return account.username ? `@${account.username}` : '密码账号';
+    if (provider === 'wechat') return '微信';
+    return '飞书';
+  });
+  return labels.join(' · ') || account.provider;
+}
+
 export function PasswordAccountManager({
   open,
   onClose,
@@ -334,9 +343,7 @@ export function PasswordAccountManager({
                 <div>
                   <strong>{account.user.name}</strong>
                   <span>
-                    {account.provider === 'password'
-                      ? `@${account.username}`
-                      : '飞书账号'}
+                    {accountIdentityLabel(account)}
                   </span>
                   <span>
                     存储 {Math.round(account.usage.storageBytes / 1024 / 1024)}MB /

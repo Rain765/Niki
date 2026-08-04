@@ -4,9 +4,6 @@ export type NikiUserRole = 'admin' | 'member';
 
 export interface NikiAuthUser {
   id: string;
-  tenantKey: string;
-  openId: string;
-  unionId?: string;
   name: string;
   avatarUrl?: string;
   role: NikiUserRole;

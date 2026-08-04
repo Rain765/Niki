@@ -81,6 +81,26 @@ function migrate(db: SqliteDb): void {
       UNIQUE(feishu_tenant_key, feishu_open_id)
     );
 
+    CREATE TABLE IF NOT EXISTS niki_identities (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      issuer TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      union_subject TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(provider, issuer, subject),
+      FOREIGN KEY(user_id) REFERENCES niki_users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_niki_identities_user
+      ON niki_identities(user_id, provider);
+
+    CREATE INDEX IF NOT EXISTS idx_niki_identities_union
+      ON niki_identities(provider, union_subject)
+      WHERE union_subject IS NOT NULL;
+
     CREATE TABLE IF NOT EXISTS niki_auth_sessions (
       token_hash TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -299,6 +319,33 @@ function migrate(db: SqliteDb): void {
       ADD COLUMN daily_generation_quota INTEGER NOT NULL DEFAULT 30
     `);
   }
+  const oauthStateCols = db.prepare(`PRAGMA table_info(niki_oauth_states)`).all() as DbRow[];
+  if (!oauthStateCols.some((c: DbRow) => c.name === 'provider')) {
+    db.exec(`ALTER TABLE niki_oauth_states ADD COLUMN provider TEXT NOT NULL DEFAULT 'feishu'`);
+  }
+  if (!oauthStateCols.some((c: DbRow) => c.name === 'channel')) {
+    db.exec(`ALTER TABLE niki_oauth_states ADD COLUMN channel TEXT`);
+  }
+  if (!oauthStateCols.some((c: DbRow) => c.name === 'link_user_id')) {
+    db.exec(`ALTER TABLE niki_oauth_states ADD COLUMN link_user_id TEXT`);
+  }
+  const identityBackfillNow = Date.now();
+  db.prepare(
+    `INSERT OR IGNORE INTO niki_identities
+      (id, user_id, provider, issuer, subject, union_subject, created_at, updated_at)
+     SELECT lower(hex(randomblob(16))), id, 'feishu', feishu_tenant_key,
+            feishu_open_id, feishu_union_id, created_at, ?
+       FROM niki_users
+      WHERE feishu_tenant_key <> '__niki_password__'
+        AND feishu_tenant_key NOT LIKE '__niki_identity__:%'`,
+  ).run(identityBackfillNow);
+  db.prepare(
+    `INSERT OR IGNORE INTO niki_identities
+      (id, user_id, provider, issuer, subject, union_subject, created_at, updated_at)
+     SELECT lower(hex(randomblob(16))), accounts.user_id, 'password', 'local',
+            accounts.username, NULL, accounts.created_at, ?
+       FROM niki_password_accounts accounts`,
+  ).run(identityBackfillNow);
   const messageCols = db.prepare(`PRAGMA table_info(messages)`).all() as DbRow[];
   if (!messageCols.some((c: DbRow) => c.name === 'agent_id')) {
     db.exec(`ALTER TABLE messages ADD COLUMN agent_id TEXT`);

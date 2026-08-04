@@ -14,19 +14,22 @@ import type {
   NikiUserQuotaUpdateRequest,
 } from '@open-design/contracts';
 import {
-  consumeNikiOAuthState,
+  consumeNikiOAuthStateRecord,
   createPasswordUser,
   createNikiOAuthState,
   createNikiSession,
   deleteNikiSession,
   disablePasswordUser,
   listPasswordUsers,
+  NikiIdentityConflictError,
   NikiPasswordAccountError,
   resolveNikiSession,
   updatePasswordUser,
   upsertFeishuUser,
+  upsertWechatUser,
   verifyPasswordUser,
   type FeishuUserProfile,
+  type WechatUserProfile,
 } from './niki-auth.js';
 import {
   assertNikiStorageAllowed,
@@ -47,15 +50,35 @@ type FetchLike = typeof fetch;
 
 const SESSION_COOKIE = 'niki_session';
 const OAUTH_STATE_COOKIE = 'niki_oauth_state';
+const WECHAT_OAUTH_STATE_COOKIE = 'niki_wechat_oauth_state';
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface NikiAuthRuntimeConfig {
   enabled: boolean;
   ready: boolean;
-  appId: string;
-  appSecret: string;
   publicUrl: string;
-  redirectUri: string;
+  feishu: {
+    enabled: boolean;
+    ready: boolean;
+    appId: string;
+    appSecret: string;
+    redirectUri: string;
+  };
+  wechat: {
+    enabled: boolean;
+    ready: boolean;
+    redirectUri: string;
+    website: {
+      ready: boolean;
+      appId: string;
+      appSecret: string;
+    };
+    officialAccount: {
+      ready: boolean;
+      appId: string;
+      appSecret: string;
+    };
+  };
 }
 
 interface RegisterNikiAuthRoutesOptions {
@@ -78,17 +101,56 @@ const LOCAL_OPERATOR_API_PATHS = new Set([
 export function readNikiAuthRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): NikiAuthRuntimeConfig {
-  const enabled = env.NIKI_AUTH_MODE?.trim().toLowerCase() === 'feishu';
-  const appId = env.FEISHU_APP_ID?.trim() ?? '';
-  const appSecret = env.FEISHU_APP_SECRET?.trim() ?? '';
+  const modes = new Set(
+    (env.NIKI_AUTH_MODE ?? '')
+      .trim()
+      .toLowerCase()
+      .split(/[,+\s]+/)
+      .filter(Boolean),
+  );
+  const feishuEnabled = modes.has('feishu');
+  const wechatEnabled = modes.has('wechat');
+  const enabled = feishuEnabled || wechatEnabled;
   const publicUrl = normalizePublicUrl(env.NIKI_PUBLIC_URL ?? '');
+  const feishuAppId = env.FEISHU_APP_ID?.trim() ?? '';
+  const feishuAppSecret = env.FEISHU_APP_SECRET?.trim() ?? '';
+  const wechatWebsiteAppId = env.WECHAT_WEB_APP_ID?.trim() ?? '';
+  const wechatWebsiteAppSecret = env.WECHAT_WEB_APP_SECRET?.trim() ?? '';
+  const wechatOfficialAppId = env.WECHAT_OA_APP_ID?.trim() ?? '';
+  const wechatOfficialAppSecret = env.WECHAT_OA_APP_SECRET?.trim() ?? '';
+  const feishuReady = feishuEnabled
+    && Boolean(feishuAppId && feishuAppSecret && publicUrl);
+  const wechatWebsiteReady = wechatEnabled
+    && Boolean(wechatWebsiteAppId && wechatWebsiteAppSecret && publicUrl);
+  const wechatOfficialReady = wechatEnabled
+    && Boolean(wechatOfficialAppId && wechatOfficialAppSecret && publicUrl);
+  const wechatReady = wechatWebsiteReady || wechatOfficialReady;
   return {
     enabled,
-    ready: !enabled || Boolean(appId && appSecret && publicUrl),
-    appId,
-    appSecret,
+    ready: !enabled || feishuReady || wechatReady,
     publicUrl,
-    redirectUri: publicUrl ? `${publicUrl}/api/auth/feishu/callback` : '',
+    feishu: {
+      enabled: feishuEnabled,
+      ready: feishuReady,
+      appId: feishuAppId,
+      appSecret: feishuAppSecret,
+      redirectUri: publicUrl ? `${publicUrl}/api/auth/feishu/callback` : '',
+    },
+    wechat: {
+      enabled: wechatEnabled,
+      ready: wechatReady,
+      redirectUri: publicUrl ? `${publicUrl}/api/auth/wechat/callback` : '',
+      website: {
+        ready: wechatWebsiteReady,
+        appId: wechatWebsiteAppId,
+        appSecret: wechatWebsiteAppSecret,
+      },
+      officialAccount: {
+        ready: wechatOfficialReady,
+        appId: wechatOfficialAppId,
+        appSecret: wechatOfficialAppSecret,
+      },
+    },
   };
 }
 
@@ -103,9 +165,25 @@ export function registerNikiAuthRoutes(
     res.setHeader('Cache-Control', 'no-store');
     const body: NikiAuthConfigResponse = {
       enabled: config.enabled,
-      provider: config.enabled ? 'feishu' : null,
+      provider: config.feishu.enabled
+        ? 'feishu'
+        : config.wechat.enabled
+          ? 'wechat'
+          : null,
       ready: config.ready,
       passwordLogin: config.enabled,
+      providers: {
+        feishu: {
+          enabled: config.feishu.enabled,
+          ready: config.feishu.ready,
+        },
+        wechat: {
+          enabled: config.wechat.enabled,
+          ready: config.wechat.ready,
+          website: config.wechat.website.ready,
+          officialAccount: config.wechat.officialAccount.ready,
+        },
+      },
     };
     res.json(body);
   });
@@ -126,19 +204,14 @@ export function registerNikiAuthRoutes(
     const user = resolveNikiSession(db, sessionToken);
     if (!user) return res.status(401).json({ error: 'Authentication required' });
     const body: NikiAuthMeResponse = {
-      user: {
-        id: user.id,
-        name: user.name,
-        ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
-        role: user.role,
-      },
+      user: publicAuthUser(db, user),
     };
     return res.json(body);
   });
 
   app.get('/api/auth/feishu/start', (req, res) => {
-    if (!config.enabled) return res.redirect('/');
-    if (!config.ready) {
+    if (!config.feishu.enabled) return res.redirect('/');
+    if (!config.feishu.ready) {
       return res.status(503).json({
         error: 'Feishu authentication is not configured on this server',
       });
@@ -147,7 +220,9 @@ export function registerNikiAuthRoutes(
     const returnTo = safeReturnTo(
       typeof req.query.returnTo === 'string' ? req.query.returnTo : '/',
     );
-    const state = createNikiOAuthState(db, returnTo);
+    const state = createNikiOAuthState(db, returnTo, Date.now(), undefined, {
+      provider: 'feishu',
+    });
     setCookie(res, OAUTH_STATE_COOKIE, state, {
       maxAgeSeconds: 10 * 60,
       secure: config.publicUrl.startsWith('https://'),
@@ -155,8 +230,8 @@ export function registerNikiAuthRoutes(
     const authorizeUrl = new URL(
       'https://accounts.feishu.cn/open-apis/authen/v1/authorize',
     );
-    authorizeUrl.searchParams.set('client_id', config.appId);
-    authorizeUrl.searchParams.set('redirect_uri', config.redirectUri);
+    authorizeUrl.searchParams.set('client_id', config.feishu.appId);
+    authorizeUrl.searchParams.set('redirect_uri', config.feishu.redirectUri);
     authorizeUrl.searchParams.set('response_type', 'code');
     authorizeUrl.searchParams.set('scope', 'auth:user.id:read');
     authorizeUrl.searchParams.set('state', state);
@@ -164,7 +239,7 @@ export function registerNikiAuthRoutes(
   });
 
   app.get('/api/auth/feishu/callback', async (req, res) => {
-    if (!config.enabled || !config.ready) {
+    if (!config.feishu.enabled || !config.feishu.ready) {
       return res.redirect('/?authError=not_configured');
     }
     const code = typeof req.query.code === 'string' ? req.query.code : '';
@@ -174,12 +249,12 @@ export function registerNikiAuthRoutes(
       clearCookie(res, OAUTH_STATE_COOKIE, config.publicUrl.startsWith('https://'));
       return res.redirect('/?authError=invalid_state');
     }
-    const returnTo = consumeNikiOAuthState(db, state);
+    const oauthState = consumeNikiOAuthStateRecord(db, state, 'feishu');
     clearCookie(res, OAUTH_STATE_COOKIE, config.publicUrl.startsWith('https://'));
-    if (!returnTo) return res.redirect('/?authError=expired_state');
+    if (!oauthState) return res.redirect('/?authError=expired_state');
 
     try {
-      const accessToken = await exchangeFeishuCode(fetchImpl, config, code);
+      const accessToken = await exchangeFeishuCode(fetchImpl, config.feishu, code);
       const profile = await fetchFeishuProfile(fetchImpl, accessToken);
       const user = upsertFeishuUser(db, profile);
       const session = createNikiSession(db, user.id);
@@ -187,10 +262,121 @@ export function registerNikiAuthRoutes(
         maxAgeSeconds: SESSION_TTL_SECONDS,
         secure: config.publicUrl.startsWith('https://'),
       });
-      return res.redirect(returnTo);
+      return res.redirect(oauthState.returnTo);
     } catch (error) {
       console.error('[niki-auth] Feishu callback failed:', error);
       return res.redirect('/?authError=feishu_failed');
+    }
+  });
+
+  app.get('/api/auth/wechat/start', (req, res) => {
+    if (!config.wechat.enabled) return res.redirect('/');
+    const requestedChannel = req.query.channel === 'official-account'
+      || req.query.channel === 'website'
+      ? req.query.channel
+      : undefined;
+    const inWechat = /MicroMessenger/i.test(req.get('user-agent') ?? '');
+    const channel = chooseWechatChannel(config, requestedChannel, inWechat);
+    if (!channel) {
+      return res.status(503).json({
+        error: inWechat
+          ? '微信公众号网页授权尚未配置'
+          : '微信网站扫码登录尚未配置',
+      });
+    }
+    const linking = req.query.link === '1';
+    const linkUser = linking
+      ? resolveNikiSession(db, requestSessionToken(req))
+      : null;
+    if (linking && !linkUser) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const returnTo = safeReturnTo(
+      typeof req.query.returnTo === 'string' ? req.query.returnTo : '/',
+    );
+    const state = createNikiOAuthState(db, returnTo, Date.now(), undefined, {
+      provider: 'wechat',
+      channel,
+      ...(linkUser ? { linkUserId: linkUser.id } : {}),
+    });
+    setCookie(res, WECHAT_OAUTH_STATE_COOKIE, state, {
+      maxAgeSeconds: 10 * 60,
+      secure: config.publicUrl.startsWith('https://'),
+    });
+    const credentials = channel === 'website'
+      ? config.wechat.website
+      : config.wechat.officialAccount;
+    const authorizeUrl = new URL(
+      channel === 'website'
+        ? 'https://open.weixin.qq.com/connect/qrconnect'
+        : 'https://open.weixin.qq.com/connect/oauth2/authorize',
+    );
+    authorizeUrl.searchParams.set('appid', credentials.appId);
+    authorizeUrl.searchParams.set('redirect_uri', config.wechat.redirectUri);
+    authorizeUrl.searchParams.set('response_type', 'code');
+    authorizeUrl.searchParams.set(
+      'scope',
+      channel === 'website' ? 'snsapi_login' : 'snsapi_userinfo',
+    );
+    authorizeUrl.searchParams.set('state', state);
+    authorizeUrl.hash = 'wechat_redirect';
+    return res.redirect(authorizeUrl.toString());
+  });
+
+  app.get('/api/auth/wechat/callback', async (req, res) => {
+    if (!config.wechat.enabled || !config.wechat.ready) {
+      return res.redirect('/?authError=not_configured');
+    }
+    const code = typeof req.query.code === 'string' ? req.query.code : '';
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+    const cookieState = parseCookies(req.headers.cookie)[WECHAT_OAUTH_STATE_COOKIE] ?? '';
+    if (!code || !state || !cookieState || !safeEqual(state, cookieState)) {
+      clearCookie(
+        res,
+        WECHAT_OAUTH_STATE_COOKIE,
+        config.publicUrl.startsWith('https://'),
+      );
+      return res.redirect('/?authError=invalid_state');
+    }
+    const oauthState = consumeNikiOAuthStateRecord(db, state, 'wechat');
+    clearCookie(
+      res,
+      WECHAT_OAUTH_STATE_COOKIE,
+      config.publicUrl.startsWith('https://'),
+    );
+    if (!oauthState?.channel) return res.redirect('/?authError=expired_state');
+    const credentials = oauthState.channel === 'website'
+      ? config.wechat.website
+      : config.wechat.officialAccount;
+    if (!credentials.ready) {
+      return res.redirect(withQuery(oauthState.returnTo, 'authError', 'not_configured'));
+    }
+
+    try {
+      const token = await exchangeWechatCode(fetchImpl, credentials, code);
+      const profile = await fetchWechatProfile(fetchImpl, credentials.appId, token);
+      const user = upsertWechatUser(db, profile, {
+        ...(oauthState.linkUserId ? { linkUserId: oauthState.linkUserId } : {}),
+      });
+      if (oauthState.linkUserId) {
+        return res.redirect(withQuery(oauthState.returnTo, 'wechatLinked', '1'));
+      }
+      const session = createNikiSession(db, user.id);
+      setCookie(res, SESSION_COOKIE, session.token, {
+        maxAgeSeconds: SESSION_TTL_SECONDS,
+        secure: config.publicUrl.startsWith('https://'),
+      });
+      return res.redirect(oauthState.returnTo);
+    } catch (error) {
+      if (error instanceof NikiIdentityConflictError) {
+        return res.redirect(withQuery(
+          oauthState.returnTo,
+          'authError',
+          'wechat_identity_conflict',
+        ));
+      }
+      console.error('[niki-auth] WeChat callback failed:', error);
+      return res.redirect(withQuery(oauthState.returnTo, 'authError', 'wechat_failed'));
     }
   });
 
@@ -245,7 +431,7 @@ export function registerNikiAuthRoutes(
       secure: config.publicUrl.startsWith('https://'),
     });
     const response: NikiAuthMeResponse = {
-      user: publicAuthUser(user),
+      user: publicAuthUser(db, user),
     };
     return res.json(response);
   });
@@ -379,7 +565,7 @@ export function registerNikiAuthRoutes(
       }
       if (!config.ready) {
         return res.status(503).json({
-          error: 'Feishu authentication is not configured on this server',
+          error: 'Authentication is not configured on this server',
         });
       }
       const sessionToken = requestSessionToken(req);
@@ -421,6 +607,8 @@ function isPublicApiPath(pathname: string): boolean {
     || pathname === '/auth/me'
     || pathname === '/auth/feishu/start'
     || pathname === '/auth/feishu/callback'
+    || pathname === '/auth/wechat/start'
+    || pathname === '/auth/wechat/callback'
     || pathname === '/auth/password/login'
     || pathname === '/auth/logout';
 }
@@ -456,15 +644,25 @@ function requireSignedInUser(
 }
 
 function publicAuthUser(
+  db: SqliteDb,
   user: ReturnType<typeof resolveNikiSession> extends infer U
     ? Exclude<U, null>
     : never,
 ) {
+  const providerRows = db.prepare(
+    'SELECT DISTINCT provider FROM niki_identities WHERE user_id = ? ORDER BY provider',
+  ).all(user.id) as Array<{ provider: string }>;
+  const providers = providerRows
+    .map((row) => row.provider)
+    .filter((provider): provider is 'feishu' | 'wechat' | 'password' => (
+      provider === 'feishu' || provider === 'wechat' || provider === 'password'
+    ));
   return {
     id: user.id,
     name: user.name,
     ...(user.avatarUrl ? { avatarUrl: user.avatarUrl } : {}),
     role: user.role,
+    providers,
   };
 }
 
@@ -551,6 +749,30 @@ function safeReturnTo(value: string): string {
   return value;
 }
 
+function withQuery(returnTo: string, key: string, value: string): string {
+  const url = new URL(safeReturnTo(returnTo), 'https://niki.local');
+  url.searchParams.set(key, value);
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+function chooseWechatChannel(
+  config: NikiAuthRuntimeConfig,
+  requested: 'website' | 'official-account' | undefined,
+  inWechat: boolean,
+): 'website' | 'official-account' | null {
+  if (requested === 'website') {
+    return config.wechat.website.ready ? 'website' : null;
+  }
+  if (requested === 'official-account') {
+    return inWechat && config.wechat.officialAccount.ready
+      ? 'official-account'
+      : null;
+  }
+  if (inWechat && config.wechat.officialAccount.ready) return 'official-account';
+  if (config.wechat.website.ready) return 'website';
+  return null;
+}
+
 function normalizePublicUrl(value: string): string {
   const trimmed = value.trim().replace(/\/+$/, '');
   if (!trimmed) return '';
@@ -574,7 +796,7 @@ function safeEqual(left: string, right: string): boolean {
 
 async function exchangeFeishuCode(
   fetchImpl: FetchLike,
-  config: NikiAuthRuntimeConfig,
+  config: NikiAuthRuntimeConfig['feishu'],
   code: string,
 ): Promise<string> {
   const response = await fetchImpl(
@@ -602,6 +824,79 @@ async function exchangeFeishuCode(
     throw new Error(`Feishu token exchange failed (${response.status})`);
   }
   return accessToken;
+}
+
+interface WechatOAuthToken {
+  accessToken: string;
+  openId: string;
+  unionId?: string;
+}
+
+async function exchangeWechatCode(
+  fetchImpl: FetchLike,
+  credentials: { appId: string; appSecret: string },
+  code: string,
+): Promise<WechatOAuthToken> {
+  const url = new URL('https://api.weixin.qq.com/sns/oauth2/access_token');
+  url.searchParams.set('appid', credentials.appId);
+  url.searchParams.set('secret', credentials.appSecret);
+  url.searchParams.set('code', code);
+  url.searchParams.set('grant_type', 'authorization_code');
+  const response = await fetchImpl(url);
+  const payload = await response.json() as Record<string, unknown>;
+  const accessToken = typeof payload.access_token === 'string'
+    ? payload.access_token
+    : '';
+  const openId = typeof payload.openid === 'string' ? payload.openid : '';
+  if (!response.ok || !accessToken || !openId || typeof payload.errcode === 'number') {
+    throw new Error(`WeChat token exchange failed (${response.status})`);
+  }
+  const unionId = typeof payload.unionid === 'string' && payload.unionid
+    ? payload.unionid
+    : undefined;
+  return {
+    accessToken,
+    openId,
+    ...(unionId ? { unionId } : {}),
+  };
+}
+
+async function fetchWechatProfile(
+  fetchImpl: FetchLike,
+  appId: string,
+  token: WechatOAuthToken,
+): Promise<WechatUserProfile> {
+  const url = new URL('https://api.weixin.qq.com/sns/userinfo');
+  url.searchParams.set('access_token', token.accessToken);
+  url.searchParams.set('openid', token.openId);
+  url.searchParams.set('lang', 'zh_CN');
+  const response = await fetchImpl(url);
+  const payload = await response.json() as Record<string, unknown>;
+  const openId = typeof payload.openid === 'string' ? payload.openid : '';
+  const name = typeof payload.nickname === 'string' && payload.nickname.trim()
+    ? payload.nickname.trim()
+    : '微信用户';
+  if (
+    !response.ok
+    || !openId
+    || openId !== token.openId
+    || typeof payload.errcode === 'number'
+  ) {
+    throw new Error(`WeChat user lookup failed (${response.status})`);
+  }
+  const unionId = typeof payload.unionid === 'string' && payload.unionid
+    ? payload.unionid
+    : token.unionId;
+  const avatarUrl = typeof payload.headimgurl === 'string' && payload.headimgurl
+    ? payload.headimgurl
+    : undefined;
+  return {
+    appId,
+    openId,
+    ...(unionId ? { unionId } : {}),
+    name,
+    ...(avatarUrl ? { avatarUrl } : {}),
+  };
 }
 
 async function fetchFeishuProfile(

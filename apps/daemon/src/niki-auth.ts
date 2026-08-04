@@ -7,7 +7,7 @@ import {
 } from 'node:crypto';
 import { promisify } from 'node:util';
 import type Database from 'better-sqlite3';
-import type { NikiPasswordAccount } from '@open-design/contracts';
+import type { NikiAuthProvider, NikiPasswordAccount } from '@open-design/contracts';
 import type { NikiAuthUser, NikiUserRole } from './niki-auth-context.js';
 
 type SqliteDb = Database.Database;
@@ -16,6 +16,23 @@ export interface FeishuUserProfile {
   tenantKey: string;
   openId: string;
   unionId?: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+export interface WechatUserProfile {
+  appId: string;
+  openId: string;
+  unionId?: string;
+  name: string;
+  avatarUrl?: string;
+}
+
+interface OAuthIdentityProfile {
+  provider: Exclude<NikiAuthProvider, 'password'>;
+  issuer: string;
+  subject: string;
+  unionSubject?: string;
   name: string;
   avatarUrl?: string;
 }
@@ -41,6 +58,13 @@ export class NikiPasswordAccountError extends Error {
   }
 }
 
+export class NikiIdentityConflictError extends Error {
+  constructor(message = '该微信身份已绑定到另一个 Niki 账号') {
+    super(message);
+    this.name = 'NikiIdentityConflictError';
+  }
+}
+
 const PASSWORD_TENANT_KEY = '__niki_password__';
 const SCRYPT_KEY_LENGTH = 64;
 const MAX_ACTIVE_SESSIONS_PER_USER = 10;
@@ -56,17 +80,11 @@ function tokenHash(token: string): string {
 }
 
 function normalizeUser(row: Record<string, unknown>): NikiAuthUser {
-  const unionId = typeof row.unionId === 'string' && row.unionId
-    ? row.unionId
-    : undefined;
   const avatarUrl = typeof row.avatarUrl === 'string' && row.avatarUrl
     ? row.avatarUrl
     : undefined;
   return {
     id: String(row.id),
-    tenantKey: String(row.tenantKey),
-    openId: String(row.openId),
-    ...(unionId ? { unionId } : {}),
     name: String(row.name),
     ...(avatarUrl ? { avatarUrl } : {}),
     role: row.role === 'admin' ? 'admin' : 'member',
@@ -77,9 +95,6 @@ function normalizeUser(row: Record<string, unknown>): NikiAuthUser {
 
 const USER_COLS = `
   id,
-  feishu_tenant_key AS tenantKey,
-  feishu_open_id AS openId,
-  feishu_union_id AS unionId,
   name,
   avatar_url AS avatarUrl,
   role,
@@ -89,15 +104,146 @@ const USER_COLS = `
 
 const JOINED_USER_COLS = `
   users.id,
-  users.feishu_tenant_key AS tenantKey,
-  users.feishu_open_id AS openId,
-  users.feishu_union_id AS unionId,
   users.name,
   users.avatar_url AS avatarUrl,
   users.role,
   users.created_at AS createdAt,
   users.updated_at AS updatedAt
 `;
+
+const IDENTITY_USER_COLS = `
+  ${JOINED_USER_COLS},
+  identities.user_id AS identityUserId
+`;
+
+function upsertOAuthUser(
+  db: SqliteDb,
+  profile: OAuthIdentityProfile,
+  now: number,
+  linkUserId?: string,
+): NikiAuthUser {
+  const transaction = db.transaction(() => {
+    const exactIdentity = db.prepare(
+      `SELECT ${IDENTITY_USER_COLS}
+         FROM niki_identities identities
+         JOIN niki_users users ON users.id = identities.user_id
+        WHERE identities.provider = ?
+          AND identities.issuer = ?
+          AND identities.subject = ?`,
+    ).get(profile.provider, profile.issuer, profile.subject) as
+      Record<string, unknown> | undefined;
+    const unionIdentity = !exactIdentity && profile.unionSubject
+      ? db.prepare(
+        `SELECT ${IDENTITY_USER_COLS}
+           FROM niki_identities identities
+           JOIN niki_users users ON users.id = identities.user_id
+          WHERE identities.provider = ?
+            AND identities.union_subject = ?`,
+      ).get(profile.provider, profile.unionSubject) as Record<string, unknown> | undefined
+      : undefined;
+    const matchedIdentity = exactIdentity ?? unionIdentity;
+
+    if (
+      linkUserId
+      && matchedIdentity
+      && String(matchedIdentity.identityUserId) !== linkUserId
+    ) {
+      throw new NikiIdentityConflictError();
+    }
+
+    const linkedUser = linkUserId
+      ? db.prepare(
+        `SELECT ${USER_COLS} FROM niki_users WHERE id = ? AND is_active = 1`,
+      ).get(linkUserId) as Record<string, unknown> | undefined
+      : undefined;
+    if (linkUserId && !linkedUser) {
+      throw new NikiIdentityConflictError('当前 Niki 账号不可用于绑定微信');
+    }
+
+    let userId = matchedIdentity
+      ? String(matchedIdentity.identityUserId)
+      : linkUserId;
+    if (!userId) {
+      const userCount = Number(
+        (db.prepare('SELECT COUNT(*) AS count FROM niki_users').get() as { count: number }).count,
+      );
+      // Keep the legacy Feishu bootstrap behavior. A public WeChat identity
+      // must never become administrator merely by winning the first-login race.
+      const role: NikiUserRole = profile.provider === 'feishu' && userCount === 0
+        ? 'admin'
+        : 'member';
+      userId = randomUUID();
+      const legacyTenant = profile.provider === 'feishu'
+        ? profile.issuer
+        : `__niki_identity__:${profile.provider}`;
+      const legacySubject = profile.provider === 'feishu'
+        ? profile.subject
+        : `${profile.provider}:${userId}`;
+      db.prepare(
+        `INSERT INTO niki_users
+          (id, feishu_tenant_key, feishu_open_id, feishu_union_id, name,
+           avatar_url, role, is_active, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      ).run(
+        userId,
+        legacyTenant,
+        legacySubject,
+        profile.provider === 'feishu' ? profile.unionSubject ?? null : null,
+        profile.name,
+        profile.avatarUrl ?? null,
+        role,
+        now,
+        now,
+      );
+      if (role === 'admin') {
+        db.prepare(
+          'UPDATE projects SET owner_user_id = ? WHERE owner_user_id IS NULL',
+        ).run(userId);
+      }
+    } else if (!linkUserId) {
+      db.prepare(
+        `UPDATE niki_users
+            SET name = ?, avatar_url = ?, updated_at = ?
+          WHERE id = ?`,
+      ).run(profile.name, profile.avatarUrl ?? null, now, userId);
+    }
+
+    if (!exactIdentity) {
+      db.prepare(
+        `INSERT INTO niki_identities
+          (id, user_id, provider, issuer, subject, union_subject, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        randomUUID(),
+        userId,
+        profile.provider,
+        profile.issuer,
+        profile.subject,
+        profile.unionSubject ?? null,
+        now,
+        now,
+      );
+    } else {
+      db.prepare(
+        `UPDATE niki_identities
+            SET union_subject = COALESCE(?, union_subject), updated_at = ?
+          WHERE provider = ? AND issuer = ? AND subject = ?`,
+      ).run(
+        profile.unionSubject ?? null,
+        now,
+        profile.provider,
+        profile.issuer,
+        profile.subject,
+      );
+    }
+
+    const user = db.prepare(
+      `SELECT ${USER_COLS} FROM niki_users WHERE id = ?`,
+    ).get(userId) as Record<string, unknown>;
+    return normalizeUser(user);
+  });
+  return transaction();
+}
 
 /**
  * The first Feishu identity becomes the workspace administrator and claims
@@ -109,69 +255,29 @@ export function upsertFeishuUser(
   profile: FeishuUserProfile,
   now = Date.now(),
 ): NikiAuthUser {
-  const transaction = db.transaction(() => {
-    const existing = db.prepare(
-      `SELECT ${USER_COLS}
-         FROM niki_users
-        WHERE feishu_tenant_key = ? AND feishu_open_id = ?`,
-    ).get(profile.tenantKey, profile.openId) as Record<string, unknown> | undefined;
+  return upsertOAuthUser(db, {
+    provider: 'feishu',
+    issuer: profile.tenantKey,
+    subject: profile.openId,
+    ...(profile.unionId ? { unionSubject: profile.unionId } : {}),
+    name: profile.name,
+    ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
+  }, now);
+}
 
-    if (existing) {
-      db.prepare(
-        `UPDATE niki_users
-            SET feishu_union_id = ?,
-                name = ?,
-                avatar_url = ?,
-                updated_at = ?
-          WHERE id = ?`,
-      ).run(
-        profile.unionId ?? null,
-        profile.name,
-        profile.avatarUrl ?? null,
-        now,
-        existing.id,
-      );
-      const updated = db.prepare(
-        `SELECT ${USER_COLS} FROM niki_users WHERE id = ?`,
-      ).get(existing.id) as Record<string, unknown>;
-      return normalizeUser(updated);
-    }
-
-    const userCount = Number(
-      (db.prepare('SELECT COUNT(*) AS count FROM niki_users').get() as { count: number }).count,
-    );
-    const role: NikiUserRole = userCount === 0 ? 'admin' : 'member';
-    const id = randomUUID();
-    db.prepare(
-      `INSERT INTO niki_users
-        (id, feishu_tenant_key, feishu_open_id, feishu_union_id, name,
-         avatar_url, role, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
-    ).run(
-      id,
-      profile.tenantKey,
-      profile.openId,
-      profile.unionId ?? null,
-      profile.name,
-      profile.avatarUrl ?? null,
-      role,
-      now,
-      now,
-    );
-
-    if (role === 'admin') {
-      db.prepare(
-        'UPDATE projects SET owner_user_id = ? WHERE owner_user_id IS NULL',
-      ).run(id);
-    }
-
-    const inserted = db.prepare(
-      `SELECT ${USER_COLS} FROM niki_users WHERE id = ?`,
-    ).get(id) as Record<string, unknown>;
-    return normalizeUser(inserted);
-  });
-
-  return transaction();
+export function upsertWechatUser(
+  db: SqliteDb,
+  profile: WechatUserProfile,
+  options: { now?: number; linkUserId?: string } = {},
+): NikiAuthUser {
+  return upsertOAuthUser(db, {
+    provider: 'wechat',
+    issuer: profile.appId,
+    subject: profile.openId,
+    ...(profile.unionId ? { unionSubject: profile.unionId } : {}),
+    name: profile.name,
+    ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
+  }, options.now ?? Date.now(), options.linkUserId);
 }
 
 function normalizeUsername(username: string): string {
@@ -278,6 +384,11 @@ export async function createPasswordUser(
         (user_id, username, password_hash, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?)`,
     ).run(id, username, passwordHash, now, now);
+    db.prepare(
+      `INSERT INTO niki_identities
+        (id, user_id, provider, issuer, subject, union_subject, created_at, updated_at)
+       VALUES (?, ?, 'password', 'local', ?, NULL, ?, ?)`,
+    ).run(randomUUID(), id, username, now, now);
     const row = db.prepare(
       `SELECT ${PASSWORD_ACCOUNT_COLS}
          FROM niki_password_accounts accounts
@@ -430,14 +541,81 @@ export function createNikiOAuthState(
   returnTo: string,
   now = Date.now(),
   ttlMs = 10 * 60 * 1_000,
+  options: {
+    provider?: 'feishu' | 'wechat';
+    channel?: 'website' | 'official-account';
+    linkUserId?: string;
+  } = {},
 ): string {
   const state = randomBytes(32).toString('base64url');
   db.prepare(
     `INSERT INTO niki_oauth_states
-      (state_hash, return_to, expires_at, created_at)
-     VALUES (?, ?, ?, ?)`,
-  ).run(tokenHash(state), returnTo, now + ttlMs, now);
+      (state_hash, return_to, expires_at, created_at, provider, channel, link_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    tokenHash(state),
+    returnTo,
+    now + ttlMs,
+    now,
+    options.provider ?? 'feishu',
+    options.channel ?? null,
+    options.linkUserId ?? null,
+  );
   return state;
+}
+
+export interface NikiOAuthStateRecord {
+  returnTo: string;
+  provider: 'feishu' | 'wechat';
+  channel?: 'website' | 'official-account';
+  linkUserId?: string;
+}
+
+export function consumeNikiOAuthStateRecord(
+  db: SqliteDb,
+  state: string,
+  expectedProvider?: 'feishu' | 'wechat',
+  now = Date.now(),
+): NikiOAuthStateRecord | null {
+  if (!state) return null;
+  const hash = tokenHash(state);
+  const transaction = db.transaction((): NikiOAuthStateRecord | null => {
+    const row = db.prepare(
+      `SELECT return_to AS returnTo, expires_at AS expiresAt, provider,
+              channel, link_user_id AS linkUserId
+         FROM niki_oauth_states
+        WHERE state_hash = ?`,
+    ).get(hash) as {
+      returnTo: string;
+      expiresAt: number;
+      provider: string;
+      channel: string | null;
+      linkUserId: string | null;
+    } | undefined;
+    db.prepare('DELETE FROM niki_oauth_states WHERE state_hash = ?').run(hash);
+    db.prepare('DELETE FROM niki_oauth_states WHERE expires_at <= ?').run(now);
+    const provider = row?.provider === 'feishu' || row?.provider === 'wechat'
+      ? row.provider
+      : null;
+    if (
+      !row
+      || Number(row.expiresAt) <= now
+      || (expectedProvider && row.provider !== expectedProvider)
+      || !provider
+    ) {
+      return null;
+    }
+    const channel = row.channel === 'website' || row.channel === 'official-account'
+      ? row.channel
+      : undefined;
+    return {
+      returnTo: row.returnTo,
+      provider,
+      ...(channel ? { channel } : {}),
+      ...(row.linkUserId ? { linkUserId: row.linkUserId } : {}),
+    };
+  });
+  return transaction();
 }
 
 export function consumeNikiOAuthState(
@@ -445,18 +623,5 @@ export function consumeNikiOAuthState(
   state: string,
   now = Date.now(),
 ): string | null {
-  if (!state) return null;
-  const hash = tokenHash(state);
-  const transaction = db.transaction(() => {
-    const row = db.prepare(
-      `SELECT return_to AS returnTo, expires_at AS expiresAt
-         FROM niki_oauth_states
-        WHERE state_hash = ?`,
-    ).get(hash) as { returnTo: string; expiresAt: number } | undefined;
-    db.prepare('DELETE FROM niki_oauth_states WHERE state_hash = ?').run(hash);
-    db.prepare('DELETE FROM niki_oauth_states WHERE expires_at <= ?').run(now);
-    if (!row || Number(row.expiresAt) <= now) return null;
-    return row.returnTo;
-  });
-  return transaction();
+  return consumeNikiOAuthStateRecord(db, state, undefined, now)?.returnTo ?? null;
 }

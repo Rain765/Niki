@@ -58,10 +58,16 @@ Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看
 
 仅本机开发时默认不启用登录。线上部署可以通过以下环境变量启用 Niki 登录：
 
-    NIKI_AUTH_MODE=feishu
+    NIKI_AUTH_MODE=feishu,wechat
     FEISHU_APP_ID=your_app_id
     FEISHU_APP_SECRET=your_app_secret
+    WECHAT_WEB_APP_ID=your_website_app_id
+    WECHAT_WEB_APP_SECRET=your_website_app_secret
+    WECHAT_OA_APP_ID=your_official_account_app_id
+    WECHAT_OA_APP_SECRET=your_official_account_app_secret
     NIKI_PUBLIC_URL=https://your-niki-domain.example
+
+`WECHAT_WEB_*` 用于电脑网页扫码登录，`WECHAT_OA_*` 用于微信内的公众号网页授权；可以只配置其中一种。微信开放平台和公众号后台都需要将回调地址配置为 `https://你的域名/api/auth/wechat/callback`。已有用户登录后可以从账号菜单绑定微信；微信新用户始终以普通成员身份创建，不会自动获得管理员权限。
 
 启用登录后，管理员可以在 Niki 账号管理界面或通过 `od auth` CLI 管理密码账号与用户额度：
 

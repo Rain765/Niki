@@ -96,6 +96,40 @@ describe('NikiAuthGate', () => {
     expect(screen.queryByText(/signed in as/)).toBeNull();
   });
 
+  it('shows desktop WeChat QR login when the website channel is configured', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        provider: 'wechat',
+        ready: true,
+        passwordLogin: true,
+        providers: {
+          feishu: { enabled: false, ready: false },
+          wechat: {
+            enabled: true,
+            ready: true,
+            website: true,
+            officialAccount: true,
+          },
+        },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401 },
+      )));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    expect(await screen.findByRole('button', { name: '微信扫码登录' }))
+      .toBeTruthy();
+    expect(screen.getByRole('button', { name: '账号密码登录' }))
+      .toBeTruthy();
+  });
+
   it('renders the authenticated Feishu identity for the workspace', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({

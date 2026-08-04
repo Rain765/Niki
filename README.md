@@ -58,10 +58,16 @@ Use `pnpm tools-dev status`, `pnpm tools-dev logs`, and `pnpm tools-dev stop` to
 
 Authentication is disabled for local-only development. A hosted deployment can enable Niki authentication with:
 
-    NIKI_AUTH_MODE=feishu
+    NIKI_AUTH_MODE=feishu,wechat
     FEISHU_APP_ID=your_app_id
     FEISHU_APP_SECRET=your_app_secret
+    WECHAT_WEB_APP_ID=your_website_app_id
+    WECHAT_WEB_APP_SECRET=your_website_app_secret
+    WECHAT_OA_APP_ID=your_official_account_app_id
+    WECHAT_OA_APP_SECRET=your_official_account_app_secret
     NIKI_PUBLIC_URL=https://your-niki-domain.example
+
+`WECHAT_WEB_*` enables desktop website QR login, while `WECHAT_OA_*` enables OAuth inside WeChat through an Official Account; either channel may be configured independently. Configure `https://your-domain/api/auth/wechat/callback` in the corresponding WeChat console. Signed-in users can link WeChat from the account menu. New WeChat users are always created as members and never receive administrator access automatically.
 
 When authentication is enabled, administrators can manage password accounts and quotas in the Niki account panel or through the `od auth` CLI:
 

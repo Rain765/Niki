@@ -3,13 +3,29 @@ export interface NikiAuthUser {
   name: string;
   avatarUrl?: string;
   role: 'admin' | 'member';
+  providers?: NikiAuthProvider[];
+}
+
+export type NikiAuthProvider = 'feishu' | 'wechat' | 'password';
+
+export interface NikiAuthProviderStatus {
+  enabled: boolean;
+  ready: boolean;
 }
 
 export interface NikiAuthConfigResponse {
   enabled: boolean;
-  provider: 'feishu' | null;
+  /** @deprecated Prefer the provider-specific status in `providers`. */
+  provider: 'feishu' | 'wechat' | null;
   ready: boolean;
   passwordLogin: boolean;
+  providers: {
+    feishu: NikiAuthProviderStatus;
+    wechat: NikiAuthProviderStatus & {
+      website: boolean;
+      officialAccount: boolean;
+    };
+  };
 }
 
 export interface NikiAuthMeResponse {
@@ -39,7 +55,8 @@ export interface NikiUserQuotaStatus {
 
 export interface NikiManagedUser {
   user: NikiAuthUser;
-  provider: 'feishu' | 'password';
+  provider: NikiAuthProvider;
+  providers: NikiAuthProvider[];
   username?: string;
   isActive: boolean;
   createdAt: number;

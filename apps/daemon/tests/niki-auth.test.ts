@@ -12,10 +12,12 @@ import {
 } from '../src/db.js';
 import {
   consumeNikiOAuthState,
+  consumeNikiOAuthStateRecord,
   createNikiOAuthState,
   createNikiSession,
   resolveNikiSession,
   upsertFeishuUser,
+  upsertWechatUser,
 } from '../src/niki-auth.js';
 import {
   currentNikiSessionToken,
@@ -97,6 +99,34 @@ describe('Niki Feishu authentication persistence', () => {
       .toEqual(['second-project']);
   });
 
+  it('keeps WeChat users as members and joins website and Official Account identities by UnionID', () => {
+    const db = openDatabase(tempDir, { dataDir: tempDir });
+    const website = upsertWechatUser(db, {
+      appId: 'website-app',
+      openId: 'website-open-id',
+      unionId: 'shared-wechat-union',
+      name: '微信用户',
+    });
+    const officialAccount = upsertWechatUser(db, {
+      appId: 'official-account-app',
+      openId: 'official-open-id',
+      unionId: 'shared-wechat-union',
+      name: '微信用户',
+    });
+
+    expect(website.role).toBe('member');
+    expect(officialAccount.id).toBe(website.id);
+    const identities = db.prepare(
+      `SELECT issuer, subject FROM niki_identities
+        WHERE user_id = ? AND provider = 'wechat'
+        ORDER BY issuer`,
+    ).all(website.id);
+    expect(identities).toEqual([
+      { issuer: 'official-account-app', subject: 'official-open-id' },
+      { issuer: 'website-app', subject: 'website-open-id' },
+    ]);
+  });
+
   it('stores only a hash of the session token and expires the session', () => {
     const db = openDatabase(tempDir, { dataDir: tempDir });
     const user = upsertFeishuUser(db, {
@@ -122,6 +152,24 @@ describe('Niki Feishu authentication persistence', () => {
 
     expect(consumeNikiOAuthState(db, state, now + 1_000)).toBe('/projects/example');
     expect(consumeNikiOAuthState(db, state, now + 2_000)).toBeNull();
+  });
+
+  it('does not let a WeChat OAuth state cross into the Feishu callback', () => {
+    const db = openDatabase(tempDir, { dataDir: tempDir });
+    const state = createNikiOAuthState(
+      db,
+      '/',
+      1_720_000_000_000,
+      60_000,
+      { provider: 'wechat', channel: 'website' },
+    );
+
+    expect(consumeNikiOAuthStateRecord(
+      db,
+      state,
+      'feishu',
+      1_720_000_001_000,
+    )).toBeNull();
   });
 
   it('keeps the current browser session available only inside its user context', () => {
