@@ -79,14 +79,55 @@ button {
 }
 
 .niki-auth button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
   border: 0;
   background: var(--poster-accent);
   color: white;
   font-weight: 650;
+  cursor: pointer;
+  transition:
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.niki-auth button:hover:not(:disabled) {
+  background: #ff6a24;
+}
+
+.niki-auth button:active:not(:disabled) {
+  background: #e94b00;
+  transform: scale(0.985);
+  transition-duration: 80ms;
+}
+
+.niki-auth button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(254 82 0 / 28%);
 }
 
 .niki-auth button:disabled {
+  cursor: wait;
   opacity: 0.6;
+}
+
+.niki-auth .niki-auth__primary-button.is-loading {
+  background: #e94b00;
+  opacity: 1;
+}
+
+.niki-auth__button-spinner {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  border: 2px solid rgb(255 255 255 / 34%);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: poster-spin 700ms linear infinite;
 }
 
 .niki-auth__password-form {
@@ -121,6 +162,12 @@ button {
   background: transparent;
   color: #a8adb8;
   font-size: 14px;
+}
+
+.niki-auth .niki-auth__text-button:disabled {
+  background: transparent;
+  color: #737986;
+  opacity: 1;
 }
 
 .niki-auth__loading {
@@ -629,7 +676,8 @@ button {
   .poster-app__status-mark,
   .poster-app__poster,
   .poster-app__poster-skeleton,
-  .niki-auth__spinner {
+  .niki-auth__spinner,
+  .niki-auth__button-spinner {
     animation: none !important;
   }
 }

@@ -9,6 +9,10 @@ const rootLayout = readFileSync(
   new URL('../../app/layout.tsx', import.meta.url),
   'utf8',
 );
+const posterCss = readFileSync(
+  new URL('../../app/poster.css', import.meta.url),
+  'utf8',
+);
 
 describe('mobile bootstrap styles', () => {
   it('does not block first paint on an external font stylesheet', () => {
@@ -39,14 +43,14 @@ describe('mobile bootstrap styles', () => {
   });
 
   it('keeps the Feishu login action responsive while OAuth navigation starts', () => {
-    expect(indexCss).toMatch(
+    expect(posterCss).toMatch(
       /\.niki-auth button:active:not\(:disabled\)\s*\{[^}]*transform:\s*scale\(0\.985\)/s,
     );
-    expect(indexCss).toMatch(
+    expect(posterCss).toMatch(
       /\.niki-auth \.niki-auth__primary-button\.is-loading\s*\{[^}]*opacity:\s*1/s,
     );
-    expect(indexCss).toMatch(
-      /\.niki-auth__button-spinner\s*\{[^}]*animation:\s*locale-bootstrap-spin 700ms linear infinite/s,
+    expect(posterCss).toMatch(
+      /\.niki-auth__button-spinner\s*\{[^}]*animation:\s*poster-spin 700ms linear infinite/s,
     );
   });
 });
