@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
 import {
-  getDirectLoanPosterProjectId,
+  resolveDirectLoanPosterProject,
   startDirectLoanPosterProject,
 } from '../components/home-hero/direct-loan-posters';
 import {
@@ -14,9 +14,9 @@ import {
 } from '../components/home-hero/zambia-posters';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import {
-  copyImageBlobToClipboard,
-  downloadImageBlob,
+  copyOrShareImageBlob,
   fetchImageBlob,
+  saveImageBlob,
 } from '../lib/image-file-actions';
 import type { Project, ProjectFile } from '../types';
 
@@ -95,9 +95,12 @@ export function PosterApp() {
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [generating, setGenerating] = useState(false);
-  const [loadingProject, setLoadingProject] = useState(false);
+  const [loadingProject, setLoadingProject] = useState(true);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [previewNotice, setPreviewNotice] = useState<Notice | null>(null);
+  const [activeAction, setActiveAction] = useState<'copy' | 'download' | 'share' | null>(null);
+  const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
 
   const posterFiles = useMemo(
     () => files
@@ -137,11 +140,40 @@ export function PosterApp() {
   }, []);
 
   useEffect(() => {
-    const restoredProjectId = getDirectLoanPosterProjectId(user.id);
-    if (!restoredProjectId) return;
-    setProjectId(restoredProjectId);
-    void refreshProject(restoredProjectId);
-  }, [refreshProject, user.id]);
+    let cancelled = false;
+    setLoadingProject(true);
+    void (async () => {
+      try {
+        const restoredProject = await resolveDirectLoanPosterProject(user.id);
+        if (cancelled) return;
+        if (!restoredProject) {
+          setProjectId(null);
+          setProject(null);
+          setFiles([]);
+          return;
+        }
+        setProjectId(restoredProject.id);
+        setProject(restoredProject);
+        const restoredFiles = await fetchPosterFiles(restoredProject.id);
+        if (!cancelled) setFiles(restoredFiles);
+      } catch (error) {
+        if (cancelled) return;
+        if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
+          window.location.reload();
+          return;
+        }
+        setNotice({
+          message: error instanceof Error ? error.message : '最近海报读取失败',
+          tone: 'error',
+        });
+      } finally {
+        if (!cancelled) setLoadingProject(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
 
   useEffect(() => {
     if (!projectId) return undefined;
@@ -180,27 +212,63 @@ export function PosterApp() {
   };
 
   const download = async (file: ProjectFile) => {
-    if (!projectId) return;
+    if (!projectId || activeAction) return;
+    setActiveAction('download');
+    setPreviewNotice({ message: '正在准备原图…', tone: 'info' });
     try {
-      await downloadImageBlob(rawUrl(projectId, file.name), file.name);
-      setNotice({ message: '图片下载已开始', tone: 'info' });
-    } catch {
-      setNotice({ message: '图片下载失败', tone: 'error' });
+      const result = await saveImageBlob(
+        rawUrl(projectId, file.name),
+        file.name,
+        file.mime || 'image/png',
+      );
+      setPreviewNotice({
+        message: result === 'shared'
+          ? '请在系统菜单选择“存储到照片”或“存储到文件”'
+          : '图片下载已开始',
+        tone: 'info',
+      });
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        setPreviewNotice({ message: '图片保存失败，请重试', tone: 'error' });
+      }
+    } finally {
+      setActiveAction(null);
     }
   };
 
   const copyImage = async (file: ProjectFile) => {
-    if (!projectId) return;
+    if (!projectId || activeAction) return;
+    setActiveAction('copy');
+    setPreviewNotice({
+      message: '正在复制原图；若出现系统菜单，请选择“拷贝”',
+      tone: 'info',
+    });
     try {
-      await copyImageBlobToClipboard(rawUrl(projectId, file.name), file.mime || 'image/png');
-      setNotice({ message: '图片已复制', tone: 'info' });
-    } catch {
-      setNotice({ message: '当前环境无法复制图片', tone: 'error' });
+      const result = await copyOrShareImageBlob(
+        rawUrl(projectId, file.name),
+        file.name,
+        file.mime || 'image/png',
+      );
+      setPreviewNotice({
+        message: result === 'copied' ? '图片已复制' : '系统图片操作已完成',
+        tone: 'info',
+      });
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        setPreviewNotice({
+          message: '当前飞书版本不支持复制图片，请使用“保存图片”',
+          tone: 'error',
+        });
+      }
+    } finally {
+      setActiveAction(null);
     }
   };
 
   const share = async (file: ProjectFile) => {
-    if (!projectId) return;
+    if (!projectId || activeAction) return;
+    setActiveAction('share');
+    setPreviewNotice({ message: '正在准备原图…', tone: 'info' });
     const absoluteUrl = new URL(rawUrl(projectId, file.name), window.location.href).href;
     try {
       if (typeof navigator.share !== 'function') throw new Error('share unavailable');
@@ -215,10 +283,12 @@ export function PosterApp() {
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       const copied = await copyToClipboard(absoluteUrl);
-      setNotice({
+      setPreviewNotice({
         message: copied ? '系统分享不可用，图片链接已复制' : '分享失败',
         tone: copied ? 'info' : 'error',
       });
+    } finally {
+      setActiveAction(null);
     }
   };
 
@@ -323,29 +393,48 @@ export function PosterApp() {
       ) : null}
 
       <section className="poster-app__gallery" aria-label="生成的海报">
-        {posterFiles.map((file) => (
+        {posterFiles.map((file, index) => {
+          const useRawImage = rawFallbackNames.has(file.name);
+          return (
           <button
             type="button"
             className="poster-app__poster"
             key={`${file.name}:${file.mtime}`}
-            onClick={() => setPreviewName(file.name)}
+            onClick={() => {
+              setPreviewNotice(null);
+              setPreviewName(file.name);
+            }}
           >
             <picture>
-              <source media="(max-width: 900px)" srcSet={previewUrl(projectId!, file, 'mobile')} />
+              {!useRawImage ? (
+                <source media="(max-width: 900px)" srcSet={previewUrl(projectId!, file, 'mobile')} />
+              ) : null}
               <img
-                src={previewUrl(projectId!, file, 'preview')}
+                src={useRawImage
+                  ? rawUrl(projectId!, file.name)
+                  : previewUrl(projectId!, file, 'preview')}
                 alt={file.name}
-                loading="lazy"
+                loading="eager"
+                decoding="async"
+                fetchPriority={index < 2 ? 'high' : 'auto'}
                 onLoad={(event) => {
                   event.currentTarget.closest('.poster-app__poster')?.classList.add('is-loaded');
+                }}
+                onError={(event) => {
+                  if (useRawImage) {
+                    event.currentTarget.closest('.poster-app__poster')?.classList.add('is-error');
+                    return;
+                  }
+                  setRawFallbackNames((current) => new Set(current).add(file.name));
                 }}
               />
             </picture>
           </button>
-        ))}
-        {status.state === 'working' ? (
+          );
+        })}
+        {loadingProject || status.state === 'working' ? (
           <div className={`poster-app__poster-skeleton${aspectRatio === '1:1' ? ' is-square' : ''}`}>
-            <span>图片生成中…</span>
+            <span>{loadingProject ? '正在读取最近海报…' : '图片生成中…'}</span>
           </div>
         ) : null}
       </section>
@@ -354,24 +443,62 @@ export function PosterApp() {
         <div className="poster-preview" role="dialog" aria-modal="true" aria-label={previewFile.name}>
           <header className="poster-preview__header">
             <button type="button" onClick={() => setPreviewName(null)} aria-label="关闭">×</button>
-            <button type="button" onClick={() => void share(previewFile)}>分享</button>
+            <button type="button" disabled={activeAction !== null} onClick={() => void share(previewFile)}>
+              {activeAction === 'share' ? '准备中…' : '分享'}
+            </button>
           </header>
+          {previewNotice ? (
+            <button
+              type="button"
+              className={`poster-preview__notice is-${previewNotice.tone}`}
+              aria-live="polite"
+              onClick={() => setPreviewNotice(null)}
+            >
+              {previewNotice.message}
+            </button>
+          ) : null}
           <div className="poster-preview__stage">
             <picture>
-              <source media="(max-width: 900px)" srcSet={previewUrl(projectId, previewFile, 'mobile')} />
-              <img src={previewUrl(projectId, previewFile, 'preview')} alt={previewFile.name} />
+              {!rawFallbackNames.has(previewFile.name) ? (
+                <source media="(max-width: 900px)" srcSet={previewUrl(projectId, previewFile, 'mobile')} />
+              ) : null}
+              <img
+                src={rawFallbackNames.has(previewFile.name)
+                  ? rawUrl(projectId, previewFile.name)
+                  : previewUrl(projectId, previewFile, 'preview')}
+                alt={previewFile.name}
+                onError={() => {
+                  if (!rawFallbackNames.has(previewFile.name)) {
+                    setRawFallbackNames((current) => new Set(current).add(previewFile.name));
+                  } else {
+                    setPreviewNotice({ message: '原图加载失败，请稍后重试', tone: 'error' });
+                  }
+                }}
+              />
             </picture>
           </div>
           <footer className="poster-preview__footer">
-            <button type="button" onClick={() => void download(previewFile)}>下载</button>
-            <button type="button" onClick={() => void copyImage(previewFile)}>复制图片</button>
+            <button type="button" disabled={activeAction !== null} onClick={() => void download(previewFile)}>
+              {activeAction === 'download' ? '准备中…' : '保存图片'}
+            </button>
+            <button type="button" disabled={activeAction !== null} onClick={() => void copyImage(previewFile)}>
+              {activeAction === 'copy' ? '准备中…' : '复制图片'}
+            </button>
             <button
               type="button"
-              onClick={() => setNotice({ message: '图片编辑功能即将上线', tone: 'info' })}
+              disabled={activeAction !== null}
+              onClick={() => setPreviewNotice({ message: '图片编辑功能即将上线', tone: 'info' })}
             >
               编辑
             </button>
-            <button type="button" className="is-danger" onClick={() => void remove(previewFile)}>删除</button>
+            <button
+              type="button"
+              className="is-danger"
+              disabled={activeAction !== null}
+              onClick={() => void remove(previewFile)}
+            >
+              删除
+            </button>
           </footer>
         </div>
       ) : null}

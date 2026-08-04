@@ -19,6 +19,7 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
 import {
   DirectLoanPosterRequestError,
   isDirectLoanPosterAuthenticationError,
+  resolveDirectLoanPosterProject,
   startDirectLoanPosterProject,
 } from '../../../src/components/home-hero/direct-loan-posters';
 
@@ -41,6 +42,109 @@ describe('startDirectLoanPosterProject', () => {
     createdAt: 1,
     updatedAt: 1,
   };
+
+  it('restores the newest server project when this device has no local pointer', async () => {
+    const olderProject = {
+      ...project,
+      id: 'older-project',
+      updatedAt: 10,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: { kind: 'loan-poster' as const },
+      },
+    };
+    const newestProject = {
+      ...olderProject,
+      id: 'newest-project',
+      updatedAt: 20,
+    };
+    window.localStorage.setItem(
+      'niki:direct-loan-poster:last-project:user-1',
+      'older-project',
+    );
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/projects/older-project') {
+        return new Response(JSON.stringify({ project: olderProject }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      expect(String(input)).toBe('/api/projects');
+      return new Response(JSON.stringify({
+        projects: [olderProject, newestProject],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }));
+
+    await expect(resolveDirectLoanPosterProject('user-1')).resolves.toMatchObject({
+      id: 'newest-project',
+    });
+    expect(window.localStorage.getItem(
+      'niki:direct-loan-poster:last-project:user-1',
+    )).toBe('newest-project');
+  });
+
+  it('reuses the newest server project for a scoped mobile session', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    const reusableProject = {
+      ...project,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: {
+          kind: 'loan-poster' as const,
+          expectedOutputs: 0,
+          outputPrefix: 'biumoney-poster',
+          outputPrefixes: ['biumoney-poster'],
+          batchCount: 0,
+        },
+      },
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify({ projects: [reusableProject] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1/files') {
+        return new Response(JSON.stringify({ files: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { metadata: unknown; updatedAt: number };
+        return new Response(JSON.stringify({
+          project: { ...reusableProject, metadata: body.metadata, updatedAt: body.updatedAt },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1/media/generate') {
+        return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'biumoney',
+      sessionScope: 'user-1',
+    })).resolves.toEqual({ projectId: 'project-1' });
+
+    expect(fetchMock.mock.calls.some(
+      ([input, init]) => String(input) === '/api/projects' && init?.method === 'POST',
+    )).toBe(false);
+  });
 
   it('creates one project and dispatches low-quality image jobs without an agent run', async () => {
     const today = new Date();

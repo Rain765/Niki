@@ -86,6 +86,41 @@ export function getDirectLoanPosterProjectId(sessionScope?: string): string | nu
   return projectId && projectId !== NEW_CHAT_SESSION ? projectId : null;
 }
 
+/**
+ * Resolves the current user's durable poster project across browsers and
+ * devices. localStorage is only a fast pointer; SQLite-backed project state
+ * remains the source of truth when a Feishu webview has an empty or stale
+ * storage partition.
+ */
+export async function resolveDirectLoanPosterProject(
+  sessionScope?: string,
+): Promise<Project | null> {
+  const storageKey = lastProjectStorageKey(sessionScope);
+  const storedProjectId = window.localStorage.getItem(storageKey);
+  if (storedProjectId === NEW_CHAT_SESSION) return null;
+
+  const [storedProject, projects] = await Promise.all([
+    storedProjectId ? getProject(storedProjectId) : Promise.resolve(null),
+    listProjects(),
+  ]);
+  const candidates = [...projects];
+  if (
+    storedProject?.metadata?.directGeneration?.kind === 'loan-poster'
+    && !candidates.some((project) => project.id === storedProject.id)
+  ) {
+    candidates.push(storedProject);
+  }
+  const latestProject = candidates
+    .filter((project) => project.metadata?.directGeneration?.kind === 'loan-poster')
+    .sort((left, right) => right.updatedAt - left.updatedAt)[0] ?? null;
+  if (latestProject) {
+    window.localStorage.setItem(storageKey, latestProject.id);
+  } else if (storedProjectId) {
+    window.localStorage.removeItem(storageKey);
+  }
+  return latestProject;
+}
+
 export class DirectLoanPosterRequestError extends Error {
   readonly stage: DirectLoanPosterStage;
   readonly status: number;
@@ -141,19 +176,7 @@ export async function startDirectLoanPosterProject(
   const brandLabel = autoPosterBrandLabel(options.brand);
   const dateKey = localDateKey();
   const storageKey = lastProjectStorageKey(options.sessionScope);
-  const storedProjectId = window.localStorage.getItem(storageKey);
-  const storedProject = storedProjectId && storedProjectId !== NEW_CHAT_SESSION
-    ? await getProject(storedProjectId)
-    : null;
-  let reusableProject = storedProject?.metadata?.directGeneration?.kind === 'loan-poster'
-    ? storedProject
-    : null;
-  if (!reusableProject && storedProjectId === null && !options.sessionScope) {
-    const projects = await listProjects();
-    reusableProject = [...projects]
-      .filter((project) => project.metadata?.directGeneration?.kind === 'loan-poster')
-      .sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
-  }
+  let reusableProject = await resolveDirectLoanPosterProject(options.sessionScope);
   const prefix = `${options.brand}-poster`;
   let project: Project | null = null;
   let existingFiles: Awaited<ReturnType<typeof fetchProjectFiles>> = [];

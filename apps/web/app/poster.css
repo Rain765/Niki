@@ -30,6 +30,7 @@ input {
 
 button {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .niki-auth {
@@ -351,6 +352,18 @@ button {
   animation: none;
 }
 
+.poster-app__poster.is-error::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #111318;
+  color: var(--poster-muted);
+  content: "图片加载失败，点击后可重试";
+  font-size: 13px;
+}
+
 .poster-app__poster picture,
 .poster-app__poster img {
   display: block;
@@ -395,9 +408,32 @@ button {
 }
 
 .poster-preview__header {
+  position: relative;
+  z-index: 3;
   justify-content: space-between;
   padding-top: max(16px, env(safe-area-inset-top));
   padding-bottom: 14px;
+}
+
+.poster-preview__notice {
+  position: absolute;
+  z-index: 4;
+  top: max(78px, calc(env(safe-area-inset-top) + 62px));
+  right: max(16px, env(safe-area-inset-right));
+  left: max(16px, env(safe-area-inset-left));
+  min-height: 48px;
+  padding: 11px 14px;
+  border: 1px solid #3b414b;
+  border-radius: 14px;
+  background: rgb(24 27 33 / 96%);
+  color: white;
+  text-align: left;
+  box-shadow: 0 12px 34px rgb(0 0 0 / 42%);
+}
+
+.poster-preview__notice.is-error {
+  border-color: rgb(255 100 108 / 45%);
+  color: #ffb2b6;
 }
 
 .poster-preview__header button {
@@ -428,6 +464,9 @@ button {
   height: 100%;
   min-height: 0;
   place-items: center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .poster-preview__stage img {
@@ -438,11 +477,14 @@ button {
 }
 
 .poster-preview__footer {
+  position: relative;
+  z-index: 3;
   justify-content: center;
   gap: 10px;
   padding-top: 14px;
   padding-bottom: max(18px, env(safe-area-inset-bottom));
   border-top: 1px solid #202329;
+  background: #050506;
 }
 
 .poster-preview__footer button {
@@ -457,6 +499,10 @@ button {
 
 .poster-preview__footer button.is-danger {
   color: var(--poster-danger);
+}
+
+.poster-preview button:disabled {
+  opacity: 0.55;
 }
 
 @keyframes poster-spin {
