@@ -1,17 +1,19 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
-  copyOrShareImageBlobMock,
+  copyOrSharePreparedImageFileMock,
+  prepareImageFileMock,
   resolveDirectLoanPosterProjectMock,
-  saveImageBlobMock,
+  savePreparedImageFileMock,
   startDirectLoanPosterProjectMock,
 } = vi.hoisted(() => ({
-  copyOrShareImageBlobMock: vi.fn(),
+  copyOrSharePreparedImageFileMock: vi.fn(),
+  prepareImageFileMock: vi.fn(),
   resolveDirectLoanPosterProjectMock: vi.fn(),
-  saveImageBlobMock: vi.fn(),
+  savePreparedImageFileMock: vi.fn(),
   startDirectLoanPosterProjectMock: vi.fn(),
 }));
 
@@ -28,9 +30,11 @@ vi.mock('../../src/components/home-hero/direct-loan-posters', () => ({
 }));
 
 vi.mock('../../src/lib/image-file-actions', () => ({
-  copyOrShareImageBlob: copyOrShareImageBlobMock,
-  fetchImageBlob: vi.fn(),
-  saveImageBlob: saveImageBlobMock,
+  canSharePreparedImageFile: vi.fn(() => true),
+  copyOrSharePreparedImageFile: copyOrSharePreparedImageFileMock,
+  prepareImageFile: prepareImageFileMock,
+  savePreparedImageFile: savePreparedImageFileMock,
+  sharePreparedImageFile: vi.fn(),
 }));
 
 import { PosterApp } from '../../src/poster/PosterApp';
@@ -55,8 +59,11 @@ const project = {
 beforeEach(() => {
   vi.clearAllMocks();
   resolveDirectLoanPosterProjectMock.mockResolvedValue(project);
-  copyOrShareImageBlobMock.mockResolvedValue('copied');
-  saveImageBlobMock.mockResolvedValue('downloaded');
+  prepareImageFileMock.mockResolvedValue(new File(['png'], 'biumoney-poster-20260804-001.png', {
+    type: 'image/png',
+  }));
+  copyOrSharePreparedImageFileMock.mockResolvedValue('copied');
+  savePreparedImageFileMock.mockResolvedValue('downloaded');
   vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url === '/api/projects/project-1/files') {
@@ -101,16 +108,50 @@ describe('PosterApp mobile-safe flow', () => {
       name: 'biumoney-poster-20260804-001.png',
     });
     fireEvent.click(poster.closest('button')!);
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: '复制图片' }) as HTMLButtonElement).disabled)
+        .toBe(false);
+    });
     fireEvent.click(screen.getByRole('button', { name: '复制图片' }));
 
     await waitFor(() => {
-      expect(copyOrShareImageBlobMock).toHaveBeenCalledWith(
-        '/api/projects/project-1/raw/biumoney-poster-20260804-001.png',
-        'biumoney-poster-20260804-001.png',
-        'image/png',
-      );
+      expect(copyOrSharePreparedImageFileMock).toHaveBeenCalledWith(expect.any(File));
     });
     expect(await screen.findByText('图片已复制')).toBeTruthy();
+  });
+
+  it('prepares the original before enabling the first mobile-browser save click', async () => {
+    let resolvePrepared!: (file: File) => void;
+    prepareImageFileMock.mockReturnValue(new Promise<File>((resolve) => {
+      resolvePrepared = resolve;
+    }));
+    render(<PosterApp />);
+    const poster = await screen.findByRole('img', {
+      name: 'biumoney-poster-20260804-001.png',
+    });
+
+    fireEvent.click(poster.closest('button')!);
+
+    const preparingButton = screen.getByRole('button', { name: '正在准备原图…' });
+    expect((preparingButton as HTMLButtonElement).disabled).toBe(true);
+    expect(prepareImageFileMock).toHaveBeenCalledWith(
+      '/api/projects/project-1/raw/biumoney-poster-20260804-001.png?v=2',
+      'biumoney-poster-20260804-001.png',
+      'image/png',
+    );
+
+    const prepared = new File(['png'], 'biumoney-poster-20260804-001.png', {
+      type: 'image/png',
+    });
+    await act(async () => resolvePrepared(prepared));
+
+    const saveButton = await screen.findByRole('button', { name: '保存图片' });
+    expect((saveButton as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(savePreparedImageFileMock).toHaveBeenCalledWith(prepared);
+    });
   });
 
   it('pins the newest batch above collapsed history with its own ratio and count', async () => {

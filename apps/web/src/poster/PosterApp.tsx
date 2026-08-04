@@ -18,17 +18,23 @@ import {
 } from '../components/home-hero/zambia-posters';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import {
-  copyOrShareImageBlob,
-  fetchImageBlob,
-  saveImageBlob,
+  canSharePreparedImageFile,
+  copyOrSharePreparedImageFile,
+  prepareImageFile,
+  savePreparedImageFile,
+  sharePreparedImageFile,
 } from '../lib/image-file-actions';
 import type { Project, ProjectFile } from '../types';
 
 type Notice = { message: string; tone: 'info' | 'error' };
+type PreparedPreviewImage = { file: File; key: string };
 
-function rawUrl(projectId: string, name: string): string {
+function rawUrl(projectId: string, name: string, version?: number): string {
   const safeName = name.split('/').map(encodeURIComponent).join('/');
-  return `/api/projects/${encodeURIComponent(projectId)}/raw/${safeName}`;
+  const versionQuery = typeof version === 'number' && Number.isFinite(version)
+    ? `?v=${Math.round(version)}`
+    : '';
+  return `/api/projects/${encodeURIComponent(projectId)}/raw/${safeName}${versionQuery}`;
 }
 
 function previewUrl(projectId: string, file: ProjectFile, variant: 'mobile' | 'preview'): string {
@@ -108,6 +114,9 @@ export function PosterApp() {
   const [activeAction, setActiveAction] = useState<'copy' | 'download' | 'share' | null>(null);
   const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
   const [showHistory, setShowHistory] = useState(false);
+  const [preparedPreviewImage, setPreparedPreviewImage] = useState<PreparedPreviewImage | null>(null);
+  const [failedPreviewKey, setFailedPreviewKey] = useState<string | null>(null);
+  const [prepareAttempt, setPrepareAttempt] = useState(0);
   const latestBatchRef = useRef<HTMLElement | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
 
@@ -146,8 +155,45 @@ export function PosterApp() {
   const previewFile = previewName
     ? posterFiles.find((file) => file.name === previewName) ?? null
     : null;
+  const previewFileKey = previewFile && projectId
+    ? `${projectId}:${previewFile.name}:${previewFile.mtime}`
+    : null;
+  const preparedPreviewFile = preparedPreviewImage?.key === previewFileKey
+    ? preparedPreviewImage.file
+    : null;
+  const previewFilePreparing = previewFileKey !== null
+    && preparedPreviewFile === null
+    && failedPreviewKey !== previewFileKey;
   const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
   const status = generationCopy(latestBatch);
+
+  useEffect(() => {
+    if (!previewFile || !projectId || !previewFileKey) return undefined;
+    if (preparedPreviewImage?.key === previewFileKey) return undefined;
+    let cancelled = false;
+    const fileName = previewFile.name;
+    setFailedPreviewKey(null);
+    void prepareImageFile(
+      rawUrl(projectId, fileName, previewFile.mtime),
+      fileName,
+      previewFile.mime || 'image/png',
+    ).then((file) => {
+      if (cancelled) return;
+      setPreparedPreviewImage({ file, key: previewFileKey });
+    }).catch((error) => {
+      if (cancelled) return;
+      setFailedPreviewKey(previewFileKey);
+      console.error('[poster-preview] original image preparation failed', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+        fileName,
+      });
+      setPreviewNotice({ message: '原图准备失败，请点击重试', tone: 'error' });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [prepareAttempt, previewFileKey]);
 
   useEffect(() => {
     const batchId = latestBatch?.id ?? null;
@@ -280,16 +326,11 @@ export function PosterApp() {
     }
   };
 
-  const download = async (file: ProjectFile) => {
-    if (!projectId || activeAction) return;
+  const download = async (file: File) => {
+    if (activeAction) return;
     setActiveAction('download');
-    setPreviewNotice({ message: '正在准备原图…', tone: 'info' });
     try {
-      const result = await saveImageBlob(
-        rawUrl(projectId, file.name),
-        file.name,
-        file.mime || 'image/png',
-      );
+      const result = await savePreparedImageFile(file);
       setPreviewNotice({
         message: result === 'shared'
           ? '请在系统菜单选择“存储到照片”或“存储到文件”'
@@ -298,6 +339,11 @@ export function PosterApp() {
       });
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        console.error('[poster-preview] save failed', {
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+          fileName: file.name,
+        });
         setPreviewNotice({ message: '图片保存失败，请重试', tone: 'error' });
       }
     } finally {
@@ -305,19 +351,15 @@ export function PosterApp() {
     }
   };
 
-  const copyImage = async (file: ProjectFile) => {
-    if (!projectId || activeAction) return;
+  const copyImage = async (file: File) => {
+    if (activeAction) return;
     setActiveAction('copy');
     setPreviewNotice({
       message: '正在复制原图；若出现系统菜单，请选择“拷贝”',
       tone: 'info',
     });
     try {
-      const result = await copyOrShareImageBlob(
-        rawUrl(projectId, file.name),
-        file.name,
-        file.mime || 'image/png',
-      );
+      const result = await copyOrSharePreparedImageFile(file);
       setPreviewNotice({
         message: result === 'copied' ? '图片已复制' : '系统图片操作已完成',
         tone: 'info',
@@ -334,18 +376,17 @@ export function PosterApp() {
     }
   };
 
-  const share = async (file: ProjectFile) => {
+  const share = async (file: ProjectFile, preparedFile: File) => {
     if (!projectId || activeAction) return;
     setActiveAction('share');
-    setPreviewNotice({ message: '正在准备原图…', tone: 'info' });
-    const absoluteUrl = new URL(rawUrl(projectId, file.name), window.location.href).href;
+    const absoluteUrl = new URL(
+      rawUrl(projectId, file.name, file.mtime),
+      window.location.href,
+    ).href;
     try {
       if (typeof navigator.share !== 'function') throw new Error('share unavailable');
-      const blob = await fetchImageBlob(rawUrl(projectId, file.name));
-      const image = new File([blob], file.name, { type: file.mime || blob.type || 'image/png' });
-      const shareData = { files: [image], title: file.name };
-      if (typeof navigator.canShare === 'function' && navigator.canShare(shareData)) {
-        await navigator.share(shareData);
+      if (canSharePreparedImageFile(preparedFile)) {
+        await sharePreparedImageFile(preparedFile);
       } else {
         await navigator.share({ title: file.name, url: absoluteUrl });
       }
@@ -562,8 +603,12 @@ export function PosterApp() {
         <div className="poster-preview" role="dialog" aria-modal="true" aria-label={previewFile.name}>
           <header className="poster-preview__header">
             <button type="button" onClick={() => setPreviewName(null)} aria-label="关闭">×</button>
-            <button type="button" disabled={activeAction !== null} onClick={() => void share(previewFile)}>
-              {activeAction === 'share' ? '准备中…' : '分享'}
+            <button
+              type="button"
+              disabled={activeAction !== null || preparedPreviewFile === null}
+              onClick={() => preparedPreviewFile && void share(previewFile, preparedPreviewFile)}
+            >
+              {activeAction === 'share' ? '分享中…' : preparedPreviewFile ? '分享' : '准备中…'}
             </button>
           </header>
           {previewNotice ? (
@@ -597,11 +642,32 @@ export function PosterApp() {
             </picture>
           </div>
           <footer className="poster-preview__footer">
-            <button type="button" disabled={activeAction !== null} onClick={() => void download(previewFile)}>
-              {activeAction === 'download' ? '准备中…' : '保存图片'}
+            <button
+              type="button"
+              disabled={activeAction !== null || previewFilePreparing}
+              onClick={() => {
+                if (preparedPreviewFile) {
+                  void download(preparedPreviewFile);
+                  return;
+                }
+                setPreviewNotice({ message: '正在重新准备原图…', tone: 'info' });
+                setPrepareAttempt((current) => current + 1);
+              }}
+            >
+              {activeAction === 'download'
+                ? '保存中…'
+                : preparedPreviewFile
+                  ? '保存图片'
+                  : failedPreviewKey === previewFileKey
+                    ? '重新准备'
+                    : '正在准备原图…'}
             </button>
-            <button type="button" disabled={activeAction !== null} onClick={() => void copyImage(previewFile)}>
-              {activeAction === 'copy' ? '准备中…' : '复制图片'}
+            <button
+              type="button"
+              disabled={activeAction !== null || preparedPreviewFile === null}
+              onClick={() => preparedPreviewFile && void copyImage(preparedPreviewFile)}
+            >
+              {activeAction === 'copy' ? '复制中…' : '复制图片'}
             </button>
             <button
               type="button"

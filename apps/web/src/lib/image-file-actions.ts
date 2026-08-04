@@ -24,7 +24,16 @@ function imageFile(blob: Blob, filename: string, preferredMime = 'image/png'): F
   return new File([blob], filename, { type: blob.type || preferredMime });
 }
 
-function canShareFile(file: File): boolean {
+export async function prepareImageFile(
+  url: string,
+  filename: string,
+  preferredMime = 'image/png',
+): Promise<File> {
+  const blob = await fetchImageBlob(url);
+  return imageFile(blob, filename, preferredMime);
+}
+
+export function canSharePreparedImageFile(file: File): boolean {
   if (typeof navigator.share !== 'function') return false;
   if (typeof navigator.canShare !== 'function') return false;
   try {
@@ -40,8 +49,12 @@ function isMobileContainer(): boolean {
 }
 
 async function shareImageFile(file: File): Promise<void> {
-  if (!canShareFile(file)) throw new Error('file sharing is unavailable');
+  if (!canSharePreparedImageFile(file)) throw new Error('file sharing is unavailable');
   await navigator.share({ files: [file], title: file.name });
+}
+
+export async function sharePreparedImageFile(file: File): Promise<void> {
+  await shareImageFile(file);
 }
 
 function triggerBlobDownload(blob: Blob, filename: string): void {
@@ -66,13 +79,21 @@ export async function saveImageBlob(
   filename: string,
   preferredMime = 'image/png',
 ): Promise<ImageSaveResult> {
-  const blob = await fetchImageBlob(url);
-  const file = imageFile(blob, filename, preferredMime);
-  if (isMobileContainer() && canShareFile(file)) {
-    await shareImageFile(file);
+  const file = await prepareImageFile(url, filename, preferredMime);
+  return savePreparedImageFile(file);
+}
+
+/**
+ * Performs the user-triggered save with a file prepared before the click.
+ * Mobile WebKit requires navigator.share() while transient activation is
+ * still live, so this function must not perform network work first.
+ */
+export async function savePreparedImageFile(file: File): Promise<ImageSaveResult> {
+  if (isMobileContainer() && canSharePreparedImageFile(file)) {
+    await sharePreparedImageFile(file);
     return 'shared';
   }
-  triggerBlobDownload(blob, filename);
+  triggerBlobDownload(file, file.name);
   return 'downloaded';
 }
 
@@ -87,8 +108,12 @@ export async function copyOrShareImageBlob(
   filename: string,
   preferredMime = 'image/png',
 ): Promise<ImageCopyResult> {
-  const blob = await fetchImageBlob(url);
-  const file = imageFile(blob, filename, preferredMime);
+  const file = await prepareImageFile(url, filename, preferredMime);
+  return copyOrSharePreparedImageFile(file);
+}
+
+/** Uses the preview's prepared file so clipboard/share starts from the click. */
+export async function copyOrSharePreparedImageFile(file: File): Promise<ImageCopyResult> {
   if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
     try {
       await navigator.clipboard.write([
@@ -99,7 +124,7 @@ export async function copyOrShareImageBlob(
       // Continue to the native file sheet without changing the payload to a URL.
     }
   }
-  await shareImageFile(file);
+  await sharePreparedImageFile(file);
   return 'shared';
 }
 
