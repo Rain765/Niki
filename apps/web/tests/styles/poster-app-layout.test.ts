@@ -32,14 +32,14 @@ describe('poster app image layout', () => {
     expect(image).not.toContain('aspect-ratio: 16 / 9;');
   });
 
-  it('shrink-wraps the preview image inside a centered stage', () => {
+  it('fits the preview image inside the full stage without changing its ratio', () => {
     const picture = rule('.poster-preview__stage picture');
     const image = rule('.poster-preview__stage img');
 
-    expect(picture).toContain('width: fit-content;');
-    expect(picture).toContain('height: fit-content;');
-    expect(image).toContain('width: auto;');
-    expect(image).toContain('height: auto;');
+    expect(picture).toContain('width: 100%;');
+    expect(picture).toContain('height: 100%;');
+    expect(image).toContain('width: 100%;');
+    expect(image).toContain('height: 100%;');
     expect(image).toContain('object-fit: contain;');
   });
 });

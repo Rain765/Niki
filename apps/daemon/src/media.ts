@@ -206,6 +206,26 @@ export async function overlayZamloanLogo(
     .toBuffer();
 }
 
+/**
+ * Finalize generated PNG pixels before persistence. Loan-poster resizing must
+ * happen before the brand overlay; otherwise the completed logo is sampled a
+ * second time and its small wordmark/tagline becomes visibly soft.
+ */
+export async function finalizeGeneratedPng(
+  input: Buffer,
+  options: { loanPosterOutput: boolean; overlayLogo?: Buffer },
+): Promise<Buffer> {
+  let bytes = (
+    options.loanPosterOutput
+      ? await optimizeLoanPosterPng(input)
+      : await optimizeLosslessPng(input)
+  ).bytes;
+  if (options.overlayLogo) {
+    bytes = await overlayZamloanLogo(bytes, options.overlayLogo);
+  }
+  return bytes;
+}
+
 type MediaContext = {
   surface: MediaSurface;
   /**
@@ -786,17 +806,17 @@ export async function generateMedia(args: {
     finalOut = `${stem}${suggestedExt}`;
   }
   if (surface === 'image' && overlayLogoRef) {
-    bytes = await overlayZamloanLogo(bytes, await readFile(overlayLogoRef.abs));
     const dot = finalOut.lastIndexOf('.');
     const stem = dot > 0 ? finalOut.slice(0, dot) : finalOut;
     finalOut = `${stem}.png`;
   }
   if (surface === 'image' && /\.png$/i.test(finalOut)) {
-    bytes = (
-      loanPosterOutput
-        ? await optimizeLoanPosterPng(bytes)
-        : await optimizeLosslessPng(bytes)
-    ).bytes;
+    bytes = await finalizeGeneratedPng(bytes, {
+      loanPosterOutput: Boolean(loanPosterOutput),
+      ...(overlayLogoRef
+        ? { overlayLogo: await readFile(overlayLogoRef.abs) }
+        : {}),
+    });
   }
   const finalTarget = path.join(dir, finalOut);
   await writeFile(finalTarget, bytes);

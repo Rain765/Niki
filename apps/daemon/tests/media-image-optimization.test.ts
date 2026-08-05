@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 
 import {
+  finalizeGeneratedPng,
   overlayZamloanLogo,
   optimizeLoanPosterPng,
   optimizeLosslessPng,
@@ -74,5 +75,48 @@ describe('generated image optimization', () => {
     expect(metadata.width).toBe(800);
     expect(metadata.height).toBe(600);
     expect(pixels.equals(await sharp(poster).raw().toBuffer())).toBe(false);
+  });
+
+  it('resizes loan posters before compositing the final-resolution logo', async () => {
+    const poster = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 220, g: 72, b: 30, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const logo = await sharp({
+      create: {
+        width: 320,
+        height: 92,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    }).png().toBuffer();
+
+    const finalized = await finalizeGeneratedPng(poster, {
+      loanPosterOutput: true,
+      overlayLogo: logo,
+    });
+    const metadata = await sharp(finalized).metadata();
+    const { data, info } = await sharp(finalized)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let whitePixelCount = 0;
+    for (let offset = 0; offset < data.length; offset += info.channels) {
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? 0;
+      const blue = data[offset + 2] ?? 0;
+      if (red > 250 && green > 250 && blue > 250) {
+        whitePixelCount += 1;
+      }
+    }
+
+    expect(metadata.width).toBe(400);
+    expect(metadata.height).toBe(300);
+    // The final-size overlay is 160 × 46. Compositing before the 50% resize
+    // would leave only about one quarter as many untouched white pixels.
+    expect(whitePixelCount).toBeGreaterThan(6_500);
   });
 });
