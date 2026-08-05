@@ -37,7 +37,10 @@ describe('LiteImageHome', () => {
         return new Response(new Blob(['reference'], { type: 'image/png' }), { status: 200 });
       }
       if (url === '/brand/zambia-support/zamloan-logo.png') {
-        return new Response(new Blob(['logo'], { type: 'image/png' }), { status: 200 });
+        return new Response(new Blob(['logo'], { type: 'image/png' }), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        });
       }
       if (url === '/api/projects') {
         expect(init?.method).toBe('POST');

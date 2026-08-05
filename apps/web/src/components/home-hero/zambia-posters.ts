@@ -321,7 +321,8 @@ export async function loadZambiaPosterReference(): Promise<File> {
 
 export async function loadZamloanLogo(): Promise<File> {
   const response = await fetch(ZAMLOAN_LOGO_URL, { cache: 'force-cache' });
-  if (!response.ok) {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!response.ok || !contentType.startsWith('image/')) {
     throw new Error(`Unable to load Zamloan logo (${response.status})`);
   }
   const blob = await response.blob();
