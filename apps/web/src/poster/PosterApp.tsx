@@ -61,7 +61,7 @@ async function fetchPosterFiles(projectId: string): Promise<ProjectFile[]> {
     cache: 'no-store',
   });
   if (response.status === 401) throw new Error('AUTH_REQUIRED');
-  if (!response.ok) throw new Error(`图片读取失败（HTTP ${response.status}）`);
+  if (!response.ok) throw new Error(`Could not load images (HTTP ${response.status})`);
   const body = await response.json() as { files?: ProjectFile[] };
   return body.files ?? [];
 }
@@ -72,30 +72,32 @@ function generationCopy(batch: DirectPosterBatchView | null): {
   title: string;
 } {
   if (!batch) {
-    return { state: 'idle', title: '准备生成', detail: '选择数量和比例，然后点击一次生成。' };
+    return { state: 'idle', title: 'Ready to generate', detail: 'Choose a quantity and ratio, then generate.' };
   }
   const fileCount = batch.files.length;
   const expected = Math.max(fileCount, batch.expectedCount ?? 0);
   if (batch.status === 'failed' || batch.status === 'interrupted') {
     return {
       state: 'failed',
-      title: '本批生成未完成',
-      detail: batch.lastError ?? '生成服务未完成任务，请重新生成。',
+      title: 'This batch did not finish',
+      detail: batch.lastError ?? 'The generation service did not finish. Please try again.',
     };
   }
   if (batch.status === 'complete') {
     return {
       state: 'complete',
-      title: fileCount > 0 ? `本批已生成 ${fileCount} 张海报` : '本批图片已删除',
+      title: fileCount > 0
+        ? `${fileCount} ${fileCount === 1 ? 'poster' : 'posters'} generated in this batch`
+        : 'Images from this batch were deleted',
       detail: fileCount > 0
-        ? '最新图片已置顶，可以预览、下载、复制或分享。'
-        : '可以点击一键生成新的海报。',
+        ? 'The latest images are pinned above for preview, download, copy, or sharing.'
+        : 'Generate a new batch whenever you are ready.',
     };
   }
   return {
     state: 'working',
-    title: fileCount > 0 ? `正在生成 · ${fileCount}/${expected} 张` : '正在生成海报',
-    detail: '任务已提交。可以停留在本页，图片完成后会自动出现。',
+    title: fileCount > 0 ? `Generating · ${fileCount}/${expected}` : 'Generating posters',
+    detail: 'The task is running. Finished images will appear here automatically.',
   };
 }
 
@@ -105,7 +107,7 @@ export function PosterApp() {
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
   const [aspectRatio, setAspectRatio] = useState<AutoPosterAspectRatio>('16:9');
-  const [count, setCount] = useState(2);
+  const [count, setCount] = useState(1);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<ProjectFile[]>([]);
@@ -210,7 +212,7 @@ export function PosterApp() {
         errorName: error instanceof Error ? error.name : 'UnknownError',
         fileName,
       });
-      setPreviewNotice({ message: '原图准备失败，请点击重试', tone: 'error' });
+      setPreviewNotice({ message: 'Could not prepare the original image. Tap to retry.', tone: 'error' });
     });
     return () => {
       cancelled = true;
@@ -253,7 +255,7 @@ export function PosterApp() {
       }
       if (!quiet) {
         setNotice({
-          message: error instanceof Error ? error.message : '海报读取失败',
+          message: error instanceof Error ? error.message : 'Could not load posters',
           tone: 'error',
         });
       }
@@ -286,7 +288,7 @@ export function PosterApp() {
           return;
         }
         setNotice({
-          message: error instanceof Error ? error.message : '最近海报读取失败',
+          message: error instanceof Error ? error.message : 'Could not load recent posters',
           tone: 'error',
         });
       } finally {
@@ -340,7 +342,7 @@ export function PosterApp() {
       await refreshProject(result.projectId, true);
     } catch (error) {
       setNotice({
-        message: error instanceof Error ? error.message : '生成任务提交失败',
+        message: error instanceof Error ? error.message : 'Could not submit the generation task',
         tone: 'error',
       });
     } finally {
@@ -355,8 +357,8 @@ export function PosterApp() {
       const result = await savePreparedImageFile(file);
       setPreviewNotice({
         message: result === 'shared'
-          ? '请在系统菜单选择“存储到照片”或“存储到文件”'
-          : '图片下载已开始',
+          ? 'Choose Save to Photos or Save to Files in the system menu.'
+          : 'Image download started',
         tone: 'info',
       });
     } catch (error) {
@@ -366,7 +368,7 @@ export function PosterApp() {
           errorName: error instanceof Error ? error.name : 'UnknownError',
           fileName: file.name,
         });
-        setPreviewNotice({ message: '图片保存失败，请重试', tone: 'error' });
+        setPreviewNotice({ message: 'Could not save the image. Please try again.', tone: 'error' });
       }
     } finally {
       setActiveAction(null);
@@ -377,19 +379,19 @@ export function PosterApp() {
     if (activeAction) return;
     setActiveAction('copy');
     setPreviewNotice({
-      message: '正在复制原图；若出现系统菜单，请选择“拷贝”',
+      message: 'Copying the original image. Choose Copy if a system menu appears.',
       tone: 'info',
     });
     try {
       const result = await copyOrSharePreparedImageFile(file);
       setPreviewNotice({
-        message: result === 'copied' ? '图片已复制' : '系统图片操作已完成',
+        message: result === 'copied' ? 'Image copied' : 'Image action completed',
         tone: 'info',
       });
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         setPreviewNotice({
-          message: '当前飞书版本不支持复制图片，请使用“保存图片”',
+          message: 'This Feishu version cannot copy images. Use Save image instead.',
           tone: 'error',
         });
       }
@@ -416,7 +418,7 @@ export function PosterApp() {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       const copied = await copyToClipboard(absoluteUrl);
       setPreviewNotice({
-        message: copied ? '系统分享不可用，图片链接已复制' : '分享失败',
+        message: copied ? 'System sharing is unavailable. Image link copied.' : 'Could not share image',
         tone: copied ? 'info' : 'error',
       });
     } finally {
@@ -425,13 +427,13 @@ export function PosterApp() {
   };
 
   const remove = async (file: ProjectFile) => {
-    if (!projectId || !window.confirm(`删除 ${file.name}？`)) return;
+    if (!projectId || !window.confirm(`Delete ${file.name}?`)) return;
     const response = await fetch(rawUrl(projectId, file.name), {
       method: 'DELETE',
       credentials: 'include',
     }).catch(() => null);
     if (!response?.ok) {
-      setNotice({ message: '图片删除失败', tone: 'error' });
+      setNotice({ message: 'Could not delete the image', tone: 'error' });
       return;
     }
     setPreviewName(null);
@@ -492,7 +494,7 @@ export function PosterApp() {
       <header className="poster-app__header">
         <div>
           <span className="poster-app__eyebrow">NIKI POSTER</span>
-          <h1>一键生成贷款海报</h1>
+          <h1>Generate Loan Posters</h1>
         </div>
         <div className="poster-app__account-wrap" ref={accountMenuRef}>
           <button
@@ -519,7 +521,7 @@ export function PosterApp() {
                   setAccountManagerOpen(true);
                 }}
               >
-                账号管理
+                Account management
               </button>
             ) : null}
             <button
@@ -532,7 +534,7 @@ export function PosterApp() {
                 void logout();
               }}
             >
-              退出登录
+              Sign out
             </button>
           </div>
         </div>
@@ -543,9 +545,9 @@ export function PosterApp() {
         onClose={() => setAccountManagerOpen(false)}
       />
 
-      <section className="poster-app__generator" aria-label="海报生成设置">
+      <section className="poster-app__generator" aria-label="Poster generation settings">
         <div className="poster-app__field">
-          <span>品牌</span>
+          <span>Product</span>
           <div className="poster-app__segmented">
             {(['zamloan', 'biumoney'] as const).map((value) => (
               <button
@@ -560,7 +562,7 @@ export function PosterApp() {
           </div>
         </div>
         <div className="poster-app__field">
-          <span>数量</span>
+          <span>Quantity</span>
           <div className="poster-app__segmented">
             {[1, 2, 3, 4].map((value) => (
               <button
@@ -569,13 +571,13 @@ export function PosterApp() {
                 className={count === value ? 'is-active' : ''}
                 onClick={() => setCount(value)}
               >
-                {value} 张
+                {value}
               </button>
             ))}
           </div>
         </div>
         <div className="poster-app__field">
-          <span>比例</span>
+          <span>Ratio</span>
           <div className="poster-app__segmented">
             {(['16:9', '1:1', '3:4'] as const).map((value) => (
               <button
@@ -585,10 +587,10 @@ export function PosterApp() {
                 onClick={() => setAspectRatio(value)}
               >
                 {value === '16:9'
-                  ? '横版 16:9'
+                  ? 'Landscape 16:9'
                   : value === '1:1'
-                    ? '方形 1:1'
-                    : '竖版 4:3'}
+                    ? 'Square 1:1'
+                    : 'Portrait 3:4'}
               </button>
             ))}
           </div>
@@ -599,14 +601,14 @@ export function PosterApp() {
           disabled={generating}
           onClick={() => void generate()}
         >
-          {generating ? '正在提交…' : '一键生成海报'}
+          {generating ? 'Submitting…' : 'Generate posters'}
         </button>
       </section>
 
       <section className={`poster-app__status is-${status.state}`} aria-live="polite">
         <span className="poster-app__status-mark" aria-hidden="true" />
         <div>
-          <strong>{loadingProject ? '正在读取海报…' : status.title}</strong>
+          <strong>{loadingProject ? 'Loading posters…' : status.title}</strong>
           <p>{status.detail}</p>
         </div>
       </section>
@@ -624,15 +626,15 @@ export function PosterApp() {
       <section
         ref={latestBatchRef}
         className="poster-app__batch-section poster-app__latest-batch"
-        aria-label="本次生成"
+        aria-label="Latest batch"
         tabIndex={-1}
       >
         <header className="poster-app__section-header">
           <div>
-            <h2>本次生成</h2>
+            <h2>Latest batch</h2>
             <span>{latestBatch?.aspectRatio ?? aspectRatio}</span>
           </div>
-          {latestBatch?.files.length ? <span>{latestBatch.files.length} 张</span> : null}
+          {latestBatch?.files.length ? <span>{latestBatch.files.length}</span> : null}
         </header>
         <div className="poster-app__gallery">
           {latestBatch?.files.map((file, index) => renderPoster(file, {
@@ -648,22 +650,22 @@ export function PosterApp() {
               : (latestBatch?.aspectRatio ?? aspectRatio) === '3:4'
                 ? ' is-portrait'
                 : ''}`}>
-              <span>{loadingProject ? '正在读取最近海报…' : '图片生成中…'}</span>
+              <span>{loadingProject ? 'Loading recent posters…' : 'Generating image…'}</span>
             </div>
           ) : null}
         </div>
       </section>
 
       {historyFiles.length > 0 ? (
-        <section className="poster-app__batch-section poster-app__history" aria-label="历史海报">
+        <section className="poster-app__batch-section poster-app__history" aria-label="Poster history">
           <button
             type="button"
             className="poster-app__history-toggle"
             aria-expanded={showHistory}
             onClick={() => setShowHistory((current) => !current)}
           >
-            <span>历史海报（{historyFiles.length} 张）</span>
-            <span aria-hidden="true">{showHistory ? '收起' : '展开'}</span>
+            <span>Poster history ({historyFiles.length})</span>
+            <span aria-hidden="true">{showHistory ? 'Collapse' : 'Expand'}</span>
           </button>
           {showHistory ? (
             <div className="poster-app__gallery poster-app__history-gallery">
@@ -680,13 +682,13 @@ export function PosterApp() {
       {previewFile && projectId ? (
         <div className="poster-preview" role="dialog" aria-modal="true" aria-label={previewFile.name}>
           <header className="poster-preview__header">
-            <button type="button" onClick={() => setPreviewName(null)} aria-label="关闭">×</button>
+            <button type="button" onClick={() => setPreviewName(null)} aria-label="Close">×</button>
             <button
               type="button"
               disabled={activeAction !== null || preparedPreviewFile === null}
               onClick={() => preparedPreviewFile && void share(previewFile, preparedPreviewFile)}
             >
-              {activeAction === 'share' ? '分享中…' : preparedPreviewFile ? '分享' : '准备中…'}
+              {activeAction === 'share' ? 'Sharing…' : preparedPreviewFile ? 'Share' : 'Preparing…'}
             </button>
           </header>
           {previewNotice ? (
@@ -717,7 +719,7 @@ export function PosterApp() {
                   if (!rawFallbackNames.has(previewFile.name)) {
                     setRawFallbackNames((current) => new Set(current).add(previewFile.name));
                   } else {
-                    setPreviewNotice({ message: '原图加载失败，请稍后重试', tone: 'error' });
+                    setPreviewNotice({ message: 'Could not load the original image. Please try again.', tone: 'error' });
                   }
                 }}
               />
@@ -732,31 +734,31 @@ export function PosterApp() {
                   void download(preparedPreviewFile);
                   return;
                 }
-                setPreviewNotice({ message: '正在重新准备原图…', tone: 'info' });
+                setPreviewNotice({ message: 'Preparing the original again…', tone: 'info' });
                 setPrepareAttempt((current) => current + 1);
               }}
             >
               {activeAction === 'download'
-                ? '保存中…'
+                ? 'Saving…'
                 : preparedPreviewFile
-                  ? '保存图片'
+                  ? 'Save image'
                   : failedPreviewKey === previewFileKey
-                    ? '重新准备'
-                    : '正在准备原图…'}
+                    ? 'Prepare again'
+                    : 'Preparing original…'}
             </button>
             <button
               type="button"
               disabled={activeAction !== null || preparedPreviewFile === null}
               onClick={() => preparedPreviewFile && void copyImage(preparedPreviewFile)}
             >
-              {activeAction === 'copy' ? '复制中…' : '复制图片'}
+              {activeAction === 'copy' ? 'Copying…' : 'Copy image'}
             </button>
             <button
               type="button"
               disabled={activeAction !== null}
-              onClick={() => setPreviewNotice({ message: '图片编辑功能即将上线', tone: 'info' })}
+              onClick={() => setPreviewNotice({ message: 'Image editing is coming soon.', tone: 'info' })}
             >
-              编辑
+              Edit
             </button>
             <button
               type="button"
@@ -764,7 +766,7 @@ export function PosterApp() {
               disabled={activeAction !== null}
               onClick={() => void remove(previewFile)}
             >
-              删除
+              Delete
             </button>
           </footer>
         </div>

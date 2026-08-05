@@ -1,13 +1,13 @@
 :root {
-  color-scheme: dark;
-  --poster-bg: #08090b;
-  --poster-panel: #121419;
-  --poster-panel-raised: #181b21;
-  --poster-border: #292d35;
-  --poster-text: #f6f7f9;
-  --poster-muted: #989fab;
+  color-scheme: light;
+  --poster-bg: #f7f7f5;
+  --poster-panel: #ffffff;
+  --poster-panel-raised: #f1f2f4;
+  --poster-border: #dedfe3;
+  --poster-text: #171717;
+  --poster-muted: #666b74;
   --poster-accent: #fe5200;
-  --poster-danger: #ff646c;
+  --poster-danger: #c9363e;
   --bg-panel: var(--poster-panel);
   --bg-subtle: var(--poster-panel-raised);
   --border: var(--poster-border);
@@ -16,8 +16,8 @@
   --text-muted: var(--poster-muted);
   --accent: var(--poster-accent);
   --danger: var(--poster-danger);
-  --success: #38d996;
-  --shadow-lg: 0 30px 80px rgb(0 0 0 / 44%);
+  --success: #198754;
+  --shadow-lg: 0 30px 80px rgb(0 0 0 / 12%);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -50,7 +50,7 @@ button {
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 50% 18%, rgb(254 82 0 / 18%), transparent 34%),
+    radial-gradient(circle at 50% 18%, rgb(254 82 0 / 9%), transparent 34%),
     var(--poster-bg);
 }
 
@@ -60,7 +60,7 @@ button {
   border: 1px solid var(--poster-border);
   border-radius: 24px;
   background: var(--poster-panel);
-  box-shadow: 0 30px 80px rgb(0 0 0 / 38%);
+  box-shadow: 0 30px 80px rgb(0 0 0 / 10%);
 }
 
 .niki-auth__logo {
@@ -76,7 +76,7 @@ button {
 
 .niki-auth p {
   margin: 0 0 22px;
-  color: #a8adb8;
+  color: var(--poster-muted);
   font-size: 15px;
   line-height: 1.65;
 }
@@ -148,15 +148,15 @@ button {
 .niki-auth__password-form label {
   display: grid;
   gap: 7px;
-  color: #c8ccd4;
+  color: var(--poster-muted);
   font-size: 13px;
 }
 
 .niki-auth__password-form input {
   padding: 0 14px;
-  border: 1px solid #353b46;
+  border: 1px solid var(--poster-border);
   outline: none;
-  background: #090b0f;
+  background: #ffffff;
   color: var(--poster-text);
   font-size: 16px;
 }
@@ -170,13 +170,13 @@ button {
   min-height: 42px;
   margin-top: 8px;
   background: transparent;
-  color: #a8adb8;
+  color: var(--poster-muted);
   font-size: 14px;
 }
 
 .niki-auth .niki-auth__text-button:disabled {
   background: transparent;
-  color: #737986;
+  color: #92969d;
   opacity: 1;
 }
 
@@ -185,13 +185,13 @@ button {
   align-items: center;
   gap: 10px;
   min-height: 50px;
-  color: #a8adb8;
+  color: var(--poster-muted);
 }
 
 .niki-auth__spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgb(255 255 255 / 18%);
+  border: 2px solid rgb(0 0 0 / 14%);
   border-top-color: var(--poster-accent);
   border-radius: 50%;
   animation: poster-spin 700ms linear infinite;
@@ -199,17 +199,17 @@ button {
 
 .niki-auth__hint {
   margin-top: -12px !important;
-  color: #737986 !important;
+  color: #7b8088 !important;
   font-size: 13px !important;
 }
 
 .niki-auth__error {
   margin: -8px 0 18px;
   padding: 10px 12px;
-  border: 1px solid rgb(255 91 99 / 38%);
+  border: 1px solid rgb(201 54 62 / 28%);
   border-radius: 10px;
-  background: rgb(121 28 33 / 35%);
-  color: #ff9ca1;
+  background: #fff0f1;
+  color: var(--poster-danger);
   font-size: 13px;
 }
 
@@ -282,7 +282,7 @@ button {
   border: 1px solid var(--poster-border);
   border-radius: 13px;
   background: var(--poster-panel-raised);
-  box-shadow: 0 18px 46px rgb(0 0 0 / 42%);
+  box-shadow: 0 18px 46px rgb(0 0 0 / 14%);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-5px) scale(0.98);
@@ -317,7 +317,7 @@ button {
 
 .poster-app__account-menu button:hover,
 .poster-app__account-menu button:focus-visible {
-  background: rgb(255 255 255 / 7%);
+  background: rgb(0 0 0 / 5%);
   outline: none;
 }
 
@@ -352,7 +352,7 @@ button {
   min-width: 0;
   padding: 4px;
   border-radius: 13px;
-  background: #090b0e;
+  background: #f1f2f4;
 }
 
 .poster-app__segmented button {
@@ -369,9 +369,9 @@ button {
 }
 
 .poster-app__segmented button.is-active {
-  background: var(--poster-panel-raised);
-  color: var(--poster-text);
-  box-shadow: 0 1px 6px rgb(0 0 0 / 28%);
+  background: #111111;
+  color: #ffffff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 18%);
 }
 
 .poster-app__generate {
@@ -396,7 +396,7 @@ button {
   padding: 15px 16px;
   border: 1px solid var(--poster-border);
   border-radius: 16px;
-  background: rgb(18 20 25 / 72%);
+  background: rgb(255 255 255 / 88%);
 }
 
 .poster-app__status-mark {
@@ -438,17 +438,17 @@ button {
   width: 100%;
   margin: 0 0 18px;
   padding: 12px 15px;
-  border: 1px solid #37404b;
+  border: 1px solid var(--poster-border);
   border-radius: 13px;
-  background: #171b21;
+  background: #ffffff;
   color: var(--poster-text);
   text-align: left;
 }
 
 .poster-app__notice.is-error {
-  border-color: rgb(255 100 108 / 35%);
-  background: rgb(112 33 39 / 32%);
-  color: #ffb2b6;
+  border-color: rgb(201 54 62 / 28%);
+  background: #fff0f1;
+  color: var(--poster-danger);
 }
 
 .poster-app__gallery {
@@ -497,7 +497,7 @@ button {
   padding: 0 15px;
   border: 1px solid var(--poster-border);
   border-radius: 14px;
-  background: rgb(18 20 25 / 72%);
+  background: rgb(255 255 255 / 88%);
   color: var(--poster-text);
   text-align: left;
 }
@@ -524,7 +524,7 @@ button {
   position: relative;
   aspect-ratio: 16 / 9;
   padding: 0;
-  background: linear-gradient(100deg, #111318 15%, #20242c 35%, #111318 55%);
+  background: linear-gradient(100deg, #f0f1f2 15%, #ffffff 35%, #f0f1f2 55%);
   background-size: 200% 100%;
   animation: poster-shimmer 1.3s linear infinite;
 }
@@ -552,9 +552,9 @@ button {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: #111318;
+  background: #f1f2f4;
   color: var(--poster-muted);
-  content: "图片加载失败，点击后可重试";
+  content: "Image failed to load. Tap to retry.";
   font-size: 13px;
 }
 
@@ -573,7 +573,7 @@ button {
   display: grid;
   aspect-ratio: 16 / 9;
   place-items: center;
-  background: linear-gradient(100deg, #111318 15%, #20242c 35%, #111318 55%);
+  background: linear-gradient(100deg, #f0f1f2 15%, #ffffff 35%, #f0f1f2 55%);
   background-size: 200% 100%;
   color: var(--poster-muted);
   animation: poster-shimmer 1.3s linear infinite;
@@ -593,7 +593,7 @@ button {
   z-index: 1000;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  background: #050506;
+  background: var(--poster-bg);
 }
 
 .poster-preview__header,
@@ -620,25 +620,25 @@ button {
   left: max(16px, env(safe-area-inset-left));
   min-height: 48px;
   padding: 11px 14px;
-  border: 1px solid #3b414b;
+  border: 1px solid var(--poster-border);
   border-radius: 14px;
-  background: rgb(24 27 33 / 96%);
-  color: white;
+  background: rgb(255 255 255 / 96%);
+  color: var(--poster-text);
   text-align: left;
-  box-shadow: 0 12px 34px rgb(0 0 0 / 42%);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 14%);
 }
 
 .poster-preview__notice.is-error {
-  border-color: rgb(255 100 108 / 45%);
-  color: #ffb2b6;
+  border-color: rgb(201 54 62 / 32%);
+  color: var(--poster-danger);
 }
 
 .poster-preview__header button {
   min-width: 48px;
   min-height: 48px;
-  border: 1px solid #30343b;
+  border: 1px solid #111111;
   border-radius: 999px;
-  background: #15171b;
+  background: #111111;
   color: white;
   font-size: 15px;
 }
@@ -684,17 +684,17 @@ button {
   gap: 10px;
   padding-top: 14px;
   padding-bottom: max(18px, env(safe-area-inset-bottom));
-  border-top: 1px solid #202329;
-  background: #050506;
+  border-top: 1px solid var(--poster-border);
+  background: #ffffff;
 }
 
 .poster-preview__footer button {
   min-width: 0;
   min-height: 48px;
   padding: 0 18px;
-  border: 1px solid #30343b;
+  border: 1px solid #111111;
   border-radius: 14px;
-  background: #15171b;
+  background: #111111;
   color: white;
 }
 

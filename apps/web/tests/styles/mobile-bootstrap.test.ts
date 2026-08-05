@@ -26,10 +26,10 @@ describe('mobile bootstrap styles', () => {
     expect(bootstrapRule).toContain('background: var(--bg-app);');
   });
 
-  it('ships a dark first-paint shell before external CSS and client JavaScript load', () => {
-    expect(rootLayout).toContain("themeColor: '#08090b'");
+  it('ships a light first-paint shell before external CSS and client JavaScript load', () => {
+    expect(rootLayout).toContain("themeColor: '#f7f7f5'");
     expect(rootLayout).toContain("id='niki-first-paint'");
-    expect(rootLayout).toMatch(/:where\(html,\s*body\)\s*\{[^}]*background:\s*#08090b/s);
+    expect(rootLayout).toMatch(/:where\(html,\s*body\)\s*\{[^}]*background:\s*#f7f7f5/s);
     expect(rootLayout).toMatch(
       /:where\(\.niki-auth,\s*\.poster-app\)\s*\{[^}]*min-height:\s*100dvh/s,
     );

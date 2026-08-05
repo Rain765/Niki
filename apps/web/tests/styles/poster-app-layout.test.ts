@@ -19,6 +19,17 @@ function rules(selector: string): string {
 }
 
 describe('poster app image layout', () => {
+  it('uses a light canvas with black selected controls', () => {
+    const root = rule(':root');
+    const selected = rule('.poster-app__segmented button.is-active');
+
+    expect(root).toContain('color-scheme: light;');
+    expect(root).toContain('--poster-bg: #f7f7f5;');
+    expect(root).toContain('--poster-panel: #ffffff;');
+    expect(selected).toContain('background: #111111;');
+    expect(selected).toContain('color: #ffffff;');
+  });
+
   it('lets each card own its aspect ratio without cropping the image', () => {
     const poster = rule('.poster-app__poster');
     const square = rule('.poster-app__poster.is-square');

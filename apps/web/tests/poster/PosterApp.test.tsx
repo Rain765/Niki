@@ -104,12 +104,22 @@ afterEach(() => {
 });
 
 describe('PosterApp mobile-safe flow', () => {
+  it('defaults to one poster and renders the product controls in English', () => {
+    render(<PosterApp />);
+
+    expect(screen.getByRole('heading', { name: 'Generate Loan Posters' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
+    expect(screen.getByText('Quantity')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '1' }).classList.contains('is-active')).toBe(true);
+    expect(screen.queryByText(/\u5f20/)).toBeNull();
+  });
+
   it('submits the portrait option as a 3:4 generation ratio', async () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: '竖版 4:3' }));
-    fireEvent.click(screen.getByRole('button', { name: '一键生成海报' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Portrait 3:4' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
 
     await waitFor(() => {
       expect(startDirectLoanPosterProjectMock).toHaveBeenCalledWith(
@@ -125,14 +135,14 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tester' }));
 
     expect(logoutMock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('menuitem', { name: '账号管理' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Account management' }));
     expect(await screen.findByRole('dialog', { name: '账号管理' })).toBeTruthy();
   });
 
   it('shows a gallery placeholder immediately while restoring the server project', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(() => undefined));
     render(<PosterApp />);
-    expect(screen.getByText('正在读取最近海报…')).toBeTruthy();
+    expect(screen.getByText('Loading recent posters…')).toBeTruthy();
   });
 
   it('restores the server image and shows copy confirmation above the preview', async () => {
@@ -142,15 +152,15 @@ describe('PosterApp mobile-safe flow', () => {
     });
     fireEvent.click(poster.closest('button')!);
     await waitFor(() => {
-      expect((screen.getByRole('button', { name: '复制图片' }) as HTMLButtonElement).disabled)
+      expect((screen.getByRole('button', { name: 'Copy image' }) as HTMLButtonElement).disabled)
         .toBe(false);
     });
-    fireEvent.click(screen.getByRole('button', { name: '复制图片' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy image' }));
 
     await waitFor(() => {
       expect(copyOrSharePreparedImageFileMock).toHaveBeenCalledWith(expect.any(File));
     });
-    expect(await screen.findByText('图片已复制')).toBeTruthy();
+    expect(await screen.findByText('Image copied')).toBeTruthy();
   });
 
   it('prepares the original before enabling the first mobile-browser save click', async () => {
@@ -165,7 +175,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     fireEvent.click(poster.closest('button')!);
 
-    const preparingButton = screen.getByRole('button', { name: '正在准备原图…' });
+    const preparingButton = screen.getByRole('button', { name: 'Preparing original…' });
     expect((preparingButton as HTMLButtonElement).disabled).toBe(true);
     expect(prepareImageFileMock).toHaveBeenCalledWith(
       '/api/projects/project-1/raw/biumoney-poster-20260804-001.png?v=2',
@@ -178,7 +188,7 @@ describe('PosterApp mobile-safe flow', () => {
     });
     await act(async () => resolvePrepared(prepared));
 
-    const saveButton = await screen.findByRole('button', { name: '保存图片' });
+    const saveButton = await screen.findByRole('button', { name: 'Save image' });
     expect((saveButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(saveButton);
 
@@ -262,20 +272,20 @@ describe('PosterApp mobile-safe flow', () => {
 
     render(<PosterApp />);
 
-    const latestRegion = await screen.findByRole('region', { name: '本次生成' });
+    const latestRegion = await screen.findByRole('region', { name: 'Latest batch' });
     const newestImage = within(latestRegion).getByRole('img', {
       name: 'biumoney-poster-20260804-003.png',
     });
     expect(newestImage.getAttribute('loading')).toBe('eager');
     expect(newestImage.closest('button')?.className).toContain('is-square');
-    expect(screen.getByText('本批已生成 1 张海报')).toBeTruthy();
+    expect(screen.getByText('1 poster generated in this batch')).toBeTruthy();
     expect(screen.queryByRole('img', {
       name: 'biumoney-poster-20260804-001.png',
     })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: '历史海报（2 张）' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Poster history (2)' }));
 
-    const historyRegion = screen.getByRole('region', { name: '历史海报' });
+    const historyRegion = screen.getByRole('region', { name: 'Poster history' });
     const olderImage = within(historyRegion).getByRole('img', {
       name: 'biumoney-poster-20260804-002.png',
     });

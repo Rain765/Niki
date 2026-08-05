@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#08090b',
+  themeColor: '#f7f7f5',
 };
 
 /**
@@ -30,14 +30,14 @@ const firstPaintStyle = `
 :where(html, body) {
   min-height: 100%;
   margin: 0;
-  background: #08090b;
-  color: #f7f7f8;
+  background: #f7f7f5;
+  color: #171717;
 }
 :where(.niki-auth, .poster-app) {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #08090b;
-  color: #f7f7f8;
+  background: #f7f7f5;
+  color: #171717;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 :where(.niki-auth) {
@@ -49,9 +49,9 @@ const firstPaintStyle = `
   width: min(100%, 440px);
   box-sizing: border-box;
   padding: 36px;
-  border: 1px solid #2a2e35;
+  border: 1px solid #dedfe3;
   border-radius: 24px;
-  background: #111318;
+  background: #ffffff;
 }
 :where(.niki-auth__logo) {
   width: 52px;
@@ -71,7 +71,7 @@ const firstPaintStyle = `
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid rgb(255 255 255 / 18%);
+  border: 2px solid rgb(0 0 0 / 14%);
   border-top-color: #fe5200;
   border-radius: 50%;
   animation: niki-first-paint-spin 700ms linear infinite;
