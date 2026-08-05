@@ -212,8 +212,8 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
     });
     expect(within(preview).getByTestId('image-lightbox-footer-download').tagName).toBe('BUTTON');
     expect(within(preview).queryByRole('button', { name: 'Edit' })).toBeNull();
-    fireEvent.click(within(preview).getByTestId('image-lightbox-footer-preview'));
-    expect(screen.getByTestId('image-post-preview-feed')).toBeTruthy();
+    expect(within(preview).queryByTestId('image-lightbox-footer-preview')).toBeNull();
+    expect(screen.queryByTestId('image-post-preview-feed')).toBeNull();
     expect(onRequestOpenFile).not.toHaveBeenCalled();
   });
 

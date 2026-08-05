@@ -18,7 +18,6 @@ import {
 } from '../providers/registry';
 import type { ProjectFile } from '../types';
 import { Icon } from './Icon';
-import { ImagePostPreview } from './ImagePostPreview';
 import { Toast } from './Toast';
 
 interface Props {
@@ -80,7 +79,6 @@ export function ImageLightbox({
   const [imageState, setImageState] = useState<'loading' | 'loaded' | 'failed'>('loading');
   const [imageRetry, setImageRetry] = useState(0);
   const [deleting, setDeleting] = useState(false);
-  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
   const [notice, setNotice] = useState<{
     message: string;
     role: 'status' | 'alert';
@@ -125,7 +123,6 @@ export function ImageLightbox({
     setScale(1);
     setOffset({ x: 0, y: 0 });
     setShareFallbackOpen(false);
-    setPostPreviewOpen(false);
     setImageState('loading');
     setImageRetry(0);
     pointersRef.current.clear();
@@ -157,10 +154,6 @@ export function ImageLightbox({
         }
       } else if (event.key === 'Escape') {
         event.preventDefault();
-        if (postPreviewOpen) {
-          setPostPreviewOpen(false);
-          return;
-        }
         onClose();
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault();
@@ -172,7 +165,7 @@ export function ImageLightbox({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, postPreviewOpen, selectRelativeImage]);
+  }, [onClose, selectRelativeImage]);
 
   if (!activeFile) return null;
 
@@ -487,18 +480,6 @@ export function ImageLightbox({
             <Icon name="copy" size={23} />
           </span>
         </button>
-        <button
-          type="button"
-          className="image-lightbox__footer-action"
-          aria-label={t('common.preview')}
-          title={t('common.preview')}
-          data-testid="image-lightbox-footer-preview"
-          onClick={() => setPostPreviewOpen(true)}
-        >
-          <span className="image-lightbox__tool-icon">
-            <Icon name="eye" size={23} />
-          </span>
-        </button>
         {onDelete ? (
           <button
             type="button"
@@ -514,20 +495,6 @@ export function ImageLightbox({
           </button>
         ) : null}
       </footer>
-
-      {postPreviewOpen ? (
-        <ImagePostPreview
-          imageUrl={projectImagePreviewUrl(
-            projectId,
-            activeFile.name,
-            'preview',
-            activeFile.mtime,
-          )}
-          imageAlt={activeFile.name}
-          fileName={activeFile.name}
-          onClose={() => setPostPreviewOpen(false)}
-        />
-      ) : null}
 
       {notice ? (
         <div className="image-lightbox__toast">

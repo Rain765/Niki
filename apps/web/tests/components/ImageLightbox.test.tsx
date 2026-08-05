@@ -83,7 +83,7 @@ describe('ImageLightbox', () => {
     expect(within(dialog).getByRole('button', { name: 'common.share' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-download')).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-copy')).toBeTruthy();
-    expect(within(dialog).getByTestId('image-lightbox-footer-preview')).toBeTruthy();
+    expect(within(dialog).queryByTestId('image-lightbox-footer-preview')).toBeNull();
     expect(within(dialog).queryByRole('button', { name: 'common.edit' })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'designFiles.delete' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-image-skeleton')).toBeTruthy();
@@ -196,7 +196,7 @@ describe('ImageLightbox', () => {
     const close = screen.getByRole('button', { name: 'common.close' });
     close.focus();
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(screen.getByTestId('image-lightbox-footer-preview'));
+    expect(document.activeElement).toBe(screen.getByTestId('image-lightbox-footer-copy'));
 
     unmount();
     expect(document.activeElement).toBe(trigger);
