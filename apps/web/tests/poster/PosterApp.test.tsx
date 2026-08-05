@@ -310,6 +310,11 @@ describe('PosterApp mobile-safe flow', () => {
       name: 'biumoney-poster-20260804-001.png',
     })).toBeNull();
 
+    const generationStatus = screen.getByTestId('poster-app-generation-status');
+    fireEvent.click(within(generationStatus).getByRole('button', { name: 'Close status' }));
+    expect(generationStatus.className).toContain('is-dismissed');
+    expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
+
     fireEvent.click(screen.getByRole('button', { name: 'Poster history (2)' }));
 
     const historyRegion = screen.getByRole('region', { name: 'Poster history' });

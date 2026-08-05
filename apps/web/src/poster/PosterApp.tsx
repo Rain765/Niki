@@ -120,6 +120,7 @@ export function PosterApp() {
   const [activeAction, setActiveAction] = useState<'copy' | 'download' | 'share' | null>(null);
   const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
   const [showHistory, setShowHistory] = useState(false);
+  const [dismissedStatusKey, setDismissedStatusKey] = useState<string | null>(null);
   const [preparedPreviewImage, setPreparedPreviewImage] = useState<PreparedPreviewImage | null>(null);
   const [failedPreviewKey, setFailedPreviewKey] = useState<string | null>(null);
   const [prepareAttempt, setPrepareAttempt] = useState(0);
@@ -191,6 +192,14 @@ export function PosterApp() {
     && failedPreviewKey !== previewFileKey;
   const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
   const status = generationCopy(latestBatch);
+  const statusTitle = loadingProject ? 'Loading posters…' : status.title;
+  const statusKey = [
+    loadingProject ? 'loading' : status.state,
+    latestBatch?.id ?? 'none',
+    latestBatch?.files.length ?? 0,
+    statusTitle,
+  ].join(':');
+  const statusDismissed = dismissedStatusKey === statusKey;
 
   useEffect(() => {
     if (!previewFile || !projectId || !previewFileKey) return undefined;
@@ -602,12 +611,28 @@ export function PosterApp() {
         </button>
       </section>
 
-      <section className={`poster-app__status is-${status.state}`} aria-live="polite">
+      <section
+        className={`poster-app__status is-${status.state}${statusDismissed ? ' is-dismissed' : ''}`}
+        role="status"
+        aria-live="polite"
+        aria-hidden={statusDismissed || undefined}
+        data-testid="poster-app-generation-status"
+      >
         <span className="poster-app__status-mark" aria-hidden="true" />
-        <div>
-          <strong>{loadingProject ? 'Loading posters…' : status.title}</strong>
+        <div className="poster-app__status-copy">
+          <strong>{statusTitle}</strong>
           <p>{status.detail}</p>
         </div>
+        <button
+          type="button"
+          className="poster-app__status-close"
+          aria-label="Close status"
+          title="Close status"
+          tabIndex={statusDismissed ? -1 : 0}
+          onClick={() => setDismissedStatusKey(statusKey)}
+        >
+          <Icon name="close" size={16} />
+        </button>
       </section>
 
       {notice ? (

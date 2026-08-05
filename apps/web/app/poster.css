@@ -389,14 +389,38 @@ button {
 }
 
 .poster-app__status {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 70;
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin: 18px 0;
+  width: min(720px, calc(100% - 32px));
+  margin: 0;
   padding: 15px 16px;
-  border: 1px solid var(--poster-border);
+  border: 0;
   border-radius: 16px;
-  background: rgb(255 255 255 / 88%);
+  background: rgb(255 255 255 / 68%);
+  box-shadow: 0 12px 32px rgb(15 20 28 / 12%);
+  backdrop-filter: blur(18px) saturate(1.15);
+  opacity: 1;
+  transform: translateX(-50%);
+  visibility: visible;
+  transition:
+    opacity 200ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 200ms cubic-bezier(0.23, 1, 0.32, 1),
+    visibility 0s linear 0s;
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+
+.poster-app__status.is-dismissed {
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -10px);
+  visibility: hidden;
+  transition-duration: 140ms, 140ms, 0s;
+  transition-delay: 0s, 0s, 140ms;
 }
 
 .poster-app__status-mark {
@@ -422,6 +446,11 @@ button {
   background: var(--poster-danger);
 }
 
+.poster-app__status-copy {
+  min-width: 0;
+  flex: 1;
+}
+
 .poster-app__status strong {
   display: block;
   font-size: 14px;
@@ -432,6 +461,33 @@ button {
   color: var(--poster-muted);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.poster-app__status-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin: -5px -6px -5px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--poster-muted);
+  place-items: center;
+  transition:
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    background 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.poster-app__status-close:hover {
+  background: rgb(17 17 17 / 8%);
+  color: var(--poster-text);
+}
+
+.poster-app__status-close:focus-visible {
+  outline: 2px solid rgb(17 17 17 / 48%);
+  outline-offset: 2px;
 }
 
 .poster-app__notice {
@@ -738,6 +794,11 @@ button {
     margin-top: 2px;
   }
 
+  .poster-app__status {
+    top: max(12px, env(safe-area-inset-top));
+    width: calc(100% - 24px);
+  }
+
   .poster-app__gallery {
     grid-template-columns: 1fr;
   }
@@ -757,6 +818,7 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .poster-app__status,
   .poster-app__status-mark,
   .poster-app__poster,
   .poster-app__poster-skeleton,
