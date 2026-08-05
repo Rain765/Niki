@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
 import './poster.css';
+import './account-manager.css';
 
 export const metadata: Metadata = {
   title: 'Niki',

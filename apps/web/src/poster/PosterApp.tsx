@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
+import { PasswordAccountManager } from '../auth/PasswordAccountManager';
 import {
   buildDirectPosterBatches,
   type DirectPosterBatchView,
@@ -100,6 +101,8 @@ function generationCopy(batch: DirectPosterBatchView | null): {
 
 export function PosterApp() {
   const { user, logout } = useNikiAuth();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
   const [aspectRatio, setAspectRatio] = useState<AutoPosterAspectRatio>('16:9');
   const [count, setCount] = useState(2);
@@ -119,6 +122,25 @@ export function PosterApp() {
   const [prepareAttempt, setPrepareAttempt] = useState(0);
   const latestBatchRef = useRef<HTMLElement | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const dismissMenu = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    const dismissMenuWithKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAccountMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', dismissMenu);
+    window.addEventListener('keydown', dismissMenuWithKeyboard);
+    return () => {
+      window.removeEventListener('pointerdown', dismissMenu);
+      window.removeEventListener('keydown', dismissMenuWithKeyboard);
+    };
+  }, [accountMenuOpen]);
 
   const posterFiles = useMemo(
     () => files
@@ -468,10 +490,54 @@ export function PosterApp() {
           <span className="poster-app__eyebrow">NIKI POSTER</span>
           <h1>一键生成贷款海报</h1>
         </div>
-        <button type="button" className="poster-app__account" onClick={() => void logout()}>
-          {user.name}
-        </button>
+        <div className="poster-app__account-wrap" ref={accountMenuRef}>
+          <button
+            type="button"
+            className="poster-app__account"
+            aria-haspopup="menu"
+            aria-expanded={accountMenuOpen}
+            onClick={() => setAccountMenuOpen((current) => !current)}
+          >
+            {user.name}
+          </button>
+          <div
+            className={`poster-app__account-menu${accountMenuOpen ? ' is-open' : ''}`}
+            role="menu"
+            aria-hidden={!accountMenuOpen}
+          >
+            {user.role === 'admin' ? (
+              <button
+                type="button"
+                role="menuitem"
+                tabIndex={accountMenuOpen ? 0 : -1}
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  setAccountManagerOpen(true);
+                }}
+              >
+                账号管理
+              </button>
+            ) : null}
+            <button
+              type="button"
+              role="menuitem"
+              tabIndex={accountMenuOpen ? 0 : -1}
+              className="is-danger"
+              onClick={() => {
+                setAccountMenuOpen(false);
+                void logout();
+              }}
+            >
+              退出登录
+            </button>
+          </div>
+        </div>
       </header>
+
+      <PasswordAccountManager
+        open={accountManagerOpen}
+        onClose={() => setAccountManagerOpen(false)}
+      />
 
       <section className="poster-app__generator" aria-label="海报生成设置">
         <div className="poster-app__field">

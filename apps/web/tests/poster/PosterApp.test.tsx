@@ -5,12 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   copyOrSharePreparedImageFileMock,
+  logoutMock,
   prepareImageFileMock,
   resolveDirectLoanPosterProjectMock,
   savePreparedImageFileMock,
   startDirectLoanPosterProjectMock,
 } = vi.hoisted(() => ({
   copyOrSharePreparedImageFileMock: vi.fn(),
+  logoutMock: vi.fn(),
   prepareImageFileMock: vi.fn(),
   resolveDirectLoanPosterProjectMock: vi.fn(),
   savePreparedImageFileMock: vi.fn(),
@@ -19,8 +21,8 @@ const {
 
 vi.mock('../../src/auth/NikiAuth', () => ({
   useNikiAuth: () => ({
-    user: { id: 'user-1', name: 'Tester' },
-    logout: vi.fn(),
+    user: { id: 'user-1', name: 'Tester', role: 'admin' },
+    logout: logoutMock,
   }),
 }));
 
@@ -86,6 +88,12 @@ beforeEach(() => {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    if (url === '/api/auth/users') {
+      return new Response(JSON.stringify({ users: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     throw new Error(`Unexpected request: ${url}`);
   }));
 });
@@ -96,6 +104,16 @@ afterEach(() => {
 });
 
 describe('PosterApp mobile-safe flow', () => {
+  it('opens administrator account management without logging out', async () => {
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tester' }));
+
+    expect(logoutMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('menuitem', { name: '账号管理' }));
+    expect(await screen.findByRole('dialog', { name: '账号管理' })).toBeTruthy();
+  });
+
   it('shows a gallery placeholder immediately while restoring the server project', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(() => undefined));
     render(<PosterApp />);
