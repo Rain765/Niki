@@ -586,11 +586,7 @@ export function PosterApp() {
                 className={aspectRatio === value ? 'is-active' : ''}
                 onClick={() => setAspectRatio(value)}
               >
-                {value === '16:9'
-                  ? 'Landscape 16:9'
-                  : value === '1:1'
-                    ? 'Square 1:1'
-                    : 'Portrait 3:4'}
+                {value}
               </button>
             ))}
           </div>
