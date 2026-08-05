@@ -8,6 +8,7 @@ import {
   isLoanPosterGenerationPrompt,
   isLoanPosterOutputName,
   LOAN_POSTER_SKILL_ID,
+  AUTO_POSTER_ASPECT_RATIOS,
   loadZambiaPosterReference,
   normalizeZambiaPosterCount,
   ZAMBIA_POSTER_REFERENCE_NAME,
@@ -15,6 +16,10 @@ import {
 } from '../../../src/components/home-hero/zambia-posters';
 
 describe('Zambia poster preset', () => {
+  it('offers portrait 3:4 posters alongside square and landscape formats', () => {
+    expect(AUTO_POSTER_ASPECT_RATIOS).toEqual(['1:1', '16:9', '3:4']);
+  });
+
   it('clamps the requested poster count to 1 through 10', () => {
     expect(normalizeZambiaPosterCount(-3)).toBe(1);
     expect(normalizeZambiaPosterCount(4.6)).toBe(5);
@@ -50,6 +55,19 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('Do not render `Zamloan`');
     expect(prompt).not.toContain('Fixed rules:');
     expect(prompt).not.toContain('[SCENE_NAME]');
+  });
+
+  it('describes portrait output and the deterministic Zamloan logo overlay', () => {
+    const prompt = buildLoanPosterPrompt({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'zamloan',
+    });
+
+    expect(prompt).toContain('3:4 portrait');
+    expect(prompt).toContain('--aspect 3:4');
+    expect(prompt).toContain('--overlay-logo');
+    expect(prompt).toContain('zamloan-logo.png');
   });
 
   it('builds a landscape BiuMoney prompt without mixing brands', () => {

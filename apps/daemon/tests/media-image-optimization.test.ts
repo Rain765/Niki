@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 
 import {
+  overlayZamloanLogo,
   optimizeLoanPosterPng,
   optimizeLosslessPng,
 } from '../src/media.js';
@@ -46,5 +47,32 @@ describe('generated image optimization', () => {
     expect(metadata.width).toBe(400);
     expect(metadata.height).toBe(300);
     expect(optimized.pixelScale).toBe(0.5);
+  });
+
+  it('composites the Zamloan logo with a shadow without changing poster dimensions', async () => {
+    const poster = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 220, g: 72, b: 30, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const logo = await sharp({
+      create: {
+        width: 320,
+        height: 92,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    }).png().toBuffer();
+
+    const composited = await overlayZamloanLogo(poster, logo);
+    const metadata = await sharp(composited).metadata();
+    const pixels = await sharp(composited).raw().toBuffer();
+
+    expect(metadata.width).toBe(800);
+    expect(metadata.height).toBe(600);
+    expect(pixels.equals(await sharp(poster).raw().toBuffer())).toBe(false);
   });
 });

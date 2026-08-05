@@ -11,6 +11,9 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   autoPosterUsesZReference: (brand: string) => brand === 'zamloan',
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
+  loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.png', {
+    type: 'image/png',
+  }),
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
     type: 'image/png',
   }),
@@ -69,6 +72,7 @@ describe('startDirectLoanPosterProject', () => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         expect(body.quality).toBe('low');
         expect(body.model).toBe('gpt-image-2');
+        expect(body.overlayLogo).toBe('.od-inputs/reference.png');
         expect(body.output).toMatch(
           new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
         );
@@ -104,7 +108,7 @@ describe('startDirectLoanPosterProject', () => {
       brand: 'zamloan',
     })).resolves.toEqual({ projectId: 'project-1' });
 
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain('/api/runs');
     const createCall = fetchMock.mock.calls.find(
       ([input, init]) => String(input) === '/api/projects' && init?.method === 'POST',
@@ -224,7 +228,16 @@ describe('startDirectLoanPosterProject', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      if (url.includes('/upload?visibility=internal')) return uploadGate;
+      if (url.includes('/upload?visibility=internal')) {
+        const uploadCalls = fetchMock.mock.calls.filter(([input]) => (
+          String(input).includes('/upload?visibility=internal')
+        ));
+        if (uploadCalls.length === 1) return uploadGate;
+        return new Response(JSON.stringify({ files: [{ path: '.od-inputs/logo.png' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       if (url.endsWith('/media/generate')) {
         return new Response(JSON.stringify({ taskId: 'task-1', status: 'running' }), {
           status: 202,

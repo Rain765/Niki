@@ -15,7 +15,7 @@ The Skill automatically combines:
 - headlines
 - benefits
 
-and generates image-only poster batches in `1:1` or `16:9`.
+and generates image-only poster batches in `1:1`, `16:9`, or portrait `3:4`.
 
 Brand, quantity, and format are caller-selected. The shared visual contract uses
 one background Z reference and intentionally omits standalone brand-name

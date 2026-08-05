@@ -150,6 +150,62 @@ export async function optimizeLoanPosterPng(
   }
 }
 
+/**
+ * Add the exact Zamloan wordmark after image generation so the logo remains
+ * legible and consistent instead of relying on model-rendered typography.
+ */
+export async function overlayZamloanLogo(
+  input: Buffer,
+  logo: Buffer,
+): Promise<Buffer> {
+  const image = sharp(input);
+  const metadata = await image.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('generated poster has no readable dimensions');
+  }
+
+  const logoWidth = Math.min(
+    360,
+    Math.max(160, Math.round(metadata.width * 0.22)),
+  );
+  const resizedLogo = await sharp(logo)
+    .ensureAlpha()
+    .resize({ width: logoWidth, fit: 'inside', withoutEnlargement: true })
+    .png()
+    .toBuffer();
+  const logoMetadata = await sharp(resizedLogo).metadata();
+  if (!logoMetadata.width || !logoMetadata.height) {
+    throw new Error('Zamloan logo has no readable dimensions');
+  }
+
+  const shadowPadding = Math.max(5, Math.round(logoMetadata.width * 0.025));
+  const shadow = await sharp(resizedLogo)
+    .modulate({ brightness: 0 })
+    .blur(Math.max(2, Math.round(logoMetadata.width * 0.012)))
+    .png()
+    .toBuffer();
+  const logoLayer = await sharp({
+    create: {
+      width: logoMetadata.width + shadowPadding * 2,
+      height: logoMetadata.height + shadowPadding * 2,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .composite([
+      { input: shadow, left: shadowPadding, top: shadowPadding },
+      { input: resizedLogo, left: shadowPadding, top: shadowPadding },
+    ])
+    .png()
+    .toBuffer();
+
+  const margin = Math.max(24, Math.round(metadata.width * 0.04));
+  return image
+    .composite([{ input: logoLayer, left: margin, top: margin }])
+    .png()
+    .toBuffer();
+}
+
 type MediaContext = {
   surface: MediaSurface;
   /**
@@ -369,7 +425,8 @@ export async function generateMedia(args: {
   quality?: ImageQuality;
   loanPosterOutput?: boolean;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
-  compositionDir?: string; image?: string; onProgress?: ProgressFn; signal?: AbortSignal;
+  compositionDir?: string; image?: string; overlayLogo?: string;
+  onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
     projectRoot,
@@ -391,6 +448,7 @@ export async function generateMedia(args: {
     promptInfluence,
     compositionDir,
     image,
+    overlayLogo,
   } = args;
 
   if (!projectRoot) throw new Error('projectRoot required');
@@ -472,6 +530,7 @@ export async function generateMedia(args: {
   // upstream APIs accept directly. Renderers consume `ctx.imageRef`
   // and decide how to splice the data URL into their request.
   const imageRef = await resolveProjectImage(image, dir);
+  const overlayLogoRef = await resolveProjectImage(overlayLogo, dir);
 
   // Resolve any user-configured model alias BEFORE we hand the id to a
   // dispatcher (issue #1277). Catalog lookup + surface validation above
@@ -725,6 +784,12 @@ export async function generateMedia(args: {
     const dot = safeOut.lastIndexOf('.');
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
+  }
+  if (surface === 'image' && overlayLogoRef) {
+    bytes = await overlayZamloanLogo(bytes, await readFile(overlayLogoRef.abs));
+    const dot = finalOut.lastIndexOf('.');
+    const stem = dot > 0 ? finalOut.slice(0, dot) : finalOut;
+    finalOut = `${stem}.png`;
   }
   if (surface === 'image' && /\.png$/i.test(finalOut)) {
     bytes = (

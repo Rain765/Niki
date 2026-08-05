@@ -50,6 +50,12 @@ beforeEach(() => {
         headers: { 'content-type': 'image/png' },
       });
     }
+    if (url === '/brand/zambia-support/zamloan-logo.png') {
+      return new Response(new Blob(['zamloan-logo'], { type: 'image/png' }), {
+        status: 200,
+        headers: { 'content-type': 'image/png' },
+      });
+    }
     throw new Error(`unexpected fetch ${url}`);
   }));
   mockedUploadProjectFiles.mockResolvedValue({

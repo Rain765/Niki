@@ -83,6 +83,7 @@ Run via your shell tool (Bash on Claude Code, exec on Codex/Gemini, etc.):
   --output <filename> \\
   --prompt "<full prompt>" \\
   [--aspect 1:1|16:9|9:16|4:3|3:4] \\
+  [--overlay-logo <project-relative-path>] # image only; composite logo after generation
   [--length <seconds>]              # video only
   [--duration <seconds>]            # audio only
   [--prompt-influence <0-1>]        # audio:sfx only; higher follows the prompt more closely

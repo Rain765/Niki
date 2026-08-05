@@ -69,7 +69,7 @@ describe('HomeHero intent rail', () => {
     const brand = screen.getByTestId('home-hero-auto-poster-brand') as HTMLSelectElement;
     expect(count.options).toHaveLength(10);
     expect(count.value).toBe('1');
-    expect(Array.from(size.options).map((option) => option.value)).toEqual(['1:1', '16:9']);
+    expect(Array.from(size.options).map((option) => option.value)).toEqual(['1:1', '16:9', '3:4']);
     expect(size.value).toBe('16:9');
     expect(Array.from(brand.options).map((option) => option.value)).toEqual(['zamloan', 'biumoney']);
     expect(brand.value).toBe('zamloan');
