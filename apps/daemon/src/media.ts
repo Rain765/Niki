@@ -73,6 +73,18 @@ type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
 type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
 
+const RASTER_IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+const OVERLAY_IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
+  ...RASTER_IMAGE_MIME_BY_EXTENSION,
+  '.svg': 'image/svg+xml',
+};
+
 export async function optimizeLosslessPng(
   input: Buffer,
 ): Promise<{ bytes: Buffer; optimized: boolean; savedBytes: number }> {
@@ -293,16 +305,25 @@ function stubsAllowed() {
 }
 
 /**
- * Resolve a project-relative `--image` path into a base64 data URL the
- * upstream model APIs (Volcengine i2v, OpenAI image-edit, etc.) accept
- * directly. Returns null when no path was supplied.
+ * Resolve a project-relative image input. Provider references default to the
+ * raster formats accepted by upstream model APIs. Post-generation overlays
+ * may additionally use SVG because they are rasterized locally by Sharp and
+ * are never sent to a provider.
  *
  * Security: refuses anything that escapes the project directory.
  * Without this guard, an agent (or a hallucinated arg) could ask the
  * daemon to upload `/etc/passwd` to a paid model.
  */
-async function resolveProjectImage(rel: unknown, projectDir: string): Promise<ImageRef | null> {
+async function resolveProjectImage(
+  rel: unknown,
+  projectDir: string,
+  options: {
+    argumentName?: '--image' | '--overlay-logo';
+    allowSvg?: boolean;
+  } = {},
+): Promise<ImageRef | null> {
   if (typeof rel !== 'string' || !rel.trim()) return null;
+  const argumentName = options.argumentName ?? '--image';
   const projectRootResolved = path.resolve(projectDir);
   const abs = path.resolve(projectRootResolved, rel.trim());
   if (
@@ -310,17 +331,17 @@ async function resolveProjectImage(rel: unknown, projectDir: string): Promise<Im
     !abs.startsWith(projectRootResolved + path.sep)
   ) {
     throw new Error(
-      `--image path "${rel}" resolves outside the project directory.`,
+      `${argumentName} path "${rel}" resolves outside the project directory.`,
     );
   }
   let info;
   try {
     info = await stat(abs);
   } catch {
-    throw new Error(`--image not found: ${rel}`);
+    throw new Error(`${argumentName} not found: ${rel}`);
   }
   if (!info.isFile()) {
-    throw new Error(`--image is not a regular file: ${rel}`);
+    throw new Error(`${argumentName} is not a regular file: ${rel}`);
   }
   // Cap at 16 MB. Beyond this, base64 inflation alone (≈4/3) starts
   // hitting body-size limits at the upstream APIs and our own express
@@ -329,23 +350,21 @@ async function resolveProjectImage(rel: unknown, projectDir: string): Promise<Im
   const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
   if (info.size > MAX_IMAGE_BYTES) {
     throw new Error(
-      `--image too large (${info.size} bytes; max ${MAX_IMAGE_BYTES}).`,
+      `${argumentName} too large (${info.size} bytes; max ${MAX_IMAGE_BYTES}).`,
     );
   }
   const bytes = await readFile(abs);
   const ext = path.extname(abs).toLowerCase();
-  // Tight allowlist: only what i2v / image-edit endpoints actually
-  // consume. Avoids smuggling arbitrary content through as data URLs.
-  const mime = ({
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.webp': 'image/webp',
-    '.gif': 'image/gif',
-  })[ext];
+  const mimeByExtension = options.allowSvg
+    ? OVERLAY_IMAGE_MIME_BY_EXTENSION
+    : RASTER_IMAGE_MIME_BY_EXTENSION;
+  const mime = mimeByExtension[ext];
   if (!mime) {
+    const allowed = options.allowSvg
+      ? 'svg, png, jpg, jpeg, webp, or gif'
+      : 'png, jpg, jpeg, webp, or gif';
     throw new Error(
-      `--image has unsupported extension "${ext}". Use png, jpg, jpeg, webp, or gif.`,
+      `${argumentName} has unsupported extension "${ext}". Use ${allowed}.`,
     );
   }
   return {
@@ -522,7 +541,10 @@ export async function generateMedia(args: {
   // upstream APIs accept directly. Renderers consume `ctx.imageRef`
   // and decide how to splice the data URL into their request.
   const imageRef = await resolveProjectImage(image, dir);
-  const overlayLogoRef = await resolveProjectImage(overlayLogo, dir);
+  const overlayLogoRef = await resolveProjectImage(overlayLogo, dir, {
+    argumentName: '--overlay-logo',
+    allowSvg: true,
+  });
 
   // Resolve any user-configured model alias BEFORE we hand the id to a
   // dispatcher (issue #1277). Catalog lookup + surface validation above
