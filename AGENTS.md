@@ -64,6 +64,13 @@ This file is the single source of truth for agents entering this repository. Rea
 - Restart, rebuild, reinstall, or hot-reload the active runtime as appropriate, then verify the actual user-facing URL or desktop instance resolves to the integrated commit. For proxied web URLs, compare the proxy response with the local runtime and perform a real browser refresh when possible.
 - Final handoff must state the active branch and commit, the runtime URL or packaged version verified, and any refresh/restart the user still needs. If the active instance could not be updated or inspected, report that limitation explicitly instead of claiming completion.
 
+### User-requested remote delivery
+
+- A code change request alone does not authorize remote publication. When the user explicitly asks to push, publish, or deploy, complete the full delivery loop in the same task without waiting for a second reminder: validate the scoped commit, push it with tracking, trigger the configured deployment provider, wait for the deployment result, and verify the user-facing URL.
+- For hosted Niki web changes, `vercel.json` is the deployment contract. Use the configured Vercel project/build path after the branch is pushed; do not treat a local commit or a successful push as deployment evidence.
+- A non-default branch normally produces a preview deployment. Do not merge, promote to production, or change the production branch unless the user explicitly requests that promotion. If the Feishu app is production-bound, report the preview URL and the separate promotion requirement.
+- If credentials, network access, provider configuration, or deployment checks block the loop, stop at that boundary and report the exact command/provider state. Never claim that Feishu or the hosted app has updated until the deployed URL resolves to the delivered commit.
+
 ## Root command boundary
 
 - Keep root scripts reserved for true repo-level checks and tools control-plane entrypoints: `pnpm guard`, `pnpm typecheck`, `pnpm tools-dev`, `pnpm tools-pack`, `pnpm tools-pr`, and `pnpm tools-serve`.
