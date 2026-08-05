@@ -189,9 +189,12 @@ describe('HomeView context picker', () => {
       expect.objectContaining({ id: 'direct-poster-project' }),
     ));
     expect(onOpenProject).toHaveBeenCalledWith('direct-poster-project');
-    expect(screen.getByTestId('home-auto-poster-status').textContent).toContain(
+    const status = screen.getByTestId('home-auto-poster-status');
+    expect(status.textContent).toContain(
       'Zamloan Loan Posters',
     );
+    fireEvent.click(screen.getByTestId('home-auto-poster-status-dismiss'));
+    expect(screen.queryByTestId('home-auto-poster-status')).toBeNull();
     expect(onSubmit).not.toHaveBeenCalled();
     const mediaRequests = fetchMock.mock.calls.filter(
       ([input]) => String(input) === '/api/projects/direct-poster-project/media/generate',

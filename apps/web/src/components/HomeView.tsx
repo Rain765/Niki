@@ -38,6 +38,7 @@ import { useNikiAuth } from '../auth/NikiAuth';
 import { fetchElevenLabsVoiceOptions } from '../providers/elevenlabs-voices';
 import type { Project, ProjectMetadata, PromptTemplateSummary, SkillSummary } from '../types';
 import { inlineMentionToken } from '../utils/inlineMentions';
+import { Icon } from './Icon';
 import { HomeHero } from './HomeHero';
 import { findChip, type HomeHeroChip } from './home-hero/chips';
 import {
@@ -1194,6 +1195,16 @@ export function HomeView({
               {t('homeHero.autoPosterOpenProject')}
             </button>
           ) : null}
+          <button
+            type="button"
+            className="home-auto-poster-status__dismiss"
+            data-testid="home-auto-poster-status-dismiss"
+            onClick={() => setAutoPosterStarted(null)}
+            aria-label={t('common.close')}
+            title={t('common.close')}
+          >
+            <Icon name="close" size={14} />
+          </button>
         </div>
       ) : null}
 
