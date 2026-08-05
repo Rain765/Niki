@@ -100,6 +100,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -147,6 +148,26 @@ describe('PosterApp mobile-safe flow', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(() => undefined));
     render(<PosterApp />);
     expect(screen.getByText('Loading recent posters…')).toBeTruthy();
+  });
+
+  it('automatically dismisses the current generation status after 10 seconds', async () => {
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+    render(<PosterApp />);
+    await screen.findByText('1 poster generated in this batch');
+
+    const generationStatus = screen.getByTestId('poster-app-generation-status');
+    const autoDismissCall = setTimeoutSpy.mock.calls
+      .filter(([, delay]) => delay === 10_000)
+      .at(-1);
+    expect(autoDismissCall).toBeTruthy();
+    expect(generationStatus.className).not.toContain('is-dismissed');
+
+    act(() => {
+      if (typeof autoDismissCall?.[0] === 'function') autoDismissCall[0]();
+    });
+
+    expect(generationStatus.className).toContain('is-dismissed');
+    expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('restores the server image and shows copy confirmation above the preview', async () => {
@@ -315,7 +336,11 @@ describe('PosterApp mobile-safe flow', () => {
     expect(generationStatus.className).toContain('is-dismissed');
     expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Poster history (2)' }));
+    const historyToggle = screen.getByRole('button', { name: 'Expand poster history' });
+    expect(historyToggle.querySelector('svg')).toBeTruthy();
+    expect(historyToggle.textContent).toBe('Poster history (2)');
+    fireEvent.click(historyToggle);
+    expect(screen.getByRole('button', { name: 'Collapse poster history' })).toBeTruthy();
 
     const historyRegion = screen.getByRole('region', { name: 'Poster history' });
     const olderImage = within(historyRegion).getByRole('img', {
