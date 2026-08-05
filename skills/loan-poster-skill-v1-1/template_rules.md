@@ -2,7 +2,7 @@
 
 ## Composition
 
-- Respect the requested `1:1` square or `16:9` landscape canvas.
+- Respect the requested `1:1` square, `16:9` landscape, or `3:4` portrait canvas.
 - Keep the headline and subline on the left and the main model on the right.
 - Use one centered, large, low-opacity Z supplied by the caller.
 - Use a red-based gradient as the dominant field.

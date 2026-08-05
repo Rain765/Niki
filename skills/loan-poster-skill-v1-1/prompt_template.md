@@ -9,5 +9,7 @@ Z background reference. Set `[HEADLINE_LINE_1]`, `[HEADLINE_LINE_2]`, and
 `[SCENE_DESCRIPTION]` on the right, with the main model holding a clearly
 visible smartphone showing `[PHONE_TEXT]`.
 
-Do not render a standalone brand-name wordmark or logo in the top-left corner.
+Do not render a standalone brand-name wordmark or logo in the generated image's
+top-left corner. For Zamloan, pass the exact attached logo to
+`--overlay-logo`; the daemon adds it after generation.
 Use the negative prompt in `negative_prompt.md`.

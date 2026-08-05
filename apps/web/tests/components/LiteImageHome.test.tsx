@@ -36,6 +36,9 @@ describe('LiteImageHome', () => {
       if (url === '/brand/zambia-support/z-reference.png') {
         return new Response(new Blob(['reference'], { type: 'image/png' }), { status: 200 });
       }
+      if (url === '/brand/zambia-support/zamloan-logo.png') {
+        return new Response(new Blob(['logo'], { type: 'image/png' }), { status: 200 });
+      }
       if (url === '/api/projects') {
         expect(init?.method).toBe('POST');
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -75,7 +78,9 @@ describe('LiteImageHome', () => {
 
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
       '/brand/zambia-support/z-reference.png',
+      '/brand/zambia-support/zamloan-logo.png',
       '/api/projects',
+      '/api/projects/project-1/upload?visibility=internal',
       '/api/projects/project-1/upload?visibility=internal',
     ]);
     expect(window.sessionStorage.getItem('od:auto-send-first:project-1')).toBe('1');

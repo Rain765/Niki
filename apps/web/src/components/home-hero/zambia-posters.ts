@@ -3,10 +3,12 @@ export const ZAMBIA_POSTER_MAX_COUNT = 10;
 export const ZAMBIA_POSTER_DEFAULT_COUNT = 1;
 export const ZAMBIA_POSTER_REFERENCE_URL = '/brand/zambia-support/z-reference.png';
 export const ZAMBIA_POSTER_REFERENCE_NAME = 'loan-poster-z-reference.png';
+export const ZAMLOAN_LOGO_URL = '/brand/zambia-support/zamloan-logo.png';
+export const ZAMLOAN_LOGO_NAME = 'zamloan-logo.png';
 export const LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1-1';
 const LEGACY_LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1.1';
 
-export const AUTO_POSTER_ASPECT_RATIOS = ['1:1', '16:9'] as const;
+export const AUTO_POSTER_ASPECT_RATIOS = ['1:1', '16:9', '3:4'] as const;
 export type AutoPosterAspectRatio = (typeof AUTO_POSTER_ASPECT_RATIOS)[number];
 export const AUTO_POSTER_DEFAULT_ASPECT_RATIO: AutoPosterAspectRatio = '16:9';
 
@@ -240,12 +242,19 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
     ? options.aspectRatio
     : AUTO_POSTER_DEFAULT_ASPECT_RATIO;
   const brandLabel = autoPosterBrandLabel(brand);
-  const aspectDescription = aspectRatio === '1:1' ? '1:1 square' : '16:9 landscape';
+  const aspectDescription = {
+    '1:1': '1:1 square',
+    '16:9': '16:9 landscape',
+    '3:4': '3:4 portrait',
+  }[aspectRatio];
   const outputPrefix = `${brand}-poster`;
   const usesZReference = autoPosterUsesZReference(brand);
   const referenceContract = usesZReference
     ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z shape reference. Locate its project-relative path and pass it through \`--image\` for every generation. Reproduce its exact silhouette geometry for every visible Z, but use it for shape only: ignore the source color and freely adapt color, material, opacity, scale, and position. Never invent an alternate Z glyph. Never copy the Z reference into a visible output path or list it as a deliverable.`
     : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
+  const logoContract = usesZReference
+    ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. The daemon will composite it in the top-left with a subtle projection after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
+    : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
   const brandOverride = usesZReference
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the top-left corner.
 - The single semi-transparent background Z defined by the skill is the only permitted brand mark, and it must preserve the exact silhouette geometry of the supplied reference.
@@ -275,6 +284,7 @@ Runtime inputs:
 - output prefix: \`${outputPrefix}\`
 
 ${referenceContract}
+${logoContract}
 
 Resolve exactly ${count} distinct internal scene plan${count === 1 ? '' : 's'} using the active skill, then render one poster per plan. Do not expose planning files as deliverables.
 
@@ -283,7 +293,7 @@ ${brandOverride}
 
 Generation contract:
 - Use the image model selected in the project metadata.
-- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}.
+- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}${usesZReference ? `, and \`--overlay-logo\` with the Zamloan logo path` : ''}.
 - Write outputs as \`${outputPrefix}-01.png\` through \`${outputPrefix}-${String(count).padStart(2, '0')}.png\`.
 - Complete all ${count} generation attempts. If one fails, continue with the remaining scenes and report the failed item accurately.
 ${referenceCleanup}- Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.
@@ -305,6 +315,17 @@ export async function loadZambiaPosterReference(): Promise<File> {
   }
   const blob = await response.blob();
   return new File([blob], ZAMBIA_POSTER_REFERENCE_NAME, {
+    type: blob.type || 'image/png',
+  });
+}
+
+export async function loadZamloanLogo(): Promise<File> {
+  const response = await fetch(ZAMLOAN_LOGO_URL, { cache: 'force-cache' });
+  if (!response.ok) {
+    throw new Error(`Unable to load Zamloan logo (${response.status})`);
+  }
+  const blob = await response.blob();
+  return new File([blob], ZAMLOAN_LOGO_NAME, {
     type: blob.type || 'image/png',
   });
 }

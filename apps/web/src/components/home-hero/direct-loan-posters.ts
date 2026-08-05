@@ -3,6 +3,7 @@ import {
   autoPosterUsesZReference,
   buildLoanPosterScenePrompts,
   LOAN_POSTER_SKILL_ID,
+  loadZamloanLogo,
   loadZambiaPosterReference,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
@@ -329,6 +330,7 @@ export async function startDirectLoanPosterProject(
     }
 
     let referencePath: string | undefined;
+    let logoPath: string | undefined;
     if (autoPosterUsesZReference(options.brand)) {
       const referenceFile = await loadZambiaPosterReference();
       const form = new FormData();
@@ -342,6 +344,19 @@ export async function startDirectLoanPosterProject(
       referencePath = uploaded.files?.[0]?.path;
       if (!referencePath) throw new Error('Brand reference path is missing.');
       logStage('reference-uploaded', project.id);
+
+      const logoFile = await loadZamloanLogo();
+      const logoForm = new FormData();
+      logoForm.append('files', logoFile);
+      const logoResponse = await fetch(
+        `/api/projects/${encodeURIComponent(project.id)}/upload?visibility=internal`,
+        { method: 'POST', credentials: 'include', body: logoForm },
+      );
+      await assertApiResponse(logoResponse, 'upload-reference');
+      const uploadedLogo = (await logoResponse.json()) as { files?: UploadedFile[] };
+      logoPath = uploadedLogo.files?.[0]?.path;
+      if (!logoPath) throw new Error('Zamloan logo path is missing.');
+      logStage('logo-uploaded', project.id);
     }
 
     const datedOutputPrefix = `${prefix}-${compactDateKey(dateKey)}`;
@@ -412,6 +427,7 @@ export async function startDirectLoanPosterProject(
             quality: 'low',
             aspect: options.aspectRatio,
             ...(referencePath ? { image: referencePath } : {}),
+            ...(logoPath ? { overlayLogo: logoPath } : {}),
             output: batchOutputNames[index],
             prompt,
           }),
