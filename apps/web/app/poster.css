@@ -542,6 +542,10 @@ button {
   aspect-ratio: 16 / 9;
 }
 
+.poster-app__poster.is-portrait {
+  aspect-ratio: 3 / 4;
+}
+
 .poster-app__poster.is-error::after {
   position: absolute;
   inset: 0;
@@ -577,6 +581,10 @@ button {
 
 .poster-app__poster-skeleton.is-square {
   aspect-ratio: 1;
+}
+
+.poster-app__poster-skeleton.is-portrait {
+  aspect-ratio: 3 / 4;
 }
 
 .poster-preview {

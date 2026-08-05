@@ -104,6 +104,21 @@ afterEach(() => {
 });
 
 describe('PosterApp mobile-safe flow', () => {
+  it('submits the portrait option as a 3:4 generation ratio', async () => {
+    startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: '竖版 4:3' }));
+    fireEvent.click(screen.getByRole('button', { name: '一键生成海报' }));
+
+    await waitFor(() => {
+      expect(startDirectLoanPosterProjectMock).toHaveBeenCalledWith(
+        expect.objectContaining({ aspectRatio: '3:4' }),
+        expect.any(Function),
+      );
+    });
+  });
+
   it('opens administrator account management without logging out', async () => {
     render(<PosterApp />);
 
@@ -266,5 +281,59 @@ describe('PosterApp mobile-safe flow', () => {
     });
     expect(olderImage.getAttribute('loading')).toBe('lazy');
     expect(olderImage.closest('button')?.className).toContain('is-landscape');
+  });
+
+  it('renders portrait batches without forcing a landscape card', async () => {
+    const portraitProject = {
+      ...project,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: {
+          kind: 'loan-poster' as const,
+          expectedOutputs: 1,
+          status: 'complete' as const,
+          activeBatchId: 'batch-portrait',
+          batches: [{
+            id: 'batch-portrait',
+            status: 'complete' as const,
+            requestedAt: 10,
+            completedAt: 20,
+            expectedOutputs: 1,
+            outputNames: ['biumoney-poster-20260804-001.png'],
+            brand: 'biumoney' as const,
+            aspectRatio: '3:4' as const,
+          }],
+        },
+      },
+    };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(portraitProject);
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/projects/project-1/files') {
+        return new Response(JSON.stringify({
+          files: [{
+            name: 'biumoney-poster-20260804-001.png',
+            kind: 'image',
+            mime: 'image/png',
+            size: 100,
+            mtime: 2,
+          }],
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === '/api/projects/project-1') {
+        return new Response(JSON.stringify({ project: portraitProject }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    render(<PosterApp />);
+
+    const portraitImage = await screen.findByRole('img', {
+      name: 'biumoney-poster-20260804-001.png',
+    });
+    expect(portraitImage.closest('button')?.className).toContain('is-portrait');
   });
 });

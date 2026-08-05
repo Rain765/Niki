@@ -444,7 +444,11 @@ export function PosterApp() {
   ) => {
     if (!projectId) return null;
     const useRawImage = rawFallbackNames.has(file.name);
-    const aspectClass = options.aspectRatio === '1:1' ? 'is-square' : 'is-landscape';
+    const aspectClass = options.aspectRatio === '1:1'
+      ? 'is-square'
+      : options.aspectRatio === '3:4'
+        ? 'is-portrait'
+        : 'is-landscape';
     return (
       <button
         type="button"
@@ -573,14 +577,18 @@ export function PosterApp() {
         <div className="poster-app__field">
           <span>比例</span>
           <div className="poster-app__segmented">
-            {(['16:9', '1:1'] as const).map((value) => (
+            {(['16:9', '1:1', '3:4'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
                 className={aspectRatio === value ? 'is-active' : ''}
                 onClick={() => setAspectRatio(value)}
               >
-                {value === '16:9' ? '横版 16:9' : '方形 1:1'}
+                {value === '16:9'
+                  ? '横版 16:9'
+                  : value === '1:1'
+                    ? '方形 1:1'
+                    : '竖版 4:3'}
               </button>
             ))}
           </div>
@@ -635,7 +643,11 @@ export function PosterApp() {
           {loadingProject || status.state === 'working' ? (
             <div className={`poster-app__poster-skeleton${(
               latestBatch?.aspectRatio ?? aspectRatio
-            ) === '1:1' ? ' is-square' : ''}`}>
+            ) === '1:1'
+              ? ' is-square'
+              : (latestBatch?.aspectRatio ?? aspectRatio) === '3:4'
+                ? ' is-portrait'
+                : ''}`}>
               <span>{loadingProject ? '正在读取最近海报…' : '图片生成中…'}</span>
             </div>
           ) : null}
@@ -688,7 +700,11 @@ export function PosterApp() {
             </button>
           ) : null}
           <div className="poster-preview__stage">
-            <picture className={previewAspectRatio === '1:1' ? 'is-square' : 'is-landscape'}>
+            <picture className={previewAspectRatio === '1:1'
+              ? 'is-square'
+              : previewAspectRatio === '3:4'
+                ? 'is-portrait'
+                : 'is-landscape'}>
               {!rawFallbackNames.has(previewFile.name) ? (
                 <source media="(max-width: 900px)" srcSet={previewUrl(projectId, previewFile, 'mobile')} />
               ) : null}
