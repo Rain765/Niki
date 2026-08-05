@@ -36,10 +36,10 @@ describe('LiteImageHome', () => {
       if (url === '/brand/zambia-support/z-reference.png') {
         return new Response(new Blob(['reference'], { type: 'image/png' }), { status: 200 });
       }
-      if (url === '/brand/zambia-support/zamloan-logo.png') {
-        return new Response(new Blob(['logo'], { type: 'image/png' }), {
+      if (url === '/brand/zambia-support/zamloan-logo.svg') {
+        return new Response(new Blob(['logo'], { type: 'image/svg+xml' }), {
           status: 200,
-          headers: { 'content-type': 'image/png' },
+          headers: { 'content-type': 'image/svg+xml' },
         });
       }
       if (url === '/api/projects') {
@@ -81,7 +81,7 @@ describe('LiteImageHome', () => {
 
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
       '/brand/zambia-support/z-reference.png',
-      '/brand/zambia-support/zamloan-logo.png',
+      '/brand/zambia-support/zamloan-logo.svg',
       '/api/projects',
       '/api/projects/project-1/upload?visibility=internal',
       '/api/projects/project-1/upload?visibility=internal',

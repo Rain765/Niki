@@ -32,7 +32,7 @@ describe('generated image optimization', () => {
     expect(decodedOutput.equals(decodedInput)).toBe(true);
   });
 
-  it('reduces direct loan posters to one quarter of their pixel area', async () => {
+  it('preserves the provider resolution for direct loan posters', async () => {
     const input = await sharp({
       create: {
         width: 800,
@@ -45,9 +45,9 @@ describe('generated image optimization', () => {
     const optimized = await optimizeLoanPosterPng(input);
     const metadata = await sharp(optimized.bytes).metadata();
 
-    expect(metadata.width).toBe(400);
-    expect(metadata.height).toBe(300);
-    expect(optimized.pixelScale).toBe(0.5);
+    expect(metadata.width).toBe(800);
+    expect(metadata.height).toBe(600);
+    expect(optimized.pixelScale).toBe(1);
   });
 
   it('composites the Zamloan logo with a shadow without changing poster dimensions', async () => {
@@ -59,14 +59,11 @@ describe('generated image optimization', () => {
         background: { r: 220, g: 72, b: 30, alpha: 1 },
       },
     }).png().toBuffer();
-    const logo = await sharp({
-      create: {
-        width: 320,
-        height: 92,
-        channels: 4,
-        background: { r: 255, g: 255, b: 255, alpha: 1 },
-      },
-    }).png().toBuffer();
+    const logo = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+        <rect width="320" height="92" fill="white"/>
+      </svg>
+    `);
 
     const composited = await overlayZamloanLogo(poster, logo);
     const metadata = await sharp(composited).metadata();
@@ -77,7 +74,7 @@ describe('generated image optimization', () => {
     expect(pixels.equals(await sharp(poster).raw().toBuffer())).toBe(false);
   });
 
-  it('resizes loan posters before compositing the final-resolution logo', async () => {
+  it('composites the logo without reducing the provider resolution', async () => {
     const poster = await sharp({
       create: {
         width: 800,
@@ -113,10 +110,8 @@ describe('generated image optimization', () => {
       }
     }
 
-    expect(metadata.width).toBe(400);
-    expect(metadata.height).toBe(300);
-    // The final-size overlay is 160 × 46. Compositing before the 50% resize
-    // would leave only about one quarter as many untouched white pixels.
+    expect(metadata.width).toBe(800);
+    expect(metadata.height).toBe(600);
     expect(whitePixelCount).toBeGreaterThan(6_500);
   });
 });

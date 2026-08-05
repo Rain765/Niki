@@ -50,10 +50,10 @@ beforeEach(() => {
         headers: { 'content-type': 'image/png' },
       });
     }
-    if (url === '/brand/zambia-support/zamloan-logo.png') {
-      return new Response(new Blob(['zamloan-logo'], { type: 'image/png' }), {
+    if (url === '/brand/zambia-support/zamloan-logo.svg') {
+      return new Response(new Blob(['zamloan-logo'], { type: 'image/svg+xml' }), {
         status: 200,
-        headers: { 'content-type': 'image/png' },
+        headers: { 'content-type': 'image/svg+xml' },
       });
     }
     throw new Error(`unexpected fetch ${url}`);

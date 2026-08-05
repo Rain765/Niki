@@ -9,6 +9,7 @@ import {
   isLoanPosterOutputName,
   LOAN_POSTER_SKILL_ID,
   AUTO_POSTER_ASPECT_RATIOS,
+  loadZamloanLogo,
   loadZambiaPosterReference,
   normalizeZambiaPosterCount,
   ZAMBIA_POSTER_REFERENCE_NAME,
@@ -67,7 +68,7 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('3:4 portrait');
     expect(prompt).toContain('--aspect 3:4');
     expect(prompt).toContain('--overlay-logo');
-    expect(prompt).toContain('zamloan-logo.png');
+    expect(prompt).toContain('zamloan-logo.svg');
   });
 
   it('builds a landscape BiuMoney prompt without mixing brands', () => {
@@ -220,5 +221,25 @@ describe('Zambia poster preset', () => {
     expect(fetchMock).toHaveBeenCalledWith(ZAMBIA_POSTER_REFERENCE_URL, { cache: 'force-cache' });
     expect(file.name).toBe(ZAMBIA_POSTER_REFERENCE_NAME);
     expect(file.type).toBe('image/png');
+  });
+
+  it('loads the scalable Zamloan logo as an internal project attachment', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(
+      new Blob(['<svg/>'], { type: 'image/svg+xml' }),
+      {
+        status: 200,
+        headers: { 'content-type': 'image/svg+xml' },
+      },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const file = await loadZamloanLogo();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/brand/zambia-support/zamloan-logo.svg',
+      { cache: 'force-cache' },
+    );
+    expect(file.name).toBe('zamloan-logo.svg');
+    expect(file.type).toBe('image/svg+xml');
   });
 });

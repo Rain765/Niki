@@ -3,8 +3,8 @@ export const ZAMBIA_POSTER_MAX_COUNT = 10;
 export const ZAMBIA_POSTER_DEFAULT_COUNT = 1;
 export const ZAMBIA_POSTER_REFERENCE_URL = '/brand/zambia-support/z-reference.png';
 export const ZAMBIA_POSTER_REFERENCE_NAME = 'loan-poster-z-reference.png';
-export const ZAMLOAN_LOGO_URL = '/brand/zambia-support/zamloan-logo.png';
-export const ZAMLOAN_LOGO_NAME = 'zamloan-logo.png';
+export const ZAMLOAN_LOGO_URL = '/brand/zambia-support/zamloan-logo.svg';
+export const ZAMLOAN_LOGO_NAME = 'zamloan-logo.svg';
 export const LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1-1';
 const LEGACY_LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1.1';
 
@@ -327,6 +327,6 @@ export async function loadZamloanLogo(): Promise<File> {
   }
   const blob = await response.blob();
   return new File([blob], ZAMLOAN_LOGO_NAME, {
-    type: blob.type || 'image/png',
+    type: blob.type || 'image/svg+xml',
   });
 }

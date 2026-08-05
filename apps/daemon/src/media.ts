@@ -101,9 +101,10 @@ export async function optimizeLosslessPng(
 }
 
 /**
- * Direct loan posters are primarily reviewed on phones. Halving both axes
- * keeps the poster readable while reducing the stored pixel area to 25%.
- * The resized pixels are then encoded as a lossless PNG.
+ * Preserve the provider's full poster resolution while applying lossless PNG
+ * compression. Delivery-sized previews are produced separately by the web
+ * runtime, so the persisted source should remain suitable for download and
+ * close inspection.
  */
 export async function optimizeLoanPosterPng(
   input: Buffer,
@@ -113,41 +114,8 @@ export async function optimizeLoanPosterPng(
   savedBytes: number;
   pixelScale: number;
 }> {
-  try {
-    const metadata = await sharp(input).metadata();
-    if (!metadata.width || !metadata.height) {
-      const optimized = await optimizeLosslessPng(input);
-      return { ...optimized, pixelScale: 1 };
-    }
-    const targetWidth = Math.max(1, Math.round(metadata.width * 0.5));
-    const targetHeight = Math.max(1, Math.round(metadata.height * 0.5));
-    if (targetWidth === metadata.width && targetHeight === metadata.height) {
-      const optimized = await optimizeLosslessPng(input);
-      return { ...optimized, pixelScale: 1 };
-    }
-    const resized = await sharp(input)
-      .resize({
-        width: targetWidth,
-        height: targetHeight,
-        fit: 'fill',
-        kernel: sharp.kernel.lanczos3,
-      })
-      .png({
-        compressionLevel: 9,
-        adaptiveFiltering: true,
-        palette: false,
-      })
-      .toBuffer();
-    return {
-      bytes: resized,
-      optimized: true,
-      savedBytes: Math.max(0, input.length - resized.length),
-      pixelScale: 0.5,
-    };
-  } catch {
-    const optimized = await optimizeLosslessPng(input);
-    return { ...optimized, pixelScale: 1 };
-  }
+  const optimized = await optimizeLosslessPng(input);
+  return { ...optimized, pixelScale: 1 };
 }
 
 /**
@@ -168,7 +136,11 @@ export async function overlayZamloanLogo(
     360,
     Math.max(160, Math.round(metadata.width * 0.22)),
   );
-  const resizedLogo = await sharp(logo)
+  const logoSourceMetadata = await sharp(logo).metadata();
+  const logoImage = logoSourceMetadata.format === 'svg'
+    ? sharp(logo, { density: 384 })
+    : sharp(logo);
+  const resizedLogo = await logoImage
     .ensureAlpha()
     .resize({ width: logoWidth, fit: 'inside', withoutEnlargement: true })
     .png()
@@ -207,9 +179,9 @@ export async function overlayZamloanLogo(
 }
 
 /**
- * Finalize generated PNG pixels before persistence. Loan-poster resizing must
- * happen before the brand overlay; otherwise the completed logo is sampled a
- * second time and its small wordmark/tagline becomes visibly soft.
+ * Finalize generated PNG pixels before persistence. Lossless optimization runs
+ * before the brand overlay so the logo is rasterized exactly once at its final
+ * poster size.
  */
 export async function finalizeGeneratedPng(
   input: Buffer,

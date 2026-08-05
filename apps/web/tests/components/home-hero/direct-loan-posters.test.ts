@@ -11,8 +11,8 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   autoPosterUsesZReference: (brand: string) => brand === 'zamloan',
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
-  loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.png', {
-    type: 'image/png',
+  loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.svg', {
+    type: 'image/svg+xml',
   }),
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
     type: 'image/png',
