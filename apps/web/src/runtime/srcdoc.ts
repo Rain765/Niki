@@ -1,7 +1,6 @@
 /**
  * Wrap an artifact's HTML for a sandboxed iframe. Corresponds to
- * buildSrcdoc in packages/runtime/src/index.ts — the reference version also
- * injects an edit-mode overlay and tweak bridge, which this starter omits.
+ * buildSrcdoc in packages/runtime/src/index.ts.
  *
  * If the model returned a full document, pass it through unchanged; otherwise
  * wrap the fragment in a minimal doctype shell.
@@ -14,13 +13,6 @@
  *   { type: 'od:slide-state', active: number, count: number }
  * after every navigation so the host can render its own counter / dots.
  */
-import {
-  buildManualEditBridge,
-  buildManualEditBridgeStyle,
-  MANUAL_EDIT_DISCOVERY_SELECTOR,
-  MANUAL_EDIT_SOURCE_PATH_ATTR,
-} from '../edit-mode/bridge';
-
 export type SrcdocOptions = {
   deck?: boolean;
   baseHref?: string;
@@ -28,7 +20,6 @@ export type SrcdocOptions = {
   commentBridge?: boolean;
   inspectBridge?: boolean;
   selectionBridge?: boolean;
-  editBridge?: boolean;
   paletteBridge?: boolean;
   initialPalette?: string | null;
 };
@@ -50,8 +41,7 @@ export function buildSrcdoc(
   <body>${html}</body>
 </html>`;
   const withOdIds = annotateMissingOdIds(wrapped);
-  const withSourcePaths = options.editBridge ? annotateManualEditSourcePaths(withOdIds) : withOdIds;
-  const withBase = options.baseHref ? injectBaseHref(withSourcePaths, options.baseHref) : withSourcePaths;
+  const withBase = options.baseHref ? injectBaseHref(withOdIds, options.baseHref) : withOdIds;
   const withShim = injectSandboxShim(withBase);
   const withDeck = options.deck ? injectDeckBridge(withShim, options.initialSlideIndex) : withShim;
   // Comment + Inspect share an element-selection bridge: both pick a
@@ -71,8 +61,7 @@ export function buildSrcdoc(
   const withPalette = options.paletteBridge
     ? injectPaletteBridge(withSelection, { initialPalette: options.initialPalette ?? null })
     : withSelection;
-  const withEdit = options.editBridge ? injectManualEditBridge(withPalette) : withPalette;
-  return injectSrcdocTransportActivationBridge(injectSnapshotBridge(withEdit));
+  return injectSrcdocTransportActivationBridge(injectSnapshotBridge(withPalette));
 }
 
 /**
@@ -452,21 +441,6 @@ function injectPaletteBridge(
   return injectBeforeBodyEnd(doc, script);
 }
 
-function annotateManualEditSourcePaths(doc: string): string {
-  if (typeof DOMParser === 'undefined') return doc;
-  try {
-    const parsed = new DOMParser().parseFromString(doc, 'text/html');
-    parsed.body.querySelectorAll(MANUAL_EDIT_DISCOVERY_SELECTOR).forEach((el) => {
-      if (el.hasAttribute(MANUAL_EDIT_SOURCE_PATH_ATTR)) return;
-      const path = sourcePathForElement(el);
-      if (path) el.setAttribute(MANUAL_EDIT_SOURCE_PATH_ATTR, path);
-    });
-    return serializeHtmlDocument(parsed);
-  } catch {
-    return doc;
-  }
-}
-
 function sourcePathForElement(el: Element): string {
   const parts: number[] = [];
   let node: Element | null = el;
@@ -525,11 +499,6 @@ function annotateMissingOdIds(doc: string): string {
   } catch {
     return doc;
   }
-}
-
-function injectManualEditBridge(doc: string): string {
-  const withStyle = injectBeforeHeadEnd(doc, buildManualEditBridgeStyle());
-  return injectBeforeBodyEnd(withStyle, buildManualEditBridge(true));
 }
 
 function injectBeforeHeadEnd(doc: string, payload: string): string {

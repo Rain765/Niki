@@ -27,6 +27,7 @@ import {
 } from "./design-files/pluginFolders";
 import type { PluginFolderAgentAction } from "./design-files/pluginFolderActions";
 import { Icon } from "./Icon";
+import { ImagePostPreview } from "./ImagePostPreview";
 import { useT } from "../i18n";
 import { deriveFileOps, type FileOpEntry } from "../runtime/file-ops";
 import { unfinishedTodosFromEvents, type TodoItem } from "../runtime/todos";
@@ -181,6 +182,7 @@ export function AssistantMessage({
     [produced, projectFiles],
   );
   const [previewFile, setPreviewFile] = useState<ProjectFile | null>(null);
+  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
   const requestLinkedFile = useCallback(
     (name: string) => {
       const image = previewableImages.get(name);
@@ -204,6 +206,10 @@ export function AssistantMessage({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
+  }, [previewFile]);
+  useEffect(() => {
+    if (previewFile) return;
+    setPostPreviewOpen(false);
   }, [previewFile]);
   const openableProjectFileNames = useMemo(
     () =>
@@ -435,6 +441,14 @@ export function AssistantMessage({
               />
             </div>
             <footer className="global-design-files__preview-actions">
+              <button
+                type="button"
+                onClick={() => setPostPreviewOpen(true)}
+                aria-label={`${t("common.preview")} ${previewFile.name}`}
+              >
+                <Icon name="eye" size={17} />
+                <span>{t("common.preview")}</span>
+              </button>
               <a
                 href={projectFileDownloadUrl(projectId, previewFile.name)}
                 download
@@ -456,6 +470,19 @@ export function AssistantMessage({
               ) : null}
             </footer>
           </div>
+          {postPreviewOpen ? (
+            <ImagePostPreview
+              imageUrl={projectImagePreviewUrl(
+                projectId,
+                previewFile.name,
+                "preview",
+                previewFile.mtime,
+              )}
+              imageAlt={previewFile.name}
+              fileName={previewFile.name}
+              onClose={() => setPostPreviewOpen(false)}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>

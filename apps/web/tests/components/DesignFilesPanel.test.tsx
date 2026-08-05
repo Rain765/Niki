@@ -128,8 +128,12 @@ describe('DesignFilesPanel image thumbnails', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
 
-    expect(screen.getByRole('dialog', { name: /zambia-support-poster-01\.png/i })).toBeTruthy();
+    const dialog = screen.getByRole('dialog', { name: /zambia-support-poster-01\.png/i });
+    expect(dialog).toBeTruthy();
     expect(screen.getByTestId('design-file-modal-image')).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Preview' }));
+    expect(screen.getByTestId('image-post-preview-feed')).toBeTruthy();
+    expect(screen.getAllByRole('dialog', { name: /Preview.*zambia-support-poster-01\.png/i })).toHaveLength(2);
     expect(onOpenFile).not.toHaveBeenCalled();
   });
 

@@ -9,6 +9,7 @@ import type { LiveArtifactWorkspaceEntry, ProjectFile, ProjectFileKind } from '.
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
 import { getPluginFolderCandidates } from './design-files/pluginFolders';
 import { Icon } from './Icon';
+import { ImagePostPreview } from './ImagePostPreview';
 import { LiveArtifactBadges } from './LiveArtifactBadges';
 import { isRenderableSketchJson, SketchPreview } from './SketchPreview';
 
@@ -1535,6 +1536,7 @@ function DfImagePreviewModal({
 }) {
   const t = useT();
   const url = projectFileUrl(projectId, file.name);
+  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -1558,6 +1560,15 @@ function DfImagePreviewModal({
         <div className="df-image-modal-header">
           <span>{file.name}</span>
           <div className="df-image-modal-actions">
+            <button
+              type="button"
+              className="df-image-modal-preview"
+              onClick={() => setPostPreviewOpen(true)}
+              title={t('common.preview')}
+            >
+              <Icon name="eye" size={17} />
+              <span>{t('common.preview')}</span>
+            </button>
             <a
               href={projectFileDownloadUrl(projectId, file.name)}
               title={t('designFiles.download')}
@@ -1584,6 +1595,14 @@ function DfImagePreviewModal({
           />
         </div>
       </div>
+      {postPreviewOpen ? (
+        <ImagePostPreview
+          imageUrl={`${url}?v=${Math.round(file.mtime)}`}
+          imageAlt={file.name}
+          fileName={file.name}
+          onClose={() => setPostPreviewOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
