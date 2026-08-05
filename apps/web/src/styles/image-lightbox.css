@@ -89,15 +89,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-width: 96px;
+  width: 48px;
   height: 48px;
-  padding: 0 20px;
+  padding: 0;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--text-strong);
-  color: var(--bg-app);
-  font-size: 15px;
-  font-weight: 680;
+  background: var(--bg-panel);
+  color: var(--text-strong);
+  transition:
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.image-lightbox__share-action:hover,
+.image-lightbox__share-action:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+
+.image-lightbox__share-action:active {
+  transform: scale(0.94);
 }
 
 .image-lightbox__share-action:disabled,
@@ -158,10 +170,13 @@
 .image-lightbox__stage picture {
   position: relative;
   z-index: 1;
-  display: grid;
-  place-items: center;
-  max-width: 100%;
-  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 1440px);
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   opacity: 0;
   transition: opacity 200ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -207,7 +222,7 @@
   display: block;
   width: auto;
   height: auto;
-  max-width: min(100%, 1440px);
+  max-width: 100%;
   max-height: 100%;
   object-fit: contain;
   transform-origin: center;
@@ -260,51 +275,56 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  gap: 54px;
-  min-height: 112px;
+  gap: 18px;
+  min-height: 86px;
   padding: 14px 20px max(18px, env(safe-area-inset-bottom, 0px));
   background: var(--bg-app);
 }
 
 .image-lightbox__footer button,
 .image-lightbox__footer a {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  min-width: 72px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
   padding: 0;
-  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-panel);
   color: var(--text);
-  font-size: 13px;
   text-decoration: none;
+  transition:
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    border-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .image-lightbox__tool-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 54px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-panel);
-  transition:
-    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
-    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+  width: auto;
+  height: auto;
 }
 
 .image-lightbox__footer button:hover .image-lightbox__tool-icon,
 .image-lightbox__footer button:focus-visible .image-lightbox__tool-icon,
 .image-lightbox__footer a:hover .image-lightbox__tool-icon,
 .image-lightbox__footer a:focus-visible .image-lightbox__tool-icon {
+  color: var(--text-strong);
+}
+
+.image-lightbox__footer button:hover,
+.image-lightbox__footer button:focus-visible,
+.image-lightbox__footer a:hover,
+.image-lightbox__footer a:focus-visible {
+  border-color: var(--border-strong);
   background: var(--bg-subtle);
 }
 
-.image-lightbox__footer button:active .image-lightbox__tool-icon {
-  transform: scale(0.94);
-}
-
-.image-lightbox__footer a:active .image-lightbox__tool-icon {
+.image-lightbox__footer button:active,
+.image-lightbox__footer a:active {
   transform: scale(0.94);
 }
 
@@ -580,9 +600,8 @@
   }
 
   .image-lightbox__share-action {
-    min-width: 82px;
+    width: 44px;
     height: 44px;
-    padding-inline: 16px;
   }
 
   .image-lightbox__stage img {
@@ -634,12 +653,19 @@
   }
 
   .image-lightbox__share-action {
-    min-width: 76px;
-    padding-inline: 13px;
+    width: 44px;
   }
 
   .image-lightbox__footer {
-    gap: 40px;
+    gap: 14px;
+    min-height: 82px;
+    padding-inline: 14px;
+  }
+
+  .image-lightbox__footer button,
+  .image-lightbox__footer a {
+    width: 48px;
+    height: 48px;
   }
 }
 

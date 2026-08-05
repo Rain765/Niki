@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 describe('ImageLightbox', () => {
-  it('shows the original image with download, share, preview, and delete actions', () => {
+  it('shows the original image with icon-only share, download, copy, and delete actions', () => {
     render(
       <ImageLightbox
         projectId="project-1"
@@ -87,6 +87,10 @@ describe('ImageLightbox', () => {
     expect(within(dialog).queryByRole('button', { name: 'common.edit' })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'designFiles.delete' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-image-skeleton')).toBeTruthy();
+    expect(within(dialog).queryByText('designFiles.download')).toBeNull();
+    expect(within(dialog).queryByText('designFiles.copy')).toBeNull();
+    expect(within(dialog).queryByText('designFiles.delete')).toBeNull();
+    expect(within(dialog).queryByText('common.preview')).toBeNull();
   });
 
   it('keeps a mobile preview placeholder until the image load event', () => {
@@ -248,26 +252,6 @@ describe('ImageLightbox', () => {
     expect(screen.getByTestId('image-lightbox-share-url').getAttribute('value')).toContain(
       '/api/projects/project-1/raw/poster-01.png',
     );
-  });
-
-  it('previews the active image in a read-only social post mock', () => {
-    render(
-      <ImageLightbox
-        projectId="project-1"
-        images={images.slice(0, 1)}
-        activeName="poster-01.png"
-        onActiveNameChange={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
-
-    fireEvent.click(screen.getByTestId('image-lightbox-footer-preview'));
-
-    const feed = screen.getByTestId('image-post-preview-feed');
-    expect(within(feed).getByRole('img', { name: 'poster-01.png' }).getAttribute('src')).toBe(
-      '/api/projects/project-1/image-preview/poster-01.png?variant=preview&v=1',
-    );
-    expect(screen.getByTestId('image-lightbox')).toBeTruthy();
   });
 
   it('confirms deletion and closes after the file is removed', async () => {
