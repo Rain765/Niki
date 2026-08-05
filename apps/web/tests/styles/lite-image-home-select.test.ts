@@ -15,4 +15,14 @@ describe('LiteImageHome mobile selects', () => {
     expect(selectRule).toContain('background-size: 10px 10px;');
     expect(selectRule).not.toContain('background: transparent;');
   });
+
+  it('uses black filled selects on the light surface', () => {
+    const selectRule =
+      css.match(/\.lite-image-home__composer select\s*\{([^}]*)\}/)?.[1] ?? '';
+
+    expect(selectRule).toContain('color: #fff;');
+    expect(selectRule).toContain('background-color: #000;');
+    expect(css).toContain('background: #f7f7f5;');
+    expect(css).toContain('background: #fff;');
+  });
 });

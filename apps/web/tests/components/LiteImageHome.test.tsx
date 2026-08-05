@@ -19,11 +19,18 @@ describe('LiteImageHome', () => {
     render(<LiteImageHome />);
 
     expect(screen.getByRole('img', { name: 'Niki' }).getAttribute('src')).toBe('/logo.svg');
+    expect(screen.getByRole('heading', { name: 'Generate loan posters in one click' })).toBeTruthy();
+    expect(screen.getByText('Choose a quantity, size, and brand. Niki will create a project and start generating.')).toBeTruthy();
     expect(
       screen.queryByText('首页不会预载插件市场、技能库、模板或外部缩略图。'),
     ).toBeNull();
     expect((screen.getByTestId('lite-image-submit') as HTMLButtonElement).disabled).toBe(false);
-    expect((screen.getByTestId('lite-image-count') as HTMLSelectElement).disabled).toBe(false);
+    const countSelect = screen.getByTestId('lite-image-count') as HTMLSelectElement;
+    expect(countSelect.disabled).toBe(false);
+    expect(countSelect.value).toBe('1');
+    expect([...countSelect.options].map((option) => option.text)).toEqual(
+      Array.from({ length: 10 }, (_, index) => String(index + 1)),
+    );
     expect((screen.getByTestId('lite-image-aspect') as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByTestId('lite-image-brand') as HTMLSelectElement).disabled).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -40,6 +47,7 @@ describe('LiteImageHome', () => {
         expect(init?.method).toBe('POST');
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         expect(body.pluginId).toBe('od-media-generation');
+        expect(body.name).toBe('Zamloan Loan Posters');
         expect(body.pluginInputs).toMatchObject({
           mediaKind: 'image',
           model: 'gpt-image-2',

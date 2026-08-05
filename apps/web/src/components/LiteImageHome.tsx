@@ -73,7 +73,7 @@ export function LiteImageHome({
         : null;
       const project = await createImageProject({
         id: browserUuid(),
-        name: `${brandLabel} 贷款海报`,
+        name: `${brandLabel} Loan Posters`,
         pendingPrompt: buildLoanPosterPrompt({
           count: normalizedCount,
           aspectRatio,
@@ -104,7 +104,7 @@ export function LiteImageHome({
         window.location.assign(`/projects/${encodeURIComponent(project.project.id)}`);
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '出图任务启动失败，请重试。');
+      setError(reason instanceof Error ? reason.message : 'Could not start generation. Please try again.');
       setPending(false);
     }
   };
@@ -127,18 +127,18 @@ export function LiteImageHome({
           type="button"
           onClick={onOpenWorkspace}
         >
-          完整工作区
+          Full workspace
         </button>
       </header>
 
       <section className="lite-image-home__content">
         <div className="lite-image-home__eyebrow">AI IMAGE STUDIO</div>
-        <h1>一键生成贷款海报</h1>
-        <p>选择数量、尺寸和品牌，Niki 会直接创建项目并开始出图。</p>
+        <h1>Generate loan posters in one click</h1>
+        <p>Choose a quantity, size, and brand. Niki will create a project and start generating.</p>
 
         <div className="lite-image-home__composer">
           <label>
-            <span>数量</span>
+            <span>Quantity</span>
             <select
               data-testid="lite-image-count"
               value={count}
@@ -146,13 +146,13 @@ export function LiteImageHome({
               onChange={(event) => setCount(normalizeZambiaPosterCount(Number(event.target.value)))}
             >
               {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
-                <option key={value} value={value}>{value} 张</option>
+                <option key={value} value={value}>{value}</option>
               ))}
             </select>
           </label>
 
           <label>
-            <span>尺寸</span>
+            <span>Size</span>
             <select
               data-testid="lite-image-aspect"
               value={aspectRatio}
@@ -166,7 +166,7 @@ export function LiteImageHome({
           </label>
 
           <label>
-            <span>品牌</span>
+            <span>Brand</span>
             <select
               data-testid="lite-image-brand"
               value={brand}
@@ -186,7 +186,7 @@ export function LiteImageHome({
             disabled={pending}
             onClick={() => void submit()}
           >
-            {pending ? '正在启动出图…' : '立即出图'}
+            {pending ? 'Starting generation…' : 'Generate now'}
           </button>
         </div>
 
@@ -222,7 +222,7 @@ async function createImageProject(input: {
       },
     }),
   });
-  if (!response.ok) throw new Error('无法创建出图项目。');
+  if (!response.ok) throw new Error('Could not create the image project.');
   return (await response.json()) as CreateProjectResult;
 }
 
@@ -236,7 +236,7 @@ async function uploadInternalReference(
     `/api/projects/${encodeURIComponent(projectId)}/upload?visibility=internal`,
     { method: 'POST', body: form },
   );
-  if (!response.ok) throw new Error('无法上传品牌参考图。');
+  if (!response.ok) throw new Error('Could not upload the brand reference image.');
   const payload = (await response.json()) as {
     files?: Array<{
       name: string;
