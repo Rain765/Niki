@@ -8,6 +8,7 @@ import {
   projectRawUrl,
 } from '../providers/registry';
 import { Icon } from './Icon';
+import { ImagePostPreview } from './ImagePostPreview';
 
 const PROJECT_BATCH_SIZE = 8;
 
@@ -65,6 +66,7 @@ export function GlobalDesignFilesView({
   const [loadingProjectIds, setLoadingProjectIds] = useState<string[]>([]);
   const [deletingFileKey, setDeletingFileKey] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<GlobalImage | null>(null);
+  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
 
   useEffect(() => {
     setVisibleProjectCount(PROJECT_BATCH_SIZE);
@@ -109,7 +111,12 @@ export function GlobalDesignFilesView({
     if (!previewImage) return;
     const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setPreviewImage(null);
+      if (event.key !== 'Escape') return;
+      if (postPreviewOpen) {
+        setPostPreviewOpen(false);
+        return;
+      }
+      setPreviewImage(null);
     };
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
@@ -117,6 +124,11 @@ export function GlobalDesignFilesView({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
+  }, [postPreviewOpen, previewImage]);
+
+  useEffect(() => {
+    if (previewImage) return;
+    setPostPreviewOpen(false);
   }, [previewImage]);
 
   async function deleteImage(image: GlobalImage): Promise<void> {
@@ -297,6 +309,14 @@ export function GlobalDesignFilesView({
               />
             </div>
             <footer className="global-design-files__preview-actions">
+              <button
+                type="button"
+                onClick={() => setPostPreviewOpen(true)}
+                aria-label={`${t('common.preview')} ${previewImage.file.name}`}
+              >
+                <Icon name="eye" size={17} />
+                <span>{t('common.preview')}</span>
+              </button>
               <a
                 href={projectFileDownloadUrl(
                   previewImage.project.id,
@@ -341,6 +361,17 @@ export function GlobalDesignFilesView({
               </button>
             </footer>
           </div>
+          {postPreviewOpen ? (
+            <ImagePostPreview
+              imageUrl={`${projectRawUrl(
+                previewImage.project.id,
+                previewImage.file.name,
+              )}?v=${Math.round(previewImage.file.mtime)}`}
+              imageAlt={previewImage.file.name}
+              fileName={previewImage.file.name}
+              onClose={() => setPostPreviewOpen(false)}
+            />
+          ) : null}
         </div>
       ) : null}
     </section>

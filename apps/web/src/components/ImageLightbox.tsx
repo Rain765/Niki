@@ -18,6 +18,7 @@ import {
 } from '../providers/registry';
 import type { ProjectFile } from '../types';
 import { Icon } from './Icon';
+import { ImagePostPreview } from './ImagePostPreview';
 import { Toast } from './Toast';
 
 interface Props {
@@ -26,7 +27,6 @@ interface Props {
   activeName: string;
   onActiveNameChange: (name: string) => void;
   onClose: () => void;
-  onEdit?: (file: ProjectFile) => void;
   onDelete?: (name: string) => Promise<boolean>;
 }
 
@@ -60,7 +60,6 @@ export function ImageLightbox({
   activeName,
   onActiveNameChange,
   onClose,
-  onEdit,
   onDelete,
 }: Props) {
   const t = useT();
@@ -82,6 +81,7 @@ export function ImageLightbox({
   const [imageState, setImageState] = useState<'loading' | 'loaded' | 'failed'>('loading');
   const [imageRetry, setImageRetry] = useState(0);
   const [deleting, setDeleting] = useState(false);
+  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
   const [notice, setNotice] = useState<{
     message: string;
     role: 'status' | 'alert';
@@ -127,6 +127,7 @@ export function ImageLightbox({
     setOffset({ x: 0, y: 0 });
     setMoreOpen(false);
     setShareFallbackOpen(false);
+    setPostPreviewOpen(false);
     setImageState('loading');
     setImageRetry(0);
     pointersRef.current.clear();
@@ -158,6 +159,10 @@ export function ImageLightbox({
         }
       } else if (event.key === 'Escape') {
         event.preventDefault();
+        if (postPreviewOpen) {
+          setPostPreviewOpen(false);
+          return;
+        }
         onClose();
       } else if (event.key === 'ArrowLeft') {
         event.preventDefault();
@@ -169,7 +174,7 @@ export function ImageLightbox({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, selectRelativeImage]);
+  }, [onClose, postPreviewOpen, selectRelativeImage]);
 
   if (!activeFile) return null;
 
@@ -330,11 +335,6 @@ export function ImageLightbox({
     } finally {
       setDownloading(false);
     }
-  };
-
-  const handleEditUnavailable = () => {
-    setMoreOpen(false);
-    setNotice({ message: t('imageViewer.editUnavailable'), role: 'status' });
   };
 
   const handleDelete = async () => {
@@ -523,18 +523,18 @@ export function ImageLightbox({
           </span>
           <span>{t('designFiles.copy')}</span>
         </button>
-        {onEdit ? (
-          <button
-            type="button"
-            className="image-lightbox__footer-action"
-            onClick={handleEditUnavailable}
-          >
-            <span className="image-lightbox__tool-icon">
-              <Icon name="edit" size={23} />
-            </span>
-            <span>{t('common.edit')}</span>
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="image-lightbox__footer-action"
+          onClick={() => setPostPreviewOpen(true)}
+          aria-label={t('common.preview')}
+          data-testid="image-lightbox-footer-preview"
+        >
+          <span className="image-lightbox__tool-icon">
+            <Icon name="eye" size={23} />
+          </span>
+          <span>{t('common.preview')}</span>
+        </button>
         {onDelete ? (
           <button
             type="button"
@@ -549,6 +549,20 @@ export function ImageLightbox({
           </button>
         ) : null}
       </footer>
+
+      {postPreviewOpen ? (
+        <ImagePostPreview
+          imageUrl={projectImagePreviewUrl(
+            projectId,
+            activeFile.name,
+            'preview',
+            activeFile.mtime,
+          )}
+          imageAlt={activeFile.name}
+          fileName={activeFile.name}
+          onClose={() => setPostPreviewOpen(false)}
+        />
+      ) : null}
 
       {notice ? (
         <div className="image-lightbox__toast">

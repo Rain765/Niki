@@ -261,7 +261,6 @@ interface Props {
   // FileWorkspace's openRequest. Tool cards, attachment chips, and
   // produced-file chips all call this.
   onRequestOpenFile?: (name: string) => void;
-  onEditProjectImage?: (name: string) => void;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
   onRequestPluginFolderAgentAction?: (
     relativePath: string,
@@ -342,7 +341,6 @@ export function ChatPane({
   onSend,
   onStop,
   onRequestOpenFile,
-  onEditProjectImage,
   onDeleteProjectFile,
   onRequestPluginFolderAgentAction,
   initialDraft,
@@ -861,7 +859,6 @@ export function ChatPane({
                   batches={directPosterBatches}
                   filesInitialized={projectFilesInitialized}
                   projectId={projectId}
-                  onEditProjectImage={onEditProjectImage}
                   onDeleteProjectFile={onDeleteProjectFile}
                 />
               ) : messages.length === 0 ? (
@@ -940,7 +937,6 @@ export function ChatPane({
                         projectFiles={projectFiles}
                         projectFileNames={projectFileNames}
                         onRequestOpenFile={onRequestOpenFile}
-                        onEditImage={onEditProjectImage}
                         onDeleteProjectFile={onDeleteProjectFile}
                         onRequestPluginFolderAgentAction={onRequestPluginFolderAgentAction}
                         isLast={m.id === lastAssistantId}
@@ -1035,13 +1031,11 @@ function DirectLoanPosterTimeline({
   batches,
   filesInitialized,
   projectId,
-  onEditProjectImage,
   onDeleteProjectFile,
 }: {
   batches: DirectPosterBatchView[];
   filesInitialized: boolean;
   projectId: string | null;
-  onEditProjectImage?: (name: string) => void;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
 }) {
   return (
@@ -1064,7 +1058,6 @@ function DirectLoanPosterTimeline({
             prioritizeImage={index === batches.length - 1}
             filesInitialized={filesInitialized}
             projectId={projectId}
-            onEditProjectImage={onEditProjectImage}
             onDeleteProjectFile={onDeleteProjectFile}
           />
         </div>
@@ -1079,7 +1072,6 @@ function DirectLoanPosterBatchCard({
   prioritizeImage,
   filesInitialized,
   projectId,
-  onEditProjectImage,
   onDeleteProjectFile,
 }: {
   batch: DirectPosterBatchView;
@@ -1087,7 +1079,6 @@ function DirectLoanPosterBatchCard({
   prioritizeImage: boolean;
   filesInitialized: boolean;
   projectId: string | null;
-  onEditProjectImage?: (name: string) => void;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
 }) {
   const t = useT();
@@ -1347,15 +1338,6 @@ function DirectLoanPosterBatchCard({
                   </picture>
                 </button>
                 <span className="direct-poster-result-overlay-actions">
-                  {onEditProjectImage ? (
-                    <button
-                      type="button"
-                      onClick={() => setNotice(t('imageViewer.editUnavailable'))}
-                    >
-                      <Icon name="edit" size={17} />
-                      <span>{t('common.edit')}</span>
-                    </button>
-                  ) : null}
                   <button
                     type="button"
                     disabled={downloading}
@@ -1411,9 +1393,6 @@ function DirectLoanPosterBatchCard({
             setSelectedFileName(name);
           }}
           onClose={() => setLightboxFileName(null)}
-          onEdit={onEditProjectImage
-            ? (file) => onEditProjectImage(file.name)
-            : undefined}
           onDelete={onDeleteProjectFile}
         />
       ) : null}

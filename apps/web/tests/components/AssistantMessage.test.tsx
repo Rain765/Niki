@@ -191,7 +191,6 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
         streaming={false}
         projectId="proj-1"
         onRequestOpenFile={onRequestOpenFile}
-        onEditImage={onRequestOpenFile}
       />,
     );
 
@@ -212,7 +211,9 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
       name: 'Preview zambia-support-poster-01.png',
     });
     expect(within(preview).getByTestId('image-lightbox-footer-download').tagName).toBe('BUTTON');
-    fireEvent.click(within(preview).getByRole('button', { name: 'Edit' }));
+    expect(within(preview).queryByRole('button', { name: 'Edit' })).toBeNull();
+    fireEvent.click(within(preview).getByTestId('image-lightbox-footer-preview'));
+    expect(screen.getByTestId('image-post-preview-feed')).toBeTruthy();
     expect(onRequestOpenFile).not.toHaveBeenCalled();
   });
 

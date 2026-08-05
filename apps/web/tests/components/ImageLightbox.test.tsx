@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 describe('ImageLightbox', () => {
-  it('shows the original image with download, share, edit, and delete actions', () => {
+  it('shows the original image with download, share, preview, and delete actions', () => {
     render(
       <ImageLightbox
         projectId="project-1"
@@ -70,7 +70,6 @@ describe('ImageLightbox', () => {
         activeName="poster-01.png"
         onActiveNameChange={vi.fn()}
         onClose={vi.fn()}
-        onEdit={vi.fn()}
         onDelete={vi.fn(async () => true)}
       />,
     );
@@ -84,7 +83,8 @@ describe('ImageLightbox', () => {
     expect(within(dialog).getByRole('button', { name: 'common.share' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-download')).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-copy')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'common.edit' })).toBeTruthy();
+    expect(within(dialog).getByTestId('image-lightbox-footer-preview')).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'common.edit' })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'designFiles.delete' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-image-skeleton')).toBeTruthy();
   });
@@ -192,7 +192,7 @@ describe('ImageLightbox', () => {
     const close = screen.getByRole('button', { name: 'common.close' });
     close.focus();
     fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(screen.getByTestId('image-lightbox-footer-copy'));
+    expect(document.activeElement).toBe(screen.getByTestId('image-lightbox-footer-preview'));
 
     unmount();
     expect(document.activeElement).toBe(trigger);
@@ -250,8 +250,7 @@ describe('ImageLightbox', () => {
     );
   });
 
-  it('keeps the edit UI safe while editing is unavailable', () => {
-    const onEdit = vi.fn();
+  it('previews the active image in a read-only social post mock', () => {
     render(
       <ImageLightbox
         projectId="project-1"
@@ -259,14 +258,15 @@ describe('ImageLightbox', () => {
         activeName="poster-01.png"
         onActiveNameChange={vi.fn()}
         onClose={vi.fn()}
-        onEdit={onEdit}
       />,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'common.edit' }));
+    fireEvent.click(screen.getByTestId('image-lightbox-footer-preview'));
 
-    expect(onEdit).not.toHaveBeenCalled();
-    expect(screen.getByText('imageViewer.editUnavailable')).toBeTruthy();
+    const feed = screen.getByTestId('image-post-preview-feed');
+    expect(within(feed).getByRole('img', { name: 'poster-01.png' }).getAttribute('src')).toBe(
+      '/api/projects/project-1/image-preview/poster-01.png?variant=preview&v=1',
+    );
     expect(screen.getByTestId('image-lightbox')).toBeTruthy();
   });
 

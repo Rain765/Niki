@@ -11275,6 +11275,7 @@ button.connector-action.is-loading {
   gap: 8px;
   flex: 0 0 auto;
 }
+.df-image-modal-actions button,
 .df-image-modal-actions a {
   min-height: 30px;
   padding: 0 10px;
@@ -11285,6 +11286,16 @@ button.connector-action.is-loading {
   align-items: center;
   gap: 6px;
   text-decoration: none;
+}
+.df-image-modal-actions button {
+  appearance: none;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.df-image-modal-actions button:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
 }
 .df-image-modal-actions a:hover {
   background: var(--bg-subtle);
