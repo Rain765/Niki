@@ -13,6 +13,25 @@ describe('Niki Feishu authentication routes', () => {
   let server: http.Server;
   let baseUrl: string;
 
+  async function loginFirstFeishuUser(): Promise<string> {
+    const start = await fetch(`${baseUrl}/api/auth/feishu/start`, {
+      redirect: 'manual',
+    });
+    const stateCookie = start.headers.get('set-cookie') ?? '';
+    const state = new URL(start.headers.get('location') ?? '')
+      .searchParams.get('state') ?? '';
+    const callback = await fetch(
+      `${baseUrl}/api/auth/feishu/callback?code=oauth-code&state=${encodeURIComponent(state)}`,
+      {
+        redirect: 'manual',
+        headers: { cookie: stateCookie.split(';')[0] ?? '' },
+      },
+    );
+    return callback.headers.getSetCookie()
+      .find((cookie) => cookie.startsWith('niki_session='))
+      ?.split(';')[0] ?? '';
+  }
+
   beforeEach(async () => {
     tempDir = mkdtempSync(path.join(os.tmpdir(), 'niki-auth-routes-'));
     const db = openDatabase(tempDir, { dataDir: tempDir });
@@ -317,5 +336,71 @@ describe('Niki Feishu authentication routes', () => {
         },
       }],
     });
+  });
+
+  it('lets the first Feishu administrator create password member accounts', async () => {
+    const adminCookie = await loginFirstFeishuUser();
+    const weakPassword = await fetch(`${baseUrl}/api/auth/password-users`, {
+      method: 'POST',
+      headers: {
+        cookie: adminCookie,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: 'weak.member',
+        name: '弱密码成员',
+        password: '1234567',
+      }),
+    });
+    expect(weakPassword.status).toBe(400);
+    await expect(weakPassword.json()).resolves.toMatchObject({
+      code: 'weak-password',
+    });
+
+    const created = await fetch(`${baseUrl}/api/auth/password-users`, {
+      method: 'POST',
+      headers: {
+        cookie: adminCookie,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: 'member.one',
+        name: '成员一号',
+        password: 'member-password',
+      }),
+    });
+    expect(created.status).toBe(201);
+    await expect(created.json()).resolves.toMatchObject({
+      account: {
+        username: 'member.one',
+        user: { name: '成员一号', role: 'member' },
+      },
+    });
+
+    const memberLogin = await fetch(`${baseUrl}/api/auth/password/login`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        username: 'member.one',
+        password: 'member-password',
+      }),
+    });
+    expect(memberLogin.status).toBe(200);
+    const memberCookie = memberLogin.headers.getSetCookie()
+      .find((cookie) => cookie.startsWith('niki_session='))
+      ?.split(';')[0] ?? '';
+    const forbidden = await fetch(`${baseUrl}/api/auth/password-users`, {
+      method: 'POST',
+      headers: {
+        cookie: memberCookie,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: 'not-allowed',
+        name: '不能创建',
+        password: 'member-password',
+      }),
+    });
+    expect(forbidden.status).toBe(403);
   });
 });

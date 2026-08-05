@@ -9,8 +9,8 @@ import type {
 } from '@open-design/contracts';
 
 function passwordValidationError(password: string, confirmation: string): string {
-  if (password.length < 4 || password.length > 128) {
-    return '密码需为 4–128 个字符';
+  if (password.length < 8 || password.length > 128) {
+    return '密码需为 8–128 个字符';
   }
   if (password !== confirmation) return '两次输入的密码不一致';
   return '';
@@ -22,7 +22,8 @@ function accountIdentityLabel(account: NikiManagedUser): string {
     if (provider === 'wechat') return '微信';
     return '飞书';
   });
-  return labels.join(' · ') || account.provider;
+  const identity = labels.join(' · ') || account.provider;
+  return account.user.role === 'admin' ? `${identity} · 管理员` : identity;
 }
 
 export function PasswordAccountManager({
@@ -295,12 +296,12 @@ export function PasswordAccountManager({
           <label>
             <span>初始密码</span>
             <input
-              type="text"
+              type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="至少 4 个字符"
+              placeholder="至少 8 个字符"
               autoComplete="new-password"
-              minLength={4}
+              minLength={8}
               maxLength={128}
               spellCheck={false}
               required
@@ -309,12 +310,12 @@ export function PasswordAccountManager({
           <label>
             <span>再次输入密码</span>
             <input
-              type="text"
+              type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder="再次输入相同密码"
               autoComplete="new-password"
-              minLength={4}
+              minLength={8}
               maxLength={128}
               spellCheck={false}
               required
@@ -426,10 +427,10 @@ export function PasswordAccountManager({
                   <label>
                     <span>新密码</span>
                     <input
-                      type="text"
+                      type="password"
                       value={replacementPassword}
                       onChange={(event) => setReplacementPassword(event.target.value)}
-                      minLength={4}
+                      minLength={8}
                       maxLength={128}
                       autoComplete="new-password"
                       spellCheck={false}
@@ -439,10 +440,10 @@ export function PasswordAccountManager({
                   <label>
                     <span>再次输入新密码</span>
                     <input
-                      type="text"
+                      type="password"
                       value={confirmReplacementPassword}
                       onChange={(event) => setConfirmReplacementPassword(event.target.value)}
-                      minLength={4}
+                      minLength={8}
                       maxLength={128}
                       autoComplete="new-password"
                       spellCheck={false}

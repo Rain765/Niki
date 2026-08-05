@@ -56,7 +56,16 @@ Use `pnpm tools-dev status`, `pnpm tools-dev logs`, and `pnpm tools-dev stop` to
 
 ## Authentication and account management
 
-Authentication is disabled for local-only development. A hosted deployment can enable Niki authentication with:
+Authentication is disabled for local-only development. To launch administrator-managed accounts first, use this minimal Feishu configuration:
+
+    NIKI_AUTH_MODE=feishu
+    NIKI_PUBLIC_URL=https://your-niki-domain.example
+    FEISHU_APP_ID=your_app_id
+    FEISHU_APP_SECRET=your_app_secret
+
+In an empty database, the first user to complete Feishu login becomes the administrator and claims projects created before multi-user authentication was enabled. After signing in, that administrator can open **Account management** from the avatar menu and create usernames with initial passwords of at least eight characters. Newly created accounts are always regular members.
+
+To enable WeChat login as well, switch to the combined configuration:
 
     NIKI_AUTH_MODE=feishu,wechat
     FEISHU_APP_ID=your_app_id
