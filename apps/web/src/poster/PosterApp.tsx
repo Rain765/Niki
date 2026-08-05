@@ -7,6 +7,7 @@ import {
   buildDirectPosterBatches,
   type DirectPosterBatchView,
 } from '../components/direct-poster-batches';
+import { Icon } from '../components/Icon';
 import {
   resolveDirectLoanPosterProject,
   startDirectLoanPosterProject,
@@ -678,13 +679,29 @@ export function PosterApp() {
       {previewFile && projectId ? (
         <div className="poster-preview" role="dialog" aria-modal="true" aria-label={previewFile.name}>
           <header className="poster-preview__header">
-            <button type="button" onClick={() => setPreviewName(null)} aria-label="Close">×</button>
+            <button
+              type="button"
+              onClick={() => setPreviewName(null)}
+              aria-label="Close"
+              title="Close"
+            >
+              <Icon name="close" size={24} />
+            </button>
             <button
               type="button"
               disabled={activeAction !== null || preparedPreviewFile === null}
+              aria-label={activeAction === 'share'
+                ? 'Sharing…'
+                : preparedPreviewFile
+                  ? 'Share'
+                  : 'Preparing…'}
+              title="Share"
               onClick={() => preparedPreviewFile && void share(previewFile, preparedPreviewFile)}
             >
-              {activeAction === 'share' ? 'Sharing…' : preparedPreviewFile ? 'Share' : 'Preparing…'}
+              <Icon
+                name={activeAction === 'share' || preparedPreviewFile === null ? 'spinner' : 'share'}
+                size={22}
+              />
             </button>
           </header>
           {previewNotice ? (
@@ -725,6 +742,14 @@ export function PosterApp() {
             <button
               type="button"
               disabled={activeAction !== null || previewFilePreparing}
+              aria-label={activeAction === 'download'
+                ? 'Saving…'
+                : preparedPreviewFile
+                  ? 'Save image'
+                  : failedPreviewKey === previewFileKey
+                    ? 'Prepare again'
+                    : 'Preparing original…'}
+              title="Save image"
               onClick={() => {
                 if (preparedPreviewFile) {
                   void download(preparedPreviewFile);
@@ -734,35 +759,31 @@ export function PosterApp() {
                 setPrepareAttempt((current) => current + 1);
               }}
             >
-              {activeAction === 'download'
-                ? 'Saving…'
-                : preparedPreviewFile
-                  ? 'Save image'
-                  : failedPreviewKey === previewFileKey
-                    ? 'Prepare again'
-                    : 'Preparing original…'}
+              <Icon
+                name={activeAction === 'download' || (previewFilePreparing && preparedPreviewFile === null)
+                  ? 'spinner'
+                  : 'download'}
+                size={23}
+              />
             </button>
             <button
               type="button"
               disabled={activeAction !== null || preparedPreviewFile === null}
+              aria-label={activeAction === 'copy' ? 'Copying…' : 'Copy image'}
+              title="Copy image"
               onClick={() => preparedPreviewFile && void copyImage(preparedPreviewFile)}
             >
-              {activeAction === 'copy' ? 'Copying…' : 'Copy image'}
-            </button>
-            <button
-              type="button"
-              disabled={activeAction !== null}
-              onClick={() => setPreviewNotice({ message: 'Image editing is coming soon.', tone: 'info' })}
-            >
-              Edit
+              <Icon name={activeAction === 'copy' ? 'spinner' : 'copy'} size={23} />
             </button>
             <button
               type="button"
               className="is-danger"
               disabled={activeAction !== null}
+              aria-label="Delete"
+              title="Delete"
               onClick={() => void remove(previewFile)}
             >
-              Delete
+              <Icon name="trash" size={23} />
             </button>
           </footer>
         </div>

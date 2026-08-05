@@ -167,6 +167,29 @@ describe('PosterApp mobile-safe flow', () => {
     expect(await screen.findByText('Image copied')).toBeTruthy();
   });
 
+  it('shows only circular icon actions in the poster preview', async () => {
+    render(<PosterApp />);
+    const poster = await screen.findByRole('img', {
+      name: 'biumoney-poster-20260804-001.png',
+    });
+    fireEvent.click(poster.closest('button')!);
+
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'Save image' }) as HTMLButtonElement).disabled)
+        .toBe(false);
+    });
+
+    const preview = screen.getByRole('dialog', {
+      name: 'biumoney-poster-20260804-001.png',
+    });
+    const actions = ['Close', 'Share', 'Save image', 'Copy image', 'Delete'];
+    for (const name of actions) {
+      const button = within(preview).getByRole('button', { name });
+      expect(button.textContent).toBe('');
+    }
+    expect(within(preview).queryByRole('button', { name: 'Edit' })).toBeNull();
+  });
+
   it('prepares the original before enabling the first mobile-browser save click', async () => {
     let resolvePrepared!: (file: File) => void;
     prepareImageFileMock.mockReturnValue(new Promise<File>((resolve) => {

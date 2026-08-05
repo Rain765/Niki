@@ -49,8 +49,22 @@ describe('poster app image layout', () => {
 
     expect(picture).toContain('width: 100%;');
     expect(picture).toContain('height: 100%;');
-    expect(image).toContain('width: 100%;');
-    expect(image).toContain('height: 100%;');
+    expect(image).toContain('width: auto;');
+    expect(image).toContain('height: auto;');
+    expect(image).toContain('max-width: 100%;');
+    expect(image).toContain('max-height: 100%;');
     expect(image).toContain('object-fit: contain;');
+  });
+
+  it('uses aligned circular icon controls in the preview header and footer', () => {
+    const headerButton = rule('.poster-preview__header button');
+    const footerButton = rule('.poster-preview__footer button');
+
+    expect(headerButton).toContain('width: 48px;');
+    expect(headerButton).toContain('height: 48px;');
+    expect(headerButton).toContain('border-radius: 999px;');
+    expect(footerButton).toContain('width: 52px;');
+    expect(footerButton).toContain('height: 52px;');
+    expect(footerButton).toContain('border-radius: 999px;');
   });
 });
