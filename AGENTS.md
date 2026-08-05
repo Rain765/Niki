@@ -64,6 +64,13 @@ This file is the single source of truth for agents entering this repository. Rea
 - Restart, rebuild, reinstall, or hot-reload the active runtime as appropriate, then verify the actual user-facing URL or desktop instance resolves to the integrated commit. For proxied web URLs, compare the proxy response with the local runtime and perform a real browser refresh when possible.
 - Final handoff must state the active branch and commit, the runtime URL or packaged version verified, and any refresh/restart the user still needs. If the active instance could not be updated or inspected, report that limitation explicitly instead of claiming completion.
 
+### User-requested remote delivery
+
+- A code change request alone does not authorize remote publication. When the user explicitly asks to push, publish, or deploy, complete the full delivery loop in the same task without waiting for a second reminder: validate the scoped commit, push it with tracking, deploy through the active delivery target identified above, wait for the deployment result, and verify the user-facing URL.
+- The Feishu Niki app at `https://niki.tail795f4a.ts.net` is delivered through the immutable local release workflow. Deploy a clean source worktree with `~/.local/share/niki-auth/deploy.zsh <source-worktree>`; the script builds daemon and web, switches the active release, restarts the launch agent, and performs health checks. Verify the external Funnel URL and its loaded build assets before handoff.
+- Vercel branch builds are previews and are not evidence that the Feishu app updated. Do not substitute a Vercel preview for the active Feishu release or promote another production target unless the user requested it.
+- If credentials, network access, release ancestry, runtime health, or deployment checks block the loop, stop at that boundary and report the exact state. Never claim that Feishu or another hosted app has updated until the active user-facing URL resolves to the delivered build.
+
 ## Root command boundary
 
 - Keep root scripts reserved for true repo-level checks and tools control-plane entrypoints: `pnpm guard`, `pnpm typecheck`, `pnpm tools-dev`, `pnpm tools-pack`, `pnpm tools-pr`, and `pnpm tools-serve`.
