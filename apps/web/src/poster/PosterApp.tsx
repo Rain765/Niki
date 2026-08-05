@@ -31,6 +31,8 @@ import type { Project, ProjectFile } from '../types';
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
 
+const STATUS_AUTO_DISMISS_MS = 10_000;
+
 function rawUrl(projectId: string, name: string, version?: number): string {
   const safeName = name.split('/').map(encodeURIComponent).join('/');
   const versionQuery = typeof version === 'number' && Number.isFinite(version)
@@ -198,8 +200,16 @@ export function PosterApp() {
     latestBatch?.id ?? 'none',
     latestBatch?.files.length ?? 0,
     statusTitle,
+    status.detail,
   ].join(':');
   const statusDismissed = dismissedStatusKey === statusKey;
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDismissedStatusKey(statusKey);
+    }, STATUS_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timeout);
+  }, [statusKey]);
 
   useEffect(() => {
     if (!previewFile || !projectId || !previewFileKey) return undefined;
@@ -684,10 +694,15 @@ export function PosterApp() {
             type="button"
             className="poster-app__history-toggle"
             aria-expanded={showHistory}
+            aria-label={`${showHistory ? 'Collapse' : 'Expand'} poster history`}
             onClick={() => setShowHistory((current) => !current)}
           >
             <span>Poster history ({historyFiles.length})</span>
-            <span aria-hidden="true">{showHistory ? 'Collapse' : 'Expand'}</span>
+            <Icon
+              name="chevron-down"
+              size={18}
+              className={showHistory ? 'is-expanded' : undefined}
+            />
           </button>
           {showHistory ? (
             <div className="poster-app__gallery poster-app__history-gallery">
