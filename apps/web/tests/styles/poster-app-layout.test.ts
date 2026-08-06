@@ -51,6 +51,8 @@ describe('poster app image layout', () => {
     expect(picture).toContain('height: 100%;');
     expect(image).toContain('width: auto;');
     expect(image).toContain('height: auto;');
+    expect(image).toContain('min-width: 0;');
+    expect(image).toContain('min-height: 0;');
     expect(image).toContain('max-width: 100%;');
     expect(image).toContain('max-height: 100%;');
     expect(image).toContain('object-fit: contain;');
