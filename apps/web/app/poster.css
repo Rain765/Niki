@@ -321,6 +321,7 @@ button {
   background: transparent;
   color: var(--poster-text);
   cursor: pointer;
+  font-weight: 700;
   text-align: left;
   transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -381,7 +382,6 @@ button {
 .poster-app__segmented button.is-active {
   background: #111111;
   color: #ffffff;
-  box-shadow: 0 1px 6px rgb(0 0 0 / 18%);
 }
 
 .poster-app__generate {
@@ -573,13 +573,22 @@ button {
   text-align: left;
 }
 
-.poster-app__history-toggle svg {
+.poster-app__history-toggle-icon {
+  display: grid;
   flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--poster-panel-raised);
   color: var(--poster-muted);
+  place-items: center;
+}
+
+.poster-app__history-toggle-icon svg {
   transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.poster-app__history-toggle svg.is-expanded {
+.poster-app__history-toggle-icon svg.is-expanded {
   transform: rotate(180deg);
 }
 
@@ -844,7 +853,7 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .poster-app__status,
   .poster-app__status-mark,
-  .poster-app__history-toggle svg,
+  .poster-app__history-toggle-icon svg,
   .poster-app__poster,
   .poster-app__poster-skeleton,
   .niki-auth__spinner,
