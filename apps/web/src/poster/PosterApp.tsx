@@ -164,6 +164,8 @@ export function PosterApp() {
     [posterFiles, project?.metadata?.directGeneration],
   );
   const latestBatch = batches.at(-1) ?? null;
+  const latestBatchAspectRatio = latestBatch?.aspectRatio ?? aspectRatio;
+  const latestBatchCount = latestBatch?.files.length ?? count;
   const historyBatches = useMemo(
     () => batches.slice(0, -1).reverse(),
     [batches],
@@ -599,7 +601,7 @@ export function PosterApp() {
         <div className="poster-app__field">
           <span>Ratio</span>
           <div className="poster-app__segmented">
-            {(['16:9', '3:4', '1:1'] as const).map((value) => (
+            {(['3:4', '1:1', '16:9'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
@@ -662,11 +664,12 @@ export function PosterApp() {
         tabIndex={-1}
       >
         <header className="poster-app__section-header">
-          <div>
+          <div className="poster-app__section-heading">
             <h2>Latest batch</h2>
-            <span>{latestBatch?.aspectRatio ?? aspectRatio}</span>
+            <span className="poster-app__section-meta">
+              {latestBatchAspectRatio} × {latestBatchCount}
+            </span>
           </div>
-          {latestBatch?.files.length ? <span>{latestBatch.files.length}</span> : null}
         </header>
         <div className="poster-app__gallery">
           {latestBatch?.files.map((file, index) => renderPoster(file, {
@@ -675,11 +678,9 @@ export function PosterApp() {
             index,
           }))}
           {loadingProject || status.state === 'working' ? (
-            <div className={`poster-app__poster-skeleton${(
-              latestBatch?.aspectRatio ?? aspectRatio
-            ) === '1:1'
+            <div className={`poster-app__poster-skeleton${latestBatchAspectRatio === '1:1'
               ? ' is-square'
-              : (latestBatch?.aspectRatio ?? aspectRatio) === '3:4'
+              : latestBatchAspectRatio === '3:4'
                 ? ' is-portrait'
                 : ''}`}>
               <span>{loadingProject ? 'Loading recent posters…' : 'Generating image…'}</span>
@@ -697,7 +698,10 @@ export function PosterApp() {
             aria-label={`${showHistory ? 'Collapse' : 'Expand'} poster history`}
             onClick={() => setShowHistory((current) => !current)}
           >
-            <span>Poster history ({historyFiles.length})</span>
+            <span className="poster-app__section-heading">
+              <span className="poster-app__section-title">Poster history</span>
+              <span className="poster-app__section-meta">({historyFiles.length})</span>
+            </span>
             <span className="poster-app__history-toggle-icon" aria-hidden="true">
               <Icon
                 name="chevron-down"
