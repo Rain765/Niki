@@ -707,7 +707,7 @@ button {
 .poster-app__poster-skeleton {
   min-height: 180px;
   overflow: hidden;
-  border: 1px solid var(--poster-border);
+  border: 0;
   border-radius: 0;
   background: var(--poster-panel);
 }
@@ -871,7 +871,7 @@ button {
   place-items: center;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);
+  background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);
   color: var(--poster-fill-7);
 }
 
@@ -926,7 +926,7 @@ button {
   place-items: center;
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);
+  background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);
   color: var(--poster-fill-7);
 }
 

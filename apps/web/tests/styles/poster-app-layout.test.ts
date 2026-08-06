@@ -65,6 +65,7 @@ describe('poster app image layout', () => {
 
     expect(poster).toContain('aspect-ratio: 16 / 9;');
     expect(poster).toContain('cursor: pointer;');
+    expect(posterAndSkeleton).toContain('border: 0;');
     expect(posterAndSkeleton).toContain('border-radius: 0;');
     expect(segmentedButton).toContain('border-radius: 12px;');
     expect(square).toContain('aspect-ratio: 1;');
@@ -115,7 +116,7 @@ describe('poster app image layout', () => {
     expect(headerButton).toContain('height: 48px;');
     expect(headerButton).toContain('border-radius: 999px;');
     expect(headerButton).toContain('border: 0;');
-    expect(headerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);');
+    expect(headerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);');
     expect(headerButton).toContain('color: var(--poster-fill-7);');
     expect(footer).toContain('border-top: 0;');
     expect(footer).toContain('background: transparent;');
@@ -123,7 +124,7 @@ describe('poster app image layout', () => {
     expect(footerButton).toContain('height: 52px;');
     expect(footerButton).toContain('border-radius: 999px;');
     expect(footerButton).toContain('border: 0;');
-    expect(footerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);');
+    expect(footerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);');
     expect(footerButton).toContain('color: var(--poster-fill-7);');
   });
 
