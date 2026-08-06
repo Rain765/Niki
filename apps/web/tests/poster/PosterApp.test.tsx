@@ -116,7 +116,7 @@ describe('PosterApp mobile-safe flow', () => {
     const ratioField = screen.getByText('Ratio').closest('.poster-app__field');
     expect(ratioField).toBeTruthy();
     const ratioButtons = within(ratioField as HTMLElement).getAllByRole('button');
-    expect(ratioButtons.map((button) => button.textContent)).toEqual(['16:9', '3:4', '1:1']);
+    expect(ratioButtons.map((button) => button.textContent)).toEqual(['3:4', '1:1', '16:9']);
     expect(
       within(ratioField as HTMLElement).getByRole('button', { name: '3:4' }).classList.contains('is-active'),
     ).toBe(true);
@@ -329,6 +329,7 @@ describe('PosterApp mobile-safe flow', () => {
     });
     expect(newestImage.getAttribute('loading')).toBe('eager');
     expect(newestImage.closest('button')?.className).toContain('is-square');
+    expect(within(latestRegion).getByText('1:1 × 1').className).toBe('poster-app__section-meta');
     expect(screen.getByText('1 poster generated in this batch')).toBeTruthy();
     expect(screen.queryByRole('img', {
       name: 'biumoney-poster-20260804-001.png',
@@ -342,7 +343,8 @@ describe('PosterApp mobile-safe flow', () => {
     const historyToggle = screen.getByRole('button', { name: 'Expand poster history' });
     expect(historyToggle.querySelector('svg')).toBeTruthy();
     expect(historyToggle.querySelector('.poster-app__history-toggle-icon')).toBeTruthy();
-    expect(historyToggle.textContent).toBe('Poster history (2)');
+    expect(within(historyToggle).getByText('Poster history').className).toBe('poster-app__section-title');
+    expect(within(historyToggle).getByText('(2)').className).toBe('poster-app__section-meta');
     fireEvent.click(historyToggle);
     expect(screen.getByRole('button', { name: 'Collapse poster history' })).toBeTruthy();
 
