@@ -62,7 +62,7 @@ afterEach(() => {
 });
 
 describe('ImageLightbox', () => {
-  it('shows the original image with download, share, edit, and delete actions', () => {
+  it('shows the original image with icon-only share, download, copy, and delete actions', () => {
     render(
       <ImageLightbox
         projectId="project-1"
@@ -70,7 +70,6 @@ describe('ImageLightbox', () => {
         activeName="poster-01.png"
         onActiveNameChange={vi.fn()}
         onClose={vi.fn()}
-        onEdit={vi.fn()}
         onDelete={vi.fn(async () => true)}
       />,
     );
@@ -84,9 +83,14 @@ describe('ImageLightbox', () => {
     expect(within(dialog).getByRole('button', { name: 'common.share' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-download')).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-footer-copy')).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'common.edit' })).toBeTruthy();
+    expect(within(dialog).queryByTestId('image-lightbox-footer-preview')).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'common.edit' })).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'designFiles.delete' })).toBeTruthy();
     expect(within(dialog).getByTestId('image-lightbox-image-skeleton')).toBeTruthy();
+    expect(within(dialog).queryByText('designFiles.download')).toBeNull();
+    expect(within(dialog).queryByText('designFiles.copy')).toBeNull();
+    expect(within(dialog).queryByText('designFiles.delete')).toBeNull();
+    expect(within(dialog).queryByText('common.preview')).toBeNull();
   });
 
   it('keeps a mobile preview placeholder until the image load event', () => {
@@ -248,26 +252,6 @@ describe('ImageLightbox', () => {
     expect(screen.getByTestId('image-lightbox-share-url').getAttribute('value')).toContain(
       '/api/projects/project-1/raw/poster-01.png',
     );
-  });
-
-  it('keeps the edit UI safe while editing is unavailable', () => {
-    const onEdit = vi.fn();
-    render(
-      <ImageLightbox
-        projectId="project-1"
-        images={images.slice(0, 1)}
-        activeName="poster-01.png"
-        onActiveNameChange={vi.fn()}
-        onClose={vi.fn()}
-        onEdit={onEdit}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: 'common.edit' }));
-
-    expect(onEdit).not.toHaveBeenCalled();
-    expect(screen.getByText('imageViewer.editUnavailable')).toBeTruthy();
-    expect(screen.getByTestId('image-lightbox')).toBeTruthy();
   });
 
   it('confirms deletion and closes after the file is removed', async () => {

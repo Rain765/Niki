@@ -50,6 +50,7 @@ import {
   AUTO_POSTER_DEFAULT_BRAND,
   autoPosterUsesZReference,
   buildLoanPosterPrompt,
+  loadZamloanLogo,
   loadZambiaPosterReference,
   LOAN_POSTER_SKILL_ID,
   normalizeZambiaPosterCount,
@@ -778,7 +779,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           throw new Error('Unable to prepare the poster project.');
         }
 
-        let referenceAttachment = null;
+        const referenceAttachments: ChatAttachment[] = [];
         if (referencePromise) {
           const referenceFile = await referencePromise;
           const uploadResult = await uploadProjectFiles(
@@ -786,10 +787,24 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
             [referenceFile],
             { visibility: 'internal' },
           );
-          referenceAttachment = uploadResult.uploaded[0] ?? null;
+          const referenceAttachment = uploadResult.uploaded[0] ?? null;
           if (!referenceAttachment || uploadResult.failed.length > 0) {
             throw new Error(uploadResult.error ?? 'Unable to attach the internal Z reference.');
           }
+          referenceAttachments.push(referenceAttachment);
+        }
+        if (autoPosterBrand === 'zamloan') {
+          const logoFile = await loadZamloanLogo();
+          const uploadResult = await uploadProjectFiles(
+            id,
+            [logoFile],
+            { visibility: 'internal' },
+          );
+          const logoAttachment = uploadResult.uploaded[0] ?? null;
+          if (!logoAttachment || uploadResult.failed.length > 0) {
+            throw new Error(uploadResult.error ?? 'Unable to attach the internal Zamloan logo.');
+          }
+          referenceAttachments.push(logoAttachment);
         }
 
         const patchedProject = await patchProject(id, { skillId: LOAN_POSTER_SKILL_ID });
@@ -800,7 +815,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
         const skillIds = [LOAN_POSTER_SKILL_ID];
         onSend(
           autoPrompt,
-          referenceAttachment ? [referenceAttachment] : [],
+          referenceAttachments,
           [],
           {
             skillIds,

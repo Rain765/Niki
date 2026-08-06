@@ -56,14 +56,16 @@ Niki 是一个带登录和用户隔离的创意工作区，用于生成、查看
 
 ## 登录与账号管理
 
-仅本机开发时默认不启用登录。线上部署可以通过以下环境变量启用 Niki 登录：
+仅本机开发时默认不启用登录。今天先上线管理员创建账号时，使用以下最小飞书配置：
 
     NIKI_AUTH_MODE=feishu
+    NIKI_PUBLIC_URL=https://your-niki-domain.example
     FEISHU_APP_ID=your_app_id
     FEISHU_APP_SECRET=your_app_secret
-    NIKI_PUBLIC_URL=https://your-niki-domain.example
 
-启用登录后，管理员可以在 Niki 账号管理界面或通过 `od auth` CLI 管理密码账号与用户额度：
+在空数据库中，第一个完成飞书登录的用户会自动成为管理员，并接管启用多用户登录前创建的历史项目。管理员登录后，从头像菜单进入“账号管理”，即可为其他人创建用户名和至少 8 位的初始密码；这些新账号始终是普通成员。
+
+启用登录后，管理员可以在头像菜单的“账号管理”界面或通过 `od auth` CLI 管理密码账号与用户额度：
 
     od auth status
     od auth users list

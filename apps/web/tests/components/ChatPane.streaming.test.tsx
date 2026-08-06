@@ -437,7 +437,6 @@ Expected output:
   });
 
   it('shows one selected poster with a vertical thumbnail switcher', () => {
-    const onEditProjectImage = vi.fn();
     render(
       <ChatPane
         messages={[]}
@@ -463,7 +462,6 @@ Expected output:
         onEnsureProject={async () => 'project-1'}
         onSend={vi.fn()}
         onStop={vi.fn()}
-        onEditProjectImage={onEditProjectImage}
         conversations={conversations}
         activeConversationId="conv-1"
         onSelectConversation={vi.fn()}
@@ -488,10 +486,8 @@ Expected output:
     );
     const result = selectedImage.closest('.direct-poster-result');
     expect(result?.querySelector('.direct-poster-result-overlay-actions')?.children)
-      .toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', { name: 'common.edit' }));
-    expect(onEditProjectImage).not.toHaveBeenCalled();
-    expect(screen.getByText('imageViewer.editUnavailable')).toBeTruthy();
+      .toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'common.edit' })).toBeNull();
     expect(screen.queryByLabelText(/海报生成进度/)).toBeNull();
     expect(
       screen.queryByTestId('direct-poster-result-image-zamloan-poster-02.png'),

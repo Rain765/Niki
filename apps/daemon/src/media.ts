@@ -73,6 +73,18 @@ type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
 type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
 
+const RASTER_IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+const OVERLAY_IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
+  ...RASTER_IMAGE_MIME_BY_EXTENSION,
+  '.svg': 'image/svg+xml',
+};
+
 export async function optimizeLosslessPng(
   input: Buffer,
 ): Promise<{ bytes: Buffer; optimized: boolean; savedBytes: number }> {
@@ -101,9 +113,10 @@ export async function optimizeLosslessPng(
 }
 
 /**
- * Direct loan posters are primarily reviewed on phones. Halving both axes
- * keeps the poster readable while reducing the stored pixel area to 25%.
- * The resized pixels are then encoded as a lossless PNG.
+ * Preserve the provider's full poster resolution while applying lossless PNG
+ * compression. Delivery-sized previews are produced separately by the web
+ * runtime, so the persisted source should remain suitable for download and
+ * close inspection.
  */
 export async function optimizeLoanPosterPng(
   input: Buffer,
@@ -113,41 +126,88 @@ export async function optimizeLoanPosterPng(
   savedBytes: number;
   pixelScale: number;
 }> {
-  try {
-    const metadata = await sharp(input).metadata();
-    if (!metadata.width || !metadata.height) {
-      const optimized = await optimizeLosslessPng(input);
-      return { ...optimized, pixelScale: 1 };
-    }
-    const targetWidth = Math.max(1, Math.round(metadata.width * 0.5));
-    const targetHeight = Math.max(1, Math.round(metadata.height * 0.5));
-    if (targetWidth === metadata.width && targetHeight === metadata.height) {
-      const optimized = await optimizeLosslessPng(input);
-      return { ...optimized, pixelScale: 1 };
-    }
-    const resized = await sharp(input)
-      .resize({
-        width: targetWidth,
-        height: targetHeight,
-        fit: 'fill',
-        kernel: sharp.kernel.lanczos3,
-      })
-      .png({
-        compressionLevel: 9,
-        adaptiveFiltering: true,
-        palette: false,
-      })
-      .toBuffer();
-    return {
-      bytes: resized,
-      optimized: true,
-      savedBytes: Math.max(0, input.length - resized.length),
-      pixelScale: 0.5,
-    };
-  } catch {
-    const optimized = await optimizeLosslessPng(input);
-    return { ...optimized, pixelScale: 1 };
+  const optimized = await optimizeLosslessPng(input);
+  return { ...optimized, pixelScale: 1 };
+}
+
+/**
+ * Add the exact Zamloan wordmark after image generation so the logo remains
+ * legible and consistent instead of relying on model-rendered typography.
+ */
+export async function overlayZamloanLogo(
+  input: Buffer,
+  logo: Buffer,
+): Promise<Buffer> {
+  const image = sharp(input);
+  const metadata = await image.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('generated poster has no readable dimensions');
   }
+
+  const logoWidth = Math.min(
+    360,
+    Math.max(160, Math.round(metadata.width * 0.22)),
+  );
+  const logoSourceMetadata = await sharp(logo).metadata();
+  const logoImage = logoSourceMetadata.format === 'svg'
+    ? sharp(logo, { density: 384 })
+    : sharp(logo);
+  const resizedLogo = await logoImage
+    .ensureAlpha()
+    .resize({ width: logoWidth, fit: 'inside', withoutEnlargement: true })
+    .png()
+    .toBuffer();
+  const logoMetadata = await sharp(resizedLogo).metadata();
+  if (!logoMetadata.width || !logoMetadata.height) {
+    throw new Error('Zamloan logo has no readable dimensions');
+  }
+
+  const shadowPadding = Math.max(5, Math.round(logoMetadata.width * 0.025));
+  const shadow = await sharp(resizedLogo)
+    .modulate({ brightness: 0 })
+    .blur(Math.max(2, Math.round(logoMetadata.width * 0.012)))
+    .png()
+    .toBuffer();
+  const logoLayer = await sharp({
+    create: {
+      width: logoMetadata.width + shadowPadding * 2,
+      height: logoMetadata.height + shadowPadding * 2,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .composite([
+      { input: shadow, left: shadowPadding, top: shadowPadding },
+      { input: resizedLogo, left: shadowPadding, top: shadowPadding },
+    ])
+    .png()
+    .toBuffer();
+
+  const margin = Math.max(24, Math.round(metadata.width * 0.04));
+  return image
+    .composite([{ input: logoLayer, left: margin, top: margin }])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Finalize generated PNG pixels before persistence. Lossless optimization runs
+ * before the brand overlay so the logo is rasterized exactly once at its final
+ * poster size.
+ */
+export async function finalizeGeneratedPng(
+  input: Buffer,
+  options: { loanPosterOutput: boolean; overlayLogo?: Buffer },
+): Promise<Buffer> {
+  let bytes = (
+    options.loanPosterOutput
+      ? await optimizeLoanPosterPng(input)
+      : await optimizeLosslessPng(input)
+  ).bytes;
+  if (options.overlayLogo) {
+    bytes = await overlayZamloanLogo(bytes, options.overlayLogo);
+  }
+  return bytes;
 }
 
 type MediaContext = {
@@ -245,16 +305,25 @@ function stubsAllowed() {
 }
 
 /**
- * Resolve a project-relative `--image` path into a base64 data URL the
- * upstream model APIs (Volcengine i2v, OpenAI image-edit, etc.) accept
- * directly. Returns null when no path was supplied.
+ * Resolve a project-relative image input. Provider references default to the
+ * raster formats accepted by upstream model APIs. Post-generation overlays
+ * may additionally use SVG because they are rasterized locally by Sharp and
+ * are never sent to a provider.
  *
  * Security: refuses anything that escapes the project directory.
  * Without this guard, an agent (or a hallucinated arg) could ask the
  * daemon to upload `/etc/passwd` to a paid model.
  */
-async function resolveProjectImage(rel: unknown, projectDir: string): Promise<ImageRef | null> {
+async function resolveProjectImage(
+  rel: unknown,
+  projectDir: string,
+  options: {
+    argumentName?: '--image' | '--overlay-logo';
+    allowSvg?: boolean;
+  } = {},
+): Promise<ImageRef | null> {
   if (typeof rel !== 'string' || !rel.trim()) return null;
+  const argumentName = options.argumentName ?? '--image';
   const projectRootResolved = path.resolve(projectDir);
   const abs = path.resolve(projectRootResolved, rel.trim());
   if (
@@ -262,17 +331,17 @@ async function resolveProjectImage(rel: unknown, projectDir: string): Promise<Im
     !abs.startsWith(projectRootResolved + path.sep)
   ) {
     throw new Error(
-      `--image path "${rel}" resolves outside the project directory.`,
+      `${argumentName} path "${rel}" resolves outside the project directory.`,
     );
   }
   let info;
   try {
     info = await stat(abs);
   } catch {
-    throw new Error(`--image not found: ${rel}`);
+    throw new Error(`${argumentName} not found: ${rel}`);
   }
   if (!info.isFile()) {
-    throw new Error(`--image is not a regular file: ${rel}`);
+    throw new Error(`${argumentName} is not a regular file: ${rel}`);
   }
   // Cap at 16 MB. Beyond this, base64 inflation alone (≈4/3) starts
   // hitting body-size limits at the upstream APIs and our own express
@@ -281,23 +350,21 @@ async function resolveProjectImage(rel: unknown, projectDir: string): Promise<Im
   const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
   if (info.size > MAX_IMAGE_BYTES) {
     throw new Error(
-      `--image too large (${info.size} bytes; max ${MAX_IMAGE_BYTES}).`,
+      `${argumentName} too large (${info.size} bytes; max ${MAX_IMAGE_BYTES}).`,
     );
   }
   const bytes = await readFile(abs);
   const ext = path.extname(abs).toLowerCase();
-  // Tight allowlist: only what i2v / image-edit endpoints actually
-  // consume. Avoids smuggling arbitrary content through as data URLs.
-  const mime = ({
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.webp': 'image/webp',
-    '.gif': 'image/gif',
-  })[ext];
+  const mimeByExtension = options.allowSvg
+    ? OVERLAY_IMAGE_MIME_BY_EXTENSION
+    : RASTER_IMAGE_MIME_BY_EXTENSION;
+  const mime = mimeByExtension[ext];
   if (!mime) {
+    const allowed = options.allowSvg
+      ? 'svg, png, jpg, jpeg, webp, or gif'
+      : 'png, jpg, jpeg, webp, or gif';
     throw new Error(
-      `--image has unsupported extension "${ext}". Use png, jpg, jpeg, webp, or gif.`,
+      `${argumentName} has unsupported extension "${ext}". Use ${allowed}.`,
     );
   }
   return {
@@ -369,7 +436,8 @@ export async function generateMedia(args: {
   quality?: ImageQuality;
   loanPosterOutput?: boolean;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
-  compositionDir?: string; image?: string; onProgress?: ProgressFn; signal?: AbortSignal;
+  compositionDir?: string; image?: string; overlayLogo?: string;
+  onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
     projectRoot,
@@ -391,6 +459,7 @@ export async function generateMedia(args: {
     promptInfluence,
     compositionDir,
     image,
+    overlayLogo,
   } = args;
 
   if (!projectRoot) throw new Error('projectRoot required');
@@ -472,6 +541,10 @@ export async function generateMedia(args: {
   // upstream APIs accept directly. Renderers consume `ctx.imageRef`
   // and decide how to splice the data URL into their request.
   const imageRef = await resolveProjectImage(image, dir);
+  const overlayLogoRef = await resolveProjectImage(overlayLogo, dir, {
+    argumentName: '--overlay-logo',
+    allowSvg: true,
+  });
 
   // Resolve any user-configured model alias BEFORE we hand the id to a
   // dispatcher (issue #1277). Catalog lookup + surface validation above
@@ -726,12 +799,18 @@ export async function generateMedia(args: {
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
   }
+  if (surface === 'image' && overlayLogoRef) {
+    const dot = finalOut.lastIndexOf('.');
+    const stem = dot > 0 ? finalOut.slice(0, dot) : finalOut;
+    finalOut = `${stem}.png`;
+  }
   if (surface === 'image' && /\.png$/i.test(finalOut)) {
-    bytes = (
-      loanPosterOutput
-        ? await optimizeLoanPosterPng(bytes)
-        : await optimizeLosslessPng(bytes)
-    ).bytes;
+    bytes = await finalizeGeneratedPng(bytes, {
+      loanPosterOutput: Boolean(loanPosterOutput),
+      ...(overlayLogoRef
+        ? { overlayLogo: await readFile(overlayLogoRef.abs) }
+        : {}),
+    });
   }
   const finalTarget = path.join(dir, finalOut);
   await writeFile(finalTarget, bytes);

@@ -18,6 +18,12 @@ describe('image lightbox responsive layout', () => {
       /\.image-lightbox__stage\s*\{[^}]*touch-action:\s*none/s,
     );
     expect(css).toMatch(
+      /\.image-lightbox__stage picture\s*\{[^}]*width:\s*min\(100%, 1440px\)[^}]*height:\s*100%/s,
+    );
+    expect(css).toMatch(
+      /\.image-lightbox__footer button,\s*\.image-lightbox__footer a\s*\{[^}]*border-radius:\s*999px/s,
+    );
+    expect(css).toMatch(
       /\.image-lightbox__footer\s*\{[^}]*env\(safe-area-inset-bottom/s,
     );
   });

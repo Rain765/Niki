@@ -26,7 +26,6 @@ interface Props {
   activeName: string;
   onActiveNameChange: (name: string) => void;
   onClose: () => void;
-  onEdit?: (file: ProjectFile) => void;
   onDelete?: (name: string) => Promise<boolean>;
 }
 
@@ -60,7 +59,6 @@ export function ImageLightbox({
   activeName,
   onActiveNameChange,
   onClose,
-  onEdit,
   onDelete,
 }: Props) {
   const t = useT();
@@ -75,7 +73,6 @@ export function ImageLightbox({
   });
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
-  const [moreOpen, setMoreOpen] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [shareFallbackOpen, setShareFallbackOpen] = useState(false);
@@ -125,7 +122,6 @@ export function ImageLightbox({
   useEffect(() => {
     setScale(1);
     setOffset({ x: 0, y: 0 });
-    setMoreOpen(false);
     setShareFallbackOpen(false);
     setImageState('loading');
     setImageRetry(0);
@@ -266,7 +262,6 @@ export function ImageLightbox({
   const handleShare = async () => {
     if (sharing) return;
     setSharing(true);
-    setMoreOpen(false);
     try {
       if (typeof navigator.share !== 'function') {
         await showShareFallback();
@@ -294,7 +289,6 @@ export function ImageLightbox({
   };
 
   const handleCopyLink = async () => {
-    setMoreOpen(false);
     const copied = await copyToClipboard(absoluteRawUrl);
     setNotice({
       message: t(copied ? 'imageViewer.linkCopied' : 'imageViewer.actionFailed'),
@@ -303,7 +297,6 @@ export function ImageLightbox({
   };
 
   const handleCopyImage = async () => {
-    setMoreOpen(false);
     try {
       await copyImageBlobToClipboard(
         projectRawUrl(projectId, activeFile.name),
@@ -317,7 +310,6 @@ export function ImageLightbox({
 
   const handleDownload = async () => {
     if (downloading) return;
-    setMoreOpen(false);
     setDownloading(true);
     try {
       await downloadImageBlob(
@@ -332,14 +324,8 @@ export function ImageLightbox({
     }
   };
 
-  const handleEditUnavailable = () => {
-    setMoreOpen(false);
-    setNotice({ message: t('imageViewer.editUnavailable'), role: 'status' });
-  };
-
   const handleDelete = async () => {
     if (!onDelete || deleting) return;
-    setMoreOpen(false);
     if (!window.confirm(t('workspace.deleteFileConfirm', { name: activeFile.name }))) {
       return;
     }
@@ -376,46 +362,16 @@ export function ImageLightbox({
         <span className="image-lightbox__counter" aria-live="polite">
           {images.length > 1 ? `${activeIndex + 1} / ${images.length}` : activeFile.name}
         </span>
-        <div className="image-lightbox__header-actions">
-          <div className="image-lightbox__more-wrap">
-            <button
-              type="button"
-              className="image-lightbox__round-action"
-              onClick={() => setMoreOpen((open) => !open)}
-              aria-expanded={moreOpen}
-              aria-label={t('designs.menuMore')}
-            >
-              <Icon name="more-horizontal" size={22} />
-            </button>
-            {moreOpen ? (
-              <div className="image-lightbox__menu" role="menu">
-                <button type="button" role="menuitem" onClick={() => void handleCopyImage()}>
-                  <Icon name="copy" size={17} />
-                  <span>{t('designFiles.copy')}</span>
-                </button>
-              </div>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            className="image-lightbox__round-action"
-            disabled={downloading}
-            aria-label={t('designFiles.download')}
-            title={t('designFiles.download')}
-            onClick={() => void handleDownload()}
-          >
-            <Icon name={downloading ? 'spinner' : 'download'} size={22} />
-          </button>
-          <button
-            type="button"
-            className="image-lightbox__share-action"
-            disabled={sharing}
-            onClick={() => void handleShare()}
-          >
-            <Icon name={sharing ? 'spinner' : 'share'} size={19} />
-            <span>{t('common.share')}</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          className="image-lightbox__share-action"
+          disabled={sharing}
+          aria-label={t('common.share')}
+          title={t('common.share')}
+          onClick={() => void handleShare()}
+        >
+          <Icon name={sharing ? 'spinner' : 'share'} size={22} />
+        </button>
       </header>
 
       <div
@@ -503,6 +459,7 @@ export function ImageLightbox({
           type="button"
           className="image-lightbox__footer-action"
           aria-label={t('designFiles.download')}
+          title={t('designFiles.download')}
           data-testid="image-lightbox-footer-download"
           disabled={downloading}
           onClick={() => void handleDownload()}
@@ -510,42 +467,31 @@ export function ImageLightbox({
           <span className="image-lightbox__tool-icon">
             <Icon name={downloading ? 'spinner' : 'download'} size={23} />
           </span>
-          <span>{t('designFiles.download')}</span>
         </button>
         <button
           type="button"
           className="image-lightbox__footer-action"
+          aria-label={t('designFiles.copy')}
+          title={t('designFiles.copy')}
           data-testid="image-lightbox-footer-copy"
           onClick={() => void handleCopyImage()}
         >
           <span className="image-lightbox__tool-icon">
             <Icon name="copy" size={23} />
           </span>
-          <span>{t('designFiles.copy')}</span>
         </button>
-        {onEdit ? (
-          <button
-            type="button"
-            className="image-lightbox__footer-action"
-            onClick={handleEditUnavailable}
-          >
-            <span className="image-lightbox__tool-icon">
-              <Icon name="edit" size={23} />
-            </span>
-            <span>{t('common.edit')}</span>
-          </button>
-        ) : null}
         {onDelete ? (
           <button
             type="button"
             className="image-lightbox__footer-action is-danger"
             disabled={deleting}
+            aria-label={t('designFiles.delete')}
+            title={t('designFiles.delete')}
             onClick={() => void handleDelete()}
           >
             <span className="image-lightbox__tool-icon">
               <Icon name={deleting ? 'spinner' : 'trash'} size={23} />
             </span>
-            <span>{t('designFiles.delete')}</span>
           </button>
         ) : null}
       </footer>

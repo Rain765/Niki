@@ -1,7 +1,7 @@
 ---
 name: loan-poster-skill-v1-1
 description: |
-  Generate consistent Zamloan or BiuMoney Zambia loan posters in selectable 1:1 or 16:9 formats.
+  Generate consistent Zamloan or BiuMoney Zambia loan posters in selectable 1:1, 16:9, or 3:4 formats.
 triggers:
   - "loan poster"
   - "Zamloan poster"
@@ -22,7 +22,7 @@ The caller supplies the brand, aspect ratio, quantity, and campaign context.
 ## Required inputs
 
 - `brand`: `zamloan` or `biumoney`
-- `format`: `1:1` or `16:9`
+- `format`: `1:1`, `16:9`, or `3:4` (portrait)
 - `quantity`: integer from 1 through 10
 - `campaign`: optional campaign or scene direction
 
@@ -74,7 +74,11 @@ same model combination in adjacent outputs.
 
 ## Output contract
 
-- Respect `1:1` as square and `16:9` as landscape.
+- Respect `1:1` as square, `16:9` as landscape, and `3:4` as portrait.
+- For Zamloan, pass the attached exact logo through `--overlay-logo` on every
+  image-generation command. The daemon composites it in the top-left with a
+  subtle shadow after generation; do not redraw the logo in the generated
+  artwork.
 - Vary scenarios and model relationships across a batch without changing the
   selected brand system.
 - Keep phone UI simple and readable.

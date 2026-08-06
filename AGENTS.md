@@ -56,6 +56,21 @@ This file is the single source of truth for agents entering this repository. Rea
 - Ports are governed by `tools-dev` flags: `--daemon-port` and `--web-port`.
 - `tools-dev` exports `OD_PORT` for the web proxy target and `OD_WEB_PORT` for the web listener; do not use `NEXT_PORT`.
 
+## Delivery target verification
+
+- Before implementing a user-facing change, identify the exact version the user is currently running: entry URL or desktop app, process namespace, source worktree, branch, and `HEAD`. Use read-only lifecycle status, process inspection, and HTTP checks as needed; do not assume the agent's current worktree is the delivery target.
+- A commit on an isolated task branch is implementation evidence, not delivery. Do not tell the user a change is delivered while the runtime they are viewing still points at another worktree, branch, commit, packaged release, or stopped service.
+- After validation, integrate the task commit into the branch that backs the user's active runtime. For this repository, the user grants standing authorization to fast-forward a clean local `main` when it is the active runtime branch. If `main` is dirty, diverged, or the integration is not a fast-forward, stop and ask rather than mixing or rewriting work. This authorization does not include pushing or publishing remote releases.
+- Restart, rebuild, reinstall, or hot-reload the active runtime as appropriate, then verify the actual user-facing URL or desktop instance resolves to the integrated commit. For proxied web URLs, compare the proxy response with the local runtime and perform a real browser refresh when possible.
+- Final handoff must state the active branch and commit, the runtime URL or packaged version verified, and any refresh/restart the user still needs. If the active instance could not be updated or inspected, report that limitation explicitly instead of claiming completion.
+
+### User-requested remote delivery
+
+- A code change request alone does not authorize remote publication. When the user explicitly asks to push, publish, or deploy, complete the full delivery loop in the same task without waiting for a second reminder: validate the scoped commit, push it with tracking, deploy through the active delivery target identified above, wait for the deployment result, and verify the user-facing URL.
+- The Feishu Niki app at `https://niki.tail795f4a.ts.net` is delivered through the immutable local release workflow. Deploy a clean source worktree with `~/.local/share/niki-auth/deploy.zsh <source-worktree>`; the script builds daemon and web, switches the active release, restarts the launch agent, and performs health checks. Verify the external Funnel URL and its loaded build assets before handoff.
+- Vercel branch builds are previews and are not evidence that the Feishu app updated. Do not substitute a Vercel preview for the active Feishu release or promote another production target unless the user requested it.
+- If credentials, network access, release ancestry, runtime health, or deployment checks block the loop, stop at that boundary and report the exact state. Never claim that Feishu or another hosted app has updated until the active user-facing URL resolves to the delivered build.
+
 ## Root command boundary
 
 - Keep root scripts reserved for true repo-level checks and tools control-plane entrypoints: `pnpm guard`, `pnpm typecheck`, `pnpm tools-dev`, `pnpm tools-pack`, `pnpm tools-pr`, and `pnpm tools-serve`.

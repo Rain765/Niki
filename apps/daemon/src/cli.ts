@@ -60,6 +60,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'audio-kind',
   'composition-dir',
   'image',
+  'overlay-logo',
   'daemon-url',
   'language',
 ]);
@@ -783,6 +784,7 @@ async function runMediaGenerate(rawArgs) {
     audioKind: flags['audio-kind'],
     compositionDir: flags['composition-dir'],
     image: flags.image,
+    overlayLogo: flags['overlay-logo'],
     language: flags.language,
   };
   if (flags.length != null) body.length = Number(flags.length);
@@ -1294,6 +1296,8 @@ Common options:
                             future image-edit endpoints). Daemon reads
                             the file from the project, base64-encodes
                             it, and forwards it to the upstream API.
+  --overlay-logo <path>     Project-relative logo to composite onto the
+                            top-left of the generated image.
   --daemon-url <url>
 
 Output: a single line of JSON: {"file": { name, size, kind, mime, ... }}.

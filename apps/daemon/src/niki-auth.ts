@@ -179,8 +179,8 @@ function normalizeUsername(username: string): string {
 }
 
 function validatePassword(password: string): void {
-  if (password.length < 4 || password.length > 128) {
-    throw new NikiPasswordAccountError('密码需为 4–128 个字符', 'weak-password');
+  if (password.length < 8 || password.length > 128) {
+    throw new NikiPasswordAccountError('密码需为 8–128 个字符', 'weak-password');
   }
 }
 

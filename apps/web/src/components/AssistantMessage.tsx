@@ -64,7 +64,6 @@ interface Props {
   projectFiles?: ProjectFile[];
   projectFileNames?: Set<string>;
   onRequestOpenFile?: (name: string) => void;
-  onEditImage?: (name: string) => void;
   onDeleteProjectFile?: (name: string) => Promise<boolean>;
   onRequestPluginFolderAgentAction?: (
     relativePath: string,
@@ -104,7 +103,6 @@ export function AssistantMessage({
   projectFiles = [],
   projectFileNames,
   onRequestOpenFile,
-  onEditImage,
   onDeleteProjectFile,
   onRequestPluginFolderAgentAction,
   isLast,
@@ -403,7 +401,6 @@ export function AssistantMessage({
           activeName={previewFile.name}
           onActiveNameChange={setPreviewFileName}
           onClose={() => setPreviewFileName(null)}
-          onEdit={onEditImage ? (file) => onEditImage(file.name) : undefined}
           onDelete={onDeleteProjectFile}
         />
       ) : null}
