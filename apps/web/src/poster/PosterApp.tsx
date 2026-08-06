@@ -109,7 +109,7 @@ export function PosterApp() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
-  const [aspectRatio, setAspectRatio] = useState<AutoPosterAspectRatio>('16:9');
+  const [aspectRatio, setAspectRatio] = useState<AutoPosterAspectRatio>('3:4');
   const [count, setCount] = useState(1);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
@@ -599,7 +599,7 @@ export function PosterApp() {
         <div className="poster-app__field">
           <span>Ratio</span>
           <div className="poster-app__segmented">
-            {(['16:9', '1:1', '3:4'] as const).map((value) => (
+            {(['16:9', '3:4', '1:1'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
