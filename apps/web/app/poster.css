@@ -290,7 +290,7 @@ button {
   padding: var(--poster-space-2) var(--poster-space-3);
   overflow: hidden;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--poster-fill-0);
   color: var(--poster-muted);
   cursor: pointer;
@@ -389,7 +389,7 @@ button {
   gap: var(--poster-space-4);
   padding: var(--poster-space-4);
   border: 0;
-  border-radius: 22px;
+  border-radius: 16px;
   background: var(--poster-panel-muted);
 }
 
@@ -409,7 +409,7 @@ button {
   gap: var(--poster-space-1);
   min-width: 0;
   padding: var(--poster-space-1);
-  border-radius: 13px;
+  border-radius: 12px;
   background: var(--poster-fill-0);
 }
 
@@ -419,7 +419,7 @@ button {
   min-height: 38px;
   padding: 7px 9px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--poster-muted);
   cursor: pointer;
@@ -708,7 +708,7 @@ button {
   min-height: 180px;
   overflow: hidden;
   border: 1px solid var(--poster-border);
-  border-radius: 18px;
+  border-radius: 0;
   background: var(--poster-panel);
 }
 
@@ -723,7 +723,32 @@ button {
     var(--poster-fill-2) 55%
   );
   background-size: 200% 100%;
+  cursor: pointer;
   animation: poster-shimmer 1.3s linear infinite;
+}
+
+.poster-app__poster::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: transparent;
+  content: "";
+  pointer-events: none;
+  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.poster-app__poster:hover::before {
+  background: color-mix(in srgb, var(--poster-fill-7) 6%, transparent);
+}
+
+.poster-app__poster:active::before {
+  background: color-mix(in srgb, var(--poster-fill-7) 12%, transparent);
+  transition-duration: 80ms;
+}
+
+.poster-app__poster:focus-visible {
+  outline: 2px solid var(--poster-line-active);
+  outline-offset: 2px;
 }
 
 .poster-app__poster.is-loaded {
@@ -745,6 +770,7 @@ button {
 
 .poster-app__poster.is-error::after {
   position: absolute;
+  z-index: 2;
   inset: 0;
   display: grid;
   place-items: center;
@@ -843,9 +869,9 @@ button {
   height: 48px;
   padding: 0;
   place-items: center;
-  border: 1px solid var(--poster-fill-0);
+  border: 0;
   border-radius: 999px;
-  background: var(--poster-fill-0);
+  background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);
   color: var(--poster-fill-7);
 }
 
@@ -898,9 +924,9 @@ button {
   height: 52px;
   padding: 0;
   place-items: center;
-  border: 1px solid var(--poster-fill-0);
+  border: 0;
   border-radius: 999px;
-  background: var(--poster-fill-0);
+  background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);
   color: var(--poster-fill-7);
 }
 

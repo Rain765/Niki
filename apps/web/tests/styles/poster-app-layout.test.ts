@@ -44,9 +44,12 @@ describe('poster app image layout', () => {
 
     expect(app).toContain('background: var(--poster-fill-0);');
     expect(generator).toContain('border: 0;');
+    expect(generator).toContain('border-radius: 16px;');
     expect(generator).toContain('background: var(--poster-panel-muted);');
+    expect(segmented).toContain('border-radius: 12px;');
     expect(segmented).toContain('background: var(--poster-fill-0);');
     expect(account).toContain('border: 0;');
+    expect(account).toContain('border-radius: 8px;');
     expect(account).toContain('background: var(--poster-fill-0);');
     expect(accountMenu).toContain('border: 0;');
     expect(accountMenu).toContain('background: var(--poster-fill-0);');
@@ -54,15 +57,34 @@ describe('poster app image layout', () => {
 
   it('lets each card own its aspect ratio without cropping the image', () => {
     const poster = rule('.poster-app__poster');
+    const posterAndSkeleton = rule('.poster-app__poster,\n.poster-app__poster-skeleton');
+    const segmentedButton = rule('.poster-app__segmented button');
     const square = rule('.poster-app__poster.is-square');
     const portrait = rule('.poster-app__poster.is-portrait');
     const image = rules('.poster-app__poster img');
 
     expect(poster).toContain('aspect-ratio: 16 / 9;');
+    expect(poster).toContain('cursor: pointer;');
+    expect(posterAndSkeleton).toContain('border-radius: 0;');
+    expect(segmentedButton).toContain('border-radius: 12px;');
     expect(square).toContain('aspect-ratio: 1;');
     expect(portrait).toContain('aspect-ratio: 3 / 4;');
     expect(image).toContain('object-fit: contain;');
     expect(image).not.toContain('aspect-ratio: 16 / 9;');
+  });
+
+  it('adds token-based hover, pressed, and focus states to generated posters', () => {
+    const overlay = rule('.poster-app__poster::before');
+    const hover = rule('.poster-app__poster:hover::before');
+    const pressed = rule('.poster-app__poster:active::before');
+    const focus = rule('.poster-app__poster:focus-visible');
+
+    expect(overlay).toContain('background: transparent;');
+    expect(overlay).toContain('transition: background-color 140ms');
+    expect(hover).toContain('background: color-mix(in srgb, var(--poster-fill-7) 6%, transparent);');
+    expect(pressed).toContain('background: color-mix(in srgb, var(--poster-fill-7) 12%, transparent);');
+    expect(pressed).toContain('transition-duration: 80ms;');
+    expect(focus).toContain('outline: 2px solid var(--poster-line-active);');
   });
 
   it('fits the preview image inside the full stage without changing its ratio', () => {
@@ -92,14 +114,16 @@ describe('poster app image layout', () => {
     expect(headerButton).toContain('width: 48px;');
     expect(headerButton).toContain('height: 48px;');
     expect(headerButton).toContain('border-radius: 999px;');
-    expect(headerButton).toContain('background: var(--poster-fill-0);');
+    expect(headerButton).toContain('border: 0;');
+    expect(headerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);');
     expect(headerButton).toContain('color: var(--poster-fill-7);');
     expect(footer).toContain('border-top: 0;');
     expect(footer).toContain('background: transparent;');
     expect(footerButton).toContain('width: 52px;');
     expect(footerButton).toContain('height: 52px;');
     expect(footerButton).toContain('border-radius: 999px;');
-    expect(footerButton).toContain('background: var(--poster-fill-0);');
+    expect(footerButton).toContain('border: 0;');
+    expect(footerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);');
     expect(footerButton).toContain('color: var(--poster-fill-7);');
   });
 
