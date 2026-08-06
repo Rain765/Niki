@@ -140,7 +140,7 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tester' }));
 
     expect(logoutMock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Account management' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Account' }));
     expect(await screen.findByRole('dialog', { name: '账号管理' })).toBeTruthy();
   });
 
@@ -338,6 +338,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     const historyToggle = screen.getByRole('button', { name: 'Expand poster history' });
     expect(historyToggle.querySelector('svg')).toBeTruthy();
+    expect(historyToggle.querySelector('.poster-app__history-toggle-icon')).toBeTruthy();
     expect(historyToggle.textContent).toBe('Poster history (2)');
     fireEvent.click(historyToggle);
     expect(screen.getByRole('button', { name: 'Collapse poster history' })).toBeTruthy();

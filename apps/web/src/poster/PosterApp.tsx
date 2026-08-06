@@ -541,7 +541,7 @@ export function PosterApp() {
                   setAccountManagerOpen(true);
                 }}
               >
-                Account management
+                Account
               </button>
             ) : null}
             <button
@@ -698,11 +698,13 @@ export function PosterApp() {
             onClick={() => setShowHistory((current) => !current)}
           >
             <span>Poster history ({historyFiles.length})</span>
-            <Icon
-              name="chevron-down"
-              size={18}
-              className={showHistory ? 'is-expanded' : undefined}
-            />
+            <span className="poster-app__history-toggle-icon" aria-hidden="true">
+              <Icon
+                name="chevron-down"
+                size={18}
+                className={showHistory ? 'is-expanded' : undefined}
+              />
+            </span>
           </button>
           {showHistory ? (
             <div className="poster-app__gallery poster-app__history-gallery">
