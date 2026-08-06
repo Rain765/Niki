@@ -78,13 +78,16 @@ describe('poster app image layout', () => {
     const overlay = rule('.poster-app__poster::before');
     const hover = rule('.poster-app__poster:hover::before');
     const pressed = rule('.poster-app__poster:active::before');
+    const pressedPoster = rule('.poster-app__poster:active');
     const focus = rule('.poster-app__poster:focus-visible');
 
     expect(overlay).toContain('background: transparent;');
     expect(overlay).toContain('transition: background-color 140ms');
-    expect(hover).toContain('background: color-mix(in srgb, var(--poster-fill-7) 6%, transparent);');
-    expect(pressed).toContain('background: color-mix(in srgb, var(--poster-fill-7) 12%, transparent);');
+    expect(hover).toContain('background: color-mix(in srgb, var(--poster-fill-7) 12%, transparent);');
+    expect(pressed).toContain('background: color-mix(in srgb, var(--poster-fill-7) 24%, transparent);');
     expect(pressed).toContain('transition-duration: 80ms;');
+    expect(pressedPoster).toContain('transform: scale(0.99);');
+    expect(pressedPoster).toContain('transition-duration: 80ms;');
     expect(focus).toContain('outline: 2px solid var(--poster-line-active);');
   });
 
@@ -111,6 +114,10 @@ describe('poster app image layout', () => {
     const headerButton = rule('.poster-preview__header button');
     const footer = rules('.poster-preview__footer');
     const footerButton = rule('.poster-preview__footer button');
+    const controls = rule('.poster-preview__header button,\n.poster-preview__footer button');
+    const hoverControls = rule('.poster-preview__header button:hover:not(:disabled),\n.poster-preview__footer button:hover:not(:disabled)');
+    const pressedControls = rule('.poster-preview__header button:active:not(:disabled),\n.poster-preview__footer button:active:not(:disabled)');
+    const focusedControls = rule('.poster-preview__header button:focus-visible,\n.poster-preview__footer button:focus-visible');
 
     expect(headerButton).toContain('width: 48px;');
     expect(headerButton).toContain('height: 48px;');
@@ -120,12 +127,22 @@ describe('poster app image layout', () => {
     expect(headerButton).toContain('color: var(--poster-fill-7);');
     expect(footer).toContain('border-top: 0;');
     expect(footer).toContain('background: transparent;');
+    expect(footer).toContain('gap: 80px;');
+    expect(footer).toContain('gap: 32px;');
     expect(footerButton).toContain('width: 52px;');
     expect(footerButton).toContain('height: 52px;');
     expect(footerButton).toContain('border-radius: 999px;');
     expect(footerButton).toContain('border: 0;');
     expect(footerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);');
     expect(footerButton).toContain('color: var(--poster-fill-7);');
+    expect(controls).toContain('cursor: pointer;');
+    expect(controls).toContain('background-color 140ms');
+    expect(hoverControls).toContain('background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);');
+    expect(pressedControls).toContain('background: var(--poster-fill-0);');
+    expect(pressedControls).toContain('transform: scale(0.97);');
+    expect(pressedControls).toContain('transition-duration: 80ms;');
+    expect(focusedControls).toContain('outline: none;');
+    expect(focusedControls).toContain('box-shadow: 0 0 0 3px color-mix(in srgb, var(--poster-fill-0) 48%, transparent);');
   });
 
   it('keeps poster history interaction lighter than filter controls', () => {
