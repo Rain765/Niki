@@ -3,7 +3,8 @@
   --poster-bg: #f7f7f5;
   --poster-panel: #ffffff;
   --poster-panel-raised: #f2f3f5;
-  --poster-panel-hover: #f7f8fa;
+  --poster-panel-hover: #f2f3f5;
+  --poster-panel-pressed: #e5e6eb;
   --poster-border: #dedfe3;
   --poster-text: #1d2129;
   --poster-muted: #4e5969;
@@ -594,7 +595,7 @@ button {
 }
 
 .poster-app__history-toggle:active {
-  background: var(--poster-panel-raised);
+  background: var(--poster-panel-pressed);
 }
 
 .poster-app__history-toggle-icon {
@@ -603,7 +604,6 @@ button {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--poster-panel-raised);
   color: var(--poster-muted);
   place-items: center;
 }
