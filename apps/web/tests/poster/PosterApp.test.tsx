@@ -105,7 +105,7 @@ afterEach(() => {
 });
 
 describe('PosterApp mobile-safe flow', () => {
-  it('defaults to one poster and renders the product controls in English', () => {
+  it('defaults to one portrait poster and renders the ratio options in order', () => {
     render(<PosterApp />);
 
     expect(screen.getByRole('heading', { name: 'Generate Loan Posters' })).toBeTruthy();
@@ -113,17 +113,20 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByText('Quantity')).toBeTruthy();
     expect(screen.getByRole('button', { name: '1' }).classList.contains('is-active')).toBe(true);
     expect(screen.queryByText(/\u5f20/)).toBeNull();
-    expect(screen.getByRole('button', { name: '16:9' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '1:1' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '3:4' })).toBeTruthy();
+    const ratioField = screen.getByText('Ratio').closest('.poster-app__field');
+    expect(ratioField).toBeTruthy();
+    const ratioButtons = within(ratioField as HTMLElement).getAllByRole('button');
+    expect(ratioButtons.map((button) => button.textContent)).toEqual(['16:9', '3:4', '1:1']);
+    expect(
+      within(ratioField as HTMLElement).getByRole('button', { name: '3:4' }).classList.contains('is-active'),
+    ).toBe(true);
     expect(screen.queryByText(/Landscape|Square|Portrait/)).toBeNull();
   });
 
-  it('submits the portrait option as a 3:4 generation ratio', async () => {
+  it('submits the default portrait ratio as 3:4', async () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: '3:4' }));
     fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
 
     await waitFor(() => {
