@@ -155,7 +155,7 @@ describe('HomeHero intent rail', () => {
     );
   });
 
-  it('expands mobile product settings inside the capsule composer and shows the Niki welcome state', () => {
+  it('expands mobile product settings inside the capsule composer and shows a text-only welcome state', () => {
     vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
       matches: query === '(max-width: 680px)',
       media: query,
@@ -172,7 +172,7 @@ describe('HomeHero intent rail', () => {
 
     const welcome = screen.getByTestId('home-hero-welcome');
     expect(welcome.textContent).toContain('Enter your copy and generate a loan poster in one click');
-    expect(welcome.querySelector('.home-hero__mascot')).toBeTruthy();
+    expect(welcome.querySelector('.home-hero__mascot')).toBeNull();
 
     fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-zamloan'));
 

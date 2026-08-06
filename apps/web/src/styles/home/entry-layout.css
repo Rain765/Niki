@@ -434,6 +434,24 @@
   padding: 0;
   --entry-topbar-h: 0px;
 }
+
+/* Keep the home canvas intentionally neutral: no decorative image or tint,
+   just a pure white/black ground that follows the active theme. */
+.entry-shell--no-header .entry-main--scroll.entry-main--home {
+  background-color: #fff;
+  background-image: none;
+}
+
+[data-theme='dark'] .entry-shell--no-header .entry-main--scroll.entry-main--home {
+  background-color: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) .entry-shell--no-header .entry-main--scroll.entry-main--home {
+    background-color: #000;
+  }
+}
+
 .entry-main__inner {
   width: 100%;
   max-width: 1440px;
