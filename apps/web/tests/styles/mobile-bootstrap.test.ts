@@ -35,6 +35,14 @@ describe('mobile bootstrap styles', () => {
     );
   });
 
+  it('keeps the login card borderless across first paint and both style entrypoints', () => {
+    expect(rootLayout).toMatch(
+      /:where\(\.niki-auth__card\)\s*\{[^}]*border:\s*0;/s,
+    );
+    expect(posterCss).toMatch(/\.niki-auth__card\s*\{[^}]*border:\s*0;/s);
+    expect(indexCss).toMatch(/\.niki-auth__card\s*\{[^}]*border:\s*0;/s);
+  });
+
   it('does not load the full workspace styles on the poster-only root route', () => {
     expect(rootLayout).toContain("import './poster.css';");
     expect(rootLayout).not.toContain("../src/index.css");
