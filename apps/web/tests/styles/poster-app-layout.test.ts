@@ -19,15 +19,32 @@ function rules(selector: string): string {
 }
 
 describe('poster app image layout', () => {
-  it('uses a light canvas with black selected controls', () => {
+  it('uses the standardized fill system with dark selected controls', () => {
     const root = rule(':root');
     const selected = rule('.poster-app__segmented button.is-active');
 
     expect(root).toContain('color-scheme: light;');
-    expect(root).toContain('--poster-bg: #f7f7f5;');
-    expect(root).toContain('--poster-panel: #ffffff;');
-    expect(selected).toContain('background: #111111;');
-    expect(selected).toContain('color: #ffffff;');
+    expect(root).toContain('--poster-fill-0: #ffffff;');
+    expect(root).toContain('--poster-fill-1: #f7f8fa;');
+    expect(root).toContain('--poster-bg: var(--poster-fill-0);');
+    expect(root).toContain('--poster-panel-muted: var(--poster-fill-1);');
+    expect(selected).toContain('background: var(--poster-text-primary);');
+    expect(selected).toContain('color: var(--poster-text-inverse);');
+  });
+
+  it('uses borderless fill layers for the generator and account controls', () => {
+    const generator = rule('.poster-app__generator');
+    const segmented = rule('.poster-app__segmented');
+    const account = rule('.poster-app__account');
+    const accountMenu = rule('.poster-app__account-menu');
+
+    expect(generator).toContain('border: 0;');
+    expect(generator).toContain('background: var(--poster-panel-muted);');
+    expect(segmented).toContain('background: var(--poster-fill-0);');
+    expect(account).toContain('border: 0;');
+    expect(account).toContain('background: var(--poster-fill-0);');
+    expect(accountMenu).toContain('border: 0;');
+    expect(accountMenu).toContain('background: var(--poster-fill-0);');
   });
 
   it('lets each card own its aspect ratio without cropping the image', () => {
@@ -44,9 +61,13 @@ describe('poster app image layout', () => {
   });
 
   it('fits the preview image inside the full stage without changing its ratio', () => {
+    const preview = rule('.poster-preview');
     const picture = rule('.poster-preview__stage picture');
     const image = rule('.poster-preview__stage img');
 
+    expect(preview).toContain('background: color-mix(in srgb, var(--poster-fill-0) 88%, transparent);');
+    expect(preview).toContain('backdrop-filter: blur(18px) saturate(1.15);');
+    expect(preview).toContain('-webkit-backdrop-filter: blur(18px) saturate(1.15);');
     expect(picture).toContain('width: 100%;');
     expect(picture).toContain('height: 100%;');
     expect(image).toContain('width: auto;');
@@ -68,5 +89,18 @@ describe('poster app image layout', () => {
     expect(footerButton).toContain('width: 52px;');
     expect(footerButton).toContain('height: 52px;');
     expect(footerButton).toContain('border-radius: 999px;');
+  });
+
+  it('keeps poster history interaction lighter than filter controls', () => {
+    const root = rule(':root');
+    const historyHover = rule('.poster-app__history-toggle:hover');
+    const historyPressed = rule('.poster-app__history-toggle:active');
+    const filterHover = rule('.poster-app__segmented button:not(.is-active):hover');
+
+    expect(root).toContain('--poster-history-hover: var(--poster-fill-2);');
+    expect(root).toContain('--poster-history-pressed: var(--poster-fill-4);');
+    expect(historyHover).toContain('background: var(--poster-history-hover);');
+    expect(historyPressed).toContain('background: var(--poster-history-pressed);');
+    expect(filterHover).toContain('background: var(--poster-control-hover);');
   });
 });

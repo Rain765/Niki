@@ -1,19 +1,38 @@
 :root {
   color-scheme: light;
-  --poster-bg: #f7f7f5;
-  --poster-panel: #ffffff;
-  --poster-panel-raised: #f2f3f5;
-  --poster-panel-hover: #e5e6eb;
-  --poster-panel-pressed: #c9cdd4;
-  --poster-border: #dedfe3;
-  --poster-text: #1d2129;
-  --poster-muted: #4e5969;
-  --poster-placeholder: #86909c;
-  --poster-disabled: #c9cdd4;
+  --poster-fill-0: #ffffff;
+  --poster-fill-1: #f7f8fa;
+  --poster-fill-2: #f2f3f5;
+  --poster-fill-4: #e5e6eb;
+  --poster-fill-5: #c9cdd4;
+  --poster-line-active: #86909c;
+  --poster-line-normal: #c9cdd4;
+  --poster-line-divide: #f2f3f5;
+  --poster-text-primary: #1d2129;
+  --poster-text-secondary: #4e5969;
+  --poster-text-placeholder: #86909c;
+  --poster-text-disabled: #c9cdd4;
+  --poster-text-inverse: #ffffff;
   --poster-accent: #fe5200;
   --poster-accent-hover: #ff772e;
   --poster-accent-pressed: #dc3b00;
-  --poster-danger: #c9363e;
+  --poster-danger: #c9353f;
+  --poster-danger-surface: #fdf3f4;
+  --poster-success: #3dd43f;
+  --poster-mask-dark: #1d2129;
+  --poster-bg: var(--poster-fill-0);
+  --poster-panel: var(--poster-fill-0);
+  --poster-panel-muted: var(--poster-fill-1);
+  --poster-panel-raised: var(--poster-fill-2);
+  --poster-control-hover: var(--poster-fill-5);
+  --poster-control-pressed: var(--poster-fill-5);
+  --poster-history-hover: var(--poster-fill-2);
+  --poster-history-pressed: var(--poster-fill-4);
+  --poster-border: var(--poster-line-normal);
+  --poster-text: var(--poster-text-primary);
+  --poster-muted: var(--poster-text-secondary);
+  --poster-placeholder: var(--poster-text-placeholder);
+  --poster-disabled: var(--poster-text-disabled);
   --poster-space-1: 4px;
   --poster-space-2: 8px;
   --poster-space-3: 12px;
@@ -29,8 +48,8 @@
   --text-muted: var(--poster-muted);
   --accent: var(--poster-accent);
   --danger: var(--poster-danger);
-  --success: #198754;
-  --shadow-lg: 0 30px 80px rgb(0 0 0 / 12%);
+  --success: var(--poster-success);
+  --shadow-lg: 0 30px 80px color-mix(in srgb, var(--poster-mask-dark) 12%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -63,7 +82,11 @@ button {
   place-items: center;
   padding: 24px;
   background:
-    radial-gradient(circle at 50% 18%, rgb(254 82 0 / 9%), transparent 34%),
+    radial-gradient(
+      circle at 50% 18%,
+      color-mix(in srgb, var(--poster-accent) 9%, transparent),
+      transparent 34%
+    ),
     var(--poster-bg);
 }
 
@@ -73,7 +96,7 @@ button {
   border: 1px solid var(--poster-border);
   border-radius: 24px;
   background: var(--poster-panel);
-  box-shadow: 0 30px 80px rgb(0 0 0 / 10%);
+  box-shadow: 0 30px 80px color-mix(in srgb, var(--poster-mask-dark) 10%, transparent);
 }
 
 .niki-auth__logo {
@@ -108,7 +131,7 @@ button {
   gap: 9px;
   border: 0;
   background: var(--poster-accent);
-  color: white;
+  color: var(--poster-text-inverse);
   font-weight: 650;
   cursor: pointer;
   transition:
@@ -119,18 +142,18 @@ button {
 }
 
 .niki-auth button:hover:not(:disabled) {
-  background: #ff6a24;
+  background: var(--poster-accent-hover);
 }
 
 .niki-auth button:active:not(:disabled) {
-  background: #e94b00;
+  background: var(--poster-accent-pressed);
   transform: scale(0.985);
   transition-duration: 80ms;
 }
 
 .niki-auth button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgb(254 82 0 / 28%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--poster-accent) 28%, transparent);
 }
 
 .niki-auth button:disabled {
@@ -139,7 +162,7 @@ button {
 }
 
 .niki-auth .niki-auth__primary-button.is-loading {
-  background: #e94b00;
+  background: var(--poster-accent-pressed);
   opacity: 1;
 }
 
@@ -147,8 +170,8 @@ button {
   width: 17px;
   height: 17px;
   flex: 0 0 17px;
-  border: 2px solid rgb(255 255 255 / 34%);
-  border-top-color: #fff;
+  border: 2px solid color-mix(in srgb, var(--poster-text-inverse) 34%, transparent);
+  border-top-color: var(--poster-text-inverse);
   border-radius: 50%;
   animation: poster-spin 700ms linear infinite;
 }
@@ -169,14 +192,14 @@ button {
   padding: 0 14px;
   border: 1px solid var(--poster-border);
   outline: none;
-  background: #ffffff;
+  background: var(--poster-fill-0);
   color: var(--poster-text);
   font-size: 16px;
 }
 
 .niki-auth__password-form input:focus {
   border-color: var(--poster-accent);
-  box-shadow: 0 0 0 3px rgb(254 82 0 / 16%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--poster-accent) 16%, transparent);
 }
 
 .niki-auth .niki-auth__text-button {
@@ -189,7 +212,7 @@ button {
 
 .niki-auth .niki-auth__text-button:disabled {
   background: transparent;
-  color: #92969d;
+  color: var(--poster-disabled);
   opacity: 1;
 }
 
@@ -204,7 +227,7 @@ button {
 .niki-auth__spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgb(0 0 0 / 14%);
+  border: 2px solid color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
   border-top-color: var(--poster-accent);
   border-radius: 50%;
   animation: poster-spin 700ms linear infinite;
@@ -212,16 +235,16 @@ button {
 
 .niki-auth__hint {
   margin-top: -12px !important;
-  color: #7b8088 !important;
+  color: var(--poster-placeholder) !important;
   font-size: 13px !important;
 }
 
 .niki-auth__error {
   margin: -8px 0 18px;
   padding: 10px 12px;
-  border: 1px solid rgb(201 54 62 / 28%);
+  border: 1px solid color-mix(in srgb, var(--poster-danger) 28%, transparent);
   border-radius: 10px;
-  background: #fff0f1;
+  background: var(--poster-danger-surface);
   color: var(--poster-danger);
   font-size: 13px;
 }
@@ -263,22 +286,32 @@ button {
   max-width: 130px;
   padding: var(--poster-space-2) var(--poster-space-3);
   overflow: hidden;
-  border: 1px solid var(--poster-border);
+  border: 0;
   border-radius: 999px;
-  background: transparent;
+  background: var(--poster-fill-0);
   color: var(--poster-muted);
   cursor: pointer;
   text-overflow: ellipsis;
   transition:
-    border-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
     color 140ms cubic-bezier(0.23, 1, 0.32, 1);
   white-space: nowrap;
 }
 
 .poster-app__account:hover,
 .poster-app__account[aria-expanded='true'] {
-  border-color: color-mix(in srgb, var(--poster-muted) 64%, var(--poster-border));
+  background: var(--poster-fill-1);
   color: var(--poster-text);
+}
+
+.poster-app__account:active {
+  background: var(--poster-fill-2);
+  transition-duration: 80ms;
+}
+
+.poster-app__account:focus-visible {
+  outline: 2px solid var(--poster-line-active);
+  outline-offset: 2px;
 }
 
 .poster-app__account-wrap {
@@ -295,10 +328,10 @@ button {
   width: 150px;
   padding: 6px;
   visibility: hidden;
-  border: 1px solid var(--poster-border);
+  border: 0;
   border-radius: 13px;
-  background: var(--poster-panel-raised);
-  box-shadow: 0 18px 46px rgb(0 0 0 / 14%);
+  background: var(--poster-fill-0);
+  box-shadow: 0 18px 46px color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-5px) scale(0.98);
@@ -334,8 +367,13 @@ button {
 
 .poster-app__account-menu button:hover,
 .poster-app__account-menu button:focus-visible {
-  background: rgb(0 0 0 / 5%);
+  background: var(--poster-fill-2);
   outline: none;
+}
+
+.poster-app__account-menu button:active {
+  background: var(--poster-fill-4);
+  transition-duration: 80ms;
 }
 
 .poster-app__account-menu button.is-danger {
@@ -347,9 +385,9 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(170px, 0.75fr);
   gap: var(--poster-space-4);
   padding: var(--poster-space-4);
-  border: 1px solid var(--poster-border);
+  border: 0;
   border-radius: 22px;
-  background: var(--poster-panel);
+  background: var(--poster-panel-muted);
 }
 
 .poster-app__field {
@@ -369,7 +407,7 @@ button {
   min-width: 0;
   padding: var(--poster-space-1);
   border-radius: 13px;
-  background: #f1f2f4;
+  background: var(--poster-fill-0);
 }
 
 .poster-app__segmented button {
@@ -390,18 +428,18 @@ button {
 }
 
 .poster-app__segmented button:not(.is-active):hover {
-  background: var(--poster-panel-hover);
+  background: var(--poster-control-hover);
   color: var(--poster-text);
 }
 
 .poster-app__segmented button:not(.is-active):active {
-  background: var(--poster-panel-pressed);
+  background: var(--poster-control-pressed);
   transition-duration: 80ms;
 }
 
 .poster-app__segmented button.is-active {
-  background: #111111;
-  color: #ffffff;
+  background: var(--poster-text-primary);
+  color: var(--poster-text-inverse);
 }
 
 .poster-app__generate {
@@ -410,7 +448,7 @@ button {
   border: 0;
   border-radius: 13px;
   background: var(--poster-accent);
-  color: white;
+  color: var(--poster-text-inverse);
   cursor: pointer;
   font-weight: 750;
   transition:
@@ -446,8 +484,8 @@ button {
   padding: var(--poster-space-3) var(--poster-space-4);
   border: 0;
   border-radius: 16px;
-  background: rgb(255 255 255 / 68%);
-  box-shadow: 0 12px 32px rgb(15 20 28 / 12%);
+  background: color-mix(in srgb, var(--poster-fill-0) 68%, transparent);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--poster-mask-dark) 12%, transparent);
   backdrop-filter: blur(18px) saturate(1.15);
   opacity: 1;
   transform: translateX(-50%);
@@ -474,17 +512,17 @@ button {
   height: 10px;
   margin-top: 4px;
   border-radius: 50%;
-  background: #656d79;
+  background: var(--poster-muted);
 }
 
 .poster-app__status.is-working .poster-app__status-mark {
   background: var(--poster-accent);
-  box-shadow: 0 0 0 6px rgb(254 82 0 / 12%);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--poster-accent) 12%, transparent);
   animation: poster-pulse 1.2s ease-out infinite;
 }
 
 .poster-app__status.is-complete .poster-app__status-mark {
-  background: #38d886;
+  background: var(--poster-success);
 }
 
 .poster-app__status.is-failed .poster-app__status-mark {
@@ -526,12 +564,12 @@ button {
 }
 
 .poster-app__status-close:hover {
-  background: rgb(17 17 17 / 8%);
+  background: color-mix(in srgb, var(--poster-text-primary) 8%, transparent);
   color: var(--poster-text);
 }
 
 .poster-app__status-close:focus-visible {
-  outline: 2px solid rgb(17 17 17 / 48%);
+  outline: 2px solid color-mix(in srgb, var(--poster-text-primary) 48%, transparent);
   outline-offset: 2px;
 }
 
@@ -541,14 +579,14 @@ button {
   padding: var(--poster-space-3) var(--poster-space-4);
   border: 1px solid var(--poster-border);
   border-radius: 13px;
-  background: #ffffff;
+  background: var(--poster-fill-0);
   color: var(--poster-text);
   text-align: left;
 }
 
 .poster-app__notice.is-error {
-  border-color: rgb(201 54 62 / 28%);
-  background: #fff0f1;
+  border-color: color-mix(in srgb, var(--poster-danger) 28%, transparent);
+  background: var(--poster-danger-surface);
   color: var(--poster-danger);
 }
 
@@ -622,11 +660,11 @@ button {
 }
 
 .poster-app__history-toggle:hover {
-  background: var(--poster-panel-hover);
+  background: var(--poster-history-hover);
 }
 
 .poster-app__history-toggle:active {
-  background: var(--poster-panel-pressed);
+  background: var(--poster-history-pressed);
 }
 
 .poster-app__history-toggle-icon {
@@ -675,7 +713,12 @@ button {
   position: relative;
   aspect-ratio: 16 / 9;
   padding: 0;
-  background: linear-gradient(100deg, #f0f1f2 15%, #ffffff 35%, #f0f1f2 55%);
+  background: linear-gradient(
+    100deg,
+    var(--poster-fill-2) 15%,
+    var(--poster-fill-0) 35%,
+    var(--poster-fill-2) 55%
+  );
   background-size: 200% 100%;
   animation: poster-shimmer 1.3s linear infinite;
 }
@@ -703,7 +746,7 @@ button {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: #f1f2f4;
+  background: var(--poster-fill-2);
   color: var(--poster-muted);
   content: "Image failed to load. Tap to retry.";
   font-size: 13px;
@@ -724,7 +767,12 @@ button {
   display: grid;
   aspect-ratio: 16 / 9;
   place-items: center;
-  background: linear-gradient(100deg, #f0f1f2 15%, #ffffff 35%, #f0f1f2 55%);
+  background: linear-gradient(
+    100deg,
+    var(--poster-fill-2) 15%,
+    var(--poster-fill-0) 35%,
+    var(--poster-fill-2) 55%
+  );
   background-size: 200% 100%;
   color: var(--poster-muted);
   animation: poster-shimmer 1.3s linear infinite;
@@ -744,7 +792,9 @@ button {
   z-index: 1000;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  background: var(--poster-bg);
+  background: color-mix(in srgb, var(--poster-fill-0) 88%, transparent);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
 }
 
 .poster-preview__header,
@@ -773,14 +823,14 @@ button {
   padding: 11px 14px;
   border: 1px solid var(--poster-border);
   border-radius: 14px;
-  background: rgb(255 255 255 / 96%);
+  background: color-mix(in srgb, var(--poster-fill-0) 96%, transparent);
   color: var(--poster-text);
   text-align: left;
-  box-shadow: 0 12px 34px rgb(0 0 0 / 14%);
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
 }
 
 .poster-preview__notice.is-error {
-  border-color: rgb(201 54 62 / 32%);
+  border-color: color-mix(in srgb, var(--poster-danger) 32%, transparent);
   color: var(--poster-danger);
 }
 
@@ -790,10 +840,10 @@ button {
   height: 48px;
   padding: 0;
   place-items: center;
-  border: 1px solid #111111;
+  border: 1px solid var(--poster-text-primary);
   border-radius: 999px;
-  background: #111111;
-  color: white;
+  background: var(--poster-text-primary);
+  color: var(--poster-text-inverse);
 }
 
 .poster-preview__stage {
@@ -835,7 +885,7 @@ button {
   padding-top: 14px;
   padding-bottom: max(18px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--poster-border);
-  background: #ffffff;
+  background: var(--poster-fill-0);
 }
 
 .poster-preview__footer button {
@@ -845,10 +895,10 @@ button {
   height: 52px;
   padding: 0;
   place-items: center;
-  border: 1px solid #111111;
+  border: 1px solid var(--poster-text-primary);
   border-radius: 999px;
-  background: #111111;
-  color: white;
+  background: var(--poster-text-primary);
+  color: var(--poster-text-inverse);
 }
 
 .poster-preview__footer button.is-danger {
