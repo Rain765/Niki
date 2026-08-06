@@ -55,6 +55,15 @@ describe('poster app image layout', () => {
     expect(accountMenu).toContain('background: var(--poster-fill-0);');
   });
 
+  it('keeps the floating status readable without blurring the page title', () => {
+    const status = rule('.poster-app__status');
+
+    expect(status).toContain('background: color-mix(in srgb, var(--poster-fill-0) 68%, transparent);');
+    expect(status).toContain('box-shadow: 0 12px 32px');
+    expect(status).not.toContain('backdrop-filter:');
+    expect(status).not.toContain('-webkit-backdrop-filter:');
+  });
+
   it('lets each card own its aspect ratio without cropping the image', () => {
     const poster = rule('.poster-app__poster');
     const posterAndSkeleton = rule('.poster-app__poster,\n.poster-app__poster-skeleton');
