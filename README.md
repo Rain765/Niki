@@ -1,12 +1,10 @@
 # Niki
 
-**One-click AI loan-poster generation, built for real mobile workflows.**
+**Generate ready-to-review loan posters in one click.**
 
-Niki is an authenticated creative workspace for producing and reviewing loan marketing posters. Choose a product, aspect ratio, and quantity, enter the campaign copy, and Niki starts image generation immediately—without asking users to write prompts or manage an agent conversation.
+Niki is a focused poster workspace for loan-marketing teams. Select a product, choose the image ratio and quantity, enter the campaign copy, and start generating. Results stay organized by batch so they are easy to review on desktop or mobile.
 
-This repository is the current Niki product. It is based on the Open Design runtime, but the primary experience is now the Niki poster workflow described below.
-
-<p align="center"><b>English</b> · <a href="README.es.md">Español</a> · <a href="README.pt-BR.md">Português (Brasil)</a> · <a href="README.de.md">Deutsch</a> · <a href="README.fr.md">Français</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.zh-TW.md">繁體中文</a> · <a href="README.ko.md">한국어</a> · <a href="README.ja-JP.md">日本語</a> · <a href="README.ar.md">العربية</a> · <a href="README.ru.md">Русский</a> · <a href="README.uk.md">Українська</a> · <a href="README.tr.md">Türkçe</a></p>
+<p align="center"><b>English</b> · <a href="README.zh-CN.md">简体中文</a></p>
 
 <p align="center">
   <a href="https://github.com/Rain765/Niki/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/Rain765/Niki?style=flat-square" /></a>
@@ -14,24 +12,24 @@ This repository is the current Niki product. It is based on the Open Design runt
   <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg?style=flat-square" /></a>
 </p>
 
-## What Niki does
+## What you can do
 
-- **One-click poster creation** — select BiuMoney or Zamloan, choose the output ratio and number of posters, add the copy, and start generating.
-- **Product-specific creative direction** — each product uses its own reference assets, layout constraints, and simplified copy rules.
-- **Generation batch timeline** — every request is shown as a separate batch. Older results stay above the active batch, and queued, completed, failed, or interrupted states survive reloads.
-- **Mobile-first review** — the composer, loading states, image delivery, and result grid are tuned for phones as well as desktop browsers.
-- **Authenticated workspaces** — hosted deployments can use Feishu OAuth and administrator-managed password accounts.
-- **Per-user isolation and quotas** — projects are isolated by account, with configurable storage and daily-generation limits.
-- **Durable local runtime** — projects, messages, task state, and generated files remain on disk and can be reopened later.
+- **Generate posters in one click** — enter the campaign copy and start image generation without writing prompts.
+- **Choose the right product treatment** — create campaigns for Zamloan or BiuMoney with product-specific references and layout rules.
+- **Control each batch** — select a `1:1` or `16:9` ratio and generate between 1 and 10 posters at a time.
+- **Keep every result** — new batches appear without replacing previous work, and interrupted or failed states remain visible after reload.
+- **Review from any screen** — the composer, progress states, and result gallery are designed for both phone and desktop use.
+- **Separate user workspaces** — hosted installations can provide account-based project isolation and configurable storage and generation limits.
 
 ## Product flow
 
 1. Sign in to Niki.
-2. Choose **BiuMoney** or **Zamloan**, an aspect ratio, and a poster count.
-3. Enter the campaign copy and start generation.
-4. Review each generation batch in the project timeline. Start another batch without losing earlier results.
+2. Select **Zamloan** or **BiuMoney**.
+3. Choose the ratio and number of posters.
+4. Enter the campaign copy and start generation.
+5. Review the completed images in the project timeline or start another batch.
 
-## Quick start
+## Local development
 
 ### Requirements
 
@@ -40,47 +38,38 @@ This repository is the current Niki product. It is based on the Open Design runt
 - macOS, Linux, WSL2, or Windows
 - An image-generation provider configured in Niki settings
 
-### Run the web workspace
+### Start Niki
 
-    corepack enable
-    pnpm install
-    pnpm tools-dev start web
+```bash
+git clone https://github.com/Rain765/Niki.git
+cd Niki
+corepack enable
+pnpm install
+pnpm tools-dev start web
+```
 
 Open the web URL printed by `tools-dev`.
 
-To run the daemon, web app, and Electron desktop shell together:
+To start the daemon, web app, and Electron shell together:
 
-    pnpm tools-dev
+```bash
+pnpm tools-dev
+```
 
 Use `pnpm tools-dev status`, `pnpm tools-dev logs`, and `pnpm tools-dev stop` to inspect or stop the managed runtime.
 
-## Authentication and account management
+## Authentication and quotas
 
-Authentication is disabled for local-only development. A hosted deployment can enable Niki authentication with:
+Authentication is disabled for local-only development. A hosted installation can enable Feishu login with:
 
-    NIKI_AUTH_MODE=feishu
-    FEISHU_APP_ID=your_app_id
-    FEISHU_APP_SECRET=your_app_secret
-    NIKI_PUBLIC_URL=https://your-niki-domain.example
+```env
+NIKI_AUTH_MODE=feishu
+FEISHU_APP_ID=your_app_id
+FEISHU_APP_SECRET=your_app_secret
+NIKI_PUBLIC_URL=https://your-niki-domain.example
+```
 
-When authentication is enabled, administrators can manage password accounts and quotas in the Niki account panel or through the `od auth` CLI:
-
-    od auth status
-    od auth users list
-    od auth users create --username <id> --name <display-name> --password-file <path|->
-    od auth users set-quota --user <user-id> --storage-gb <number> --daily-generations <number>
-
-Administrator CLI operations require an administrator session in `OD_NIKI_SESSION_TOKEN`. Passwords are read from a file or standard input and are never accepted directly as a CLI argument.
-
-## Remote device pairing
-
-Niki includes a secure device-relay foundation for pairing a local daemon with the hosted service:
-
-    od device pair --relay-url <url> --name <device-name>
-    od device status
-    od device disconnect
-
-The current device bridge is intentionally limited to pairing, presence, and Ping/Pong health checks. It does not execute remote commands.
+Administrators can create password accounts, disable access, reset passwords, and set storage and daily-generation limits from the account-management interface.
 
 ## Data and security
 
@@ -89,34 +78,29 @@ The current device bridge is intentionally limited to pairing, presence, and Pin
 - Authenticated users receive isolated project roots.
 - Session tokens are stored as hashes and expire.
 - Password login includes failure tracking and rate limiting.
-- Per-user storage and generation quotas are enforced by the daemon.
+- Storage and generation limits are enforced by the daemon.
 
-Local runtime data, logs, databases, and generated scratch files under `.od/` and `.tmp/` must not be committed.
+Do not commit local data, logs, databases, or generated scratch files from `.od/` or `.tmp/`.
 
 ## Repository layout
 
 | Path | Responsibility |
 |---|---|
-| `apps/web` | Niki web workspace, poster composer, authentication UI, and project timeline |
-| `apps/daemon` | HTTP API, persistence, authentication, quotas, media jobs, and the `od` CLI |
+| `apps/web` | Poster composer, project timeline, result gallery, and account UI |
+| `apps/daemon` | HTTP API, persistence, authentication, quotas, and media jobs |
 | `apps/desktop` | Electron desktop shell |
-| `apps/relay` | Secure device-pairing relay |
 | `packages/contracts` | Shared API and event contracts |
-| `tools/dev` | Supported local lifecycle control plane |
+| `tools/dev` | Supported local lifecycle commands |
 
-## Development
+## Contributing
 
-Before submitting changes, run the repository checks that match the affected packages:
+Before submitting changes, read [CONTRIBUTING.md](CONTRIBUTING.md) and run the checks required for the affected packages. The standard repository checks are:
 
-    pnpm guard
-    pnpm typecheck
-    pnpm --filter @open-design/web test
-    pnpm --filter @open-design/daemon test
+```bash
+pnpm guard
+pnpm typecheck
+```
 
-Use `pnpm tools-dev` as the only local lifecycle entry point. See [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for repository boundaries and contribution rules.
-
-## Upstream and license
-
-Niki is derived from [Open Design](https://github.com/nexu-io/open-design) and retains its agent runtime, project workspace, and extensible design foundation. Niki's current product layer adds the focused loan-poster workflow, managed authentication, user quotas, mobile adaptations, persistent generation batches, and secure device pairing.
+## License
 
 Licensed under the [Apache License 2.0](LICENSE).
