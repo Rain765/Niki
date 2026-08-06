@@ -26,6 +26,9 @@ describe('poster app image layout', () => {
     expect(root).toContain('color-scheme: light;');
     expect(root).toContain('--poster-fill-0: #ffffff;');
     expect(root).toContain('--poster-fill-1: #f7f8fa;');
+    expect(root).toContain('--poster-fill-3: #f2f3f5;');
+    expect(root).toContain('--poster-fill-4: #e5e6eb;');
+    expect(root).toContain('--poster-fill-7: #1d2129;');
     expect(root).toContain('--poster-bg: var(--poster-fill-0);');
     expect(root).toContain('--poster-panel-muted: var(--poster-fill-1);');
     expect(selected).toContain('background: var(--poster-text-primary);');
@@ -33,11 +36,13 @@ describe('poster app image layout', () => {
   });
 
   it('uses borderless fill layers for the generator and account controls', () => {
+    const app = rule('.poster-app');
     const generator = rule('.poster-app__generator');
     const segmented = rule('.poster-app__segmented');
     const account = rule('.poster-app__account');
     const accountMenu = rule('.poster-app__account-menu');
 
+    expect(app).toContain('background: var(--poster-fill-0);');
     expect(generator).toContain('border: 0;');
     expect(generator).toContain('background: var(--poster-panel-muted);');
     expect(segmented).toContain('background: var(--poster-fill-0);');
@@ -65,7 +70,7 @@ describe('poster app image layout', () => {
     const picture = rule('.poster-preview__stage picture');
     const image = rule('.poster-preview__stage img');
 
-    expect(preview).toContain('background: color-mix(in srgb, var(--poster-fill-0) 88%, transparent);');
+    expect(preview).toContain('background: color-mix(in srgb, var(--poster-fill-7) 80%, transparent);');
     expect(preview).toContain('backdrop-filter: blur(18px) saturate(1.15);');
     expect(preview).toContain('-webkit-backdrop-filter: blur(18px) saturate(1.15);');
     expect(picture).toContain('width: 100%;');
@@ -81,14 +86,21 @@ describe('poster app image layout', () => {
 
   it('uses aligned circular icon controls in the preview header and footer', () => {
     const headerButton = rule('.poster-preview__header button');
+    const footer = rules('.poster-preview__footer');
     const footerButton = rule('.poster-preview__footer button');
 
     expect(headerButton).toContain('width: 48px;');
     expect(headerButton).toContain('height: 48px;');
     expect(headerButton).toContain('border-radius: 999px;');
+    expect(headerButton).toContain('background: var(--poster-fill-0);');
+    expect(headerButton).toContain('color: var(--poster-fill-7);');
+    expect(footer).toContain('border-top: 0;');
+    expect(footer).toContain('background: transparent;');
     expect(footerButton).toContain('width: 52px;');
     expect(footerButton).toContain('height: 52px;');
     expect(footerButton).toContain('border-radius: 999px;');
+    expect(footerButton).toContain('background: var(--poster-fill-0);');
+    expect(footerButton).toContain('color: var(--poster-fill-7);');
   });
 
   it('keeps poster history interaction lighter than filter controls', () => {
@@ -99,6 +111,8 @@ describe('poster app image layout', () => {
 
     expect(root).toContain('--poster-history-hover: var(--poster-fill-2);');
     expect(root).toContain('--poster-history-pressed: var(--poster-fill-4);');
+    expect(root).toContain('--poster-control-hover: var(--poster-fill-3);');
+    expect(root).toContain('--poster-control-pressed: var(--poster-fill-4);');
     expect(historyHover).toContain('background: var(--poster-history-hover);');
     expect(historyPressed).toContain('background: var(--poster-history-pressed);');
     expect(filterHover).toContain('background: var(--poster-control-hover);');
