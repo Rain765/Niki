@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
+import {
+  NIKI_POSTER_COLOR_CSS,
+  NIKI_POSTER_COLOR_VALUES,
+  NIKI_POSTER_LEGACY_ACCENT_COLORS,
+  NIKI_POSTER_MASK_ICON_COLOR,
+  NIKI_POSTER_THEME_COLOR,
+} from '../src/poster/color-tokens';
 import './poster.css';
 import './account-manager.css';
 
@@ -11,12 +18,16 @@ export const metadata: Metadata = {
     // Safari pinned-tab mask icon — Next.js's Metadata API doesn't have a
     // dedicated `mask` field, so we surface it via the generic `other`
     // bucket which renders as a raw <link rel="mask-icon" ...>.
-    other: [{ rel: 'mask-icon', url: '/app-icon.svg?v=20260527', color: '#363636' }],
+    other: [{
+      rel: 'mask-icon',
+      url: '/app-icon.svg?v=20260527',
+      color: NIKI_POSTER_MASK_ICON_COLOR,
+    }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#f7f7f5',
+  themeColor: NIKI_POSTER_THEME_COLOR,
 };
 
 /**
@@ -30,14 +41,14 @@ const firstPaintStyle = `
 :where(html, body) {
   min-height: 100%;
   margin: 0;
-  background: #f7f7f5;
-  color: #171717;
+  background: var(--poster-bg);
+  color: var(--poster-text);
 }
 :where(.niki-auth, .poster-app) {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #f7f7f5;
-  color: #171717;
+  background: var(--poster-bg);
+  color: var(--poster-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 :where(.niki-auth) {
@@ -51,7 +62,7 @@ const firstPaintStyle = `
   padding: 36px;
   border: 0;
   border-radius: 24px;
-  background: #ffffff;
+  background: var(--poster-panel);
 }
 :where(.niki-auth__logo) {
   width: 52px;
@@ -71,8 +82,8 @@ const firstPaintStyle = `
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid rgb(0 0 0 / 14%);
-  border-top-color: #fe5200;
+  border: 2px solid color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
+  border-top-color: var(--poster-accent);
   border-radius: 50%;
   animation: niki-first-paint-spin 700ms linear infinite;
 }
@@ -89,12 +100,18 @@ const firstPaintStyle = `
  * Keep the accent variable mix ratios in sync with `accentVars()` in
  * `src/state/appearance.ts`; this script cannot import application modules.
  */
-const themeInitScript = `(function(){try{var c=JSON.parse(localStorage.getItem('open-design:config')||'{}');var t=c.theme;if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():'#fe5200';if(a==='#c96442'||a==='#ff5f53')a='#fe5200';if(a==='#fe5200')return;var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 86%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 22%, var(--bg-panel))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 12%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 90%, var(--text-strong))');}catch(e){}})();`;
+const defaultAccentColor = NIKI_POSTER_COLOR_VALUES.accent;
+const [legacyAccentColor, legacyAlternateAccentColor] = NIKI_POSTER_LEGACY_ACCENT_COLORS;
+const themeInitScript = `(function(){try{var c=JSON.parse(localStorage.getItem('open-design:config')||'{}');var t=c.theme;if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():'${defaultAccentColor}';if(a==='${legacyAccentColor}'||a==='${legacyAlternateAccentColor}')a='${defaultAccentColor}';if(a==='${defaultAccentColor}')return;var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 86%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 22%, var(--bg-panel))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 12%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 90%, var(--text-strong))');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang='en' suppressHydrationWarning>
       <head>
+        <style
+          id='niki-color-tokens'
+          dangerouslySetInnerHTML={{ __html: NIKI_POSTER_COLOR_CSS }}
+        />
         <style
           id='niki-first-paint'
           dangerouslySetInnerHTML={{ __html: firstPaintStyle }}

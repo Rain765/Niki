@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import {
+  NIKI_POSTER_COLOR_CSS,
+  NIKI_POSTER_THEME_COLOR,
+} from '../../src/poster/color-tokens';
 
 const indexCss = readFileSync(
   new URL('../../src/index.css', import.meta.url),
@@ -27,9 +31,14 @@ describe('mobile bootstrap styles', () => {
   });
 
   it('ships a light first-paint shell before external CSS and client JavaScript load', () => {
-    expect(rootLayout).toContain("themeColor: '#f7f7f5'");
+    expect(NIKI_POSTER_THEME_COLOR).toBe('#ffffff');
+    expect(rootLayout).toContain('themeColor: NIKI_POSTER_THEME_COLOR');
+    expect(rootLayout).toContain("id='niki-color-tokens'");
     expect(rootLayout).toContain("id='niki-first-paint'");
-    expect(rootLayout).toMatch(/:where\(html,\s*body\)\s*\{[^}]*background:\s*#f7f7f5/s);
+    expect(NIKI_POSTER_COLOR_CSS).toContain('--poster-bg: var(--poster-fill-0);');
+    expect(rootLayout).toMatch(
+      /:where\(html,\s*body\)\s*\{[^}]*background:\s*var\(--poster-bg\)/s,
+    );
     expect(rootLayout).toMatch(
       /:where\(\.niki-auth,\s*\.poster-app\)\s*\{[^}]*min-height:\s*100dvh/s,
     );

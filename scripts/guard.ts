@@ -645,7 +645,12 @@ const stylePolicySkippedDirectories = new Set([
 ]);
 
 const stylePolicySourcePrefixes = ["apps/web/app/", "apps/web/src/"];
-const stylePolicyHardcodedColorEnforcedPrefixes = ["scripts/guard-style-policy-fixtures/"];
+const stylePolicyHardcodedColorEnforcedPrefixes = [
+  "apps/web/app/",
+  "apps/web/src/auth/",
+  "apps/web/src/poster/",
+  "scripts/guard-style-policy-fixtures/",
+];
 const stylePolicyCheckedDirectoryPrefixes = [
   ...new Set([...stylePolicySourcePrefixes, ...stylePolicyHardcodedColorEnforcedPrefixes]),
 ];
@@ -712,6 +717,11 @@ type StylePolicyAllowlistEntry = {
 };
 
 const hardcodedColorAllowlist: StylePolicyAllowlistEntry[] = [
+  {
+    pathPattern: /^apps\/web\/src\/poster\/color-tokens\.ts$/,
+    valuePattern: /^(?:#ffffff|#f7f8fa|#f2f3f5|#e5e6eb|#c9cdd4|#4e5969|#1d2129|#86909c|#fe5200|#ff772e|#dc3b00|#c9353f|#fdf3f4|#3dd43f|#c96442|#ff5f53)$/i,
+    reason: "Niki poster concrete colors are defined only in the governed token source",
+  },
   {
     pathPattern: /^apps\/web\/src\/index\.css$/,
     valuePattern: /^(?:#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\))$/,

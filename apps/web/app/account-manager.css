@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgb(0 0 0 / 38%);
+  background: color-mix(in srgb, var(--poster-mask-dark) 38%, transparent);
   backdrop-filter: blur(4px);
 }
 
@@ -106,7 +106,7 @@
   border: 0;
   border-radius: 11px;
   background: var(--accent);
-  color: white;
+  color: var(--poster-text-inverse);
   font-weight: 700;
   cursor: pointer;
   transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
@@ -240,7 +240,7 @@
 .niki-account-manager__password-reset button[type='submit'] {
   border-color: var(--accent);
   background: var(--accent);
-  color: white;
+  color: var(--poster-text-inverse);
 }
 
 .niki-account-manager__password-reset button:hover:not(:disabled) {

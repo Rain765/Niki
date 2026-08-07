@@ -1,40 +1,5 @@
 :root {
   color-scheme: light;
-  --poster-fill-0: #ffffff;
-  --poster-fill-1: #f7f8fa;
-  --poster-fill-2: #f2f3f5;
-  --poster-fill-3: #f2f3f5;
-  --poster-fill-4: #e5e6eb;
-  --poster-fill-5: #c9cdd4;
-  --poster-fill-7: #1d2129;
-  --poster-line-active: #86909c;
-  --poster-line-normal: #c9cdd4;
-  --poster-line-divide: #f2f3f5;
-  --poster-text-primary: #1d2129;
-  --poster-text-secondary: #4e5969;
-  --poster-text-placeholder: #86909c;
-  --poster-text-disabled: #c9cdd4;
-  --poster-text-inverse: #ffffff;
-  --poster-accent: #fe5200;
-  --poster-accent-hover: #ff772e;
-  --poster-accent-pressed: #dc3b00;
-  --poster-danger: #c9353f;
-  --poster-danger-surface: #fdf3f4;
-  --poster-success: #3dd43f;
-  --poster-mask-dark: var(--poster-fill-7);
-  --poster-bg: var(--poster-fill-0);
-  --poster-panel: var(--poster-fill-0);
-  --poster-panel-muted: var(--poster-fill-1);
-  --poster-panel-raised: var(--poster-fill-2);
-  --poster-control-hover: var(--poster-fill-3);
-  --poster-control-pressed: var(--poster-fill-4);
-  --poster-history-hover: var(--poster-fill-2);
-  --poster-history-pressed: var(--poster-fill-4);
-  --poster-border: var(--poster-line-normal);
-  --poster-text: var(--poster-text-primary);
-  --poster-muted: var(--poster-text-secondary);
-  --poster-placeholder: var(--poster-text-placeholder);
-  --poster-disabled: var(--poster-text-disabled);
   --poster-space-1: 4px;
   --poster-space-2: 8px;
   --poster-space-3: 12px;
@@ -42,16 +7,6 @@
   --poster-space-5: 24px;
   --poster-space-6: 32px;
   --poster-space-7: 48px;
-  --bg-panel: var(--poster-panel);
-  --bg-subtle: var(--poster-panel-raised);
-  --border: var(--poster-border);
-  --border-soft: color-mix(in srgb, var(--poster-border) 72%, transparent);
-  --text: var(--poster-text);
-  --text-muted: var(--poster-muted);
-  --accent: var(--poster-accent);
-  --danger: var(--poster-danger);
-  --success: var(--poster-success);
-  --shadow-lg: 0 30px 80px color-mix(in srgb, var(--poster-mask-dark) 12%, transparent);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -366,7 +321,7 @@ button {
 }
 
 .poster-app__account:active {
-  background: var(--poster-fill-2);
+  background: var(--poster-panel-raised);
   transition-duration: 80ms;
 }
 
@@ -428,7 +383,7 @@ button {
 
 .poster-app__account-menu button:hover,
 .poster-app__account-menu button:focus-visible {
-  background: var(--poster-fill-2);
+  background: var(--poster-panel-raised);
   outline: none;
 }
 
@@ -774,9 +729,9 @@ button {
   padding: 0;
   background: linear-gradient(
     100deg,
-    var(--poster-fill-2) 15%,
+    var(--poster-panel-raised) 15%,
     var(--poster-fill-0) 35%,
-    var(--poster-fill-2) 55%
+    var(--poster-panel-raised) 55%
   );
   background-size: 200% 100%;
   cursor: pointer;
@@ -837,7 +792,7 @@ button {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: var(--poster-fill-2);
+  background: var(--poster-panel-raised);
   color: var(--poster-muted);
   content: "Image failed to load. Tap to retry.";
   font-size: 13px;
@@ -860,9 +815,9 @@ button {
   place-items: center;
   background: linear-gradient(
     100deg,
-    var(--poster-fill-2) 15%,
+    var(--poster-panel-raised) 15%,
     var(--poster-fill-0) 35%,
-    var(--poster-fill-2) 55%
+    var(--poster-panel-raised) 55%
   );
   background-size: 200% 100%;
   color: var(--poster-muted);

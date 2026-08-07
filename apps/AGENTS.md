@@ -36,6 +36,15 @@ Follow the root `AGENTS.md` first. This file only records module-level boundarie
 - App business layers must not import sidecar packages or branch on `runtime.mode`, `namespace`, `ipc`, or `source`.
 - Keep sidecar awareness in `apps/<app>/sidecar` or the desktop sidecar entry wrapper.
 
+## Niki poster color governance
+
+- `apps/web/src/poster/color-tokens.ts` is the only source for concrete colors used by the Niki poster route, its critical first paint, authentication states, and account manager.
+- Niki components and styles must consume the exported CSS variables. Do not add hexadecimal, `rgb()` / `rgba()`, `hsl()` / `hsla()`, or named UI colors outside the token source.
+- Use semantic variables such as `--poster-panel-raised`, `--poster-control-hover`, and `--poster-danger` in components. Do not choose primitive fill steps at individual call sites when a semantic variable exists.
+- Preserve approved translucency with `color-mix()` against a governed variable; do not create a new concrete color to approximate an opacity.
+- `--poster-fill-2` is intentionally retired because it duplicated `--poster-fill-3`. The approved light surfaces are `fill-0`, `fill-1`, and `fill-3`, selected through semantic aliases.
+- `pnpm guard` enforces this boundary. Any new governed color must be added deliberately to the token source and the narrow Guard allowlist in the same change.
+
 ## Packaged runtime
 
 - `apps/nextjs` has been removed; do not restore it.
