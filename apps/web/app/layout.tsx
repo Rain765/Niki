@@ -49,7 +49,7 @@ const firstPaintStyle = `
   width: min(100%, 440px);
   box-sizing: border-box;
   padding: 36px;
-  border: 1px solid #dedfe3;
+  border: 0;
   border-radius: 24px;
   background: #ffffff;
 }

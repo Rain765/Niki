@@ -95,7 +95,7 @@ button {
 .niki-auth__card {
   width: min(100%, 440px);
   padding: 36px;
-  border: 1px solid var(--poster-border);
+  border: 0;
   border-radius: 24px;
   background: var(--poster-panel);
   box-shadow: 0 30px 80px color-mix(in srgb, var(--poster-mask-dark) 10%, transparent);
