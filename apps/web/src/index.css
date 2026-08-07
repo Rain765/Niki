@@ -145,10 +145,19 @@
   font: 500 13px/1.2 var(--sans);
 }
 
+.niki-auth__password-field {
+  display: grid;
+  gap: 7px;
+}
+
+.niki-auth__password-control {
+  position: relative;
+}
+
 .niki-auth__password-form input {
   width: 100%;
   min-height: 48px;
-  padding: 0 14px;
+  padding: 0 52px 0 14px;
   border: 1px solid #353b46;
   border-radius: 12px;
   outline: none;
@@ -162,22 +171,66 @@
   box-shadow: 0 0 0 3px rgb(254 82 0 / 16%);
 }
 
+.niki-auth .niki-auth__password-visibility {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+}
+
+.niki-auth .niki-auth__password-visibility:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.niki-auth .niki-auth__password-visibility:active:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  transform: translateY(-50%) scale(0.97);
+  transition-duration: 80ms;
+}
+
+.niki-auth .niki-auth__password-visibility:focus-visible {
+  box-shadow: 0 0 0 2px var(--border-strong);
+}
+
+.niki-auth .niki-auth__password-visibility:disabled {
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 1;
+}
+
 .niki-auth .niki-auth__text-button {
   min-height: 42px;
   margin-top: 8px;
   background: transparent;
-  color: #a8adb8;
+  color: var(--text-muted);
   font-size: 14px;
 }
 
-.niki-auth .niki-auth__text-button:hover {
-  background: rgb(255 255 255 / 5%);
-  color: #f7f7f8;
+.niki-auth .niki-auth__text-button:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.niki-auth .niki-auth__text-button:active:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+.niki-auth .niki-auth__text-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--border-strong);
 }
 
 .niki-auth .niki-auth__text-button:disabled {
   background: transparent;
-  color: #737986;
+  color: var(--text-faint);
   opacity: 1;
 }
 

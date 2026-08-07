@@ -70,4 +70,22 @@ describe('mobile bootstrap styles', () => {
       /\.niki-auth__button-spinner\s*\{[^}]*animation:\s*poster-spin 700ms linear infinite/s,
     );
   });
+
+  it('uses neutral color tokens for secondary login actions and password visibility', () => {
+    expect(posterCss).toMatch(
+      /\.niki-auth \.niki-auth__text-button:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--poster-control-hover\);[^}]*color:\s*var\(--poster-text-secondary\);/s,
+    );
+    expect(posterCss).toMatch(
+      /\.niki-auth \.niki-auth__text-button:active:not\(:disabled\)\s*\{[^}]*background:\s*var\(--poster-control-pressed\);[^}]*color:\s*var\(--poster-text-secondary\);/s,
+    );
+    expect(posterCss).toMatch(
+      /\.niki-auth \.niki-auth__password-visibility\s*\{[^}]*color:\s*var\(--poster-text-placeholder\);/s,
+    );
+    expect(indexCss).toMatch(
+      /\.niki-auth \.niki-auth__text-button:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--bg-subtle\);[^}]*color:\s*var\(--text-muted\);/s,
+    );
+    expect(indexCss).toMatch(
+      /\.niki-auth \.niki-auth__password-visibility\s*\{[^}]*color:\s*var\(--text-muted\);/s,
+    );
+  });
 });
