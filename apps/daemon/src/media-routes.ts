@@ -212,6 +212,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           : undefined,
         compositionDir: req.body?.compositionDir,
         image: req.body?.image,
+        overlayZ: req.body?.overlayZ,
         overlayLogo: req.body?.overlayLogo,
         overlayLogoAnchor: req.body?.overlayLogoAnchor,
         onProgress: (line: any) => appendTaskProgress(task, line),

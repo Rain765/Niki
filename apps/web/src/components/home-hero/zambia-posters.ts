@@ -253,13 +253,13 @@ Negative prompt: letter Z, background letter, alphabetic background motif, logo,
       logoAnchor,
       prompt: `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
 
-Use a ${palette.gradient} dominant background, one large supplied semi-transparent Z as the only brand mark, and one ${palette.ribbon} curved ribbon along the bottom. Reproduce the exact silhouette geometry of the supplied Z reference, including its distinctive angled terminals, curved outer corners, and diagonal stroke; use the reference for shape only and freely adapt color, material, opacity, scale, and position. Do not invent another Z glyph or alter its outline.
+Use a ${palette.gradient} dominant background and one ${palette.ribbon} curved ribbon along the bottom. Do not draw any letter Z, alphabetic background motif, logo-shaped watermark, or substitute brand glyph; the exact supplied Z will be composited as a semi-transparent brand layer after generation.
 
 Render exactly two poster-copy text elements: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not add benefit copy, feature callouts, labels, badges, disclaimers, or any other poster text. ${composition}. Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. The phone screen is the only text exception: keep its white screen, one solid green checkmark, and short black text “Application Successful”.
 
 Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve a clearly visible gap between the text block and the model silhouette. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, oversized readable typography, and generous safe margins. Do not render ${brandLabel}, another brand-name wordmark, an icon logo, or a corner badge in the reserved logo-safe row. Do not add another Z.
 
-Negative prompt: alternate Z glyph, distorted Z outline, extra Z, duplicate Z, benefit copy, feature callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, brand wordmark in the logo-safe row, standalone text logo, corner logo badge, mixed brands.`,
+Negative prompt: letter Z, alphabetic background motif, logo-shaped watermark, alternate Z glyph, distorted Z outline, extra Z, duplicate Z, benefit copy, feature callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, brand wordmark in the logo-safe row, standalone text logo, corner logo badge, mixed brands.`,
     };
   });
 }
@@ -285,14 +285,14 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const outputPrefix = `${brand}-poster`;
   const usesZReference = autoPosterUsesZReference(brand);
   const referenceContract = usesZReference
-    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z shape reference. Locate its project-relative path and pass it through \`--image\` for every generation. Reproduce its exact silhouette geometry for every visible Z, but use it for shape only: ignore the source color and freely adapt color, material, opacity, scale, and position. Never invent an alternate Z glyph. Never copy the Z reference into a visible output path or list it as a deliverable.`
+    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z silhouette. Locate its project-relative path and pass it through \`--overlay-z\` for every generation. The daemon will composite the single semi-transparent background Z from this exact source silhouette after provider rendering, preserving its exact silhouette geometry. Tell the image model not to draw any Z itself. Never copy the Z reference into a visible output path or list it as a deliverable.`
     : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
   const logoContract = usesZReference
     ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
     : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
   const brandOverride = usesZReference
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
-- The single semi-transparent background Z defined by the skill is the only permitted brand mark, and it must preserve the exact silhouette geometry of the supplied reference.
+- Do not let the image model draw any Z. The single semi-transparent background Z is added deterministically by \`--overlay-z\` from the exact supplied silhouette after generation.
 - Render exactly two poster-copy text elements: one very large headline and one large subtitle. Do not add benefit copy, feature callouts, labels, badges, disclaimers, or other poster text.
 - The phone-screen exception is the only additional visible wording: retain the white screen, one solid green checkmark, and \`Application Successful\`.
 - Keep the headline and subtitle entirely inside reserved negative space; they must never overlap the model’s face, body, hands, clothing, or phone.
@@ -302,7 +302,7 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
 - This BiuMoney override takes precedence over conflicting skill template rules.`;
   const generationReference = usesZReference
-    ? ', and the Z reference via `--image`'
+    ? ', without an `--image` reference, and with the exact Z silhouette via `--overlay-z`'
     : ', without an `--image` reference';
   const referenceCleanup = usesZReference
     ? '- Remove the internal Z reference after all image generation attempts finish.\n'

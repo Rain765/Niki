@@ -184,6 +184,8 @@ describe('startDirectLoanPosterProject', () => {
         expect(body.quality).toBe('low');
         expect(body.model).toBe('gpt-image-2');
         expect(body.overlayLogo).toBe('.od-inputs/reference.png');
+        expect(body.overlayZ).toBe('.od-inputs/reference.png');
+        expect(body).not.toHaveProperty('image');
         expect(body.overlayLogoAnchor).toMatch(/^(left|right)$/);
         expect(body.output).toMatch(
           new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
@@ -271,8 +273,15 @@ describe('startDirectLoanPosterProject', () => {
     }));
     const mediaBodies = fetchMock.mock.calls
       .filter(([input]) => String(input).endsWith('/media/generate'))
-      .map(([, init]) => JSON.parse(String(init?.body)) as { overlayLogoAnchor?: string });
+      .map(([, init]) => JSON.parse(String(init?.body)) as {
+        overlayLogoAnchor?: string;
+        overlayZ?: string;
+      });
     expect(mediaBodies.map((body) => body.overlayLogoAnchor)).toEqual(['left', 'right']);
+    expect(mediaBodies.map((body) => body.overlayZ)).toEqual([
+      '.od-inputs/reference.png',
+      '.od-inputs/reference.png',
+    ]);
   });
 
   it('does not upload or pass the Z reference for BiuMoney generation', async () => {

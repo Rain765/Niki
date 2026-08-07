@@ -60,6 +60,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'audio-kind',
   'composition-dir',
   'image',
+  'overlay-z',
   'overlay-logo',
   'overlay-logo-anchor',
   'daemon-url',
@@ -785,6 +786,7 @@ async function runMediaGenerate(rawArgs) {
     audioKind: flags['audio-kind'],
     compositionDir: flags['composition-dir'],
     image: flags.image,
+    overlayZ: flags['overlay-z'],
     overlayLogo: flags['overlay-logo'],
     overlayLogoAnchor: flags['overlay-logo-anchor'],
     language: flags.language,
@@ -1300,6 +1302,8 @@ Common options:
                             it, and forwards it to the upstream API.
   --overlay-logo <path>     Project-relative logo to composite onto the
                             generated image after provider rendering.
+  --overlay-z <path>        Project-relative raster Z silhouette to composite
+                            exactly after provider rendering.
   --overlay-logo-anchor <left|right>
                             Align the logo with the matching title column.
   --daemon-url <url>

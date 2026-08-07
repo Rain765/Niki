@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateMedia } from '../src/media.js';
 
-describe('media overlay-logo inputs', () => {
+describe('media brand overlay inputs', () => {
   let root: string;
   let projectRoot: string;
   let projectsRoot: string;
@@ -59,20 +59,29 @@ describe('media overlay-logo inputs', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it('accepts an SVG overlay logo while keeping provider reference images raster-only', async () => {
+  it('accepts an SVG logo and exact raster Z overlay without provider redrawing', async () => {
     const referenceName = 'loan-poster-z-reference.png';
     const logoName = 'zamloan-logo.svg';
-    await writeFile(path.join(projectDir, referenceName), generatedPoster);
+    const zReference = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+        <rect x="50" width="100" height="100" fill="white"/>
+      </svg>
+    `)).png().toBuffer();
+    await writeFile(path.join(projectDir, referenceName), zReference);
     await writeFile(path.join(projectDir, logoName), `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
         <rect width="320" height="92" rx="12" fill="white"/>
       </svg>
     `);
 
-    const fetchMock = vi.fn(async () => new Response(
-      JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }),
-      { status: 200, headers: { 'content-type': 'application/json' } },
-    ));
+    let providerRequestBody: unknown;
+    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      providerRequestBody = init?.body;
+      return new Response(
+        JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const result = await generateMedia({
@@ -83,7 +92,7 @@ describe('media overlay-logo inputs', () => {
       model: 'gpt-image-2',
       prompt: 'A premium Zamloan poster',
       aspect: '16:9',
-      image: referenceName,
+      overlayZ: referenceName,
       overlayLogo: logoName,
       overlayLogoAnchor: 'right',
       loanPosterOutput: true,
@@ -91,6 +100,7 @@ describe('media overlay-logo inputs', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(String(providerRequestBody))).not.toHaveProperty('image');
     expect(result.name).toBe('poster.png');
     const output = await readFile(path.join(projectDir, result.name));
     expect(await sharp(output).metadata()).toMatchObject({
@@ -112,6 +122,9 @@ describe('media overlay-logo inputs', () => {
     expect(data[rightLogoOffset + 1]).toBeGreaterThan(245);
     expect(data[oldLeftLogoOffset]).toBe(220);
     expect(data[oldLeftLogoOffset + 1]).toBe(72);
+
+    const zOverlayOffset = (300 * info.width + 400) * info.channels;
+    expect(data[zOverlayOffset]).not.toBe(220);
 
     await expect(generateMedia({
       projectRoot,

@@ -8463,6 +8463,7 @@ export async function startServer({
         language: typeof req.body?.language === 'string' ? req.body.language : undefined,
         compositionDir: req.body?.compositionDir,
         image: req.body?.image,
+        overlayZ: req.body?.overlayZ,
         overlayLogo: req.body?.overlayLogo,
         overlayLogoAnchor: req.body?.overlayLogoAnchor,
         onProgress: (line) => appendTaskProgress(db, task, line),

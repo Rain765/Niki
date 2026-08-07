@@ -420,7 +420,7 @@ export async function startDirectLoanPosterProject(
             model: IMAGE_MODEL,
             quality: 'low',
             aspect: options.aspectRatio,
-            ...(referencePath ? { image: referencePath } : {}),
+            ...(referencePath ? { overlayZ: referencePath } : {}),
             ...(logoPath
               ? {
                 overlayLogo: logoPath,

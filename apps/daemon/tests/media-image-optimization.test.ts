@@ -3,6 +3,7 @@ import sharp from 'sharp';
 
 import {
   finalizeGeneratedPng,
+  overlayZamloanZReference,
   overlayZamloanLogo,
   optimizeLoanPosterPng,
   optimizeLosslessPng,
@@ -98,6 +99,60 @@ describe('generated image optimization', () => {
 
     expect(data[centerOffset]).toBeLessThan(205);
     expect(data[centerOffset + 1]).toBeLessThan(68);
+  });
+
+  it('fades the unified logo backdrop continuously from its center to its edges', async () => {
+    const poster = await sharp({
+      create: {
+        width: 1_000,
+        height: 500,
+        channels: 4,
+        background: { r: 220, g: 72, b: 30, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const sparseLogo = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+        <rect x="0" y="20" width="40" height="52" fill="white"/>
+        <rect x="280" y="20" width="40" height="52" fill="white"/>
+      </svg>
+    `);
+
+    const composited = await overlayZamloanLogo(poster, sparseLogo);
+    const { data, info } = await sharp(composited)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const redAt = (x: number) => data[(55 * info.width + x) * info.channels] ?? 0;
+
+    expect(redAt(175)).toBeLessThan(redAt(115) - 4);
+    expect(redAt(115)).toBeLessThan(redAt(35) - 4);
+  });
+
+  it('composites the supplied Z silhouette exactly instead of asking the model to redraw it', async () => {
+    const poster = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const zReference = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+        <rect width="60" height="100" fill="#d6502e"/>
+      </svg>
+    `);
+
+    const composited = await overlayZamloanZReference(poster, zReference);
+    const { data, info } = await sharp(composited)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const inside = (250 * info.width + 220) * info.channels;
+    const transparentGap = (250 * info.width + 500) * info.channels;
+
+    expect(data[inside + 1]).toBeLessThan(250);
+    expect(data[transparentGap]).toBe(255);
+    expect(data[transparentGap + 1]).toBe(255);
+    expect(data[transparentGap + 2]).toBe(255);
   });
 
   it('places a right-anchored logo in the same right-side title column', async () => {

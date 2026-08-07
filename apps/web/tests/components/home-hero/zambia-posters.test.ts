@@ -44,6 +44,8 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('--aspect 1:1');
     expect(prompt).toContain('single semi-transparent background Z');
     expect(prompt).toContain('exact silhouette geometry');
+    expect(prompt).toContain('--overlay-z');
+    expect(prompt).not.toContain('Z reference via `--image`');
     expect(prompt).toContain('exactly two poster-copy text elements');
     expect(prompt).toContain('phone-screen exception');
     expect(prompt).toContain('must never overlap the model');
@@ -155,7 +157,8 @@ describe('Zambia poster preset', () => {
       brand: 'zamloan',
     });
 
-    expect(prompt).toContain('exact silhouette geometry');
+    expect(prompt).toContain('Do not draw any letter Z');
+    expect(prompt).toContain('exact supplied Z will be composited');
     expect(prompt).toContain('exactly two poster-copy text elements');
     expect(prompt).toContain('very large bold headline');
     expect(prompt).toContain('solid green checkmark');

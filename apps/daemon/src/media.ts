@@ -163,27 +163,24 @@ export async function overlayZamloanLogo(
     throw new Error('Zamloan logo has no readable dimensions');
   }
 
-  const backdropPaddingX = Math.max(10, Math.round(logoMetadata.width * 0.045));
-  const backdropPaddingY = Math.max(7, Math.round(logoMetadata.height * 0.24));
-  const backdropBlur = Math.max(4, Math.round(logoMetadata.width * 0.016));
-  const blurPadding = Math.ceil(backdropBlur * 2.5);
-  const logoInsetX = blurPadding + backdropPaddingX;
-  const logoInsetY = blurPadding + backdropPaddingY;
+  const backdropPaddingX = Math.max(20, Math.round(logoMetadata.width * 0.15));
+  const backdropPaddingY = Math.max(16, Math.round(logoMetadata.height * 0.55));
+  const logoInsetX = backdropPaddingX;
+  const logoInsetY = backdropPaddingY;
   const layerWidth = logoMetadata.width + logoInsetX * 2;
   const layerHeight = logoMetadata.height + logoInsetY * 2;
-  const plateWidth = logoMetadata.width + backdropPaddingX * 2;
-  const plateHeight = logoMetadata.height + backdropPaddingY * 2;
-  const plateRadius = Math.max(9, Math.round(plateHeight * 0.18));
   const backdropSvg = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${layerWidth}" height="${layerHeight}">` +
-      `<rect x="${blurPadding}" y="${blurPadding}" width="${plateWidth}" height="${plateHeight}" ` +
-      `rx="${plateRadius}" fill="black" fill-opacity="0.20"/>` +
+      '<defs><radialGradient id="shadow" cx="50%" cy="50%" r="50%">' +
+      '<stop offset="0%" stop-color="black" stop-opacity="0.24"/>' +
+      '<stop offset="42%" stop-color="black" stop-opacity="0.16"/>' +
+      '<stop offset="72%" stop-color="black" stop-opacity="0.06"/>' +
+      '<stop offset="100%" stop-color="black" stop-opacity="0"/>' +
+      '</radialGradient></defs>' +
+      `<rect width="${layerWidth}" height="${layerHeight}" fill="url(#shadow)"/>` +
       '</svg>',
   );
-  const backdrop = await sharp(backdropSvg)
-    .blur(backdropBlur)
-    .png()
-    .toBuffer();
+  const backdrop = await sharp(backdropSvg).png().toBuffer();
   const logoLayer = await sharp({
     create: {
       width: layerWidth,
@@ -215,6 +212,57 @@ export async function overlayZamloanLogo(
 }
 
 /**
+ * Composite the exact supplied Zamloan Z silhouette after provider rendering.
+ * Image models are instructed not to draw a Z themselves, which prevents the
+ * branded outline from drifting between generations.
+ */
+export async function overlayZamloanZReference(
+  input: Buffer,
+  zReference: Buffer,
+): Promise<Buffer> {
+  const image = sharp(input);
+  const metadata = await image.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('generated poster has no readable dimensions');
+  }
+
+  const isWidescreen = metadata.width / metadata.height >= 1.5;
+  const maxWidth = Math.round(metadata.width * (isWidescreen ? 0.62 : 0.82));
+  const maxHeight = Math.round(metadata.height * (isWidescreen ? 0.90 : 0.74));
+  const resized = await sharp(zReference)
+    .ensureAlpha()
+    .resize({
+      width: maxWidth,
+      height: maxHeight,
+      fit: 'inside',
+      withoutEnlargement: false,
+    })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  if (!resized.info.width || !resized.info.height || resized.info.channels !== 4) {
+    throw new Error('Zamloan Z reference has no readable RGBA dimensions');
+  }
+  for (let offset = 3; offset < resized.data.length; offset += 4) {
+    resized.data[offset] = Math.round((resized.data[offset] ?? 0) * 0.14);
+  }
+  const zLayer = await sharp(resized.data, {
+    raw: {
+      width: resized.info.width,
+      height: resized.info.height,
+      channels: 4,
+    },
+  }).png().toBuffer();
+  const left = Math.max(0, Math.round((metadata.width - resized.info.width) / 2));
+  const top = Math.max(0, Math.round((metadata.height - resized.info.height) / 2));
+
+  return image
+    .composite([{ input: zLayer, left, top }])
+    .png()
+    .toBuffer();
+}
+
+/**
  * Finalize generated PNG pixels before persistence. Lossless optimization runs
  * before the brand overlay so the logo is rasterized exactly once at its final
  * poster size.
@@ -223,6 +271,7 @@ export async function finalizeGeneratedPng(
   input: Buffer,
   options: {
     loanPosterOutput: boolean;
+    overlayZ?: Buffer;
     overlayLogo?: Buffer;
     overlayLogoAnchor?: 'left' | 'right';
   },
@@ -232,6 +281,9 @@ export async function finalizeGeneratedPng(
       ? await optimizeLoanPosterPng(input)
       : await optimizeLosslessPng(input)
   ).bytes;
+  if (options.overlayZ) {
+    bytes = await overlayZamloanZReference(bytes, options.overlayZ);
+  }
   if (options.overlayLogo) {
     bytes = await overlayZamloanLogo(
       bytes,
@@ -350,7 +402,7 @@ async function resolveProjectImage(
   rel: unknown,
   projectDir: string,
   options: {
-    argumentName?: '--image' | '--overlay-logo';
+    argumentName?: '--image' | '--overlay-z' | '--overlay-logo';
     allowSvg?: boolean;
   } = {},
 ): Promise<ImageRef | null> {
@@ -468,7 +520,7 @@ export async function generateMedia(args: {
   quality?: ImageQuality;
   loanPosterOutput?: boolean;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
-  compositionDir?: string; image?: string; overlayLogo?: string;
+  compositionDir?: string; image?: string; overlayZ?: string; overlayLogo?: string;
   overlayLogoAnchor?: 'left' | 'right';
   onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
@@ -492,6 +544,7 @@ export async function generateMedia(args: {
     promptInfluence,
     compositionDir,
     image,
+    overlayZ,
     overlayLogo,
     overlayLogoAnchor,
   } = args;
@@ -575,6 +628,9 @@ export async function generateMedia(args: {
   // upstream APIs accept directly. Renderers consume `ctx.imageRef`
   // and decide how to splice the data URL into their request.
   const imageRef = await resolveProjectImage(image, dir);
+  const overlayZRef = await resolveProjectImage(overlayZ, dir, {
+    argumentName: '--overlay-z',
+  });
   const overlayLogoRef = await resolveProjectImage(overlayLogo, dir, {
     argumentName: '--overlay-logo',
     allowSvg: true,
@@ -836,7 +892,7 @@ export async function generateMedia(args: {
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
   }
-  if (surface === 'image' && overlayLogoRef) {
+  if (surface === 'image' && (overlayZRef || overlayLogoRef)) {
     const dot = finalOut.lastIndexOf('.');
     const stem = dot > 0 ? finalOut.slice(0, dot) : finalOut;
     finalOut = `${stem}.png`;
@@ -844,6 +900,9 @@ export async function generateMedia(args: {
   if (surface === 'image' && /\.png$/i.test(finalOut)) {
     bytes = await finalizeGeneratedPng(bytes, {
       loanPosterOutput: Boolean(loanPosterOutput),
+      ...(overlayZRef
+        ? { overlayZ: await readFile(overlayZRef.abs) }
+        : {}),
       ...(overlayLogoRef
         ? { overlayLogo: await readFile(overlayLogoRef.abs) }
         : {}),
