@@ -190,8 +190,17 @@ button {
   font-size: 13px;
 }
 
+.niki-auth__password-field {
+  display: grid;
+  gap: 7px;
+}
+
+.niki-auth__password-control {
+  position: relative;
+}
+
 .niki-auth__password-form input {
-  padding: 0 14px;
+  padding: 0 52px 0 14px;
   border: 1px solid var(--poster-border);
   outline: none;
   background: var(--poster-fill-0);
@@ -204,17 +213,66 @@ button {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--poster-accent) 16%, transparent);
 }
 
+.niki-auth .niki-auth__password-visibility {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 42px;
+  min-height: 42px;
+  padding: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--poster-text-placeholder);
+  transform: translateY(-50%);
+}
+
+.niki-auth .niki-auth__password-visibility:hover:not(:disabled) {
+  background: var(--poster-control-hover);
+  color: var(--poster-text-secondary);
+}
+
+.niki-auth .niki-auth__password-visibility:active:not(:disabled) {
+  background: var(--poster-control-pressed);
+  color: var(--poster-text-secondary);
+  transform: translateY(-50%) scale(0.97);
+  transition-duration: 80ms;
+}
+
+.niki-auth .niki-auth__password-visibility:focus-visible {
+  box-shadow: 0 0 0 2px var(--poster-line-active);
+}
+
+.niki-auth .niki-auth__password-visibility:disabled {
+  background: transparent;
+  color: var(--poster-text-disabled);
+  opacity: 1;
+}
+
 .niki-auth .niki-auth__text-button {
   min-height: 42px;
   margin-top: 8px;
   background: transparent;
-  color: var(--poster-muted);
+  color: var(--poster-text-secondary);
   font-size: 14px;
+}
+
+.niki-auth .niki-auth__text-button:hover:not(:disabled) {
+  background: var(--poster-control-hover);
+  color: var(--poster-text-secondary);
+}
+
+.niki-auth .niki-auth__text-button:active:not(:disabled) {
+  background: var(--poster-control-pressed);
+  color: var(--poster-text-secondary);
+}
+
+.niki-auth .niki-auth__text-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--poster-line-active);
 }
 
 .niki-auth .niki-auth__text-button:disabled {
   background: transparent;
-  color: var(--poster-disabled);
+  color: var(--poster-text-disabled);
   opacity: 1;
 }
 

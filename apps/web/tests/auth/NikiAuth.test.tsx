@@ -155,6 +155,56 @@ describe('NikiAuthGate', () => {
     expect(screen.getByRole('button', { name: '账号密码登录' })).toHaveProperty('disabled', true);
   });
 
+  it('toggles password visibility and resets it when leaving password login', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        provider: 'feishu',
+        ready: true,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401 },
+      )));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '账号密码登录' }));
+
+    const passwordInput = screen.getByLabelText('密码') as HTMLInputElement;
+    fireEvent.change(passwordInput, { target: { value: 'secret-value' } });
+
+    const showPassword = screen.getByRole('button', { name: '显示密码' });
+    expect(passwordInput.type).toBe('password');
+    expect(showPassword.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(showPassword);
+
+    expect(passwordInput.type).toBe('text');
+    expect(passwordInput.value).toBe('secret-value');
+    const hidePassword = screen.getByRole('button', { name: '隐藏密码' });
+    expect(hidePassword.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(hidePassword);
+
+    expect(passwordInput.type).toBe('password');
+    expect(passwordInput.value).toBe('secret-value');
+
+    fireEvent.click(screen.getByRole('button', { name: '显示密码' }));
+    expect(passwordInput.type).toBe('text');
+
+    fireEvent.click(screen.getByRole('button', { name: '返回飞书登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '账号密码登录' }));
+
+    expect((screen.getByLabelText('密码') as HTMLInputElement).type).toBe('password');
+    expect(screen.getByRole('button', { name: '显示密码' }).getAttribute('aria-pressed'))
+      .toBe('false');
+  });
+
   it('renders the authenticated Feishu identity for the workspace', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({

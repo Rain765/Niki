@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useState,
   type ReactNode,
@@ -14,6 +15,7 @@ import type {
   NikiAuthMeResponse,
   NikiAuthUser,
 } from '@open-design/contracts';
+import { Icon } from '../components/Icon';
 
 interface NikiAuthContextValue {
   enabled: boolean;
@@ -188,9 +190,11 @@ function NikiAuthScreen({
   const [passwordMode, setPasswordMode] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feishuSubmitting, setFeishuSubmitting] = useState(false);
   const [passwordError, setPasswordError] = useState('');
+  const passwordInputId = useId();
   const authError = typeof window === 'undefined'
     ? ''
     : new URLSearchParams(window.location.search).get('authError') ?? '';
@@ -226,6 +230,7 @@ function NikiAuthScreen({
       }
       clearAuthErrorFromLocation();
       setPassword('');
+      setPasswordVisible(false);
       await onRetry();
     } catch (error) {
       setPasswordError(error instanceof Error ? error.message : '登录失败，请重试');
@@ -288,16 +293,29 @@ function NikiAuthScreen({
                     disabled={submitting}
                   />
                 </label>
-                <label>
-                  <span>密码</span>
-                  <input
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    disabled={submitting}
-                  />
-                </label>
+                <div className="niki-auth__password-field">
+                  <label htmlFor={passwordInputId}>密码</label>
+                  <div className="niki-auth__password-control">
+                    <input
+                      id={passwordInputId}
+                      type={passwordVisible ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      disabled={submitting}
+                    />
+                    <button
+                      type="button"
+                      className="niki-auth__password-visibility"
+                      disabled={submitting}
+                      aria-label={passwordVisible ? '隐藏密码' : '显示密码'}
+                      aria-pressed={passwordVisible}
+                      onClick={() => setPasswordVisible((visible) => !visible)}
+                    >
+                      <Icon name={passwordVisible ? 'eye' : 'eye-off'} size={18} />
+                    </button>
+                  </div>
+                </div>
                 {passwordError ? (
                   <div className="niki-auth__error">{passwordError}</div>
                 ) : null}
@@ -310,6 +328,7 @@ function NikiAuthScreen({
                   onClick={() => {
                     clearAuthErrorFromLocation();
                     setPasswordMode(false);
+                    setPasswordVisible(false);
                     setPasswordError('');
                   }}
                   disabled={submitting}
@@ -340,6 +359,7 @@ function NikiAuthScreen({
                   className="niki-auth__text-button"
                   onClick={() => {
                     clearAuthErrorFromLocation();
+                    setPasswordVisible(false);
                     setPasswordMode(true);
                   }}
                   disabled={feishuSubmitting}
