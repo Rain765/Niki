@@ -137,6 +137,7 @@ export async function optimizeLoanPosterPng(
 export async function overlayZamloanLogo(
   input: Buffer,
   logo: Buffer,
+  options: { anchor?: 'left' | 'right' } = {},
 ): Promise<Buffer> {
   const image = sharp(input);
   const metadata = await image.metadata();
@@ -145,8 +146,8 @@ export async function overlayZamloanLogo(
   }
 
   const logoWidth = Math.min(
-    360,
-    Math.max(160, Math.round(metadata.width * 0.22)),
+    400,
+    Math.max(180, Math.round(metadata.width * 0.24)),
   );
   const logoSourceMetadata = await sharp(logo).metadata();
   const logoImage = logoSourceMetadata.format === 'svg'
@@ -162,30 +163,53 @@ export async function overlayZamloanLogo(
     throw new Error('Zamloan logo has no readable dimensions');
   }
 
-  const shadowPadding = Math.max(5, Math.round(logoMetadata.width * 0.025));
-  const shadow = await sharp(resizedLogo)
-    .modulate({ brightness: 0 })
-    .blur(Math.max(2, Math.round(logoMetadata.width * 0.012)))
+  const backdropPaddingX = Math.max(10, Math.round(logoMetadata.width * 0.045));
+  const backdropPaddingY = Math.max(7, Math.round(logoMetadata.height * 0.24));
+  const backdropBlur = Math.max(4, Math.round(logoMetadata.width * 0.016));
+  const blurPadding = Math.ceil(backdropBlur * 2.5);
+  const logoInsetX = blurPadding + backdropPaddingX;
+  const logoInsetY = blurPadding + backdropPaddingY;
+  const layerWidth = logoMetadata.width + logoInsetX * 2;
+  const layerHeight = logoMetadata.height + logoInsetY * 2;
+  const plateWidth = logoMetadata.width + backdropPaddingX * 2;
+  const plateHeight = logoMetadata.height + backdropPaddingY * 2;
+  const plateRadius = Math.max(9, Math.round(plateHeight * 0.18));
+  const backdropSvg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${layerWidth}" height="${layerHeight}">` +
+      `<rect x="${blurPadding}" y="${blurPadding}" width="${plateWidth}" height="${plateHeight}" ` +
+      `rx="${plateRadius}" fill="black" fill-opacity="0.20"/>` +
+      '</svg>',
+  );
+  const backdrop = await sharp(backdropSvg)
+    .blur(backdropBlur)
     .png()
     .toBuffer();
   const logoLayer = await sharp({
     create: {
-      width: logoMetadata.width + shadowPadding * 2,
-      height: logoMetadata.height + shadowPadding * 2,
+      width: layerWidth,
+      height: layerHeight,
       channels: 4,
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
     .composite([
-      { input: shadow, left: shadowPadding, top: shadowPadding },
-      { input: resizedLogo, left: shadowPadding, top: shadowPadding },
+      { input: backdrop, left: 0, top: 0 },
+      { input: resizedLogo, left: logoInsetX, top: logoInsetY },
     ])
     .png()
     .toBuffer();
 
-  const margin = Math.max(24, Math.round(metadata.width * 0.04));
+  const logoLeft = Math.round(
+    metadata.width * (options.anchor === 'right' ? 0.53 : 0.055),
+  );
+  const logoTop = Math.max(24, Math.round(metadata.height * 0.055));
+  const layerLeft = Math.max(
+    0,
+    Math.min(metadata.width - layerWidth, logoLeft - logoInsetX),
+  );
+  const layerTop = Math.max(0, logoTop - logoInsetY);
   return image
-    .composite([{ input: logoLayer, left: margin, top: margin }])
+    .composite([{ input: logoLayer, left: layerLeft, top: layerTop }])
     .png()
     .toBuffer();
 }
@@ -197,7 +221,11 @@ export async function overlayZamloanLogo(
  */
 export async function finalizeGeneratedPng(
   input: Buffer,
-  options: { loanPosterOutput: boolean; overlayLogo?: Buffer },
+  options: {
+    loanPosterOutput: boolean;
+    overlayLogo?: Buffer;
+    overlayLogoAnchor?: 'left' | 'right';
+  },
 ): Promise<Buffer> {
   let bytes = (
     options.loanPosterOutput
@@ -205,7 +233,11 @@ export async function finalizeGeneratedPng(
       : await optimizeLosslessPng(input)
   ).bytes;
   if (options.overlayLogo) {
-    bytes = await overlayZamloanLogo(bytes, options.overlayLogo);
+    bytes = await overlayZamloanLogo(
+      bytes,
+      options.overlayLogo,
+      options.overlayLogoAnchor ? { anchor: options.overlayLogoAnchor } : {},
+    );
   }
   return bytes;
 }
@@ -437,6 +469,7 @@ export async function generateMedia(args: {
   loanPosterOutput?: boolean;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
   compositionDir?: string; image?: string; overlayLogo?: string;
+  overlayLogoAnchor?: 'left' | 'right';
   onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
@@ -460,6 +493,7 @@ export async function generateMedia(args: {
     compositionDir,
     image,
     overlayLogo,
+    overlayLogoAnchor,
   } = args;
 
   if (!projectRoot) throw new Error('projectRoot required');
@@ -545,6 +579,9 @@ export async function generateMedia(args: {
     argumentName: '--overlay-logo',
     allowSvg: true,
   });
+  if (overlayLogoAnchor && !['left', 'right'].includes(overlayLogoAnchor)) {
+    throw new Error('unsupported overlay logo anchor. Allowed: left | right.');
+  }
 
   // Resolve any user-configured model alias BEFORE we hand the id to a
   // dispatcher (issue #1277). Catalog lookup + surface validation above
@@ -810,6 +847,7 @@ export async function generateMedia(args: {
       ...(overlayLogoRef
         ? { overlayLogo: await readFile(overlayLogoRef.abs) }
         : {}),
+      ...(overlayLogoAnchor ? { overlayLogoAnchor } : {}),
     });
   }
   const finalTarget = path.join(dir, finalOut);

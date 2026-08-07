@@ -50,7 +50,7 @@ describe('generated image optimization', () => {
     expect(optimized.pixelScale).toBe(1);
   });
 
-  it('composites the Zamloan logo with a shadow without changing poster dimensions', async () => {
+  it('composites the Zamloan logo with a unified backdrop without changing poster dimensions', async () => {
     const poster = await sharp({
       create: {
         width: 800,
@@ -72,6 +72,60 @@ describe('generated image optimization', () => {
     expect(metadata.width).toBe(800);
     expect(metadata.height).toBe(600);
     expect(pixels.equals(await sharp(poster).raw().toBuffer())).toBe(false);
+  });
+
+  it('uses one continuous backdrop instead of separate shadows around each glyph', async () => {
+    const poster = await sharp({
+      create: {
+        width: 1_000,
+        height: 500,
+        channels: 4,
+        background: { r: 220, g: 72, b: 30, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const sparseLogo = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+        <rect x="0" y="20" width="40" height="52" fill="white"/>
+        <rect x="280" y="20" width="40" height="52" fill="white"/>
+      </svg>
+    `);
+
+    const composited = await overlayZamloanLogo(poster, sparseLogo);
+    const { data, info } = await sharp(composited)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const centerOffset = (55 * info.width + 175) * info.channels;
+
+    expect(data[centerOffset]).toBeLessThan(205);
+    expect(data[centerOffset + 1]).toBeLessThan(68);
+  });
+
+  it('places a right-anchored logo in the same right-side title column', async () => {
+    const poster = await sharp({
+      create: {
+        width: 1_000,
+        height: 500,
+        channels: 4,
+        background: { r: 220, g: 72, b: 30, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const logo = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+        <rect width="320" height="92" fill="white"/>
+      </svg>
+    `);
+
+    const composited = await overlayZamloanLogo(poster, logo, { anchor: 'right' });
+    const { data, info } = await sharp(composited)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const rightLogoOffset = (50 * info.width + 560) * info.channels;
+    const oldLeftLogoOffset = (50 * info.width + 80) * info.channels;
+
+    expect(data[rightLogoOffset]).toBeGreaterThan(245);
+    expect(data[rightLogoOffset + 1]).toBeGreaterThan(245);
+    expect(data[oldLeftLogoOffset]).toBe(220);
+    expect(data[oldLeftLogoOffset + 1]).toBe(72);
   });
 
   it('composites the logo without reducing the provider resolution', async () => {

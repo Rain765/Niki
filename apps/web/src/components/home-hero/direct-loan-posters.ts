@@ -1,7 +1,7 @@
 import {
   autoPosterBrandLabel,
   autoPosterUsesZReference,
-  buildLoanPosterScenePrompts,
+  buildLoanPosterScenePlans,
   LOAN_POSTER_SKILL_ID,
   loadZamloanLogo,
   loadZambiaPosterReference,
@@ -30,10 +30,16 @@ interface UploadedFile {
   path: string;
 }
 
-type DirectLoanPosterStage = 'create-project' | 'upload-reference' | 'start-generation';
+type DirectLoanPosterStage =
+  | 'create-project'
+  | 'upload-z-reference'
+  | 'upload-logo'
+  | 'start-generation';
 
 const NEW_CHAT_SESSION = '__new__';
 const LAST_PROJECT_STORAGE_KEY = 'niki:direct-loan-poster:last-project';
+const UPLOAD_RETRY_DELAYS_MS = [250, 750] as const;
+const RETRYABLE_UPLOAD_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
 function lastProjectStorageKey(sessionScope?: string): string {
   const scope = sessionScope?.trim();
@@ -134,13 +140,15 @@ export class DirectLoanPosterRequestError extends Error {
     code?: string | null;
     detail?: string | null;
   }) {
-    const stageLabel = {
-      'create-project': '创建海报项目',
-      'upload-reference': '上传品牌参考图',
-      'start-generation': '启动图片生成',
+    const failureLabel = {
+      'create-project': '创建海报项目失败',
+      'upload-z-reference': '上传 Z 参考图失败',
+      'upload-logo': '上传 Zamloan Logo 失败',
+      'start-generation': '启动图片生成失败',
     }[options.stage];
     const detail = options.detail?.trim();
-    super(`${stageLabel}失败（HTTP ${options.status}）${detail ? `：${detail}` : '。'}`);
+    const statusLabel = options.status > 0 ? `（HTTP ${options.status}）` : '';
+    super(`${failureLabel}${statusLabel}${detail ? `：${detail}` : '。'}`);
     this.name = 'DirectLoanPosterRequestError';
     this.stage = options.stage;
     this.status = options.status;
@@ -333,29 +341,15 @@ export async function startDirectLoanPosterProject(
     let logoPath: string | undefined;
     if (autoPosterUsesZReference(options.brand)) {
       const referenceFile = await loadZambiaPosterReference();
-      const form = new FormData();
-      form.append('files', referenceFile);
-      const uploadResponse = await fetch(
-        `/api/projects/${encodeURIComponent(project.id)}/upload?visibility=internal`,
-        { method: 'POST', credentials: 'include', body: form },
+      referencePath = await uploadPosterAsset(
+        project.id,
+        referenceFile,
+        'upload-z-reference',
       );
-      await assertApiResponse(uploadResponse, 'upload-reference');
-      const uploaded = (await uploadResponse.json()) as { files?: UploadedFile[] };
-      referencePath = uploaded.files?.[0]?.path;
-      if (!referencePath) throw new Error('Brand reference path is missing.');
       logStage('reference-uploaded', project.id);
 
       const logoFile = await loadZamloanLogo();
-      const logoForm = new FormData();
-      logoForm.append('files', logoFile);
-      const logoResponse = await fetch(
-        `/api/projects/${encodeURIComponent(project.id)}/upload?visibility=internal`,
-        { method: 'POST', credentials: 'include', body: logoForm },
-      );
-      await assertApiResponse(logoResponse, 'upload-reference');
-      const uploadedLogo = (await logoResponse.json()) as { files?: UploadedFile[] };
-      logoPath = uploadedLogo.files?.[0]?.path;
-      if (!logoPath) throw new Error('Zamloan logo path is missing.');
+      logoPath = await uploadPosterAsset(project.id, logoFile, 'upload-logo');
       logStage('logo-uploaded', project.id);
     }
 
@@ -370,12 +364,12 @@ export async function startDirectLoanPosterProject(
       highestExistingOutputNumber,
       previousDirect?.expectedOutputs ?? 0,
     ) + 1;
-    const prompts = buildLoanPosterScenePrompts({
+    const scenePlans = buildLoanPosterScenePlans({
       ...options,
       variationSeed: project.id,
       variationOffset: nextOutputNumber - 1,
     });
-    batchOutputNames = prompts.map((_, index) => (
+    batchOutputNames = scenePlans.map((_, index) => (
       `${datedOutputPrefix}-${String(nextOutputNumber + index).padStart(3, '0')}.png`
     ));
     const queuedAt = Date.now();
@@ -415,7 +409,7 @@ export async function startDirectLoanPosterProject(
     committedProject = committed;
 
     const responses = await Promise.all(
-      prompts.map((prompt, index) => fetch(
+      scenePlans.map((scenePlan, index) => fetch(
         `/api/projects/${encodeURIComponent(project.id)}/media/generate`,
         {
           method: 'POST',
@@ -427,9 +421,16 @@ export async function startDirectLoanPosterProject(
             quality: 'low',
             aspect: options.aspectRatio,
             ...(referencePath ? { image: referencePath } : {}),
-            ...(logoPath ? { overlayLogo: logoPath } : {}),
+            ...(logoPath
+              ? {
+                overlayLogo: logoPath,
+                ...(options.aspectRatio === '16:9'
+                  ? { overlayLogoAnchor: scenePlan.logoAnchor }
+                  : {}),
+              }
+              : {}),
             output: batchOutputNames[index],
-            prompt,
+            prompt: scenePlan.prompt,
           }),
         },
       )),
@@ -480,6 +481,74 @@ export async function startDirectLoanPosterProject(
   onProjectCreated?.(committedProject);
 
   return { projectId: project.id };
+}
+
+async function uploadPosterAsset(
+  projectId: string,
+  file: File,
+  stage: 'upload-z-reference' | 'upload-logo',
+): Promise<string> {
+  const url = `/api/projects/${encodeURIComponent(projectId)}/upload?visibility=internal`;
+
+  for (let attempt = 0; attempt <= UPLOAD_RETRY_DELAYS_MS.length; attempt += 1) {
+    let response: Response;
+    try {
+      const form = new FormData();
+      form.append('files', file);
+      response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        body: form,
+      });
+    } catch (reason) {
+      if (attempt >= UPLOAD_RETRY_DELAYS_MS.length) {
+        throw new DirectLoanPosterRequestError({
+          stage,
+          status: 0,
+          detail: reason instanceof Error ? reason.message : '网络连接中断。',
+        });
+      }
+      console.warn(
+        `[direct-loan-poster] stage=${stage} retry=${attempt + 1}`,
+        reason,
+      );
+      await waitForUploadRetry(UPLOAD_RETRY_DELAYS_MS[attempt]!);
+      continue;
+    }
+
+    if (!response.ok) {
+      const canRetry = RETRYABLE_UPLOAD_STATUSES.has(response.status)
+        && attempt < UPLOAD_RETRY_DELAYS_MS.length;
+      if (!canRetry) await assertApiResponse(response, stage);
+      console.warn(
+        `[direct-loan-poster] stage=${stage} retry=${attempt + 1} status=${response.status}`,
+      );
+      await waitForUploadRetry(UPLOAD_RETRY_DELAYS_MS[attempt]!);
+      continue;
+    }
+
+    const uploaded = (await response.json()) as { files?: UploadedFile[] };
+    const path = uploaded.files?.[0]?.path;
+    if (!path) {
+      throw new DirectLoanPosterRequestError({
+        stage,
+        status: 502,
+        code: 'missing_upload_path',
+        detail: '上传响应缺少文件路径。',
+      });
+    }
+    return path;
+  }
+
+  throw new DirectLoanPosterRequestError({
+    stage,
+    status: 0,
+    detail: '上传重试已用尽。',
+  });
+}
+
+function waitForUploadRetry(delayMs: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, delayMs));
 }
 
 async function assertApiResponse(

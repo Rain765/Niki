@@ -85,6 +85,7 @@ describe('media overlay-logo inputs', () => {
       aspect: '16:9',
       image: referenceName,
       overlayLogo: logoName,
+      overlayLogoAnchor: 'right',
       loanPosterOutput: true,
       output: 'poster.png',
     });
@@ -102,6 +103,15 @@ describe('media overlay-logo inputs', () => {
         await sharp(generatedPoster).raw().toBuffer(),
       ),
     ).toBe(false);
+    const { data, info } = await sharp(output)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const rightLogoOffset = (50 * info.width + 450) * info.channels;
+    const oldLeftLogoOffset = (50 * info.width + 60) * info.channels;
+    expect(data[rightLogoOffset]).toBeGreaterThan(245);
+    expect(data[rightLogoOffset + 1]).toBeGreaterThan(245);
+    expect(data[oldLeftLogoOffset]).toBe(220);
+    expect(data[oldLeftLogoOffset + 1]).toBe(72);
 
     await expect(generateMedia({
       projectRoot,
@@ -113,6 +123,19 @@ describe('media overlay-logo inputs', () => {
       image: logoName,
       output: 'invalid.png',
     })).rejects.toThrow('--image has unsupported extension ".svg"');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'poster-project',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'An invalid overlay anchor',
+      overlayLogo: logoName,
+      overlayLogoAnchor: 'center' as 'left',
+      output: 'invalid-anchor.png',
+    })).rejects.toThrow('unsupported overlay logo anchor');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

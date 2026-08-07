@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   autoPosterUsesZReference,
   buildLoanPosterPrompt,
+  buildLoanPosterScenePlans,
   buildLoanPosterScenePrompts,
   buildZambiaPosterPrompt,
   isLoanPosterGenerationPrompt,
@@ -130,6 +131,21 @@ describe('Zambia poster preset', () => {
     expect(prompts[1]).toContain('Support Your Family Today');
     expect(prompts.every((prompt) => prompt.includes('Application Successful'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('Negative prompt:'))).toBe(true);
+  });
+
+  it('pairs every 16:9 Zamloan scene with a deterministic title-column logo anchor', () => {
+    const plans = buildLoanPosterScenePlans({
+      count: 2,
+      aspectRatio: '16:9',
+      brand: 'zamloan',
+      variationOffset: 0,
+    });
+
+    expect(plans.map((plan) => plan.logoAnchor)).toEqual(['left', 'right']);
+    expect(plans[0]?.prompt).toContain('left text column');
+    expect(plans[1]?.prompt).toContain('right text column');
+    expect(plans.every((plan) => plan.prompt.includes('logo-safe row'))).toBe(true);
+    expect(plans.every((plan) => plan.prompt.includes('clear vertical gap'))).toBe(true);
   });
 
   it('keeps Zamloan copy minimal while retaining the phone success UI', () => {

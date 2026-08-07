@@ -61,6 +61,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'composition-dir',
   'image',
   'overlay-logo',
+  'overlay-logo-anchor',
   'daemon-url',
   'language',
 ]);
@@ -785,6 +786,7 @@ async function runMediaGenerate(rawArgs) {
     compositionDir: flags['composition-dir'],
     image: flags.image,
     overlayLogo: flags['overlay-logo'],
+    overlayLogoAnchor: flags['overlay-logo-anchor'],
     language: flags.language,
   };
   if (flags.length != null) body.length = Number(flags.length);
@@ -1297,7 +1299,9 @@ Common options:
                             the file from the project, base64-encodes
                             it, and forwards it to the upstream API.
   --overlay-logo <path>     Project-relative logo to composite onto the
-                            top-left of the generated image.
+                            generated image after provider rendering.
+  --overlay-logo-anchor <left|right>
+                            Align the logo with the matching title column.
   --daemon-url <url>
 
 Output: a single line of JSON: {"file": { name, size, kind, mime, ... }}.

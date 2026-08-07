@@ -8464,6 +8464,7 @@ export async function startServer({
         compositionDir: req.body?.compositionDir,
         image: req.body?.image,
         overlayLogo: req.body?.overlayLogo,
+        overlayLogoAnchor: req.body?.overlayLogoAnchor,
         onProgress: (line) => appendTaskProgress(db, task, line),
       })
         .then((meta) => {
