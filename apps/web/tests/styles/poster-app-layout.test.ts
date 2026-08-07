@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import {
+  NIKI_POSTER_COLOR_VALUES,
+  NIKI_POSTER_COLOR_VARIABLES,
+} from '../../src/poster/color-tokens';
 
 const css = readFileSync(
   new URL('../../app/poster.css', import.meta.url),
@@ -24,13 +28,28 @@ describe('poster app image layout', () => {
     const selected = rule('.poster-app__segmented button.is-active');
 
     expect(root).toContain('color-scheme: light;');
-    expect(root).toContain('--poster-fill-0: #ffffff;');
-    expect(root).toContain('--poster-fill-1: #f7f8fa;');
-    expect(root).toContain('--poster-fill-3: #f2f3f5;');
-    expect(root).toContain('--poster-fill-4: #e5e6eb;');
-    expect(root).toContain('--poster-fill-7: #1d2129;');
-    expect(root).toContain('--poster-bg: var(--poster-fill-0);');
-    expect(root).toContain('--poster-panel-muted: var(--poster-fill-1);');
+    expect(root).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-fill-0']).toBe(
+      NIKI_POSTER_COLOR_VALUES.fill0,
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-fill-1']).toBe(
+      NIKI_POSTER_COLOR_VALUES.fill1,
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-fill-3']).toBe(
+      NIKI_POSTER_COLOR_VALUES.fill3,
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-fill-4']).toBe(
+      NIKI_POSTER_COLOR_VALUES.fill4,
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-fill-7']).toBe(
+      NIKI_POSTER_COLOR_VALUES.fill7,
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-bg']).toBe(
+      'var(--poster-fill-0)',
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-panel-muted']).toBe(
+      'var(--poster-fill-1)',
+    );
     expect(selected).toContain('background: var(--poster-text-primary);');
     expect(selected).toContain('color: var(--poster-text-inverse);');
   });
@@ -155,15 +174,22 @@ describe('poster app image layout', () => {
   });
 
   it('keeps poster history interaction lighter than filter controls', () => {
-    const root = rule(':root');
     const historyHover = rule('.poster-app__history-toggle:hover');
     const historyPressed = rule('.poster-app__history-toggle:active');
     const filterHover = rule('.poster-app__segmented button:not(.is-active):hover');
 
-    expect(root).toContain('--poster-history-hover: var(--poster-fill-2);');
-    expect(root).toContain('--poster-history-pressed: var(--poster-fill-4);');
-    expect(root).toContain('--poster-control-hover: var(--poster-fill-3);');
-    expect(root).toContain('--poster-control-pressed: var(--poster-fill-4);');
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-history-hover']).toBe(
+      'var(--poster-fill-1)',
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-history-pressed']).toBe(
+      'var(--poster-fill-4)',
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-control-hover']).toBe(
+      'var(--poster-fill-3)',
+    );
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-control-pressed']).toBe(
+      'var(--poster-fill-4)',
+    );
     expect(historyHover).toContain('background: var(--poster-history-hover);');
     expect(historyPressed).toContain('background: var(--poster-history-pressed);');
     expect(filterHover).toContain('background: var(--poster-control-hover);');
