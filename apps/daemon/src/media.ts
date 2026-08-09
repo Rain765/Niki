@@ -163,39 +163,12 @@ export async function overlayZamloanLogo(
     throw new Error('Zamloan logo has no readable dimensions');
   }
 
-  const backdropPaddingX = Math.max(20, Math.round(logoMetadata.width * 0.15));
-  const backdropPaddingY = Math.max(16, Math.round(logoMetadata.height * 0.55));
-  const logoInsetX = backdropPaddingX;
-  const logoInsetY = backdropPaddingY;
+  const dimPaddingX = Math.max(20, Math.round(logoMetadata.width * 0.15));
+  const dimPaddingY = Math.max(16, Math.round(logoMetadata.height * 0.55));
+  const logoInsetX = dimPaddingX;
+  const logoInsetY = dimPaddingY;
   const layerWidth = logoMetadata.width + logoInsetX * 2;
   const layerHeight = logoMetadata.height + logoInsetY * 2;
-  const backdropSvg = Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${layerWidth}" height="${layerHeight}">` +
-      '<defs><radialGradient id="shadow" cx="50%" cy="50%" r="50%">' +
-      '<stop offset="0%" stop-color="black" stop-opacity="0.24"/>' +
-      '<stop offset="42%" stop-color="black" stop-opacity="0.16"/>' +
-      '<stop offset="72%" stop-color="black" stop-opacity="0.06"/>' +
-      '<stop offset="100%" stop-color="black" stop-opacity="0"/>' +
-      '</radialGradient></defs>' +
-      `<rect width="${layerWidth}" height="${layerHeight}" fill="url(#shadow)"/>` +
-      '</svg>',
-  );
-  const backdrop = await sharp(backdropSvg).png().toBuffer();
-  const logoLayer = await sharp({
-    create: {
-      width: layerWidth,
-      height: layerHeight,
-      channels: 4,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    },
-  })
-    .composite([
-      { input: backdrop, left: 0, top: 0 },
-      { input: resizedLogo, left: logoInsetX, top: logoInsetY },
-    ])
-    .png()
-    .toBuffer();
-
   const logoLeft = Math.round(
     metadata.width * (options.anchor === 'right' ? 0.53 : 0.055),
   );
@@ -205,8 +178,38 @@ export async function overlayZamloanLogo(
     Math.min(metadata.width - layerWidth, logoLeft - logoInsetX),
   );
   const layerTop = Math.max(0, logoTop - logoInsetY);
+  const dimMaskSvg = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${layerWidth}" height="${layerHeight}">` +
+      '<defs><radialGradient id="dim" cx="50%" cy="50%" r="50%">' +
+      '<stop offset="0%" stop-color="white" stop-opacity="0.55"/>' +
+      '<stop offset="42%" stop-color="white" stop-opacity="0.28"/>' +
+      '<stop offset="72%" stop-color="white" stop-opacity="0.09"/>' +
+      '<stop offset="100%" stop-color="white" stop-opacity="0"/>' +
+      '</radialGradient></defs>' +
+      `<rect width="${layerWidth}" height="${layerHeight}" fill="url(#dim)"/>` +
+      '</svg>',
+  );
+  const dimmedBackground = await sharp(input)
+    .extract({
+      left: layerLeft,
+      top: layerTop,
+      width: layerWidth,
+      height: layerHeight,
+    })
+    .linear(0.82, 0)
+    .ensureAlpha()
+    .png()
+    .toBuffer();
+  const dimmedLayer = await sharp(dimmedBackground)
+    .composite([{ input: dimMaskSvg, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+
   return image
-    .composite([{ input: logoLayer, left: layerLeft, top: layerTop }])
+    .composite([
+      { input: dimmedLayer, left: layerLeft, top: layerTop },
+      { input: resizedLogo, left: logoLeft, top: logoTop },
+    ])
     .png()
     .toBuffer();
 }

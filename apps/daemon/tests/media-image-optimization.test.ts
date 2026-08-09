@@ -101,7 +101,7 @@ describe('generated image optimization', () => {
     expect(data[centerOffset + 1]).toBeLessThan(68);
   });
 
-  it('fades the unified logo backdrop continuously from its center to its edges', async () => {
+  it('mildly dims the real background beneath the logo and fades to the original edges', async () => {
     const poster = await sharp({
       create: {
         width: 1_000,
@@ -122,7 +122,10 @@ describe('generated image optimization', () => {
       .raw()
       .toBuffer({ resolveWithObject: true });
     const redAt = (x: number) => data[(55 * info.width + x) * info.channels] ?? 0;
+    const centerOffset = (55 * info.width + 175) * info.channels;
 
+    expect(data[centerOffset]).toBeGreaterThan(190);
+    expect(data[centerOffset + 1]).toBeGreaterThan(60);
     expect(redAt(175)).toBeLessThan(redAt(115) - 4);
     expect(redAt(115)).toBeLessThan(redAt(35) - 4);
   });
