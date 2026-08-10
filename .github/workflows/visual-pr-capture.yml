@@ -42,7 +42,6 @@ jobs:
 
       - name: Capture PR screenshots
         id: capture
-        continue-on-error: true
         env:
           OD_VISUAL_OUTPUT_DIR: ui/reports/visual-screenshots
         run: |
@@ -50,6 +49,7 @@ jobs:
           pnpm -C e2e exec playwright test -c playwright.visual.config.ts
 
       - name: Write capture manifest
+        if: ${{ always() }}
         run: |
           mkdir -p e2e/ui/reports/visual-report
           cat > e2e/ui/reports/visual-report/manifest.json <<'JSON'
@@ -155,9 +155,39 @@ jobs:
           echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
           echo "capture_outcome=$capture_outcome" >> "$GITHUB_OUTPUT"
 
-      - name: Build visual diff report
+      - name: Detect R2 screenshot storage
+        id: r2
+        shell: bash
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PUBLIC_ORIGIN: ${{ vars.R2_PUBLIC_ORIGIN }}
+          CLOUDFLARE_R2_RELEASES_AK: ${{ secrets.CLOUDFLARE_R2_RELEASES_AK }}
+          CLOUDFLARE_R2_RELEASES_SK: ${{ secrets.CLOUDFLARE_R2_RELEASES_SK }}
+          CLOUDFLARE_R2_RELEASES_BUCKET: ${{ secrets.CLOUDFLARE_R2_RELEASES_BUCKET }}
+          CLOUDFLARE_R2_RELEASES_PUBLIC_ORIGIN: ${{ vars.CLOUDFLARE_R2_RELEASES_PUBLIC_ORIGIN }}
+          CLOUDFLARE_R2_RELEASES_URL: ${{ secrets.CLOUDFLARE_R2_RELEASES_URL }}
+        run: |
+          bucket="${R2_BUCKET:-${CLOUDFLARE_R2_RELEASES_BUCKET:-}}"
+          public_origin="${R2_PUBLIC_ORIGIN:-${CLOUDFLARE_R2_RELEASES_PUBLIC_ORIGIN:-}}"
+          access_key_id="${R2_ACCESS_KEY_ID:-${CLOUDFLARE_R2_RELEASES_AK:-}}"
+          secret_access_key="${R2_SECRET_ACCESS_KEY:-${CLOUDFLARE_R2_RELEASES_SK:-}}"
+          endpoint="${R2_ENDPOINT:-${CLOUDFLARE_R2_RELEASES_URL:-}}"
+          if [ -n "$bucket" ] && [ -n "$public_origin" ] && [ -n "$access_key_id" ] && [ -n "$secret_access_key" ] && { [ -n "$endpoint" ] || [ -n "${R2_ACCOUNT_ID:-}" ]; }; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::R2 screenshot storage is not fully configured; skipping screenshot upload."
+          fi
+
+      - name: Build visual diff report
+        if: ${{ steps.r2.outputs.configured == 'true' }}
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
@@ -179,6 +209,7 @@ jobs:
             --manifest-out ui/reports/visual-report/report-manifest.json
 
       - name: Upsert PR comment
+        if: ${{ steps.r2.outputs.configured == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.manifest.outputs.pr_number }}
