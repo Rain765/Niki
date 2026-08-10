@@ -608,6 +608,20 @@ metadata
 6. **P2：灾备。** 增加异机/异盘备份和定期 restore drill，明确 RPO/RTO。
 7. **P2：统一可观测性。** 汇总 daemon、web、proxy、relay、release 和 backup 指标与日志。
 
+### 14.1 2026-08-10 整改结果
+
+- 已把备份 LaunchAgent 的文件描述符软上限提高到 `8192`，备份脚本同时设置相同上限；手工触发后的任务退出码为 `0`。
+- 已生成快照 `snapshot-20260810T105953Z`；SQLite `quick_check` 为 `ok`，Git bundle 验证为完整。
+- 已用独立目录、独立数据副本、独立 namespace 和端口完成恢复演练；daemon、web、项目列表接口均通过，演练结束后临时服务和数据已清理。
+- 已增加统一告警脚本，并将 backup、healthcheck、archive、deploy 的失败与恢复事件接入；告警具备状态去重、一小时冷却、本机通知和结构化日志。
+- 已把 daemon、web、磁盘、公网入口和本地媒体代理端口纳入健康检查。代理的 Google、OpenAI 和飞书出口已分别验证可达，未重启共享代理进程。
+- 飞书机器人主动消息仍缺少 `im:message` 类应用权限；权限扩大与版本发布属于外部权限变更，在管理员确认前不自动提交。当前告警仍可通过本机通知与日志留痕。
+- 已建立 `release-history.jsonl` 和 `operations-history.jsonl`，记录当前生产 commit/build、回滚点、备份与恢复演练；后续成功部署由 deploy 脚本自动追加发布记录。
+- 已确认本地 `main` 相对 `origin/main` 为 ahead 4、behind 1，且活跃生产 commit 属于另一任务线。为避免非快进合并影响项目，本次不重写、合并或删除任何分支，后续集成必须先单独处理分歧。
+- 所有被替换的主机脚本和 LaunchAgent 配置均保留带时间戳的回滚副本；整改未执行数据库迁移、未切换生产 release。期间健康守护曾恢复同一 release 的 daemon/web 进程，版本与数据目录均未变化。
+
+当前剩余项只有两类：需要管理员批准的飞书消息权限，以及需要单独评审的 Git 分支收敛。它们都不应在无确认的情况下自动处理。
+
 ## 15. 完成定义
 
 一次任务只有同时满足适用项，才能被称为“完成”：
