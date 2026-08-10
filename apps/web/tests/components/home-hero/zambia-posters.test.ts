@@ -150,6 +150,29 @@ describe('Zambia poster preset', () => {
     expect(plans.every((plan) => plan.prompt.includes('clear vertical gap'))).toBe(true);
   });
 
+  it.each(['3:4', '1:1'] as const)(
+    'reserves a deterministic left logo-safe band for %s Zamloan posters',
+    (aspectRatio) => {
+      const plans = buildLoanPosterScenePlans({
+        count: 3,
+        aspectRatio,
+        brand: 'zamloan',
+        variationOffset: 0,
+      });
+
+      expect(plans.map((plan) => plan.logoAnchor)).toEqual(['left', 'left', 'left']);
+      expect(plans.every((plan) => plan.prompt.includes(
+        'left text column beginning at 5.5% of the canvas width',
+      ))).toBe(true);
+      expect(plans.every((plan) => plan.prompt.includes(
+        'top 18% of the canvas as a dedicated logo-safe band',
+      ))).toBe(true);
+      expect(plans.every((plan) => plan.prompt.includes(
+        'headline top edge at or below 20% of the canvas height',
+      ))).toBe(true);
+    },
+  );
+
   it('keeps Zamloan copy minimal while retaining the phone success UI', () => {
     const [prompt] = buildLoanPosterScenePrompts({
       count: 1,

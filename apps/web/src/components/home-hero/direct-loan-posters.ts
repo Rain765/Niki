@@ -424,9 +424,7 @@ export async function startDirectLoanPosterProject(
             ...(logoPath
               ? {
                 overlayLogo: logoPath,
-                ...(options.aspectRatio === '16:9'
-                  ? { overlayLogoAnchor: scenePlan.logoAnchor }
-                  : {}),
+                overlayLogoAnchor: scenePlan.logoAnchor,
               }
               : {}),
             output: batchOutputNames[index],

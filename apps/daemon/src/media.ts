@@ -130,6 +130,146 @@ export async function optimizeLoanPosterPng(
   return { ...optimized, pixelScale: 1 };
 }
 
+export interface ZamloanLogoSafeZoneAnalysis {
+  intrudes: boolean;
+  score: number;
+  neutralLightRatio: number;
+  strongEdgeRatio: number;
+}
+
+/**
+ * Detect title-like or cluttered pixels in the region reserved for the
+ * deterministic Zamloan logo. This runs before the SVG wordmark is composited,
+ * so light neutral runs and strong edges indicate a broken layout contract.
+ */
+export async function analyzeZamloanLogoSafeZone(
+  input: Buffer,
+  options: { anchor?: 'left' | 'right' } = {},
+): Promise<ZamloanLogoSafeZoneAnalysis> {
+  const image = sharp(input);
+  const metadata = await image.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('generated poster has no readable dimensions');
+  }
+
+  const isWidescreen = metadata.width / metadata.height >= 1.5;
+  const top = Math.max(0, Math.round(metadata.height * 0.02));
+  const bottom = Math.min(
+    metadata.height,
+    Math.round(metadata.height * (isWidescreen ? 0.23 : 0.18)),
+  );
+  const left = Math.max(
+    0,
+    Math.round(metadata.width * (options.anchor === 'right' ? 0.50 : 0.03)),
+  );
+  const right = Math.min(
+    metadata.width,
+    Math.round(metadata.width * (options.anchor === 'right' ? 0.97 : 0.45)),
+  );
+  const { data, info } = await image
+    .extract({
+      left,
+      top,
+      width: Math.max(1, right - left),
+      height: Math.max(1, bottom - top),
+    })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const channels = info.channels;
+  const pixelCount = info.width * info.height;
+  let neutralLightPixels = 0;
+  let strongEdgePixels = 0;
+  const lumaAt = (x: number, y: number): number => {
+    const offset = (y * info.width + x) * channels;
+    const red = data[offset] ?? 0;
+    const green = data[offset + 1] ?? red;
+    const blue = data[offset + 2] ?? green;
+    return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+  };
+
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const offset = (y * info.width + x) * channels;
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? red;
+      const blue = data[offset + 2] ?? green;
+      const minimum = Math.min(red, green, blue);
+      const maximum = Math.max(red, green, blue);
+      if (minimum >= 205 && maximum - minimum <= 48) {
+        neutralLightPixels += 1;
+      }
+
+      const sampleX = Math.min(info.width - 1, x + 3);
+      const sampleY = Math.min(info.height - 1, y + 3);
+      const luma = lumaAt(x, y);
+      if (
+        Math.abs(luma - lumaAt(sampleX, y)) >= 58
+        || Math.abs(luma - lumaAt(x, sampleY)) >= 58
+      ) {
+        strongEdgePixels += 1;
+      }
+    }
+  }
+
+  const neutralLightRatio = neutralLightPixels / pixelCount;
+  const strongEdgeRatio = strongEdgePixels / pixelCount;
+  const score = neutralLightRatio * 2 + strongEdgeRatio;
+  return {
+    intrudes: neutralLightRatio >= 0.018 || strongEdgeRatio >= 0.065,
+    score,
+    neutralLightRatio,
+    strongEdgeRatio,
+  };
+}
+
+function logoSafeZoneRetryInstruction(anchor: 'left' | 'right'): string {
+  const horizontalRange = anchor === 'right' ? '50% to 97%' : '3% to 45%';
+  return `CRITICAL LOGO SAFE-ZONE RETRY: the previous render placed text or visual detail inside the reserved logo band. Keep the rectangle from ${horizontalRange} of the canvas width and from 2% to 23% of the canvas height completely free of text, people, props, windows, shelves, and high-contrast detail. Use only smooth background color there. Put the headline below 25% of the canvas height and align it with the ${anchor} logo column.`;
+}
+
+export async function renderImageWithLogoSafeZoneRetry<T extends { bytes: Buffer }>(
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+  options: {
+    enabled: boolean;
+    anchor?: 'left' | 'right';
+    maxRetries?: number;
+  },
+): Promise<{
+  result: T;
+  attempts: number;
+  safeZone: ZamloanLogoSafeZoneAnalysis;
+}> {
+  const anchor = options.anchor ?? 'left';
+  const maxRetries = Math.max(0, options.maxRetries ?? 1);
+  let bestResult = await render(prompt);
+  let bestSafeZone = await analyzeZamloanLogoSafeZone(bestResult.bytes, { anchor });
+  let attempts = 1;
+
+  if (!options.enabled || !bestSafeZone.intrudes) {
+    return { result: bestResult, attempts, safeZone: bestSafeZone };
+  }
+
+  for (let retry = 0; retry < maxRetries; retry += 1) {
+    const retryResult = await render(
+      `${prompt}\n\n${logoSafeZoneRetryInstruction(anchor)}`,
+    );
+    const retrySafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, { anchor });
+    attempts += 1;
+    if (retrySafeZone.score < bestSafeZone.score) {
+      bestResult = retryResult;
+      bestSafeZone = retrySafeZone;
+    }
+    if (!retrySafeZone.intrudes) {
+      return { result: retryResult, attempts, safeZone: retrySafeZone };
+    }
+  }
+
+  return { result: bestResult, attempts, safeZone: bestSafeZone };
+}
+
 /**
  * Add the exact Zamloan wordmark after image generation so the logo remains
  * legible and consistent instead of relying on model-rendered typography.
@@ -163,8 +303,8 @@ export async function overlayZamloanLogo(
     throw new Error('Zamloan logo has no readable dimensions');
   }
 
-  const dimPaddingX = Math.max(20, Math.round(logoMetadata.width * 0.15));
-  const dimPaddingY = Math.max(16, Math.round(logoMetadata.height * 0.55));
+  const dimPaddingX = Math.max(28, Math.round(logoMetadata.width * 0.22));
+  const dimPaddingY = Math.max(22, Math.round(logoMetadata.height * 0.75));
   const logoInsetX = dimPaddingX;
   const logoInsetY = dimPaddingY;
   const layerWidth = logoMetadata.width + logoInsetX * 2;
@@ -181,9 +321,9 @@ export async function overlayZamloanLogo(
   const dimMaskSvg = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${layerWidth}" height="${layerHeight}">` +
       '<defs><radialGradient id="dim" cx="50%" cy="50%" r="50%">' +
-      '<stop offset="0%" stop-color="white" stop-opacity="0.55"/>' +
-      '<stop offset="42%" stop-color="white" stop-opacity="0.28"/>' +
-      '<stop offset="72%" stop-color="white" stop-opacity="0.09"/>' +
+      '<stop offset="0%" stop-color="white" stop-opacity="0.68"/>' +
+      '<stop offset="42%" stop-color="white" stop-opacity="0.42"/>' +
+      '<stop offset="74%" stop-color="white" stop-opacity="0.16"/>' +
       '<stop offset="100%" stop-color="white" stop-opacity="0"/>' +
       '</radialGradient></defs>' +
       `<rect width="${layerWidth}" height="${layerHeight}" fill="url(#dim)"/>` +
@@ -707,15 +847,48 @@ export async function generateMedia(args: {
       && customImageOverridesOpenAIModel(ctx, customImageCredentials)
     ) {
       providerId = 'custom-image';
-      const result = await renderCustomOpenAIImage(ctx, customImageCredentials!);
+      const checked = loanPosterOutput && overlayLogoRef
+        ? await renderImageWithLogoSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          ),
+          {
+            enabled: true,
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const result = checked?.result
+        ?? await renderCustomOpenAIImage(ctx, customImageCredentials!);
       bytes = result.bytes;
-      providerNote = result.providerNote;
+      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}`;
       suggestedExt = result.suggestedExt;
+      if (checked?.safeZone.intrudes) {
+        warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
+      }
     } else if (def.provider === 'openai' && surface === 'image') {
-      const result = await renderOpenAIImage(ctx, credentials);
+      const checked = loanPosterOutput && overlayLogoRef
+        ? await renderImageWithLogoSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          ),
+          {
+            enabled: true,
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const result = checked?.result ?? await renderOpenAIImage(ctx, credentials);
       bytes = result.bytes;
-      providerNote = result.providerNote;
+      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}`;
       suggestedExt = result.suggestedExt;
+      if (checked?.safeZone.intrudes) {
+        warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
+      }
     } else if (
       def.provider === 'openai'
       && surface === 'audio'

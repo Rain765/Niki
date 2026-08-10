@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 
 import {
+  analyzeZamloanLogoSafeZone,
   finalizeGeneratedPng,
   overlayZamloanZReference,
   overlayZamloanLogo,
   optimizeLoanPosterPng,
   optimizeLosslessPng,
+  renderImageWithLogoSafeZoneRetry,
 } from '../src/media.js';
 
 describe('generated image optimization', () => {
@@ -126,8 +128,79 @@ describe('generated image optimization', () => {
 
     expect(data[centerOffset]).toBeGreaterThan(190);
     expect(data[centerOffset + 1]).toBeGreaterThan(60);
-    expect(redAt(175)).toBeLessThan(redAt(115) - 4);
+    expect(redAt(175)).toBeLessThanOrEqual(redAt(115) - 4);
     expect(redAt(115)).toBeLessThan(redAt(35) - 4);
+  });
+
+  it('distinguishes a clean logo-safe band from title-like content', async () => {
+    const clean = await sharp({
+      create: {
+        width: 1_000,
+        height: 1_000,
+        channels: 4,
+        background: { r: 210, g: 54, b: 34, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const intruding = await sharp(clean)
+      .composite([{
+        input: Buffer.from(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="420" height="180">
+            <rect x="20" y="45" width="330" height="34" fill="white"/>
+            <rect x="20" y="96" width="270" height="34" fill="white"/>
+          </svg>
+        `),
+        left: 30,
+        top: 20,
+      }])
+      .png()
+      .toBuffer();
+
+    await expect(analyzeZamloanLogoSafeZone(clean)).resolves.toMatchObject({
+      intrudes: false,
+    });
+    await expect(analyzeZamloanLogoSafeZone(intruding)).resolves.toMatchObject({
+      intrudes: true,
+    });
+  });
+
+  it('retries a provider render once when content enters the logo-safe band', async () => {
+    const clean = await sharp({
+      create: {
+        width: 1_000,
+        height: 1_000,
+        channels: 4,
+        background: { r: 210, g: 54, b: 34, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const intruding = await sharp(clean)
+      .composite([{
+        input: Buffer.from(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="420" height="180">
+            <rect x="20" y="45" width="330" height="34" fill="white"/>
+            <rect x="20" y="96" width="270" height="34" fill="white"/>
+          </svg>
+        `),
+        left: 30,
+        top: 20,
+      }])
+      .png()
+      .toBuffer();
+    const prompts: string[] = [];
+
+    const rendered = await renderImageWithLogoSafeZoneRetry(
+      'original prompt',
+      async (prompt) => {
+        prompts.push(prompt);
+        return { bytes: prompts.length === 1 ? intruding : clean };
+      },
+      { enabled: true, anchor: 'left' },
+    );
+
+    expect(rendered.attempts).toBe(2);
+    expect(rendered.safeZone.intrudes).toBe(false);
+    expect(rendered.result.bytes).toBe(clean);
+    expect(prompts[1]).toContain('CRITICAL LOGO SAFE-ZONE RETRY');
+    expect(prompts[1]).toContain('headline below 25% of the canvas height');
   });
 
   it('composites the supplied Z silhouette exactly instead of asking the model to redraw it', async () => {

@@ -183,12 +183,18 @@ const MODEL_SAFE_POSTER_COMPOSITIONS = [
 const WIDESCREEN_POSTER_COMPOSITIONS = [
   {
     logoAnchor: 'left' as const,
-    instruction: 'Use a left text column beginning at 5.5% of the canvas width. Reserve a dedicated logo-safe row above it, begin the headline below 19% of the canvas height, and keep a clear vertical gap between that logo-safe row and the headline. Place the model in the right third and keep the complete left text column unobstructed',
+    instruction: 'Use a left text column beginning at 5.5% of the canvas width. Reserve the top 22% of that column as a dedicated logo-safe row, begin the headline below 25% of the canvas height, and keep a clear vertical gap between that logo-safe row and the headline. Place the model in the right third and keep the complete left text column unobstructed',
   },
   {
     logoAnchor: 'right' as const,
-    instruction: 'Use a right text column beginning at 53% of the canvas width. Reserve a dedicated logo-safe row above it, begin the headline below 19% of the canvas height, and keep a clear vertical gap between that logo-safe row and the headline. Place the model in the left third and keep the complete right text column unobstructed',
+    instruction: 'Use a right text column beginning at 53% of the canvas width. Reserve the top 22% of that column as a dedicated logo-safe row, begin the headline below 25% of the canvas height, and keep a clear vertical gap between that logo-safe row and the headline. Place the model in the left third and keep the complete right text column unobstructed',
   },
+] as const;
+
+const ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS = [
+  'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band free of all text, people, props, shelves, windows, and high-contrast details. Place the model in the right half and keep the complete left text column unobstructed',
+  'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band visually calm and free of all text or subject detail. Place the model in the lower-right half and preserve the complete left text column',
+  'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band empty except for smooth background color. Use an editorial crop on the right and leave the complete left text column unobstructed',
 ] as const;
 
 function stableStringHash(value: string): number {
@@ -230,9 +236,13 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     ]!;
     const composition = aspectRatio === '16:9'
       ? widescreenComposition.instruction
-      : MODEL_SAFE_POSTER_COMPOSITIONS[
-        (variationIndex * 5) % MODEL_SAFE_POSTER_COMPOSITIONS.length
-      ]!;
+      : brand === 'zamloan'
+        ? ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS[
+          variationIndex % ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS.length
+        ]!
+        : MODEL_SAFE_POSTER_COMPOSITIONS[
+          (variationIndex * 5) % MODEL_SAFE_POSTER_COMPOSITIONS.length
+        ]!;
     const logoAnchor: LoanPosterLogoAnchor = aspectRatio === '16:9'
       ? widescreenComposition.logoAnchor
       : 'left';

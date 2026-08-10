@@ -719,6 +719,7 @@ describe('startDirectLoanPosterProject', () => {
     buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
     vi.useFakeTimers();
     let uploadCallCount = 0;
+    let mediaRequestBody: Record<string, unknown> | undefined;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === '/api/projects') {
@@ -758,6 +759,7 @@ describe('startDirectLoanPosterProject', () => {
         });
       }
       if (url.endsWith('/media/generate')) {
+        mediaRequestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
         return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
           status: 202,
           headers: { 'Content-Type': 'application/json' },
@@ -780,6 +782,7 @@ describe('startDirectLoanPosterProject', () => {
     expect(fetchMock.mock.calls.filter(
       ([input]) => String(input).endsWith('/media/generate'),
     )).toHaveLength(1);
+    expect(mediaRequestBody?.overlayLogoAnchor).toBe('left');
   });
 
   it('identifies a non-retryable Zamloan logo upload failure', async () => {
