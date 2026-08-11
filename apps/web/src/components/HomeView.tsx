@@ -67,6 +67,14 @@ import {
   isDirectLoanPosterAuthenticationError,
   startDirectLoanPosterProject,
 } from './home-hero/direct-loan-posters';
+import { LoanVideoComposer } from './loan-video/LoanVideoComposer';
+import {
+  buildLoanVideoPrompt,
+  LOAN_VIDEO_PLUGIN_ID,
+  LOAN_VIDEO_SKILL_ID,
+  loanVideoProjectName,
+} from './loan-video/loan-video';
+import type { LoanVideoDraft } from './loan-video/types';
 import type { PluginLoopSubmit } from './PluginLoopHome';
 import type { PluginUseAction } from './plugins-home/useActions';
 
@@ -140,6 +148,8 @@ interface PendingPluginUseHandoff {
   action: PluginUseAction;
   inputs?: Record<string, unknown>;
 }
+
+type HomeCreationMode = 'poster' | 'loan-video';
 
 const AUTHORING_DEFAULT_SCENARIO_INPUTS = {
   artifactKind: 'Niki plugin',
@@ -217,6 +227,7 @@ export function HomeView({
   const [selectedMcpContexts, setSelectedMcpContexts] = useState<SelectedMcpContext[]>([]);
   const [selectedConnectorContexts, setSelectedConnectorContexts] = useState<SelectedConnectorContext[]>([]);
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [creationMode, setCreationMode] = useState<HomeCreationMode>('poster');
   const [autoPosterCount, setAutoPosterCount] = useState(ZAMBIA_POSTER_DEFAULT_COUNT);
   const [autoPosterAspectRatio, setAutoPosterAspectRatio] = useState<AutoPosterAspectRatio>(
     AUTO_POSTER_DEFAULT_ASPECT_RATIO,
@@ -1097,9 +1108,69 @@ export function HomeView({
     }
   }
 
+  function generateLoanVideo(draft: LoanVideoDraft) {
+    const prompt = buildLoanVideoPrompt(draft);
+    const attachments = draft.steps
+      .map((step) => step.screenshot)
+      .filter((file): file is File => file instanceof File);
+
+    onSubmit({
+      prompt,
+      projectName: loanVideoProjectName(draft),
+      pluginId: LOAN_VIDEO_PLUGIN_ID,
+      skillId: LOAN_VIDEO_SKILL_ID,
+      appliedPluginSnapshotId: null,
+      pluginTitle: null,
+      taskKind: null,
+      pluginInputs: {
+        mediaKind: 'video',
+        subject: draft.title.trim(),
+        style: 'clear mobile tutorial, restrained motion, high contrast, large captions',
+        aspect: draft.aspectRatio,
+      },
+      projectKind: 'video',
+      projectMetadata: {
+        kind: 'video',
+        videoModel: 'hyperframes-html',
+        videoAspect: draft.aspectRatio,
+        videoLength: draft.durationSeconds,
+        skipDiscoveryBrief: true,
+      },
+      attachments,
+    });
+  }
+
   return (
     <div className="home-view" data-testid="home-view">
-      <HomeHero
+      <div
+        className="home-creation-mode"
+        role="group"
+        aria-label={t('loanVideo.creationMode')}
+        data-testid="home-creation-mode"
+      >
+        <button
+          type="button"
+          className={creationMode === 'poster' ? 'is-active' : ''}
+          aria-pressed={creationMode === 'poster'}
+          data-testid="home-mode-poster"
+          onClick={() => setCreationMode('poster')}
+        >
+          <Icon name="image" size={16} />
+          {t('loanVideo.modePoster')}
+        </button>
+        <button
+          type="button"
+          className={creationMode === 'loan-video' ? 'is-active' : ''}
+          aria-pressed={creationMode === 'loan-video'}
+          data-testid="home-mode-video"
+          onClick={() => setCreationMode('loan-video')}
+        >
+          <Icon name="play" size={16} />
+          {t('loanVideo.modeVideo')}
+        </button>
+      </div>
+
+      {creationMode === 'poster' ? <HomeHero
         ref={inputRef}
         prompt={prompt}
         onPromptChange={handlePromptChange}
@@ -1167,7 +1238,12 @@ export function HomeView({
         onPickChip={pickChip}
         contextItemCount={contextItemCount}
         error={error}
-      />
+      /> : (
+        <LoanVideoComposer
+          onSubmit={generateLoanVideo}
+          disabled={Boolean(pendingApplyId) || Boolean(pendingAuthoringChipId)}
+        />
+      )}
 
       {autoPosterStarted ? (
         <div
