@@ -308,7 +308,10 @@ export function NikiWorkspaceShell({
                   aria-current={active ? 'page' : undefined}
                   title={projectDisplayName(project, projectSequenceById.get(project.id))}
                 >
-                  <Icon name="folder" size={16} />
+                  <Icon
+                    name={project.metadata?.kind === 'video' ? 'play' : 'folder'}
+                    size={16}
+                  />
                   <span>{projectDisplayName(project, projectSequenceById.get(project.id))}</span>
                 </button>
                 <div

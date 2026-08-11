@@ -1,6 +1,8 @@
 import type { Dict } from '../types';
+import { loanVideoEn } from './loan-video';
 
 export const en: Dict = {
+  ...loanVideoEn,
   'common.cancel': 'Cancel',
   'common.save': 'Save',
   'common.close': 'Close',
