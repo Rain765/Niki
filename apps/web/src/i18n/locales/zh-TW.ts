@@ -1,8 +1,10 @@
 import type { Dict } from '../types';
 import { en } from './en';
+import { loanVideoZhTw } from './loan-video';
 
 export const zhTW: Dict = {
   ...en,
+  ...loanVideoZhTw,
   'homeHero.autoPoster': '一鍵生成',
   'homeHero.autoPosterPrompt': '選擇產品、比例和張數，一鍵出圖',
   'homeHero.autoPosterWelcome': '輸入文案，一鍵生成貸款海報',
