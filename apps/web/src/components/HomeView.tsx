@@ -39,6 +39,7 @@ import { fetchElevenLabsVoiceOptions } from '../providers/elevenlabs-voices';
 import type { Project, ProjectMetadata, PromptTemplateSummary, SkillSummary } from '../types';
 import { inlineMentionToken } from '../utils/inlineMentions';
 import { HomeHero } from './HomeHero';
+import { Icon } from './Icon';
 import { findChip, type HomeHeroChip } from './home-hero/chips';
 import {
   buildHomeMediaComposer,
