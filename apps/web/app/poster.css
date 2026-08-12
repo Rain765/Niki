@@ -291,11 +291,137 @@ button {
   letter-spacing: 0.16em;
 }
 
-.poster-app h1 {
+.poster-app h1,
+.poster-app__mode-title {
   margin: var(--poster-space-2) 0 0;
   font-size: clamp(28px, 7vw, 44px);
+  font-weight: 750;
   line-height: 1.08;
   letter-spacing: -0.04em;
+}
+
+.poster-app__mode-select {
+  position: relative;
+  min-width: 0;
+}
+
+.poster-app__mode-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  margin-top: var(--poster-space-2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--poster-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.poster-app__mode-trigger .poster-app__mode-title {
+  margin: 0;
+}
+
+.poster-app__mode-trigger > svg {
+  flex: 0 0 auto;
+  margin-top: 4px;
+  color: var(--poster-muted);
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.poster-app__mode-trigger[aria-expanded='true'] > svg {
+  transform: rotate(180deg);
+}
+
+.poster-app__mode-trigger:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid var(--poster-line-active);
+  outline-offset: 4px;
+}
+
+.poster-app__mode-menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 12px);
+  left: 0;
+  display: grid;
+  width: min(390px, calc(100vw - 48px));
+  padding: 7px;
+  visibility: hidden;
+  border: 1px solid var(--poster-border);
+  border-radius: 16px;
+  background: var(--poster-fill-0);
+  box-shadow: 0 22px 60px color-mix(in srgb, var(--poster-mask-dark) 18%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top left;
+  transition:
+    opacity 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    visibility 0s linear 140ms;
+}
+
+.poster-app__mode-menu.is-open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  transition-duration: 200ms;
+  transition-delay: 0s;
+}
+
+.poster-app__mode-menu > button {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 11px;
+  min-height: 64px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--poster-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.poster-app__mode-menu > button:hover,
+.poster-app__mode-menu > button:focus-visible,
+.poster-app__mode-menu > button[aria-selected='true'] {
+  background: var(--poster-panel-raised);
+  outline: none;
+}
+
+.poster-app__mode-option-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--poster-panel-muted);
+  color: var(--poster-text-secondary);
+}
+
+.poster-app__mode-menu strong,
+.poster-app__mode-menu small {
+  display: block;
+}
+
+.poster-app__mode-menu strong {
+  font-size: 14px;
+}
+
+.poster-app__mode-menu small {
+  margin-top: 3px;
+  color: var(--poster-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.poster-app__mode-menu > button > svg {
+  color: var(--poster-accent);
 }
 
 .poster-app__account {
@@ -394,6 +520,67 @@ button {
 
 .poster-app__account-menu button.is-danger {
   color: var(--poster-danger);
+}
+
+.poster-app__video {
+  --accent: var(--poster-accent);
+  --accent-tint: color-mix(in srgb, var(--poster-accent) 12%, var(--poster-fill-0));
+  --bg-panel: var(--poster-fill-0);
+  --bg-subtle: var(--poster-panel-muted);
+  --border: var(--poster-border);
+  --border-soft: var(--poster-border);
+  --danger: var(--poster-danger);
+  --shadow-md: 0 18px 46px color-mix(in srgb, var(--poster-mask-dark) 10%, transparent);
+  --text: var(--poster-text);
+  --text-muted: var(--poster-muted);
+  --text-strong: var(--poster-text);
+  display: grid;
+  gap: var(--poster-space-3);
+}
+
+.poster-app__video .home-hero__backdrop,
+.poster-app__video .loan-video-composer__header {
+  display: none;
+}
+
+.poster-app__video .loan-video-composer {
+  border: 0;
+  border-radius: 16px;
+  background: var(--poster-panel-muted);
+  box-shadow: none;
+}
+
+.poster-app__video .ghost,
+.poster-app__video .icon-btn,
+.poster-app__video .primary {
+  border: 1px solid var(--poster-border);
+  border-radius: 9px;
+  background: var(--poster-fill-0);
+  color: var(--poster-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.poster-app__video .ghost {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.poster-app__video .icon-btn {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.poster-app__video .primary {
+  border-color: var(--poster-accent);
+  background: var(--poster-accent);
+  color: var(--poster-text-inverse);
+}
+
+.poster-app__video .primary:hover {
+  background: var(--poster-accent-hover);
 }
 
 .poster-app__generator {

@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
+import { LoanVideoComposer } from '../components/loan-video/LoanVideoComposer';
+import {
+  buildLoanVideoPrompt,
+  LOAN_VIDEO_PLUGIN_ID,
+  LOAN_VIDEO_SKILL_ID,
+  loanVideoProjectName,
+} from '../components/loan-video/loan-video';
+import type { LoanVideoDraft } from '../components/loan-video/types';
 import {
   buildDirectPosterBatches,
   type DirectPosterBatchView,
@@ -26,10 +34,13 @@ import {
   savePreparedImageFile,
   sharePreparedImageFile,
 } from '../lib/image-file-actions';
-import type { Project, ProjectFile } from '../types';
+import { uploadProjectFiles } from '../providers/registry';
+import { createProject } from '../state/projects';
+import type { Project, ProjectFile, ProjectMetadata } from '../types';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
+type CreationMode = 'poster' | 'video';
 
 const STATUS_AUTO_DISMISS_MS = 10_000;
 
@@ -106,6 +117,8 @@ function generationCopy(batch: DirectPosterBatchView | null): {
 
 export function PosterApp() {
   const { user, logout } = useNikiAuth();
+  const [creationMode, setCreationMode] = useState<CreationMode>('poster');
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
@@ -126,9 +139,30 @@ export function PosterApp() {
   const [preparedPreviewImage, setPreparedPreviewImage] = useState<PreparedPreviewImage | null>(null);
   const [failedPreviewKey, setFailedPreviewKey] = useState<string | null>(null);
   const [prepareAttempt, setPrepareAttempt] = useState(0);
+  const [videoSubmitting, setVideoSubmitting] = useState(false);
+  const [videoNotice, setVideoNotice] = useState<Notice | null>(null);
   const latestBatchRef = useRef<HTMLElement | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
+  const modeMenuRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!modeMenuOpen) return;
+    const dismissMenu = (event: PointerEvent) => {
+      if (!modeMenuRef.current?.contains(event.target as Node)) {
+        setModeMenuOpen(false);
+      }
+    };
+    const dismissMenuWithKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setModeMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', dismissMenu);
+    window.addEventListener('keydown', dismissMenuWithKeyboard);
+    return () => {
+      window.removeEventListener('pointerdown', dismissMenu);
+      window.removeEventListener('keydown', dismissMenuWithKeyboard);
+    };
+  }, [modeMenuOpen]);
 
   useEffect(() => {
     if (!accountMenuOpen) return;
@@ -372,6 +406,62 @@ export function PosterApp() {
     }
   };
 
+  const generateVideo = async (draft: LoanVideoDraft) => {
+    if (videoSubmitting) return;
+    setVideoSubmitting(true);
+    setVideoNotice(null);
+    try {
+      const prompt = buildLoanVideoPrompt(draft);
+      const metadata: ProjectMetadata = {
+        kind: 'video',
+        nameSource: 'prompt',
+        videoModel: 'hyperframes-html',
+        videoAspect: draft.aspectRatio,
+        videoLength: draft.durationSeconds,
+        skipDiscoveryBrief: true,
+      };
+      const result = await createProject({
+        name: loanVideoProjectName(draft),
+        skillId: LOAN_VIDEO_SKILL_ID,
+        designSystemId: null,
+        pendingPrompt: prompt,
+        metadata,
+        pluginId: LOAN_VIDEO_PLUGIN_ID,
+        pluginInputs: {
+          mediaKind: 'video',
+          subject: draft.title.trim(),
+          style: 'clear mobile tutorial, restrained motion, high contrast, large captions',
+          aspect: draft.aspectRatio,
+        },
+      });
+      if (!result) throw new Error('Could not create the video project');
+
+      const screenshots = draft.steps
+        .map((step) => step.screenshot)
+        .filter((file): file is File => file instanceof File);
+      const uploadResult = await uploadProjectFiles(result.project.id, screenshots);
+      if (uploadResult.failed.length > 0) {
+        throw new Error(`Could not upload ${uploadResult.failed.length} screenshot(s)`);
+      }
+      try {
+        window.sessionStorage.setItem(`od:auto-send-first:${result.project.id}`, '1');
+        window.sessionStorage.setItem(
+          `od:auto-send-attachments:${result.project.id}`,
+          JSON.stringify(uploadResult.uploaded),
+        );
+      } catch {
+        // The project is still usable when private browsing blocks session storage.
+      }
+      window.location.assign(`/workspace/projects/${encodeURIComponent(result.project.id)}`);
+    } catch (error) {
+      setVideoNotice({
+        message: error instanceof Error ? error.message : 'Could not submit the video task',
+        tone: 'error',
+      });
+      setVideoSubmitting(false);
+    }
+  };
+
   const download = async (file: File) => {
     if (activeAction) return;
     setActiveAction('download');
@@ -514,9 +604,50 @@ export function PosterApp() {
   return (
     <main className="poster-app">
       <header className="poster-app__header">
-        <div>
-          <span className="poster-app__eyebrow">NIKI POSTER</span>
-          <h1>Generate Loan Posters</h1>
+        <div className="poster-app__mode-select" ref={modeMenuRef}>
+          <span className="poster-app__eyebrow">{creationMode === 'poster' ? 'NIKI POSTER' : 'NIKI VIDEO'}</span>
+          <button
+            type="button"
+            className="poster-app__mode-trigger"
+            aria-haspopup="listbox"
+            aria-expanded={modeMenuOpen}
+            onClick={() => setModeMenuOpen((current) => !current)}
+          >
+            <span className="poster-app__mode-title" role="heading" aria-level={1}>
+              {creationMode === 'poster' ? 'Generate Loan Posters' : 'Generate Tutorial Videos'}
+            </span>
+            <Icon name="chevron-down" size={24} />
+          </button>
+          <div
+            className={`poster-app__mode-menu${modeMenuOpen ? ' is-open' : ''}`}
+            role="listbox"
+            aria-label="Creation mode"
+            aria-hidden={!modeMenuOpen}
+          >
+            {([
+              { value: 'poster', title: 'Generate Loan Posters', description: 'Create ready-to-use loan campaign images', icon: 'image' },
+              { value: 'video', title: 'Generate Tutorial Videos', description: 'Turn app screenshots into guided videos', icon: 'play' },
+            ] as const).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={creationMode === option.value}
+                tabIndex={modeMenuOpen ? 0 : -1}
+                onClick={() => {
+                  setCreationMode(option.value);
+                  setModeMenuOpen(false);
+                }}
+              >
+                <span className="poster-app__mode-option-icon"><Icon name={option.icon} size={18} /></span>
+                <span>
+                  <strong>{option.title}</strong>
+                  <small>{option.description}</small>
+                </span>
+                {creationMode === option.value ? <Icon name="check" size={19} /> : null}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="poster-app__account-wrap" ref={accountMenuRef}>
           <button
@@ -567,6 +698,8 @@ export function PosterApp() {
         onClose={() => setAccountManagerOpen(false)}
       />
 
+      {creationMode === 'poster' ? (
+        <>
       <section className="poster-app__generator" aria-label="Poster generation settings">
         <div className="poster-app__field">
           <span>Product</span>
@@ -834,6 +967,21 @@ export function PosterApp() {
           </footer>
         </div>
       ) : null}
+        </>
+      ) : (
+        <section className="poster-app__video" aria-label="Tutorial video generator">
+          {videoNotice ? (
+            <button
+              type="button"
+              className={`poster-app__notice is-${videoNotice.tone}`}
+              onClick={() => setVideoNotice(null)}
+            >
+              {videoNotice.message}
+            </button>
+          ) : null}
+          <LoanVideoComposer onSubmit={(draft) => void generateVideo(draft)} disabled={videoSubmitting} />
+        </section>
+      )}
     </main>
   );
 }

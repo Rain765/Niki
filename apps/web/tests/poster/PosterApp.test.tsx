@@ -123,6 +123,26 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByText(/Landscape|Square|Portrait/)).toBeNull();
   });
 
+  it('switches from the title menu while preserving the poster form state', () => {
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Biumoney' }));
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
+
+    expect(screen.getByRole('heading', { name: 'Generate Tutorial Videos' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Tutorial video generator' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Tutorial Videos' }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Loan Posters/ }));
+
+    expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Biumoney' }).classList.contains('is-active')).toBe(true);
+    expect(screen.getByRole('button', { name: '3' }).classList.contains('is-active')).toBe(true);
+  });
+
   it('submits the default portrait ratio as 3:4', async () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);

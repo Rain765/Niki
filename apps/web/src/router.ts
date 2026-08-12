@@ -41,6 +41,7 @@ export type Route =
 
 export function parseRoute(pathname: string): Route {
   const parts = pathname.replace(/\/+$/, '').split('/').filter(Boolean);
+  if (parts[0] === 'workspace') parts.shift();
   if (parts.length === 0) return { kind: 'home', view: 'home' };
   if (parts[0] === 'onboarding') {
     return { kind: 'home', view: 'onboarding' };
