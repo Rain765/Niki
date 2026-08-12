@@ -7,6 +7,7 @@ This file is the single source of truth for agents entering this repository. Rea
 - Product and onboarding: `README.md`, `README.zh-CN.md`, `QUICKSTART.md`.
 - Contribution and environment: `CONTRIBUTING.md`, `CONTRIBUTING.zh-CN.md`.
 - Architecture and protocols: `docs/spec.md`, `docs/architecture.md`, `docs/skills-protocol.md`, `docs/agent-adapters.md`, `docs/modes.md`.
+- Operations: `docs/public-access-incident-runbook.md`, `docs/public-access-incident-runbook.zh-CN.md`.
 - Roadmap and references: `docs/roadmap.md`, `docs/references.md`, `docs/code-review-guidelines.md`, `specs/current/maintainability-roadmap.md`.
 - Directory-level agent guidance: `apps/AGENTS.md`, `packages/AGENTS.md`, `tools/AGENTS.md`, `e2e/AGENTS.md`.
 - Packaged auto-update architecture and high-confidence local harness: read `tools/pack/AGENTS.md` section "Packaged auto-update architecture and harness" before touching packaged updater code, release-channel identity, installer behavior, or updater UI.
@@ -63,6 +64,16 @@ This file is the single source of truth for agents entering this repository. Rea
 - After validation, integrate the task commit into the branch that backs the user's active runtime. For this repository, the user grants standing authorization to fast-forward a clean local `main` when it is the active runtime branch. If `main` is dirty, diverged, or the integration is not a fast-forward, stop and ask rather than mixing or rewriting work. This authorization does not include pushing or publishing remote releases.
 - Restart, rebuild, reinstall, or hot-reload the active runtime as appropriate, then verify the actual user-facing URL or desktop instance resolves to the integrated commit. For proxied web URLs, compare the proxy response with the local runtime and perform a real browser refresh when possible.
 - Final handoff must state the active branch and commit, the runtime URL or packaged version verified, and any refresh/restart the user still needs. If the active instance could not be updated or inspected, report that limitation explicitly instead of claiming completion.
+
+## Public-access incident workflow
+
+- For public URL, browser, or embedded-client failures, follow `docs/public-access-incident-runbook.md`. Treat errors such as `ERR_CONNECTION_CLOSED` as transport symptoms, not proof that the application process is down.
+- Record the active runtime, source worktree, branch, `HEAD`, public hostname, proxy mode, DNS result, and timestamped configuration backups before making changes.
+- Diagnose in order: local HTTP, private/tailnet HTTPS, public DNS and direct TLS, configured proxy path, then the actual browser or embedded client. Preserve the command output or client evidence that separates each layer.
+- A network incident does not authorize deleting worktrees, repositories, `.od/`, databases, caches, credentials, or user data. Data cleanup and network recovery are separate operations and require independent evidence and authorization.
+- Do not add a `DIRECT` rule, DNS override, `/etc/hosts` entry, certificate exception, proxy bypass, or browser launch flag until that exact route has succeeded in a read-only probe. Scope any change to the exact hostname, create a timestamped backup, validate and reload the configuration, open a new connection, and keep a tested rollback.
+- Command-line HTTP success is necessary but not sufficient. Acceptance must cover the actual surface the user reported: a fresh browser load or the official embedded-client entry point, with the main document and assets returning successfully and the page reaching first paint or an equivalent ready state.
+- Separate the initiating fault from local amplification. If direct access fails but a proxy succeeds, report a route/edge interaction unless server-side telemetry identifies an owner; do not label the whole public service unavailable or assign an external root cause without evidence.
 
 ## Root command boundary
 

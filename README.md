@@ -72,6 +72,8 @@ When authentication is enabled, administrators can manage password accounts and 
 
 Administrator CLI operations require an administrator session in `OD_NIKI_SESSION_TOKEN`. Passwords are read from a file or standard input and are never accepted directly as a CLI argument.
 
+If the hosted URL fails in a browser or the Feishu client, use the [public-access incident runbook](docs/public-access-incident-runbook.md). It requires layered transport checks, reversible configuration changes, and validation in the actual client that reported the failure.
+
 ## Remote device pairing
 
 Niki includes a secure device-relay foundation for pairing a local daemon with the hosted service:
