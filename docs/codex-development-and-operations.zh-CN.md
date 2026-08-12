@@ -445,14 +445,39 @@ metadata
 当前主机的设计目标：
 
 - 主服务：LaunchAgent `RunAtLoad`，异常退出自动拉起；
-- 健康检查：每 60 秒检查 daemon，失败则重启；同时检查媒体代理并记录降级告警；
+- 健康检查：每 60 秒执行一次完整探测，使用连续失败阈值和修复冷却，不因单次抖动立即重启；
+- 监控看门狗：每 5 分钟验证状态心跳，超过 4 分钟未更新时告警并重新触发监控任务；
 - 备份：每天 03:30；
 - 归档：每天 04:30 扫描符合阈值的旧项目，实际是否移动由 archive 配置控制；
 - public gateway：`RunAtLoad` + `KeepAlive`；
 - `tools-dev` 日志按大小轮转并限制保留份数；
 - 不可变 runtime 只保留当前和一个回滚版本。
 
-### 10.2 每日检查
+### 10.2 监控、告警与自动处理
+
+主机监控入口为 `/Users/rain/.local/share/niki-auth/monitor.zsh`，状态查询命令：
+
+```bash
+/Users/rain/.local/share/niki-auth/monitor.zsh status
+/Users/rain/.local/share/niki-auth/monitor.zsh status --json
+```
+
+监控状态写入 `/Users/rain/.local/state/niki-monitor/status.json`，状态变更和自动处理记录写入 `/Users/rain/Library/Logs/Niki-monitor-events.jsonl`。LaunchAgent 日志为 `Niki-monitor*.log`，告警投递日志为 `Niki-alerts.log`。
+
+| 监控项 | 判定 | 自动处理 | 保护措施 |
+| --- | --- | --- | --- |
+| daemon + web | 本地健康 JSON 和首页均成功 | 连续失败 2 次后重启 `com.rain.niki-dev` | 备份期间不重启；10 分钟冷却 |
+| Tailscale | BackendState、Self.Online 和 Health 正常 | 仅在 Tailscale 应用未运行时重新打开 | 运行中异常不强杀进程 |
+| Funnel | 443 HTTPS 映射到 `127.0.0.1:17573` | 连续失败 3 次后重建相同 Funnel 映射 | 10 分钟冷却；不改变目标端口 |
+| 远程 SSH | Tailscale IPv4 的 22 端口可连接 | 只告警 | 不自动修改系统远程登录设置 |
+| 公网网页 | 公共 DNS、TLS、首页和 `/api/health` 均成功 | 由 runtime/Tailscale/Funnel 根因处理 | 强制走公共 Funnel IP，避免本机 MagicDNS 假绿 |
+| 媒体代理 | `127.0.0.1:7897` 可连接 | 只告警 | 不重启供其他应用共用的代理 |
+| 磁盘 | 可用空间至少 10 GiB | 只告警 | 不自动删除数据或日志 |
+| 备份 | 最新成功快照不超过 36 小时且目录存在 | 触发一次备份任务 | 6 小时冷却；已有备份运行时不重复触发 |
+
+告警按组件保存活动状态，故障恢复时发送恢复事件；重复故障按冷却周期抑制。依赖故障会标记为 `blocked`，例如 Tailscale 故障时不再为 Funnel 和远程 SSH 分别制造重复告警。当前投递包括本机通知和结构化日志；飞书远程消息需要应用管理员授予 `im:message` 类权限后才能生效。
+
+### 10.3 每日检查
 
 - daemon/web/public URL 返回成功；
 - LaunchAgent 无持续 restart loop；
@@ -462,7 +487,7 @@ metadata
 - 生成任务无长期 queued/running，启动后失败任务能被 reconcile；
 - 登录失败率、配额、存储增长和外部 API 错误无异常。
 
-### 10.3 每周检查
+### 10.4 每周检查
 
 - 抽查最新 snapshot 的 manifest；
 - 对备份 SQLite 执行 `PRAGMA quick_check` 和 `foreign_key_check`；
@@ -472,7 +497,7 @@ metadata
 - 检查日志轮转、release 清理和磁盘趋势；
 - 清理已确认无用的孤立分支和 worktree前先确认没有未推送提交。
 
-### 10.4 每月检查
+### 10.5 每月检查
 
 - 在隔离目录完成一次恢复演练；
 - 验证最近备份可恢复数据库、项目文件、LaunchAgent 和认证配置；
@@ -621,6 +646,15 @@ metadata
 - 所有被替换的主机脚本和 LaunchAgent 配置均保留带时间戳的回滚副本；整改未执行数据库迁移、未切换生产 release。期间健康守护曾恢复同一 release 的 daemon/web 进程，版本与数据目录均未变化。
 
 当前剩余项只有两类：需要管理员批准的飞书消息权限，以及需要单独评审的 Git 分支收敛。它们都不应在无确认的情况下自动处理。
+
+### 14.2 2026-08-12 监控系统上线记录
+
+- 已安装主监控 `monitor.zsh`、兼容入口 `healthcheck.zsh` 和独立看门狗 `monitor-watchdog.zsh`；对应 LaunchAgent 分别每 60 秒和每 300 秒运行。
+- 已验证 runtime、Tailscale、Funnel、Tailscale SSH、公网 DNS/TLS/首页/API、媒体代理、磁盘和备份八类探针全部为 `healthy`。
+- 已在隔离状态目录完成故障注入：连续失败阈值、单次告警、修复冷却、依赖阻塞、恢复清零和监控心跳告警均通过。
+- 安装时活跃生产 release 为 `ce1bb439`；监控从 `current` symlink 动态读取 release，未切换版本、未修改数据库，也未重启生产 runtime。
+- 原 `healthcheck.zsh` 和 `com.rain.niki-health.plist` 保留 `.pre-monitor-20260812T065618Z` 回滚副本；增强公网 API 探针前的脚本也保留独立回滚副本。
+- 当前远程告警的唯一未闭环项仍是飞书应用消息权限。权限未开通不影响探测、自愈、本机通知、状态 JSON 和审计日志，但会影响离开主机后的即时收件。
 
 ## 15. 完成定义
 
