@@ -427,6 +427,17 @@ export async function startDirectLoanPosterProject(
                 overlayLogoAnchor: scenePlan.logoAnchor,
               }
               : {}),
+            ...(scenePlan.foregroundPrompt
+              && scenePlan.headline
+              && scenePlan.subtitle
+              && scenePlan.textAnchor
+              ? {
+                foregroundPrompt: scenePlan.foregroundPrompt,
+                posterHeadline: scenePlan.headline,
+                posterSubtitle: scenePlan.subtitle,
+                posterTextAnchor: scenePlan.textAnchor,
+              }
+              : {}),
             output: batchOutputNames[index],
             prompt: scenePlan.prompt,
           }),

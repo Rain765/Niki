@@ -64,6 +64,10 @@ export type LoanPosterLogoAnchor = 'left' | 'right';
 export interface LoanPosterScenePlan {
   prompt: string;
   logoAnchor: LoanPosterLogoAnchor;
+  foregroundPrompt?: string;
+  headline?: string;
+  subtitle?: string;
+  textAnchor?: LoanPosterLogoAnchor;
 }
 
 const BRAND_LABELS: Record<AutoPosterBrand, string> = {
@@ -184,17 +188,33 @@ const WIDESCREEN_POSTER_COMPOSITIONS = [
   {
     logoAnchor: 'left' as const,
     instruction: 'Use a left text column beginning at 5.5% of the canvas width. Reserve the top 22% of that column as a dedicated logo-safe row, begin the headline below 25% of the canvas height, and keep a clear vertical gap between that logo-safe row and the headline. Place the model in the right third and keep the complete left text column unobstructed',
+    backgroundInstruction: 'Keep the left 45% visually calm as a copy-safe field, with the top 22% reserved as a logo-safe row. Concentrate environmental depth and practical scene details in the right half without placing a person there',
+    foregroundInstruction: 'Place the complete model group in the right third, leaving the left 45% completely empty and keeping all hair, hands, clothing, and the phone inside the canvas',
   },
   {
     logoAnchor: 'right' as const,
     instruction: 'Use a right text column beginning at 53% of the canvas width. Reserve the top 22% of that column as a dedicated logo-safe row, begin the headline below 25% of the canvas height, and keep a clear vertical gap between that logo-safe row and the headline. Place the model in the left third and keep the complete right text column unobstructed',
+    backgroundInstruction: 'Keep the right 47% visually calm as a copy-safe field, with the top 22% reserved as a logo-safe row. Concentrate environmental depth and practical scene details in the left half without placing a person there',
+    foregroundInstruction: 'Place the complete model group in the left third, leaving the right 47% completely empty and keeping all hair, hands, clothing, and the phone inside the canvas',
   },
 ] as const;
 
 const ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS = [
-  'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band free of all text, people, props, shelves, windows, and high-contrast details. Place the model in the right half and keep the complete left text column unobstructed',
-  'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band visually calm and free of all text or subject detail. Place the model in the lower-right half and preserve the complete left text column',
-  'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band empty except for smooth background color. Use an editorial crop on the right and leave the complete left text column unobstructed',
+  {
+    instruction: 'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band free of all text, people, props, shelves, windows, and high-contrast details. Place the model in the right half and keep the complete left text column unobstructed',
+    backgroundInstruction: 'Keep the left 48% calm and low-detail, with the top 18% reserved as a logo-safe band. Build the environment in the right half without rendering any person',
+    foregroundInstruction: 'Place the complete model group in the right half and keep the left 48% empty. Keep all hair, hands, clothing, and the phone inside the canvas',
+  },
+  {
+    instruction: 'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band visually calm and free of all text or subject detail. Place the model in the lower-right half and preserve the complete left text column',
+    backgroundInstruction: 'Keep the left 48% calm and low-detail, with the top 18% reserved as a logo-safe band. Build the environment in the right half without rendering any person',
+    foregroundInstruction: 'Place the complete model group in the lower-right half and keep the left 48% empty. Keep all hair, hands, clothing, and the phone inside the canvas',
+  },
+  {
+    instruction: 'Use a left text column beginning at 5.5% of the canvas width. Treat the top 18% of the canvas as a dedicated logo-safe band and place the headline top edge at or below 20% of the canvas height. Keep that upper-left band empty except for smooth background color. Use an editorial crop on the right and leave the complete left text column unobstructed',
+    backgroundInstruction: 'Keep the left 48% as smooth background color, with the top 18% reserved as a logo-safe band. Build subtle environmental depth on the right without rendering any person',
+    foregroundInstruction: 'Use an editorial waist-up crop in the right half and keep the left 48% empty. Keep all hair, hands, clothing, and the phone inside the canvas',
+  },
 ] as const;
 
 function stableStringHash(value: string): number {
@@ -234,12 +254,13 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     const widescreenComposition = WIDESCREEN_POSTER_COMPOSITIONS[
       variationIndex % WIDESCREEN_POSTER_COMPOSITIONS.length
     ]!;
+    const nonWidescreenComposition = ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS[
+      variationIndex % ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS.length
+    ]!;
     const composition = aspectRatio === '16:9'
       ? widescreenComposition.instruction
       : brand === 'zamloan'
-        ? ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS[
-          variationIndex % ZAMLOAN_NON_WIDESCREEN_COMPOSITIONS.length
-        ]!
+        ? nonWidescreenComposition.instruction
         : MODEL_SAFE_POSTER_COMPOSITIONS[
           (variationIndex * 5) % MODEL_SAFE_POSTER_COMPOSITIONS.length
         ]!;
@@ -261,15 +282,25 @@ Negative prompt: letter Z, background letter, alphabetic background motif, logo,
 
     return {
       logoAnchor,
+      textAnchor: logoAnchor,
+      headline: plan.headline,
+      subtitle: plan.subline,
       prompt: `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
 
-Use a ${palette.gradient} dominant background and one ${palette.ribbon} curved ribbon along the bottom. Do not draw any letter Z, alphabetic background motif, logo-shaped watermark, or substitute brand glyph; the exact supplied Z will be composited as a semi-transparent brand layer after generation.
+Generate only the photographic environment and graphic background plate. Use a ${palette.gradient} dominant background and one ${palette.ribbon} curved ribbon along the bottom. ${aspectRatio === '16:9' ? widescreenComposition.backgroundInstruction : nonWidescreenComposition.backgroundInstruction}.
 
-Render exactly two poster-copy text elements: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not add benefit copy, feature callouts, labels, badges, disclaimers, or any other poster text. ${composition}. Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. The phone screen is the only text exception: keep its white screen, one solid green checkmark, and short black text “Application Successful”.
+The environment should suggest ${plan.scene}. Do not render people, faces, bodies, hands, or phones. Do not render text, letters, numbers, logos, badges, or watermarks. Do not draw any letter Z or alphabetic background motif; the exact supplied Z will be composited above this background plate before the foreground model and copy are added.
 
-Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve a clearly visible gap between the text block and the model silhouette. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, oversized readable typography, and generous safe margins. Do not render ${brandLabel}, another brand-name wordmark, an icon logo, or a corner badge in the reserved logo-safe row. Do not add another Z.
+Use premium commercial lighting, realistic Zambian environmental detail, generous safe margins, and a coherent light direction that a separately generated foreground subject can share.
 
-Negative prompt: letter Z, alphabetic background motif, logo-shaped watermark, alternate Z glyph, distorted Z outline, extra Z, duplicate Z, benefit copy, feature callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, brand wordmark in the logo-safe row, standalone text logo, corner logo badge, mixed brands.`,
+Negative prompt: person, people, face, body, hand, phone, text, letter, number, Z, logo, watermark, badge, label, disclaimer, typography, blurry, low quality, mixed brands.`,
+      foregroundPrompt: `Create a premium commercial-photo foreground layer for a ${brandLabel} Zambia mobile-loan poster in ${aspectRatio}. Output a transparent background PNG with no environment, backdrop, floor, wall, gradient, ribbon, letter Z, logo, poster copy, headline, subtitle, badge, label, or watermark.
+
+Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. ${aspectRatio === '16:9' ? widescreenComposition.foregroundInstruction : nonWidescreenComposition.foregroundInstruction}. Preserve clean natural alpha edges around hair, clothing, and hands. Match vivid premium advertising lighting with a red-dominant campaign palette and natural skin retouching.
+
+The phone screen is the only text exception: use a white screen, one solid green checkmark, and short black text “Application Successful”. Do not render any other words or letters.
+
+Negative prompt: opaque background, colored background, environment, scenery, floor, wall, gradient, ribbon, Z, logo, watermark, poster headline, subtitle, extra text, cropped head, cropped hands, cropped phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, mixed brands.`,
     };
   });
 }
@@ -295,15 +326,15 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const outputPrefix = `${brand}-poster`;
   const usesZReference = autoPosterUsesZReference(brand);
   const referenceContract = usesZReference
-    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z silhouette. Locate its project-relative path and pass it through \`--overlay-z\` for every generation. The daemon will composite the single semi-transparent background Z from this exact source silhouette after provider rendering, preserving its exact silhouette geometry. Tell the image model not to draw any Z itself. Never copy the Z reference into a visible output path or list it as a deliverable.`
+    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z silhouette. Locate its project-relative path and pass it through \`--overlay-z\` for every generation. Generate an environment-only background prompt plus a model-only transparent foreground prompt. The daemon will composite background → exact supplied Z → transparent model → deterministic copy → exact logo, preserving the Z silhouette while keeping it behind every model and copy pixel. Tell both image generations not to draw any Z themselves. Never copy the Z reference into a visible output path or list it as a deliverable.`
     : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
   const logoContract = usesZReference
     ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
     : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
   const brandOverride = usesZReference
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
-- Do not let the image model draw any Z. The single semi-transparent background Z is added deterministically by \`--overlay-z\` from the exact supplied silhouette after generation.
-- Render exactly two poster-copy text elements: one very large headline and one large subtitle. Do not add benefit copy, feature callouts, labels, badges, disclaimers, or other poster text.
+- Do not let either image generation draw any Z. The single semi-transparent background Z is added deterministically by \`--overlay-z\` between the environment plate and transparent model foreground.
+- Do not let either image generation draw poster copy. Pass one headline and one subtitle through \`--poster-headline\` and \`--poster-subtitle\`; the daemon renders them above the model and Z.
 - The phone-screen exception is the only additional visible wording: retain the white screen, one solid green checkmark, and \`Application Successful\`.
 - Keep the headline and subtitle entirely inside reserved negative space; they must never overlap the model’s face, body, hands, clothing, or phone.
 - These Zamloan copy and placement rules take precedence over conflicting skill template rules.`
@@ -338,7 +369,7 @@ ${brandOverride}
 
 Generation contract:
 - Use the image model selected in the project metadata.
-- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}${usesZReference ? `, \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', and `--overlay-logo-anchor` matching the scene title column' : ''}` : ''}.
+- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}${usesZReference ? `, \`--foreground-prompt-file\` for the transparent model-only layer, \`--poster-headline\`, \`--poster-subtitle\`, \`--poster-text-anchor\`, \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', and `--overlay-logo-anchor` matching the scene title column' : ''}` : ''}.
 - Write outputs as \`${outputPrefix}-01.png\` through \`${outputPrefix}-${String(count).padStart(2, '0')}.png\`.
 - Complete all ${count} generation attempts. If one fails, continue with the remaining scenes and report the failed item accurately.
 ${referenceCleanup}- Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.

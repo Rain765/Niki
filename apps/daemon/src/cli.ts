@@ -50,6 +50,12 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'surface',
   'model',
   'prompt',
+  'prompt-file',
+  'foreground-prompt',
+  'foreground-prompt-file',
+  'poster-headline',
+  'poster-subtitle',
+  'poster-text-anchor',
   'output',
   'aspect',
   'quality',
@@ -775,10 +781,15 @@ async function runMediaGenerate(rawArgs) {
     process.exit(2);
   }
 
+  const prompt = await readPromptFromFlags(flags);
+  const foregroundPrompt = await readPromptFromFlags({
+    prompt: flags['foreground-prompt'],
+    'prompt-file': flags['foreground-prompt-file'],
+  });
   const body = {
     surface,
     model: flags.model,
-    prompt: flags.prompt,
+    prompt,
     output: flags.output,
     aspect: flags.aspect,
     quality: flags.quality,
@@ -789,6 +800,10 @@ async function runMediaGenerate(rawArgs) {
     overlayZ: flags['overlay-z'],
     overlayLogo: flags['overlay-logo'],
     overlayLogoAnchor: flags['overlay-logo-anchor'],
+    foregroundPrompt,
+    posterHeadline: flags['poster-headline'],
+    posterSubtitle: flags['poster-subtitle'],
+    posterTextAnchor: flags['poster-text-anchor'],
     language: flags.language,
   };
   if (flags.length != null) body.length = Number(flags.length);
@@ -1282,6 +1297,7 @@ Required:
 
 Common options:
   --prompt "<text>"         Generation prompt. ElevenLabs SFX prompts must stay under 450 characters.
+  --prompt-file <path|->    Read a long generation prompt from a file or stdin.
   --output <filename>       File to write under the project. Auto-named if omitted.
   --aspect 1:1|16:9|9:16|4:3|3:4
   --length <seconds>        Video length.
@@ -1306,6 +1322,14 @@ Common options:
                             exactly after provider rendering.
   --overlay-logo-anchor <left|right>
                             Align the logo with the matching title column.
+  --foreground-prompt <text>
+                            Transparent foreground prompt for a layered poster.
+  --foreground-prompt-file <path|->
+                            Read the layered foreground prompt from a file or stdin.
+  --poster-headline <text>  Deterministic poster headline rendered above the model.
+  --poster-subtitle <text>  Deterministic poster subtitle rendered above the model.
+  --poster-text-anchor <left|right>
+                            Align deterministic copy with the reserved title column.
   --daemon-url <url>
 
 Output: a single line of JSON: {"file": { name, size, kind, mime, ... }}.

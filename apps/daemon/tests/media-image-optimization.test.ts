@@ -3,6 +3,7 @@ import sharp from 'sharp';
 
 import {
   analyzeZamloanLogoSafeZone,
+  composeLayeredLoanPoster,
   finalizeGeneratedPng,
   overlayZamloanZReference,
   overlayZamloanLogo,
@@ -12,6 +13,57 @@ import {
 } from '../src/media.js';
 
 describe('generated image optimization', () => {
+  it('keeps the deterministic Z behind the transparent model and programmatic copy', async () => {
+    const background = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 24, g: 48, b: 96, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const zReference = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+        <rect width="200" height="100" fill="#ff0000"/>
+      </svg>
+    `);
+    const foreground = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    }).composite([{
+      input: Buffer.from(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="180" height="260">
+          <rect width="180" height="260" fill="#00ff00"/>
+        </svg>
+      `),
+      left: 310,
+      top: 170,
+    }]).png().toBuffer();
+
+    const composited = await composeLayeredLoanPoster(background, {
+      zReference,
+      foreground,
+      headline: 'GET CASH',
+      subtitle: 'Fast support through your phone',
+      textAnchor: 'left',
+    });
+    const { data, info } = await sharp(composited)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const pixel = (x: number, y: number) => {
+      const offset = (y * info.width + x) * info.channels;
+      return [data[offset], data[offset + 1], data[offset + 2]];
+    };
+
+    expect(pixel(400, 300)).toEqual([0, 255, 0]);
+    expect(pixel(250, 300)).not.toEqual([24, 48, 96]);
+    expect(pixel(40, 560)).toEqual([24, 48, 96]);
+  });
+
   it('losslessly optimizes PNG output before it is persisted', async () => {
     const rawPixels = Buffer.alloc(128 * 128 * 4);
     for (let offset = 0; offset < rawPixels.length; offset += 4) {

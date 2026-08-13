@@ -6,6 +6,8 @@ Always maintain:
 - the caller-selected brand, format, and quantity
 - a red-dominant background
 - exactly one semi-transparent Z from the supplied reference
+- true layer order: environment background → supplied Z → transparent model →
+  deterministic copy → exact logo
 - a left-copy/right-model layout
 - a clearly visible smartphone with a simple success-state interface
 - realistic Zambian lifestyle photography

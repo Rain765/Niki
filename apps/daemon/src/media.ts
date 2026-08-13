@@ -405,6 +405,148 @@ export async function overlayZamloanZReference(
     .toBuffer();
 }
 
+export interface LayeredLoanPosterOptions {
+  zReference: Buffer;
+  foreground: Buffer;
+  headline: string;
+  subtitle: string;
+  textAnchor: 'left' | 'right';
+}
+
+function escapeSvgText(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}
+
+function wrapPosterCopy(value: string, maximumCharacters: number): string[] {
+  const words = value.trim().split(/\s+/u).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && candidate.length > maximumCharacters) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines.slice(0, 4) : [''];
+}
+
+async function renderLoanPosterCopy(
+  width: number,
+  height: number,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'>,
+): Promise<Buffer> {
+  const widescreen = width / height >= 1.5;
+  const columnLeft = Math.round(width * (options.textAnchor === 'right' ? 0.53 : 0.055));
+  const columnWidth = Math.round(width * (options.textAnchor === 'right' ? 0.41 : 0.39));
+  const headlineSize = Math.round(height * (widescreen ? 0.105 : 0.072));
+  const headlineLineHeight = Math.round(headlineSize * 0.94);
+  const subtitleSize = Math.round(height * (widescreen ? 0.042 : 0.034));
+  const headlineTop = Math.round(height * (widescreen ? 0.28 : 0.22));
+  const maximumHeadlineCharacters = Math.max(
+    9,
+    Math.floor(columnWidth / Math.max(1, headlineSize * 0.58)),
+  );
+  const maximumSubtitleCharacters = Math.max(
+    16,
+    Math.floor(columnWidth / Math.max(1, subtitleSize * 0.52)),
+  );
+  const headlineLines = wrapPosterCopy(options.headline, maximumHeadlineCharacters);
+  const subtitleLines = wrapPosterCopy(options.subtitle, maximumSubtitleCharacters);
+  const headlineTspans = headlineLines.map((line, index) => (
+    `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : headlineLineHeight}">${escapeSvgText(line)}</tspan>`
+  )).join('');
+  const subtitleTop = headlineTop
+    + Math.max(1, headlineLines.length) * headlineLineHeight
+    + Math.round(height * 0.045);
+  const subtitleLineHeight = Math.round(subtitleSize * 1.28);
+  const subtitleTspans = subtitleLines.map((line, index) => (
+    `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : subtitleLineHeight}">${escapeSvgText(line)}</tspan>`
+  )).join('');
+  return Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <defs>
+        <filter id="copy-shadow" x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="${Math.max(2, Math.round(height * 0.004))}" stdDeviation="${Math.max(2, Math.round(height * 0.004))}" flood-color="#200000" flood-opacity="0.42"/>
+        </filter>
+      </defs>
+      <g fill="#ffffff" font-family="Arial, Helvetica, sans-serif" filter="url(#copy-shadow)">
+        <text x="${columnLeft}" y="${headlineTop}" font-size="${headlineSize}" font-weight="800" letter-spacing="-1.2">${headlineTspans}</text>
+        <text x="${columnLeft}" y="${subtitleTop}" font-size="${subtitleSize}" font-weight="600" letter-spacing="0.2">${subtitleTspans}</text>
+      </g>
+    </svg>
+  `);
+}
+
+async function normalizeTransparentForeground(
+  foreground: Buffer,
+  width: number,
+  height: number,
+): Promise<Buffer> {
+  const { data, info } = await sharp(foreground)
+    .ensureAlpha()
+    .resize({ width, height, fit: 'fill' })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let transparentPixels = 0;
+  let visiblePixels = 0;
+  for (let offset = 3; offset < data.length; offset += info.channels) {
+    const alpha = data[offset] ?? 255;
+    if (alpha < 250) transparentPixels += 1;
+    if (alpha > 8) visiblePixels += 1;
+  }
+  const pixelCount = Math.max(1, info.width * info.height);
+  if (transparentPixels / pixelCount < 0.05) {
+    throw new Error('layered poster foreground did not contain a transparent background');
+  }
+  if (visiblePixels / pixelCount < 0.01) {
+    throw new Error('layered poster foreground did not contain a visible model');
+  }
+  return sharp(data, {
+    raw: {
+      width: info.width,
+      height: info.height,
+      channels: info.channels,
+    },
+  }).png().toBuffer();
+}
+
+/**
+ * Build the poster as real pixel layers: background → exact Z → transparent
+ * model → deterministic copy. The Zamloan logo is added by the caller last.
+ */
+export async function composeLayeredLoanPoster(
+  background: Buffer,
+  options: LayeredLoanPosterOptions,
+): Promise<Buffer> {
+  const metadata = await sharp(background).metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('layered poster background has no readable dimensions');
+  }
+  const withZ = await overlayZamloanZReference(background, options.zReference);
+  const foreground = await normalizeTransparentForeground(
+    options.foreground,
+    metadata.width,
+    metadata.height,
+  );
+  const copy = await renderLoanPosterCopy(metadata.width, metadata.height, options);
+  return sharp(withZ)
+    .composite([
+      { input: foreground, left: 0, top: 0 },
+      { input: copy, left: 0, top: 0 },
+    ])
+    .png()
+    .toBuffer();
+}
+
 /**
  * Finalize generated PNG pixels before persistence. Lossless optimization runs
  * before the brand overlay so the logo is rasterized exactly once at its final
@@ -415,6 +557,10 @@ export async function finalizeGeneratedPng(
   options: {
     loanPosterOutput: boolean;
     overlayZ?: Buffer;
+    foreground?: Buffer;
+    posterHeadline?: string;
+    posterSubtitle?: string;
+    posterTextAnchor?: 'left' | 'right';
     overlayLogo?: Buffer;
     overlayLogoAnchor?: 'left' | 'right';
   },
@@ -424,7 +570,22 @@ export async function finalizeGeneratedPng(
       ? await optimizeLoanPosterPng(input)
       : await optimizeLosslessPng(input)
   ).bytes;
-  if (options.overlayZ) {
+  const hasLayeredPoster = Boolean(
+    options.overlayZ
+    && options.foreground
+    && options.posterHeadline
+    && options.posterSubtitle
+    && options.posterTextAnchor,
+  );
+  if (hasLayeredPoster) {
+    bytes = await composeLayeredLoanPoster(bytes, {
+      zReference: options.overlayZ!,
+      foreground: options.foreground!,
+      headline: options.posterHeadline!,
+      subtitle: options.posterSubtitle!,
+      textAnchor: options.posterTextAnchor!,
+    });
+  } else if (options.overlayZ) {
     bytes = await overlayZamloanZReference(bytes, options.overlayZ);
   }
   if (options.overlayLogo) {
@@ -467,6 +628,7 @@ type MediaContext = {
   prompt: string;
   aspect: string | undefined;
   quality: ImageQuality | undefined;
+  imageBackground?: 'opaque' | 'transparent';
   length: number | undefined;
   duration: number | undefined;
   voice: string;
@@ -665,6 +827,10 @@ export async function generateMedia(args: {
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
   compositionDir?: string; image?: string; overlayZ?: string; overlayLogo?: string;
   overlayLogoAnchor?: 'left' | 'right';
+  foregroundPrompt?: string;
+  posterHeadline?: string;
+  posterSubtitle?: string;
+  posterTextAnchor?: 'left' | 'right';
   onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
@@ -690,6 +856,10 @@ export async function generateMedia(args: {
     overlayZ,
     overlayLogo,
     overlayLogoAnchor,
+    foregroundPrompt,
+    posterHeadline,
+    posterSubtitle,
+    posterTextAnchor,
   } = args;
 
   if (!projectRoot) throw new Error('projectRoot required');
@@ -781,6 +951,27 @@ export async function generateMedia(args: {
   if (overlayLogoAnchor && !['left', 'right'].includes(overlayLogoAnchor)) {
     throw new Error('unsupported overlay logo anchor. Allowed: left | right.');
   }
+  if (posterTextAnchor && !['left', 'right'].includes(posterTextAnchor)) {
+    throw new Error('unsupported poster text anchor. Allowed: left | right.');
+  }
+  const layeredPosterValues = [
+    foregroundPrompt,
+    posterHeadline,
+    posterSubtitle,
+    posterTextAnchor,
+  ];
+  const layeredPosterRequested = layeredPosterValues.some(Boolean);
+  if (layeredPosterRequested && !layeredPosterValues.every(Boolean)) {
+    throw new Error(
+      'layered poster requires foregroundPrompt, posterHeadline, posterSubtitle, and posterTextAnchor',
+    );
+  }
+  if (layeredPosterRequested && (!overlayZRef || surface !== 'image')) {
+    throw new Error('layered poster requires an image surface and --overlay-z');
+  }
+  if (layeredPosterRequested && def.provider !== 'openai') {
+    throw new Error('layered poster foregrounds currently require a gpt-image model');
+  }
 
   // Resolve any user-configured model alias BEFORE we hand the id to a
   // dispatcher (issue #1277). Catalog lookup + surface validation above
@@ -826,6 +1017,7 @@ export async function generateMedia(args: {
       : null;
 
   let bytes: Buffer;
+  let foregroundBytes: Buffer | undefined;
   let providerNote: string;
   let suggestedExt: string | undefined;
   let providerId = def.provider;
@@ -863,7 +1055,18 @@ export async function generateMedia(args: {
       const result = checked?.result
         ?? await renderCustomOpenAIImage(ctx, customImageCredentials!);
       bytes = result.bytes;
-      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}`;
+      if (layeredPosterRequested) {
+        const foregroundResult = await renderCustomOpenAIImage(
+          {
+            ...ctx,
+            prompt: foregroundPrompt!,
+            imageBackground: 'transparent',
+          },
+          customImageCredentials!,
+        );
+        foregroundBytes = foregroundResult.bytes;
+      }
+      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
       if (checked?.safeZone.intrudes) {
         warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
@@ -884,7 +1087,18 @@ export async function generateMedia(args: {
         : null;
       const result = checked?.result ?? await renderOpenAIImage(ctx, credentials);
       bytes = result.bytes;
-      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}`;
+      if (layeredPosterRequested) {
+        const foregroundResult = await renderOpenAIImage(
+          {
+            ...ctx,
+            prompt: foregroundPrompt!,
+            imageBackground: 'transparent',
+          },
+          credentials,
+        );
+        foregroundBytes = foregroundResult.bytes;
+      }
+      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
       if (checked?.safeZone.intrudes) {
         warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
@@ -1079,6 +1293,10 @@ export async function generateMedia(args: {
       ...(overlayZRef
         ? { overlayZ: await readFile(overlayZRef.abs) }
         : {}),
+      ...(foregroundBytes ? { foreground: foregroundBytes } : {}),
+      ...(posterHeadline ? { posterHeadline } : {}),
+      ...(posterSubtitle ? { posterSubtitle } : {}),
+      ...(posterTextAnchor ? { posterTextAnchor } : {}),
       ...(overlayLogoRef
         ? { overlayLogo: await readFile(overlayLogoRef.abs) }
         : {}),
@@ -1195,6 +1413,10 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
   } else {
     // gpt-image-* accepts quality 'high' | 'medium' | 'low'.
     body.quality = ctx.quality === 'auto' ? 'medium' : (ctx.quality ?? 'high');
+    if (ctx.imageBackground) {
+      body.background = ctx.imageBackground;
+      body.output_format = 'png';
+    }
   }
 
   const headers: Record<string, string> = {
@@ -1352,6 +1574,10 @@ async function renderCustomOpenAIImage(ctx: MediaContext, credentials: ProviderC
     n: 1,
     size: openaiSizeFor('gpt-image-1', ctx.aspect),
   };
+  if (ctx.imageBackground) {
+    body.background = ctx.imageBackground;
+    body.output_format = 'png';
+  }
 
   const resp = await fetch(buildOpenAIImageUrl(baseUrl, false), {
     method: 'POST',

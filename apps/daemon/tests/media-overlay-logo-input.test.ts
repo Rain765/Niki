@@ -151,4 +151,78 @@ describe('media brand overlay inputs', () => {
     })).rejects.toThrow('unsupported overlay logo anchor');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('requests a transparent foreground and composites it above the exact Z', async () => {
+    const referenceName = 'loan-poster-z-reference.png';
+    const zReference = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+        <rect width="200" height="100" fill="white"/>
+      </svg>
+    `)).png().toBuffer();
+    const transparentForeground = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    }).composite([{
+      input: Buffer.from(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="180" height="260">
+          <rect width="180" height="260" fill="#00ff00"/>
+        </svg>
+      `),
+      left: 510,
+      top: 170,
+    }]).png().toBuffer();
+    await writeFile(path.join(projectDir, referenceName), zReference);
+
+    const requestBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      requestBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      const bytes = requestBodies.length === 1 ? generatedPoster : transparentForeground;
+      return new Response(
+        JSON.stringify({ data: [{ b64_json: bytes.toString('base64') }] }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'poster-project',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'Background plate without people or copy',
+      foregroundPrompt: 'Model on a transparent background',
+      posterHeadline: 'GET CASH',
+      posterSubtitle: 'Fast support through your phone',
+      posterTextAnchor: 'left',
+      aspect: '16:9',
+      overlayZ: referenceName,
+      loanPosterOutput: true,
+      output: 'layered-poster.png',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(requestBodies[0]).not.toHaveProperty('background');
+    expect(requestBodies[1]).toMatchObject({
+      prompt: 'Model on a transparent background',
+      background: 'transparent',
+      output_format: 'png',
+    });
+    const output = await readFile(path.join(projectDir, result.name));
+    const { data, info } = await sharp(output)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const modelOffset = (300 * info.width + 600) * info.channels;
+    const zOffset = (300 * info.width + 400) * info.channels;
+    expect([
+      data[modelOffset],
+      data[modelOffset + 1],
+      data[modelOffset + 2],
+    ]).toEqual([0, 255, 0]);
+    expect(data[zOffset]).not.toBe(220);
+  });
 });

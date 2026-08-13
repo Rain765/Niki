@@ -14,6 +14,10 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
     buildLoanPosterScenePromptsMock(options).map((prompt, index) => ({
       prompt,
       logoAnchor: index % 2 === 0 ? 'left' : 'right',
+      foregroundPrompt: `transparent foreground ${index}`,
+      headline: `Headline ${index}`,
+      subtitle: `Subtitle ${index}`,
+      textAnchor: index % 2 === 0 ? 'left' : 'right',
     }))
   ),
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
@@ -187,6 +191,10 @@ describe('startDirectLoanPosterProject', () => {
         expect(body.overlayZ).toBe('.od-inputs/reference.png');
         expect(body).not.toHaveProperty('image');
         expect(body.overlayLogoAnchor).toMatch(/^(left|right)$/);
+        expect(body.foregroundPrompt).toMatch(/^transparent foreground [01]$/);
+        expect(body.posterHeadline).toMatch(/^Headline [01]$/);
+        expect(body.posterSubtitle).toMatch(/^Subtitle [01]$/);
+        expect(body.posterTextAnchor).toMatch(/^(left|right)$/);
         expect(body.output).toMatch(
           new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
         );

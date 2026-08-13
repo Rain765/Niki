@@ -82,8 +82,10 @@ Run via your shell tool (Bash on Claude Code, exec on Codex/Gemini, etc.):
   --model <model-id> \\
   --output <filename> \\
   --prompt "<full prompt>" \\
+  [--prompt-file <path|->] \\
   [--aspect 1:1|16:9|9:16|4:3|3:4] \\
   [--overlay-z <project-relative-path>] [--overlay-logo <project-relative-path>] [--overlay-logo-anchor <left|right>] # image only; composite exact brand layers after generation
+  [--foreground-prompt-file <path|->] [--poster-headline <text>] [--poster-subtitle <text>] [--poster-text-anchor <left|right>] # Zamloan layered image only
   [--length <seconds>]              # video only
   [--duration <seconds>]            # audio only
   [--prompt-influence <0-1>]        # audio:sfx only; higher follows the prompt more closely
@@ -93,9 +95,11 @@ Run via your shell tool (Bash on Claude Code, exec on Codex/Gemini, etc.):
   [--language <lang>]               # audio:speech only; language boost (e.g. Chinese,Yue for Cantonese)
 \`\`\`
 
-Always quote the prompt value. Use \`--prompt "<full prompt>"\` (or the
-equivalent safe quoting for your shell) — never splice an unquoted user
-string into the command line.
+Always quote the prompt value. Use \`--prompt "<full prompt>"\` or
+\`--prompt-file <path|->\` — never splice an unquoted user string into the
+command line. Layered Zamloan renders use an environment-only main prompt and
+a transparent model-only \`--foreground-prompt-file\`; the dispatcher places the
+exact Z between those layers and renders the supplied copy afterward.
 
 The command prints a single line of JSON describing the written file:
 
