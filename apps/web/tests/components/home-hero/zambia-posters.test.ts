@@ -96,7 +96,10 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('Do not attach or use the Z reference');
     expect(prompt).toContain('exactly two visible text elements');
     expect(prompt).toContain('phone-screen exception');
-    expect(prompt).toContain('Application Successful');
+    expect(prompt).toContain('compact solid green circle');
+    expect(prompt).toContain('white checkmark');
+    expect(prompt).toContain('one full circle diameter');
+    expect(prompt).toContain('scene-specific short status copy');
     expect(prompt).toContain('must never overlap the model');
     expect(prompt).not.toContain('The single semi-transparent background Z');
   });
@@ -217,20 +220,51 @@ describe('Zambia poster preset', () => {
   });
 
   it('keeps BiuMoney scenes Z-free while clearly showing the phone success UI', () => {
-    const [prompt] = buildLoanPosterScenePrompts({
-      count: 1,
+    const prompts = buildLoanPosterScenePrompts({
+      count: 6,
       aspectRatio: '16:9',
       brand: 'biumoney',
     });
 
-    expect(prompt).toContain('no letter Z');
-    expect(prompt).toContain('exactly two visible text elements');
-    expect(prompt).toContain('very large');
-    expect(prompt).toContain('screen facing the camera');
-    expect(prompt).toContain('solid green checkmark');
-    expect(prompt).toContain('Application Successful');
-    expect(prompt).toContain('never overlap');
-    expect(prompt).not.toContain('benefit callouts');
+    expect(prompts).toHaveLength(6);
+    expect(prompts.every((prompt) => prompt.includes('no letter Z'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes(
+      'exactly two visible text elements',
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('very large'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes(
+      'screen facing the camera',
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes(
+      'compact solid green circle',
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('white checkmark'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes(
+      'no more than about one-sixth of the visible screen height',
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes(
+      'at least one full circle diameter',
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('never overlap'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('benefit callouts'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes(
+      'one solid green checkmark',
+    ))).toBe(true);
+    expect(prompts.map((prompt) => [
+      'Application Approved',
+      'Approval Confirmed',
+      'Request Approved',
+      'Loan Approved',
+      'Application Successful',
+      'Funds Ready',
+    ].find((status) => prompt.includes(`“${status}”`)))).toEqual([
+      'Application Approved',
+      'Approval Confirmed',
+      'Request Approved',
+      'Loan Approved',
+      'Application Successful',
+      'Funds Ready',
+    ]);
     expect(autoPosterUsesZReference('biumoney')).toBe(false);
     expect(autoPosterUsesZReference('zamloan')).toBe(true);
   });

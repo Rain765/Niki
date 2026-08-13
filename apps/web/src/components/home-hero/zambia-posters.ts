@@ -164,6 +164,15 @@ const LOAN_POSTER_SCENES = [
   },
 ] as const;
 
+const BIUMONEY_PHONE_STATUS_COPY = [
+  'Application Approved',
+  'Approval Confirmed',
+  'Request Approved',
+  'Loan Approved',
+  'Application Successful',
+  'Funds Ready',
+] as const;
+
 const LOAN_POSTER_PALETTES = [
   { gradient: 'vivid red to fresh green', ribbon: 'glossy deep green' },
   { gradient: 'vivid red to deep blue', ribbon: 'glossy cobalt blue' },
@@ -268,15 +277,18 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
       ? widescreenComposition.logoAnchor
       : 'left';
     if (brand === 'biumoney') {
+      const phoneStatus = BIUMONEY_PHONE_STATUS_COPY[
+        variationIndex % BIUMONEY_PHONE_STATUS_COPY.length
+      ]!;
       return {
         logoAnchor,
         prompt: `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
 
-Use a clean ${palette.gradient} dominant background with subtle abstract depth and no letter Z, no alphabetic background motif, and no logo-shaped watermark. Render exactly two visible text elements on the poster canvas: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not render any other poster words, numbers, labels, badges, benefit text, brand names, or disclaimers. ${composition}. Show ${plan.model} ${plan.scene}, clearly presenting an anatomically correct smartphone with its screen facing the camera, fully visible, unobstructed by fingers, and large enough for the interface to read clearly. The phone screen is the only text exception: keep its white screen, one solid green checkmark, and short black text “Application Successful”.
+Use a clean ${palette.gradient} dominant background with subtle abstract depth and no letter Z, no alphabetic background motif, and no logo-shaped watermark. Render exactly two visible text elements on the poster canvas: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not render any other poster words, numbers, labels, badges, benefit text, brand names, or disclaimers. ${composition}. Show ${plan.model} ${plan.scene}, clearly presenting an anatomically correct smartphone with its screen facing the camera, fully visible, unobstructed by fingers, and large enough for the interface to read clearly. The phone screen is the only text exception: build a clean white success interface with a compact solid green circle containing a crisp white checkmark. The entire circle must occupy no more than about one-sixth of the visible screen height. Place it in the upper half of the phone screen, then leave a generous vertical gap of at least one full circle diameter before the centered short black status copy “${phoneStatus}” below it. Do not render any other phone-screen words, numbers, labels, controls, or icons.
 
 Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve a clearly visible gap between the text block and the model silhouette. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, oversized readable typography, and generous safe margins.
 
-Negative prompt: letter Z, background letter, alphabetic background motif, logo, watermark, brand wordmark, benefit text, callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, hidden phone screen, phone screen turned away, cropped phone, blank phone screen, screen glare, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable poster text, duplicated elements, mixed brands.`,
+Negative prompt: letter Z, background letter, alphabetic background motif, logo, watermark, brand wordmark, benefit text, callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, hidden phone screen, phone screen turned away, cropped phone, blank phone screen, screen glare, standalone green checkmark, green checkmark without a circle, green checkmark on white background, oversized success icon, icon touching status text, cramped phone UI, extra phone-screen text, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable poster text, duplicated elements, mixed brands.`,
       };
     }
 
@@ -340,7 +352,7 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - These Zamloan copy and placement rules take precedence over conflicting skill template rules.`
     : `- Do not render \`${brandLabel}\`, another brand-name wordmark, a logo, a letter Z, or any background alphabetic motif.
 - Render exactly two visible text elements on the poster canvas: one headline and one subtitle. Do not add benefits, labels, badges, disclaimers, or other poster text.
-- The phone-screen exception is the only additional visible wording: clearly present the phone with its screen facing the camera, fully visible and large enough to read, retaining the white screen, one solid green checkmark, and \`Application Successful\`.
+- The phone-screen exception is the only additional visible wording: clearly present the phone with its screen facing the camera, fully visible and large enough to read. Use a compact solid green circle containing a white checkmark, keep the circle no larger than about one-sixth of the screen height, leave at least one full circle diameter before the copy below it, and use the scene-specific short status copy instead of repeating one status across every scene.
 - Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
 - This BiuMoney override takes precedence over conflicting skill template rules.`;
   const generationReference = usesZReference
