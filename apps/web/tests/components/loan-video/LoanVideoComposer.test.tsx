@@ -78,4 +78,25 @@ describe('LoanVideoComposer', () => {
       ],
     });
   });
+
+  it('opens the screenshot picker from the image surface and in-image replace action', () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+
+    const screenshotInput = screen.getByTestId('loan-video-screenshot-1');
+    const inputClick = vi.spyOn(screenshotInput, 'click');
+    expect(screenshotInput.hasAttribute('hidden')).toBe(true);
+
+    fireEvent.click(screen.getByTestId('loan-video-upload-surface-1'));
+    expect(inputClick).toHaveBeenCalledOnce();
+
+    fireEvent.change(screenshotInput, {
+      target: {
+        files: [new File(['screen'], 'screen.png', { type: 'image/png' })],
+      },
+    });
+
+    inputClick.mockClear();
+    fireEvent.click(screen.getByTestId('loan-video-replace-screenshot-1'));
+    expect(inputClick).toHaveBeenCalledOnce();
+  });
 });

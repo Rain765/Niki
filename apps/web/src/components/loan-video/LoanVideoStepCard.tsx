@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 
 import { useT } from '../../i18n';
 import { Icon } from '../Icon';
@@ -26,11 +26,16 @@ export function LoanVideoStepCard({
 }: Props) {
   const t = useT();
   const previewUrl = useObjectUrl(step.screenshot);
+  const screenshotInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectScreenshot = (event: ChangeEvent<HTMLInputElement>) => {
     const screenshot = event.target.files?.[0] ?? null;
     onChange({ screenshot, tap: null });
     event.target.value = '';
+  };
+
+  const openScreenshotPicker = () => {
+    screenshotInputRef.current?.click();
   };
 
   return (
@@ -70,31 +75,51 @@ export function LoanVideoStepCard({
 
       <div className="loan-video-step__body">
         <div className="loan-video-screenshot">
-          {previewUrl ? (
-            <ScreenshotTapPicker
-              src={previewUrl}
-              alt={step.screenshot?.name ?? t('loanVideo.screenshot')}
-              testId={`loan-video-tap-picker-${index + 1}`}
-              tap={step.tap}
-              onChange={(tap) => onChange({ tap })}
-            />
-          ) : (
-            <div className="loan-video-screenshot__empty">
-              <Icon name="image" size={24} />
-              <span>{t('loanVideo.screenshot')}</span>
-              <small>{t('loanVideo.screenshotHint')}</small>
-            </div>
-          )}
-          <label className="loan-video-screenshot__upload">
-            <input
-              type="file"
-              accept="image/*"
-              data-testid={`loan-video-screenshot-${index + 1}`}
-              onChange={selectScreenshot}
-            />
-            <Icon name="upload" size={15} />
-            {previewUrl ? t('loanVideo.replaceScreenshot') : t('loanVideo.uploadScreenshot')}
-          </label>
+          <div className="loan-video-screenshot__media">
+            {previewUrl ? (
+              <ScreenshotTapPicker
+                src={previewUrl}
+                alt={step.screenshot?.name ?? t('loanVideo.screenshot')}
+                testId={`loan-video-tap-picker-${index + 1}`}
+                tap={step.tap}
+                onChange={(tap) => onChange({ tap })}
+              />
+            ) : (
+              <button
+                type="button"
+                className="loan-video-screenshot__empty"
+                data-testid={`loan-video-upload-surface-${index + 1}`}
+                onClick={openScreenshotPicker}
+              >
+                <Icon name="image" size={24} />
+                <span>{t('loanVideo.screenshot')}</span>
+                <small>{t('loanVideo.screenshotHint')}</small>
+                <span className="loan-video-screenshot__upload-prompt">
+                  <Icon name="upload" size={15} />
+                  {t('loanVideo.uploadScreenshot')}
+                </span>
+              </button>
+            )}
+            {previewUrl ? (
+              <button
+                type="button"
+                className="loan-video-screenshot__upload"
+                data-testid={`loan-video-replace-screenshot-${index + 1}`}
+                onClick={openScreenshotPicker}
+              >
+                <Icon name="upload" size={15} />
+                {t('loanVideo.replaceScreenshot')}
+              </button>
+            ) : null}
+          </div>
+          <input
+            ref={screenshotInputRef}
+            hidden
+            type="file"
+            accept="image/*"
+            data-testid={`loan-video-screenshot-${index + 1}`}
+            onChange={selectScreenshot}
+          />
           {previewUrl ? (
             <small className="loan-video-screenshot__tap-hint">
               {step.tap ? t('loanVideo.tapMarked') : t('loanVideo.tapHint')}
