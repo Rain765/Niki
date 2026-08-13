@@ -285,6 +285,7 @@ button {
 }
 
 .poster-app__eyebrow {
+  display: block;
   color: var(--poster-accent);
   font-size: 12px;
   font-weight: 750;
@@ -302,6 +303,7 @@ button {
 
 .poster-app__mode-select {
   position: relative;
+  flex: 1 1 auto;
   min-width: 0;
 }
 

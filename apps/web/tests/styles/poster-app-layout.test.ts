@@ -23,6 +23,17 @@ function rules(selector: string): string {
 }
 
 describe('poster app image layout', () => {
+  it('stacks the eyebrow above the naturally wrapping mode title', () => {
+    const eyebrow = rule('.poster-app__eyebrow');
+    const modeSelect = rule('.poster-app__mode-select');
+    const trigger = rule('.poster-app__mode-trigger');
+
+    expect(eyebrow).toContain('display: block;');
+    expect(modeSelect).toContain('flex: 1 1 auto;');
+    expect(trigger).toContain('display: inline-block;');
+    expect(trigger).toContain('max-width: 100%;');
+  });
+
   it('uses the standardized fill system with dark selected controls', () => {
     const root = rule(':root');
     const selected = rule('.poster-app__segmented button.is-active');
