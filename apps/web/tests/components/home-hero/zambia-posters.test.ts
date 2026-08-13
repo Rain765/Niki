@@ -68,6 +68,8 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('Do not render `BiuMoney`');
     expect(prompt).toContain('Do not attach or use the Z reference');
     expect(prompt).toContain('exactly two visible text elements');
+    expect(prompt).toContain('phone-screen exception');
+    expect(prompt).toContain('Application Successful');
     expect(prompt).toContain('must never overlap the model');
     expect(prompt).not.toContain('The single semi-transparent background Z');
   });
@@ -130,7 +132,7 @@ describe('Zambia poster preset', () => {
     expect(prompt).not.toContain('Apply 100% via mobile');
   });
 
-  it('keeps BiuMoney scenes Z-free with only large model-safe title copy', () => {
+  it('keeps BiuMoney scenes Z-free while clearly showing the phone success UI', () => {
     const [prompt] = buildLoanPosterScenePrompts({
       count: 1,
       aspectRatio: '16:9',
@@ -140,9 +142,11 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('no letter Z');
     expect(prompt).toContain('exactly two visible text elements');
     expect(prompt).toContain('very large');
+    expect(prompt).toContain('screen facing the camera');
+    expect(prompt).toContain('solid green checkmark');
+    expect(prompt).toContain('Application Successful');
     expect(prompt).toContain('never overlap');
     expect(prompt).not.toContain('benefit callouts');
-    expect(prompt).not.toContain('Application Successful');
     expect(autoPosterUsesZReference('biumoney')).toBe(false);
     expect(autoPosterUsesZReference('zamloan')).toBe(true);
   });

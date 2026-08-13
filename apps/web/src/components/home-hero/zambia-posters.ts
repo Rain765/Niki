@@ -212,11 +212,11 @@ export function buildLoanPosterScenePrompts(options: AutoPosterOptions): string[
     if (brand === 'biumoney') {
       return `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
 
-Use a clean ${palette.gradient} dominant background with subtle abstract depth and no letter Z, no alphabetic background motif, and no logo-shaped watermark. Render exactly two visible text elements: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not render any other words, numbers, labels, badges, benefit text, brand names, disclaimers, or phone-screen text. ${composition}. Show ${plan.model} ${plan.scene}, holding or naturally interacting with an anatomically correct smartphone whose screen contains no text.
+Use a clean ${palette.gradient} dominant background with subtle abstract depth and no letter Z, no alphabetic background motif, and no logo-shaped watermark. Render exactly two visible text elements on the poster canvas: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not render any other poster words, numbers, labels, badges, benefit text, brand names, or disclaimers. ${composition}. Show ${plan.model} ${plan.scene}, clearly presenting an anatomically correct smartphone with its screen facing the camera, fully visible, unobstructed by fingers, and large enough for the interface to read clearly. The phone screen is the only text exception: keep its white screen, one solid green checkmark, and short black text “Application Successful”.
 
 Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve a clearly visible gap between the text block and the model silhouette. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, oversized readable typography, and generous safe margins.
 
-Negative prompt: letter Z, background letter, alphabetic background motif, logo, watermark, brand wordmark, benefit text, callout, badge, label, disclaimer, phone text, extra text, small typography, text over model, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, duplicated elements, mixed brands.`;
+Negative prompt: letter Z, background letter, alphabetic background motif, logo, watermark, brand wordmark, benefit text, callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, hidden phone screen, phone screen turned away, cropped phone, blank phone screen, screen glare, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable poster text, duplicated elements, mixed brands.`;
     }
 
     return `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
@@ -254,7 +254,8 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - Keep the headline and subtitle entirely inside reserved negative space; they must never overlap the model’s face, body, hands, clothing, or phone.
 - These Zamloan copy and placement rules take precedence over conflicting skill template rules.`
     : `- Do not render \`${brandLabel}\`, another brand-name wordmark, a logo, a letter Z, or any background alphabetic motif.
-- Render exactly two visible text elements: one headline and one subtitle. Do not add benefits, labels, badges, disclaimers, or phone-screen text.
+- Render exactly two visible text elements on the poster canvas: one headline and one subtitle. Do not add benefits, labels, badges, disclaimers, or other poster text.
+- The phone-screen exception is the only additional visible wording: clearly present the phone with its screen facing the camera, fully visible and large enough to read, retaining the white screen, one solid green checkmark, and \`Application Successful\`.
 - Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
 - This BiuMoney override takes precedence over conflicting skill template rules.`;
   const generationReference = usesZReference
