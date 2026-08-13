@@ -1323,7 +1323,8 @@ Common options:
   --overlay-logo-anchor <left|right>
                             Align the logo with the matching title column.
   --foreground-prompt <text>
-                            Transparent foreground prompt for a layered poster.
+                            Model-only foreground prompt for a layered poster;
+                            the daemon removes a local chroma matte.
   --foreground-prompt-file <path|->
                             Read the layered foreground prompt from a file or stdin.
   --poster-headline <text>  Deterministic poster headline rendered above the model.
