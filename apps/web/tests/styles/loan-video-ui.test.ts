@@ -67,4 +67,28 @@ describe('loan video UI', () => {
     expect(pressed).toContain('transform: scale(0.98);');
     expect(focus).toContain('outline: 2px solid var(--accent);');
   });
+
+  it('aligns step content and upload surfaces without responsive dead space', () => {
+    const step = rule(componentCss, '.loan-video-step');
+    const body = rule(componentCss, '.loan-video-step__body');
+    const screenshot = rules(componentCss, '.loan-video-screenshot');
+    const media = rules(componentCss, '.loan-video-screenshot__media');
+    const tapHint = rule(componentCss, '.loan-video-screenshot__tap-hint');
+
+    expect(step).toContain('display: grid;');
+    expect(step).toContain('row-gap: 12px;');
+    expect(body).toContain('align-items: stretch;');
+    expect(screenshot).toContain('position: relative;');
+    expect(screenshot).toContain('min-height: 0;');
+    expect(screenshot).toContain('height: 100%;');
+    expect(screenshot).toContain('aspect-ratio: 9 / 16;');
+    expect(screenshot).toContain('width: 100%;');
+    expect(screenshot).toContain('justify-self: stretch;');
+    expect(screenshot).not.toContain('width: min(240px, 100%);');
+    expect(media).toContain('position: absolute;');
+    expect(media).toContain('inset: 0;');
+    expect(media).toContain('aspect-ratio: auto;');
+    expect(tapHint).toContain('position: absolute;');
+    expect(tapHint).toContain('pointer-events: none;');
+  });
 });
