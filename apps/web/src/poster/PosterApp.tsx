@@ -615,8 +615,8 @@ export function PosterApp() {
           >
             <span className="poster-app__mode-title" role="heading" aria-level={1}>
               {creationMode === 'poster' ? 'Generate Loan Posters' : 'Generate Tutorial Videos'}
+              <Icon name="chevron-down" size={24} />
             </span>
-            <Icon name="chevron-down" size={24} />
           </button>
           <div
             className={`poster-app__mode-menu${modeMenuOpen ? ' is-open' : ''}`}

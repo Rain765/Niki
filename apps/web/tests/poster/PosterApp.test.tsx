@@ -143,6 +143,16 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByRole('button', { name: '3' }).classList.contains('is-active')).toBe(true);
   });
 
+  it('keeps the mode chevron in the title flow', () => {
+    render(<PosterApp />);
+
+    const title = screen.getByRole('heading', { name: 'Generate Loan Posters' });
+    const trigger = screen.getByRole('button', { name: 'Generate Loan Posters' });
+
+    expect(title.querySelector('svg')).toBeTruthy();
+    expect(trigger.children).toHaveLength(1);
+  });
+
   it('submits the default portrait ratio as 3:4', async () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);
