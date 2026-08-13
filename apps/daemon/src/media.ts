@@ -73,6 +73,21 @@ type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
 type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
 
+const LAYERED_FOREGROUND_MATTE_INSTRUCTIONS = `
+CRITICAL COMPOSITING REQUIREMENT: Render the complete subject against one
+uniform chroma green background (#00FF00). The green field must fill every
+background pixel edge-to-edge with flat, even color: no scenery, floor,
+gradient, texture, shadow, or vignette. Keep the subject fully inside the
+canvas with clear green margin on every edge. Do not use green clothing or
+green accessories; the small green phone-screen success checkmark is the only
+exception.`.trim();
+
+const LAYERED_FOREGROUND_MATTE_RETRY_INSTRUCTIONS = `
+CRITICAL MATTE RETRY: The previous foreground could not be separated from its
+background. Use a perfectly flat #00FF00 canvas with an uninterrupted green
+border on all four sides. Keep every part of the subject away from the canvas
+edges and remove all environmental or floor detail.`.trim();
+
 const RASTER_IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -486,7 +501,49 @@ async function renderLoanPosterCopy(
   `);
 }
 
-async function normalizeTransparentForeground(
+function isChromaGreenPixel(
+  data: Buffer,
+  offset: number,
+): boolean {
+  const red = data[offset] ?? 0;
+  const green = data[offset + 1] ?? 0;
+  const blue = data[offset + 2] ?? 0;
+  return green >= 110 && green - red >= 35 && green - blue >= 35;
+}
+
+function hasAdjacentMaskedPixel(
+  mask: Buffer,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  for (let deltaY = -1; deltaY <= 1; deltaY += 1) {
+    for (let deltaX = -1; deltaX <= 1; deltaX += 1) {
+      if (deltaX === 0 && deltaY === 0) continue;
+      const nextX = x + deltaX;
+      const nextY = y + deltaY;
+      if (
+        nextX >= 0
+        && nextX < width
+        && nextY >= 0
+        && nextY < height
+        && mask[nextY * width + nextX] === 1
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Accept provider-native alpha when available, otherwise remove an opaque
+ * edge-connected chroma-green matte. Restricting removal to pixels connected
+ * to the canvas boundary preserves enclosed green details such as the phone
+ * success checkmark.
+ */
+export async function prepareLayeredForeground(
   foreground: Buffer,
   width: number,
   height: number,
@@ -505,7 +562,65 @@ async function normalizeTransparentForeground(
   }
   const pixelCount = Math.max(1, info.width * info.height);
   if (transparentPixels / pixelCount < 0.05) {
-    throw new Error('layered poster foreground did not contain a transparent background');
+    const matteMask = Buffer.alloc(pixelCount);
+    const queue = new Int32Array(pixelCount);
+    let queueStart = 0;
+    let queueEnd = 0;
+    const enqueue = (pixelIndex: number) => {
+      if (matteMask[pixelIndex] === 1) return;
+      const offset = pixelIndex * info.channels;
+      if (!isChromaGreenPixel(data, offset)) return;
+      matteMask[pixelIndex] = 1;
+      queue[queueEnd] = pixelIndex;
+      queueEnd += 1;
+    };
+
+    for (let x = 0; x < info.width; x += 1) {
+      enqueue(x);
+      enqueue((info.height - 1) * info.width + x);
+    }
+    for (let y = 1; y < info.height - 1; y += 1) {
+      enqueue(y * info.width);
+      enqueue(y * info.width + info.width - 1);
+    }
+
+    while (queueStart < queueEnd) {
+      const pixelIndex = queue[queueStart] ?? 0;
+      queueStart += 1;
+      const x = pixelIndex % info.width;
+      const y = Math.floor(pixelIndex / info.width);
+      if (x > 0) enqueue(pixelIndex - 1);
+      if (x + 1 < info.width) enqueue(pixelIndex + 1);
+      if (y > 0) enqueue(pixelIndex - info.width);
+      if (y + 1 < info.height) enqueue(pixelIndex + info.width);
+    }
+
+    if (queueEnd / pixelCount < 0.05) {
+      throw new Error(
+        'layered poster foreground did not contain an edge-connected chroma green matte',
+      );
+    }
+
+    visiblePixels = 0;
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      const offset = pixelIndex * info.channels;
+      if (matteMask[pixelIndex] === 1) {
+        data[offset + 3] = 0;
+        continue;
+      }
+      const x = pixelIndex % info.width;
+      const y = Math.floor(pixelIndex / info.width);
+      if (hasAdjacentMaskedPixel(matteMask, x, y, info.width, info.height)) {
+        const red = data[offset] ?? 0;
+        const green = data[offset + 1] ?? 0;
+        const blue = data[offset + 2] ?? 0;
+        const greenDominance = Math.max(0, green - Math.max(red, blue));
+        const spill = Math.min(1, greenDominance / 120);
+        data[offset + 1] = Math.min(green, Math.max(red, blue) + 18);
+        data[offset + 3] = Math.max(24, Math.round(255 * (1 - spill * 0.82)));
+      }
+      if ((data[offset + 3] ?? 0) > 8) visiblePixels += 1;
+    }
   }
   if (visiblePixels / pixelCount < 0.01) {
     throw new Error('layered poster foreground did not contain a visible model');
@@ -519,8 +634,43 @@ async function normalizeTransparentForeground(
   }).png().toBuffer();
 }
 
+async function renderLayeredForegroundWithMatteRetry<T extends { bytes: Buffer }>(
+  background: Buffer,
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+): Promise<{ result: T; foreground: Buffer; attempts: number }> {
+  const metadata = await sharp(background).metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('layered poster background has no readable dimensions');
+  }
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const resolvedPrompt = [
+      prompt,
+      LAYERED_FOREGROUND_MATTE_INSTRUCTIONS,
+      attempt > 1 ? LAYERED_FOREGROUND_MATTE_RETRY_INSTRUCTIONS : '',
+    ].filter(Boolean).join('\n\n');
+    const result = await render(resolvedPrompt);
+    try {
+      return {
+        result,
+        foreground: await prepareLayeredForeground(
+          result.bytes,
+          metadata.width,
+          metadata.height,
+        ),
+        attempts: attempt,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`layered poster foreground matte extraction failed after 2 attempts: ${detail}`);
+}
+
 /**
- * Build the poster as real pixel layers: background → exact Z → transparent
+ * Build the poster as real pixel layers: background → exact Z → isolated
  * model → deterministic copy. The Zamloan logo is added by the caller last.
  */
 export async function composeLayeredLoanPoster(
@@ -532,7 +682,7 @@ export async function composeLayeredLoanPoster(
     throw new Error('layered poster background has no readable dimensions');
   }
   const withZ = await overlayZamloanZReference(background, options.zReference);
-  const foreground = await normalizeTransparentForeground(
+  const foreground = await prepareLayeredForeground(
     options.foreground,
     metadata.width,
     metadata.height,
@@ -628,7 +778,6 @@ type MediaContext = {
   prompt: string;
   aspect: string | undefined;
   quality: ImageQuality | undefined;
-  imageBackground?: 'opaque' | 'transparent';
   length: number | undefined;
   duration: number | undefined;
   voice: string;
@@ -1056,15 +1205,18 @@ export async function generateMedia(args: {
         ?? await renderCustomOpenAIImage(ctx, customImageCredentials!);
       bytes = result.bytes;
       if (layeredPosterRequested) {
-        const foregroundResult = await renderCustomOpenAIImage(
-          {
-            ...ctx,
-            prompt: foregroundPrompt!,
-            imageBackground: 'transparent',
-          },
-          customImageCredentials!,
+        const renderedForeground = await renderLayeredForegroundWithMatteRetry(
+          result.bytes,
+          foregroundPrompt!,
+          (resolvedPrompt) => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          ),
         );
-        foregroundBytes = foregroundResult.bytes;
+        foregroundBytes = renderedForeground.foreground;
+        if (renderedForeground.attempts > 1) {
+          warnings.push('Foreground matte required one retry before compositing.');
+        }
       }
       providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
@@ -1088,15 +1240,18 @@ export async function generateMedia(args: {
       const result = checked?.result ?? await renderOpenAIImage(ctx, credentials);
       bytes = result.bytes;
       if (layeredPosterRequested) {
-        const foregroundResult = await renderOpenAIImage(
-          {
-            ...ctx,
-            prompt: foregroundPrompt!,
-            imageBackground: 'transparent',
-          },
-          credentials,
+        const renderedForeground = await renderLayeredForegroundWithMatteRetry(
+          result.bytes,
+          foregroundPrompt!,
+          (resolvedPrompt) => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          ),
         );
-        foregroundBytes = foregroundResult.bytes;
+        foregroundBytes = renderedForeground.foreground;
+        if (renderedForeground.attempts > 1) {
+          warnings.push('Foreground matte required one retry before compositing.');
+        }
       }
       providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
@@ -1413,10 +1568,6 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
   } else {
     // gpt-image-* accepts quality 'high' | 'medium' | 'low'.
     body.quality = ctx.quality === 'auto' ? 'medium' : (ctx.quality ?? 'high');
-    if (ctx.imageBackground) {
-      body.background = ctx.imageBackground;
-      body.output_format = 'png';
-    }
   }
 
   const headers: Record<string, string> = {
@@ -1574,11 +1725,6 @@ async function renderCustomOpenAIImage(ctx: MediaContext, credentials: ProviderC
     n: 1,
     size: openaiSizeFor('gpt-image-1', ctx.aspect),
   };
-  if (ctx.imageBackground) {
-    body.background = ctx.imageBackground;
-    body.output_format = 'png';
-  }
-
   const resp = await fetch(buildOpenAIImageUrl(baseUrl, false), {
     method: 'POST',
     headers,

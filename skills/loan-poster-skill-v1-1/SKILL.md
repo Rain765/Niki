@@ -50,9 +50,10 @@ The caller supplies the brand, aspect ratio, quantity, and campaign context.
   black status text.
 - Use exactly one large semi-transparent Z from the supplied reference as a
   background structure.
-- For Zamloan, generate the environment/background plate and transparent model
-  foreground separately. Composite in this exact order: background, supplied Z,
-  transparent model, deterministic headline/subtitle, then the exact logo.
+- For Zamloan, generate the environment/background plate and model foreground
+  on a uniform chroma-green matte separately. Let the daemon isolate the model,
+  then composite in this exact order: background, supplied Z, isolated model,
+  deterministic headline/subtitle, then the exact logo.
 - Do not render a Zamloan, Biu Money, BiuMoney, or other brand-name wordmark in
   the top-left corner. Do not replace it with another text logo or icon logo.
 - Preserve premium commercial photography and natural skin retouching.
@@ -82,7 +83,7 @@ same model combination in adjacent outputs.
   image-generation command. The daemon composites it in the top-left with a
   subtle shadow after generation; do not redraw the logo in the generated
   artwork.
-- For Zamloan, pass a transparent model-only prompt through
+- For Zamloan, pass a chroma-matte model-only prompt through
   `--foreground-prompt-file`, provide copy through `--poster-headline` and
   `--poster-subtitle`, and align it with `--poster-text-anchor`. Do not include
   people or poster copy in the background prompt.

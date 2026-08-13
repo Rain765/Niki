@@ -241,11 +241,12 @@ export function PosterApp() {
   const statusDismissed = dismissedStatusKey === statusKey;
 
   useEffect(() => {
+    if (status.state === 'working' || status.state === 'failed') return undefined;
     const timeout = window.setTimeout(() => {
       setDismissedStatusKey(statusKey);
     }, STATUS_AUTO_DISMISS_MS);
     return () => window.clearTimeout(timeout);
-  }, [statusKey]);
+  }, [status.state, statusKey]);
 
   useEffect(() => {
     if (!previewFile || !projectId || !previewFileKey) return undefined;

@@ -203,6 +203,62 @@ describe('PosterApp mobile-safe flow', () => {
     expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('keeps an asynchronous generation failure visible until the user dismisses it', async () => {
+    const failedProject = {
+      ...project,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: {
+          kind: 'loan-poster' as const,
+          expectedOutputs: 1,
+          status: 'failed' as const,
+          activeBatchId: 'batch-failed',
+          batches: [{
+            id: 'batch-failed',
+            status: 'failed' as const,
+            requestedAt: 10,
+            failedAt: 20,
+            expectedOutputs: 1,
+            outputNames: ['zamloan-poster-20260813-001.png'],
+            brand: 'zamloan' as const,
+            aspectRatio: '3:4' as const,
+            lastError: 'Provider rejected the foreground request.',
+          }],
+        },
+      },
+    };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(failedProject);
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/projects/project-1/files') {
+        return new Response(JSON.stringify({ files: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1') {
+        return new Response(JSON.stringify({ project: failedProject }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+
+    render(<PosterApp />);
+    await screen.findByText('Provider rejected the foreground request.');
+
+    const generationStatus = screen.getByTestId('poster-app-generation-status');
+    const lastAutoDismissCall = setTimeoutSpy.mock.calls
+      .filter(([, delay]) => delay === 10_000)
+      .at(-1);
+    act(() => {
+      if (typeof lastAutoDismissCall?.[0] === 'function') lastAutoDismissCall[0]();
+    });
+    expect(generationStatus.className).not.toContain('is-dismissed');
+  });
+
   it('restores the server image and shows copy confirmation above the preview', async () => {
     render(<PosterApp />);
     const poster = await screen.findByRole('img', {

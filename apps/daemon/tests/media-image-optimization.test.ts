@@ -7,12 +7,47 @@ import {
   finalizeGeneratedPng,
   overlayZamloanZReference,
   overlayZamloanLogo,
+  prepareLayeredForeground,
   optimizeLoanPosterPng,
   optimizeLosslessPng,
   renderImageWithLogoSafeZoneRetry,
 } from '../src/media.js';
 
 describe('generated image optimization', () => {
+  it('removes edge-connected chroma green while preserving enclosed green details', async () => {
+    const matteForeground = await sharp({
+      create: {
+        width: 100,
+        height: 100,
+        channels: 4,
+        background: { r: 0, g: 255, b: 0, alpha: 1 },
+      },
+    }).composite([{
+      input: Buffer.from(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="70">
+          <rect width="60" height="70" fill="#0033ff"/>
+          <rect x="18" y="22" width="24" height="34" fill="#ffffff"/>
+          <rect x="25" y="34" width="10" height="10" fill="#00ff00"/>
+        </svg>
+      `),
+      left: 20,
+      top: 15,
+    }]).png().toBuffer();
+
+    const prepared = await prepareLayeredForeground(matteForeground, 100, 100);
+    const { data, info } = await sharp(prepared)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const pixel = (x: number, y: number) => {
+      const offset = (y * info.width + x) * info.channels;
+      return [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]];
+    };
+
+    expect(pixel(0, 0)[3]).toBe(0);
+    expect(pixel(25, 25)).toEqual([0, 51, 255, 255]);
+    expect(pixel(50, 54)).toEqual([0, 255, 0, 255]);
+  });
+
   it('keeps the deterministic Z behind the transparent model and programmatic copy', async () => {
     const background = await sharp({
       create: {

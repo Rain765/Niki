@@ -44,7 +44,7 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('--aspect 1:1');
     expect(prompt).toContain('single semi-transparent background Z');
     expect(prompt).toContain(
-      'background → exact supplied Z → transparent model → deterministic copy → exact logo',
+      'background → exact supplied Z → isolated model → deterministic copy → exact logo',
     );
     expect(prompt).toContain('--overlay-z');
     expect(prompt).not.toContain('Z reference via `--image`');
@@ -157,6 +157,9 @@ describe('Zambia poster preset', () => {
     expect(plans[1]?.prompt).toContain('right 47% visually calm');
     expect(plans.every((plan) => plan.prompt.includes('logo-safe row'))).toBe(true);
     expect(plans.every((plan) => plan.foregroundPrompt?.includes(
+      'uniform chroma green background',
+    ))).toBe(true);
+    expect(plans.every((plan) => !plan.foregroundPrompt?.includes(
       'transparent background',
     ))).toBe(true);
     expect(plans.map((plan) => plan.textAnchor)).toEqual(['left', 'right']);
@@ -200,7 +203,8 @@ describe('Zambia poster preset', () => {
     expect(plan?.prompt).toContain('exact supplied Z will be composited');
     expect(plan?.prompt).toContain('Do not render people');
     expect(plan?.prompt).toContain('Do not render text');
-    expect(plan?.foregroundPrompt).toContain('transparent background PNG');
+    expect(plan?.foregroundPrompt).toContain('uniform chroma green background');
+    expect(plan?.foregroundPrompt).not.toContain('transparent background');
     expect(plan?.foregroundPrompt).toContain('solid green checkmark');
     expect(plan?.foregroundPrompt).toContain('Application Successful');
     expect(plan).toMatchObject({

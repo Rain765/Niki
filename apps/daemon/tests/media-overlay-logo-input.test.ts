@@ -152,24 +152,24 @@ describe('media brand overlay inputs', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('requests a transparent foreground and composites it above the exact Z', async () => {
+  it('requests an opaque matte foreground and composites it above the exact Z', async () => {
     const referenceName = 'loan-poster-z-reference.png';
     const zReference = await sharp(Buffer.from(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
         <rect width="200" height="100" fill="white"/>
       </svg>
     `)).png().toBuffer();
-    const transparentForeground = await sharp({
+    const matteForeground = await sharp({
       create: {
         width: 800,
         height: 600,
         channels: 4,
-        background: { r: 0, g: 0, b: 0, alpha: 0 },
+        background: { r: 0, g: 255, b: 0, alpha: 1 },
       },
     }).composite([{
       input: Buffer.from(`
         <svg xmlns="http://www.w3.org/2000/svg" width="180" height="260">
-          <rect width="180" height="260" fill="#00ff00"/>
+          <rect width="180" height="260" fill="#0033ff"/>
         </svg>
       `),
       left: 510,
@@ -180,7 +180,7 @@ describe('media brand overlay inputs', () => {
     const requestBodies: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       requestBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
-      const bytes = requestBodies.length === 1 ? generatedPoster : transparentForeground;
+      const bytes = requestBodies.length === 1 ? generatedPoster : matteForeground;
       return new Response(
         JSON.stringify({ data: [{ b64_json: bytes.toString('base64') }] }),
         { status: 200, headers: { 'content-type': 'application/json' } },
@@ -195,7 +195,7 @@ describe('media brand overlay inputs', () => {
       surface: 'image',
       model: 'gpt-image-2',
       prompt: 'Background plate without people or copy',
-      foregroundPrompt: 'Model on a transparent background',
+      foregroundPrompt: 'Model isolated for compositing',
       posterHeadline: 'GET CASH',
       posterSubtitle: 'Fast support through your phone',
       posterTextAnchor: 'left',
@@ -207,11 +207,9 @@ describe('media brand overlay inputs', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(requestBodies[0]).not.toHaveProperty('background');
-    expect(requestBodies[1]).toMatchObject({
-      prompt: 'Model on a transparent background',
-      background: 'transparent',
-      output_format: 'png',
-    });
+    expect(requestBodies[1]).not.toHaveProperty('background');
+    expect(requestBodies[1]?.prompt).toContain('Model isolated for compositing');
+    expect(requestBodies[1]?.prompt).toContain('uniform chroma green');
     const output = await readFile(path.join(projectDir, result.name));
     const { data, info } = await sharp(output)
       .raw()
@@ -222,7 +220,78 @@ describe('media brand overlay inputs', () => {
       data[modelOffset],
       data[modelOffset + 1],
       data[modelOffset + 2],
-    ]).toEqual([0, 255, 0]);
+    ]).toEqual([0, 51, 255]);
     expect(data[zOffset]).not.toBe(220);
+  });
+
+  it('retries the foreground once with stricter matte instructions', async () => {
+    const referenceName = 'loan-poster-z-reference.png';
+    const zReference = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100">
+        <rect width="200" height="100" fill="white"/>
+      </svg>
+    `)).png().toBuffer();
+    const invalidForeground = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const matteForeground = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 0, g: 255, b: 0, alpha: 1 },
+      },
+    }).composite([{
+      input: Buffer.from(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="180" height="260">
+          <rect width="180" height="260" fill="#0033ff"/>
+        </svg>
+      `),
+      left: 510,
+      top: 170,
+    }]).png().toBuffer();
+    await writeFile(path.join(projectDir, referenceName), zReference);
+
+    const requestBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      requestBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      const bytes = requestBodies.length === 1
+        ? generatedPoster
+        : requestBodies.length === 2
+          ? invalidForeground
+          : matteForeground;
+      return new Response(
+        JSON.stringify({ data: [{ b64_json: bytes.toString('base64') }] }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'poster-project',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'Background plate without people or copy',
+      foregroundPrompt: 'Model isolated for compositing',
+      posterHeadline: 'GET CASH',
+      posterSubtitle: 'Fast support through your phone',
+      posterTextAnchor: 'left',
+      aspect: '16:9',
+      overlayZ: referenceName,
+      loanPosterOutput: true,
+      output: 'retried-layered-poster.png',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(requestBodies[2]?.prompt).toContain('CRITICAL MATTE RETRY');
+    expect(result.warnings).toContain('Foreground matte required one retry before compositing.');
+    await expect(readFile(path.join(projectDir, result.name))).resolves.toBeInstanceOf(Buffer);
   });
 });

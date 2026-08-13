@@ -294,13 +294,13 @@ The environment should suggest ${plan.scene}. Do not render people, faces, bodie
 Use premium commercial lighting, realistic Zambian environmental detail, generous safe margins, and a coherent light direction that a separately generated foreground subject can share.
 
 Negative prompt: person, people, face, body, hand, phone, text, letter, number, Z, logo, watermark, badge, label, disclaimer, typography, blurry, low quality, mixed brands.`,
-      foregroundPrompt: `Create a premium commercial-photo foreground layer for a ${brandLabel} Zambia mobile-loan poster in ${aspectRatio}. Output a transparent background PNG with no environment, backdrop, floor, wall, gradient, ribbon, letter Z, logo, poster copy, headline, subtitle, badge, label, or watermark.
+      foregroundPrompt: `Create a premium commercial-photo foreground layer for a ${brandLabel} Zambia mobile-loan poster in ${aspectRatio}. Use one uniform chroma green background (#00FF00) filling the complete canvas, with no environment, backdrop, floor, wall, gradient, ribbon, letter Z, logo, poster copy, headline, subtitle, badge, label, or watermark.
 
-Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. ${aspectRatio === '16:9' ? widescreenComposition.foregroundInstruction : nonWidescreenComposition.foregroundInstruction}. Preserve clean natural alpha edges around hair, clothing, and hands. Match vivid premium advertising lighting with a red-dominant campaign palette and natural skin retouching.
+Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. ${aspectRatio === '16:9' ? widescreenComposition.foregroundInstruction : nonWidescreenComposition.foregroundInstruction}. Keep the complete subject away from every canvas edge and do not use green clothing or green accessories. Preserve clean natural edges around hair, clothing, and hands. Match vivid premium advertising lighting with a red-dominant campaign palette and natural skin retouching.
 
 The phone screen is the only text exception: use a white screen, one solid green checkmark, and short black text “Application Successful”. Do not render any other words or letters.
 
-Negative prompt: opaque background, colored background, environment, scenery, floor, wall, gradient, ribbon, Z, logo, watermark, poster headline, subtitle, extra text, cropped head, cropped hands, cropped phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, mixed brands.`,
+Negative prompt: alpha background, white background, non-green background, textured background, environment, scenery, floor, wall, gradient, ribbon, Z, logo, watermark, poster headline, subtitle, extra text, green clothing, cropped head, cropped hands, cropped phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, mixed brands.`,
     };
   });
 }
@@ -326,14 +326,14 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const outputPrefix = `${brand}-poster`;
   const usesZReference = autoPosterUsesZReference(brand);
   const referenceContract = usesZReference
-    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z silhouette. Locate its project-relative path and pass it through \`--overlay-z\` for every generation. Generate an environment-only background prompt plus a model-only transparent foreground prompt. The daemon will composite background → exact supplied Z → transparent model → deterministic copy → exact logo, preserving the Z silhouette while keeping it behind every model and copy pixel. Tell both image generations not to draw any Z themselves. Never copy the Z reference into a visible output path or list it as a deliverable.`
+    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z silhouette. Locate its project-relative path and pass it through \`--overlay-z\` for every generation. Generate an environment-only background prompt plus a model-only chroma-matte foreground prompt. The daemon will isolate that foreground locally and composite background → exact supplied Z → isolated model → deterministic copy → exact logo, preserving the Z silhouette while keeping it behind every model and copy pixel. Tell both image generations not to draw any Z themselves. Never copy the Z reference into a visible output path or list it as a deliverable.`
     : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
   const logoContract = usesZReference
     ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
     : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
   const brandOverride = usesZReference
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
-- Do not let either image generation draw any Z. The single semi-transparent background Z is added deterministically by \`--overlay-z\` between the environment plate and transparent model foreground.
+- Do not let either image generation draw any Z. The single semi-transparent background Z is added deterministically by \`--overlay-z\` between the environment plate and locally isolated model foreground.
 - Do not let either image generation draw poster copy. Pass one headline and one subtitle through \`--poster-headline\` and \`--poster-subtitle\`; the daemon renders them above the model and Z.
 - The phone-screen exception is the only additional visible wording: retain the white screen, one solid green checkmark, and \`Application Successful\`.
 - Keep the headline and subtitle entirely inside reserved negative space; they must never overlap the model’s face, body, hands, clothing, or phone.
@@ -369,7 +369,7 @@ ${brandOverride}
 
 Generation contract:
 - Use the image model selected in the project metadata.
-- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}${usesZReference ? `, \`--foreground-prompt-file\` for the transparent model-only layer, \`--poster-headline\`, \`--poster-subtitle\`, \`--poster-text-anchor\`, \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', and `--overlay-logo-anchor` matching the scene title column' : ''}` : ''}.
+- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}${usesZReference ? `, \`--foreground-prompt-file\` for the chroma-matte model-only layer, \`--poster-headline\`, \`--poster-subtitle\`, \`--poster-text-anchor\`, \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', and `--overlay-logo-anchor` matching the scene title column' : ''}` : ''}.
 - Write outputs as \`${outputPrefix}-01.png\` through \`${outputPrefix}-${String(count).padStart(2, '0')}.png\`.
 - Complete all ${count} generation attempts. If one fails, continue with the remaining scenes and report the failed item accurately.
 ${referenceCleanup}- Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.

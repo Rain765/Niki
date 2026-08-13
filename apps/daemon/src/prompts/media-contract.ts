@@ -98,8 +98,9 @@ Run via your shell tool (Bash on Claude Code, exec on Codex/Gemini, etc.):
 Always quote the prompt value. Use \`--prompt "<full prompt>"\` or
 \`--prompt-file <path|->\` — never splice an unquoted user string into the
 command line. Layered Zamloan renders use an environment-only main prompt and
-a transparent model-only \`--foreground-prompt-file\`; the dispatcher places the
-exact Z between those layers and renders the supplied copy afterward.
+a chroma-matte model-only \`--foreground-prompt-file\`; the dispatcher isolates
+the model locally, places the exact Z between those layers, and renders the
+supplied copy afterward.
 
 The command prints a single line of JSON describing the written file:
 
