@@ -24,13 +24,44 @@ function rules(css: string, selector: string): string {
 
 describe('loan video UI', () => {
   it('styles the video listbox trigger and keeps its white portal menu in the viewport', () => {
+    const select = rule(componentCss, '.loan-video-select');
     const trigger = rule(componentCss, '.loan-video-select__trigger');
     const menu = rule(componentCss, '.loan-video-select__menu');
+    const portalMenu = [
+      menu,
+      rule(componentCss, '.loan-video-select__menu.portal'),
+    ].join('\n');
+    const option = rule(componentCss, '.loan-video-select__menu .od-select-option');
 
+    expect.soft(select).toContain('width: 100%;');
+    expect.soft(trigger).toContain('width: 100%;');
+    expect.soft(trigger).toContain('display: grid;');
+    expect.soft(trigger).toContain('grid-template-columns: minmax(0, 1fr) auto;');
+    expect.soft(trigger).toContain('align-items: center;');
     expect(trigger).toContain('padding: 9px 14px 9px 11px;');
     expect(trigger).toContain('background: var(--bg-subtle);');
+    expect.soft(portalMenu).toContain('position: fixed;');
+    expect.soft(portalMenu).toMatch(/z-index:\s*\d+;/);
     expect(menu).toContain('max-width: calc(100vw - 24px);');
     expect(menu).toContain('background: var(--poster-fill-0, var(--bg-panel));');
+    expect.soft(option).toContain('width: 100%;');
+  });
+
+  it('puts the title above four equal-width video filters', () => {
+    const desktopCss = componentCss.slice(0, componentCss.indexOf('@media'));
+    const settings = rule(desktopCss, '.loan-video-composer__settings');
+    const title = rule(desktopCss, '.loan-video-field--wide');
+
+    expect.soft(settings).toContain('grid-template-columns: repeat(4, minmax(0, 1fr));');
+    expect.soft(title).toContain('grid-column: 1 / -1;');
+  });
+
+  it('lets the video composer fill its page content area', () => {
+    const video = rule(posterCss, '.poster-app__video');
+    const videoHero = rule(posterCss, '.poster-app__video .loan-video-hero');
+
+    expect.soft(video).toContain('width: 100%;');
+    expect.soft(videoHero).toContain('width: 100%;');
   });
 
   it('uses a dark step header above a borderless transparent body', () => {

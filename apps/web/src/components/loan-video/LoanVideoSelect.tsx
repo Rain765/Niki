@@ -23,7 +23,7 @@ export function LoanVideoSelect({
         className="loan-video-select"
         menuClassName="loan-video-select__menu"
         menuGap={8}
-        menuPlacement="bottom"
+        menuPlacement="adaptive"
         onChange={onChange}
         options={options}
         testId={testId}

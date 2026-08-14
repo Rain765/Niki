@@ -547,7 +547,12 @@ button {
   --loan-video-step-header-bg: var(--poster-text-primary);
   --loan-video-step-header-text: var(--poster-text-inverse);
   display: grid;
+  width: 100%;
   gap: var(--poster-space-3);
+}
+
+.poster-app__video .loan-video-hero {
+  width: 100%;
 }
 
 .poster-app__video .home-hero__backdrop,

@@ -123,6 +123,54 @@ describe('LoanVideoComposer', () => {
     expect(aspect.getAttribute('aria-expanded')).toBe('false');
   });
 
+  it('keeps a mobile filter menu usable when the trigger is near the viewport bottom', async () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(390);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(640);
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+
+    const aspect = screen.getByTestId('loan-video-aspect');
+    vi.spyOn(aspect, 'getBoundingClientRect').mockReturnValue({
+      x: 12,
+      y: 588,
+      left: 12,
+      top: 588,
+      right: 378,
+      bottom: 630,
+      width: 366,
+      height: 42,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.click(aspect);
+
+    const menu = await screen.findByRole('listbox', { name: 'Aspect ratio' });
+    expect(Number.parseFloat(menu.style.maxHeight)).toBeGreaterThan(0);
+    expect(Number.parseFloat(menu.style.top)).toBeLessThan(588);
+  });
+
+  it('keeps all four video filters clickable and commits their selected labels', () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+
+    const settings = screen.getByTestId('loan-video-title')
+      .closest('.loan-video-composer__settings');
+    expect(settings?.querySelectorAll('.loan-video-select-field')).toHaveLength(4);
+
+    const selections = [
+      ['loan-video-brand', /BiuMoney/, 'Product: BiuMoney'],
+      ['loan-video-language', /简体中文/, 'Language: 简体中文'],
+      ['loan-video-aspect', /^3:4$/, 'Aspect ratio: 3:4'],
+      ['loan-video-duration', /^45s$/, 'Target length: 45s'],
+    ] as const;
+
+    for (const [testId, optionName, expectedLabel] of selections) {
+      const trigger = screen.getByTestId(testId);
+      fireEvent.click(trigger);
+      fireEvent.click(screen.getByRole('option', { name: optionName }));
+      expect(trigger.getAttribute('aria-label')).toBe(expectedLabel);
+      expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    }
+  });
+
   it('opens the screenshot picker from the image surface and in-image replace action', () => {
     render(<LoanVideoComposer onSubmit={vi.fn()} />);
 
