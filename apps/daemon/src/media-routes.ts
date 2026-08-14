@@ -40,6 +40,42 @@ function oneLine(value: string, limit = 300): string {
   return value.replace(/\s+/g, ' ').trim().slice(0, limit);
 }
 
+interface MediaTaskAdmissionTask {
+  id: string;
+  projectId: string;
+  status: string;
+  startedAt?: number;
+}
+
+export function resolveMediaGenerationTaskAdmission<T extends MediaTaskAdmissionTask>(options: {
+  clientRequestId: unknown;
+  projectId: string;
+  getTask: (taskId: string) => T | null;
+  randomUUID: () => string;
+}): { taskId: string; existingTask: T | null } {
+  if (options.clientRequestId === undefined || options.clientRequestId === null) {
+    return { taskId: options.randomUUID(), existingTask: null };
+  }
+  if (
+    typeof options.clientRequestId !== 'string'
+    || !/^[A-Za-z0-9:_-]{1,160}$/.test(options.clientRequestId)
+  ) {
+    const error = new Error('clientRequestId must be 1-160 safe identifier characters');
+    Object.assign(error, { status: 400, code: 'invalid_client_request_id' });
+    throw error;
+  }
+  const existingTask = options.getTask(options.clientRequestId);
+  if (existingTask && existingTask.projectId !== options.projectId) {
+    const error = new Error('clientRequestId already belongs to another project');
+    Object.assign(error, { status: 409, code: 'client_request_id_conflict' });
+    throw error;
+  }
+  return {
+    taskId: options.clientRequestId,
+    existingTask,
+  };
+}
+
 export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) {
   const { db } = ctx;
   const { sendApiError, requireLocalDaemonRequest, isLocalSameOrigin, resolvedPortRef } = ctx.http;
@@ -200,8 +236,25 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           nikiUser.id,
         );
       }
+      // Resolve immediately before the synchronous insert. This keeps two
+      // concurrent retries from both observing a missing task across the
+      // asynchronous quota check above.
+      const admission = resolveMediaGenerationTaskAdmission({
+        clientRequestId: req.body?.clientRequestId,
+        projectId,
+        getTask: getLiveMediaTask,
+        randomUUID,
+      });
+      if (admission.existingTask) {
+        return res.status(202).json({
+          taskId: admission.existingTask.id,
+          status: admission.existingTask.status,
+          startedAt: admission.existingTask.startedAt,
+          idempotentReplay: true,
+        });
+      }
 
-      const taskId = randomUUID();
+      const taskId = admission.taskId;
       const task = createMediaTask(taskId, projectId, {
         surface: req.body?.surface,
         model: req.body?.model,

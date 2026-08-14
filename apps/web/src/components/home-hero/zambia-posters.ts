@@ -7,6 +7,8 @@ export const ZAMLOAN_LOGO_URL = '/brand/zambia-support/zamloan-logo.svg';
 export const ZAMLOAN_LOGO_NAME = 'zamloan-logo.svg';
 export const LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1-1';
 const LEGACY_LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1.1';
+const POSTER_ASSET_TIMEOUT_MS = 12_000;
+const POSTER_ASSET_RETRY_DELAYS_MS = [250, 750] as const;
 
 export const AUTO_POSTER_ASPECT_RATIOS = ['1:1', '16:9', '3:4'] as const;
 export type AutoPosterAspectRatio = (typeof AUTO_POSTER_ASPECT_RATIOS)[number];
@@ -398,24 +400,65 @@ export function buildZambiaPosterPrompt(requestedCount: number): string {
 }
 
 export async function loadZambiaPosterReference(): Promise<File> {
-  const response = await fetch(ZAMBIA_POSTER_REFERENCE_URL, { cache: 'force-cache' });
-  if (!response.ok) {
-    throw new Error(`Unable to load Zambia Z reference (${response.status})`);
-  }
-  const blob = await response.blob();
-  return new File([blob], ZAMBIA_POSTER_REFERENCE_NAME, {
-    type: blob.type || 'image/png',
+  return loadBundledPosterAsset({
+    url: ZAMBIA_POSTER_REFERENCE_URL,
+    name: ZAMBIA_POSTER_REFERENCE_NAME,
+    fallbackType: 'image/png',
+    label: 'Zambia Z reference',
   });
 }
 
 export async function loadZamloanLogo(): Promise<File> {
-  const response = await fetch(ZAMLOAN_LOGO_URL, { cache: 'force-cache' });
-  const contentType = response.headers.get('content-type') ?? '';
-  if (!response.ok || !contentType.startsWith('image/')) {
-    throw new Error(`Unable to load Zamloan logo (${response.status})`);
-  }
-  const blob = await response.blob();
-  return new File([blob], ZAMLOAN_LOGO_NAME, {
-    type: blob.type || 'image/svg+xml',
+  return loadBundledPosterAsset({
+    url: ZAMLOAN_LOGO_URL,
+    name: ZAMLOAN_LOGO_NAME,
+    fallbackType: 'image/svg+xml',
+    label: 'Zamloan logo',
+    requireImageContentType: true,
   });
+}
+
+async function loadBundledPosterAsset(options: {
+  url: string;
+  name: string;
+  fallbackType: string;
+  label: string;
+  requireImageContentType?: boolean;
+}): Promise<File> {
+  let lastFailure: unknown;
+  for (let attempt = 0; attempt <= POSTER_ASSET_RETRY_DELAYS_MS.length; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = globalThis.setTimeout(() => {
+      controller.abort(new DOMException(`${options.label} request timed out`, 'TimeoutError'));
+    }, POSTER_ASSET_TIMEOUT_MS);
+    try {
+      const response = await fetch(options.url, {
+        cache: attempt === 0 ? 'force-cache' : 'reload',
+        signal: controller.signal,
+      });
+      const contentType = response.headers.get('content-type') ?? '';
+      if (
+        !response.ok
+        || (options.requireImageContentType && !contentType.startsWith('image/'))
+      ) {
+        throw new Error(`Unable to load ${options.label} (${response.status})`);
+      }
+      const blob = await response.blob();
+      return new File([blob], options.name, {
+        type: blob.type || options.fallbackType,
+      });
+    } catch (reason) {
+      lastFailure = reason;
+      if (attempt >= POSTER_ASSET_RETRY_DELAYS_MS.length) break;
+      await waitForPosterAssetRetry(POSTER_ASSET_RETRY_DELAYS_MS[attempt]!);
+    } finally {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
+  const detail = lastFailure instanceof Error ? lastFailure.message : 'unknown error';
+  throw new Error(`Unable to load ${options.label}: ${detail}`);
+}
+
+function waitForPosterAssetRetry(delayMs: number): Promise<void> {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, delayMs));
 }

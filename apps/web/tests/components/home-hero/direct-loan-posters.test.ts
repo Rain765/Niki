@@ -178,6 +178,8 @@ describe('startDirectLoanPosterProject', () => {
         });
       }
       if (url.includes('/upload?visibility=internal')) {
+        expect(init?.keepalive).toBe(true);
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
         return new Response(JSON.stringify({ files: [{ path: '.od-inputs/reference.png' }] }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -185,6 +187,8 @@ describe('startDirectLoanPosterProject', () => {
       }
       if (url.endsWith('/media/generate')) {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        expect(init?.keepalive).toBe(true);
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
         expect(body.quality).toBe('low');
         expect(body.model).toBe('gpt-image-2');
         expect(body.overlayLogo).toBe('.od-inputs/reference.png');
@@ -282,9 +286,14 @@ describe('startDirectLoanPosterProject', () => {
     const mediaBodies = fetchMock.mock.calls
       .filter(([input]) => String(input).endsWith('/media/generate'))
       .map(([, init]) => JSON.parse(String(init?.body)) as {
+        clientRequestId?: string;
         overlayLogoAnchor?: string;
         overlayZ?: string;
       });
+    expect(mediaBodies.map((body) => body.clientRequestId)).toEqual([
+      'loan-poster:project-1:0',
+      'loan-poster:project-1:1',
+    ]);
     expect(mediaBodies.map((body) => body.overlayLogoAnchor)).toEqual(['left', 'right']);
     expect(mediaBodies.map((body) => body.overlayZ)).toEqual([
       '.od-inputs/reference.png',
@@ -405,7 +414,7 @@ describe('startDirectLoanPosterProject', () => {
     }, onProjectCreated);
 
     await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
     });
     expect(onProjectCreated).toHaveBeenCalledWith(expect.objectContaining({
       id: 'project-1',
@@ -791,6 +800,59 @@ describe('startDirectLoanPosterProject', () => {
       ([input]) => String(input).endsWith('/media/generate'),
     )).toHaveLength(1);
     expect(mediaRequestBody?.overlayLogoAnchor).toBe('left');
+  });
+
+  it('retries media admission with the same idempotency key', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    vi.useFakeTimers();
+    const mediaBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify(
+          init?.method === 'POST' ? { project } : { projects: [] },
+        ), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { metadata: unknown; updatedAt: number };
+        return new Response(JSON.stringify({
+          project: { ...project, metadata: body.metadata, updatedAt: body.updatedAt },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/media/generate')) {
+        expect(init?.keepalive).toBe(true);
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        mediaBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        if (mediaBodies.length === 1) throw new TypeError('temporary connection loss');
+        return new Response(JSON.stringify({ taskId: 'task-1', status: 'running' }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'project-1' });
+
+    const generation = startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'biumoney',
+    });
+    await vi.runAllTimersAsync();
+
+    await expect(generation).resolves.toEqual({ projectId: 'project-1' });
+    expect(mediaBodies).toHaveLength(2);
+    expect(mediaBodies.map((body) => body.clientRequestId)).toEqual([
+      'loan-poster:project-1:0',
+      'loan-poster:project-1:0',
+    ]);
   });
 
   it('identifies a non-retryable Zamloan logo upload failure', async () => {

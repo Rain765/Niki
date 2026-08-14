@@ -40,6 +40,7 @@ const NEW_CHAT_SESSION = '__new__';
 const LAST_PROJECT_STORAGE_KEY = 'niki:direct-loan-poster:last-project';
 const UPLOAD_RETRY_DELAYS_MS = [250, 750] as const;
 const RETRYABLE_UPLOAD_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const POSTER_REQUEST_TIMEOUT_MS = 15_000;
 
 function lastProjectStorageKey(sessionScope?: string): string {
   const scope = sessionScope?.trim();
@@ -186,6 +187,9 @@ export async function startDirectLoanPosterProject(
   const dateKey = localDateKey();
   const storageKey = lastProjectStorageKey(options.sessionScope);
   let reusableProject = await resolveDirectLoanPosterProject(options.sessionScope);
+  const bundledAssets = autoPosterUsesZReference(options.brand)
+    ? await Promise.all([loadZambiaPosterReference(), loadZamloanLogo()])
+    : null;
   const prefix = `${options.brand}-poster`;
   let project: Project | null = null;
   let existingFiles: Awaited<ReturnType<typeof fetchProjectFiles>> = [];
@@ -339,18 +343,19 @@ export async function startDirectLoanPosterProject(
 
     let referencePath: string | undefined;
     let logoPath: string | undefined;
-    if (autoPosterUsesZReference(options.brand)) {
-      const referenceFile = await loadZambiaPosterReference();
-      referencePath = await uploadPosterAsset(
-        project.id,
-        referenceFile,
-        'upload-z-reference',
-      );
-      logStage('reference-uploaded', project.id);
-
-      const logoFile = await loadZamloanLogo();
-      logoPath = await uploadPosterAsset(project.id, logoFile, 'upload-logo');
-      logStage('logo-uploaded', project.id);
+    if (bundledAssets) {
+      [referencePath, logoPath] = await Promise.all([
+        uploadPosterAsset(project.id, bundledAssets[0], 'upload-z-reference')
+          .then((path) => {
+            logStage('reference-uploaded', project.id);
+            return path;
+          }),
+        uploadPosterAsset(project.id, bundledAssets[1], 'upload-logo')
+          .then((path) => {
+            logStage('logo-uploaded', project.id);
+            return path;
+          }),
+      ]);
     }
 
     const datedOutputPrefix = `${prefix}-${compactDateKey(dateKey)}`;
@@ -409,38 +414,34 @@ export async function startDirectLoanPosterProject(
     committedProject = committed;
 
     const responses = await Promise.all(
-      scenePlans.map((scenePlan, index) => fetch(
-        `/api/projects/${encodeURIComponent(project.id)}/media/generate`,
+      scenePlans.map((scenePlan, index) => submitMediaGeneration(
+        project.id,
         {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            surface: 'image',
-            model: IMAGE_MODEL,
-            quality: 'low',
-            aspect: options.aspectRatio,
-            ...(referencePath ? { overlayZ: referencePath } : {}),
-            ...(logoPath
-              ? {
-                overlayLogo: logoPath,
-                overlayLogoAnchor: scenePlan.logoAnchor,
-              }
-              : {}),
-            ...(scenePlan.foregroundPrompt
-              && scenePlan.headline
-              && scenePlan.subtitle
-              && scenePlan.textAnchor
-              ? {
-                foregroundPrompt: scenePlan.foregroundPrompt,
-                posterHeadline: scenePlan.headline,
-                posterSubtitle: scenePlan.subtitle,
-                posterTextAnchor: scenePlan.textAnchor,
-              }
-              : {}),
-            output: batchOutputNames[index],
-            prompt: scenePlan.prompt,
-          }),
+          clientRequestId: `loan-poster:${batchId}:${index}`,
+          surface: 'image',
+          model: IMAGE_MODEL,
+          quality: 'low',
+          aspect: options.aspectRatio,
+          ...(referencePath ? { overlayZ: referencePath } : {}),
+          ...(logoPath
+            ? {
+              overlayLogo: logoPath,
+              overlayLogoAnchor: scenePlan.logoAnchor,
+            }
+            : {}),
+          ...(scenePlan.foregroundPrompt
+            && scenePlan.headline
+            && scenePlan.subtitle
+            && scenePlan.textAnchor
+            ? {
+              foregroundPrompt: scenePlan.foregroundPrompt,
+              posterHeadline: scenePlan.headline,
+              posterSubtitle: scenePlan.subtitle,
+              posterTextAnchor: scenePlan.textAnchor,
+            }
+            : {}),
+          output: batchOutputNames[index],
+          prompt: scenePlan.prompt,
         },
       )),
     );
@@ -504,11 +505,12 @@ async function uploadPosterAsset(
     try {
       const form = new FormData();
       form.append('files', file);
-      response = await fetch(url, {
+      response = await fetchWithTimeout(url, {
         method: 'POST',
         credentials: 'include',
         body: form,
-      });
+        keepalive: true,
+      }, POSTER_REQUEST_TIMEOUT_MS);
     } catch (reason) {
       if (attempt >= UPLOAD_RETRY_DELAYS_MS.length) {
         throw new DirectLoanPosterRequestError({
@@ -554,6 +556,69 @@ async function uploadPosterAsset(
     status: 0,
     detail: '上传重试已用尽。',
   });
+}
+
+async function submitMediaGeneration(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const url = `/api/projects/${encodeURIComponent(projectId)}/media/generate`;
+  for (let attempt = 0; attempt <= UPLOAD_RETRY_DELAYS_MS.length; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        keepalive: true,
+      }, POSTER_REQUEST_TIMEOUT_MS);
+    } catch (reason) {
+      if (attempt >= UPLOAD_RETRY_DELAYS_MS.length) {
+        throw new DirectLoanPosterRequestError({
+          stage: 'start-generation',
+          status: 0,
+          detail: reason instanceof Error ? reason.message : '网络连接中断。',
+        });
+      }
+      console.warn(
+        `[direct-loan-poster] stage=start-generation retry=${attempt + 1}`,
+        reason,
+      );
+      await waitForUploadRetry(UPLOAD_RETRY_DELAYS_MS[attempt]!);
+      continue;
+    }
+
+    const canRetry = RETRYABLE_UPLOAD_STATUSES.has(response.status)
+      && attempt < UPLOAD_RETRY_DELAYS_MS.length;
+    if (!canRetry) return response;
+    console.warn(
+      `[direct-loan-poster] stage=start-generation retry=${attempt + 1} status=${response.status}`,
+    );
+    await waitForUploadRetry(UPLOAD_RETRY_DELAYS_MS[attempt]!);
+  }
+
+  throw new DirectLoanPosterRequestError({
+    stage: 'start-generation',
+    status: 0,
+    detail: '任务提交重试已用尽。',
+  });
+}
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = globalThis.setTimeout(() => {
+    controller.abort(new DOMException('请求超时。', 'TimeoutError'));
+  }, timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    globalThis.clearTimeout(timeoutId);
+  }
 }
 
 function waitForUploadRetry(delayMs: number): Promise<void> {

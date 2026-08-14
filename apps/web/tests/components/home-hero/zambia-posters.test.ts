@@ -321,7 +321,10 @@ describe('Zambia poster preset', () => {
 
     const file = await loadZambiaPosterReference();
 
-    expect(fetchMock).toHaveBeenCalledWith(ZAMBIA_POSTER_REFERENCE_URL, { cache: 'force-cache' });
+    expect(fetchMock).toHaveBeenCalledWith(ZAMBIA_POSTER_REFERENCE_URL, {
+      cache: 'force-cache',
+      signal: expect.any(AbortSignal),
+    });
     expect(file.name).toBe(ZAMBIA_POSTER_REFERENCE_NAME);
     expect(file.type).toBe('image/png');
   });
@@ -340,7 +343,10 @@ describe('Zambia poster preset', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/brand/zambia-support/zamloan-logo.svg',
-      { cache: 'force-cache' },
+      {
+        cache: 'force-cache',
+        signal: expect.any(AbortSignal),
+      },
     );
     expect(file.name).toBe('zamloan-logo.svg');
     expect(file.type).toBe('image/svg+xml');
