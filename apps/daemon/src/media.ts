@@ -59,6 +59,11 @@ import {
   modelsForSurface,
 } from './media-models.js';
 import { assertExternalAssetUrl } from './connectionTest.js';
+import {
+  createHyperFramesRenderEnv,
+  resolveHyperFramesBinaryPaths,
+  verifyHyperFramesBinaries,
+} from './hyperframes-binaries.js';
 import { resolveModelAlias, resolveProviderConfig } from './media-config.js';
 import {
   ensureProject,
@@ -3404,7 +3409,11 @@ async function renderHyperFramesViaCli(ctx: MediaContext, projectDir: string, on
  * agent's chat tool shows a long quiet spinner — users can't tell
  * whether anything is happening.
  */
-function runHyperFramesRender(compAbs: string, tmpOutput: string, onProgress?: ProgressFn): Promise<void> {
+async function runHyperFramesRender(compAbs: string, tmpOutput: string, onProgress?: ProgressFn): Promise<void> {
+  const binaries = resolveHyperFramesBinaryPaths();
+  await verifyHyperFramesBinaries(binaries);
+  const renderEnv = createHyperFramesRenderEnv(process.env, binaries);
+
   return new Promise<void>((resolve, reject) => {
     const child = spawn(
       'npx',
@@ -3419,10 +3428,11 @@ function runHyperFramesRender(compAbs: string, tmpOutput: string, onProgress?: P
         '1',
       ],
       {
-        // Inherit env so npx can find the cached hyperframes install
-        // and any user-level node config. stdin closed (HF doesn't
-        // read from it), stdout/stderr piped so we can stream.
-        env: process.env,
+        // Keep the daemon environment so npx can find the cached
+        // HyperFrames install, while pinning FFmpeg/FFprobe to the static
+        // binaries shipped with this daemon release. stdin is closed (HF
+        // doesn't read from it); stdout/stderr are piped for progress.
+        env: renderEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );

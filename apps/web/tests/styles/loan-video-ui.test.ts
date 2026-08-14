@@ -91,4 +91,53 @@ describe('loan video UI', () => {
     expect(tapHint).toContain('position: absolute;');
     expect(tapHint).toContain('pointer-events: none;');
   });
+
+  it('replaces the inline add action with a compact upload and progress control', () => {
+    const manage = rule(componentCss, '.loan-video-steps__manage');
+    const count = rule(componentCss, '.loan-video-steps__count');
+
+    expect(manage).toContain('flex: 0 0 auto;');
+    expect(manage).toContain('min-height: 38px;');
+    expect(count).toContain('border-radius: 999px;');
+    expect(count).toContain('font-variant-numeric: tabular-nums;');
+  });
+
+  it('uses an animated, independently scrolling right drawer on desktop', () => {
+    const root = rule(componentCss, '.loan-video-drawer-root');
+    const openRoot = rule(componentCss, '.loan-video-drawer-root.is-open');
+    const backdrop = rule(componentCss, '.loan-video-drawer__backdrop');
+    const drawer = rules(componentCss, '.loan-video-drawer');
+    const openDrawer = rules(componentCss, '.loan-video-drawer-root.is-open .loan-video-drawer');
+    const header = rule(componentCss, '.loan-video-drawer__header');
+    const body = rule(componentCss, '.loan-video-drawer__body');
+
+    expect(root).toContain('position: fixed;');
+    expect(root).toContain('visibility: hidden;');
+    expect(root).toContain('pointer-events: none;');
+    expect(openRoot).toContain('visibility: visible;');
+    expect(openRoot).toContain('pointer-events: auto;');
+    expect(backdrop).toContain('opacity: 0;');
+    expect(drawer).toContain('width: min(620px, calc(100vw - 32px));');
+    expect(drawer).toContain('transform: translateX(100%);');
+    expect(openDrawer).toContain('transform: translateX(0);');
+    expect(header).toContain('grid-template-columns: 40px minmax(0, 1fr) auto;');
+    expect(body).toContain('overflow: auto;');
+    expect(body).toContain('overscroll-behavior: contain;');
+  });
+
+  it('promotes the drawer to a safe-area-aware full-screen sheet on mobile', () => {
+    const drawer = rules(componentCss, '.loan-video-drawer');
+    const openDrawer = rules(componentCss, '.loan-video-drawer-root.is-open .loan-video-drawer');
+    const header = rules(componentCss, '.loan-video-drawer__header');
+    const body = rules(componentCss, '.loan-video-drawer__body');
+    const manage = rules(componentCss, '.loan-video-steps__manage');
+
+    expect(drawer).toContain('width: 100%;');
+    expect(drawer).toContain('transform: translateY(100%);');
+    expect(openDrawer).toContain('transform: translateY(0);');
+    expect(header).toContain('env(safe-area-inset-left)');
+    expect(header).toContain('env(safe-area-inset-right)');
+    expect(body).toContain('env(safe-area-inset-bottom)');
+    expect(manage).toContain('width: 100%;');
+  });
 });

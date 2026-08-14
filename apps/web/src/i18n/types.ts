@@ -735,6 +735,7 @@ export interface Dict {
   'loanVideo.narrationHint': string;
   'loanVideo.steps': string;
   'loanVideo.stepsHint': string;
+  'loanVideo.manageSteps': string;
   'loanVideo.addStep': string;
   'loanVideo.step': string;
   'loanVideo.moveUp': string;

@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { useT } from '../../i18n';
 import { Icon } from '../Icon';
-import { LoanVideoStepCard } from './LoanVideoStepCard';
+import { LoanVideoUploadDrawer } from './LoanVideoUploadDrawer';
 import {
   createLoanVideoStep,
   loanVideoBrandLabel,
@@ -43,8 +43,10 @@ function initialDraft(): LoanVideoDraft {
 export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
   const t = useT();
   const [draft, setDraft] = useState<LoanVideoDraft>(initialDraft);
+  const [uploadDrawerOpen, setUploadDrawerOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<LoanVideoValidationError[]>([]);
   const nextStepIdRef = useRef(INITIAL_STEP_COUNT + 1);
+  const completedScreenshotCount = draft.steps.filter((step) => step.screenshot).length;
 
   const updateStep = (stepId: string, update: Partial<LoanVideoStepDraft>) => {
     setDraft((current) => ({
@@ -87,9 +89,20 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
   const submit = () => {
     const errors = validateLoanVideoDraft(draft);
     setValidationErrors(errors);
+    if (errors.some((error) => (
+      error === 'step-required'
+      || error === 'caption-required'
+      || error === 'screenshot-required'
+    ))) {
+      setUploadDrawerOpen(true);
+    }
     if (errors.length > 0 || disabled) return;
     onSubmit(draft);
   };
+
+  const closeUploadDrawer = useCallback(() => {
+    setUploadDrawerOpen(false);
+  }, []);
 
   return (
     <section className="home-hero loan-video-hero" data-testid="loan-video-composer">
@@ -211,25 +224,24 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
               <h2 id="loan-video-steps-title">{t('loanVideo.steps')}</h2>
               <p>{t('loanVideo.stepsHint')}</p>
             </div>
-            <button type="button" className="ghost" onClick={addStep} data-testid="loan-video-add-step">
-              <Icon name="plus" size={16} />
-              {t('loanVideo.addStep')}
+            <button
+              type="button"
+              className="ghost loan-video-steps__manage"
+              onClick={() => setUploadDrawerOpen(true)}
+              data-testid="loan-video-manage-steps"
+              aria-haspopup="dialog"
+              aria-expanded={uploadDrawerOpen}
+              aria-controls="loan-video-upload-drawer"
+            >
+              <Icon name="upload" size={16} />
+              <span>{t('loanVideo.manageSteps')}</span>
+              <span
+                className="loan-video-steps__count"
+                aria-label={`${completedScreenshotCount}/${draft.steps.length}`}
+              >
+                {completedScreenshotCount}/{draft.steps.length}
+              </span>
             </button>
-          </div>
-
-          <div className="loan-video-steps__list">
-            {draft.steps.map((step, index) => (
-              <LoanVideoStepCard
-                key={step.id}
-                step={step}
-                index={index}
-                count={draft.steps.length}
-                narration={draft.narration}
-                onChange={(update) => updateStep(step.id, update)}
-                onRemove={() => removeStep(step.id)}
-                onMove={(direction) => moveStep(step.id, direction)}
-              />
-            ))}
           </div>
         </section>
 
@@ -257,6 +269,17 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
             {t('loanVideo.generate')}
           </button>
         </footer>
+
+        <LoanVideoUploadDrawer
+          open={uploadDrawerOpen}
+          steps={draft.steps}
+          narration={draft.narration}
+          onAddStep={addStep}
+          onChangeStep={updateStep}
+          onClose={closeUploadDrawer}
+          onMoveStep={moveStep}
+          onRemoveStep={removeStep}
+        />
       </div>
     </section>
   );

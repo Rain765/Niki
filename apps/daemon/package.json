@@ -32,6 +32,7 @@
     "typecheck": "pnpm --filter @open-design/contracts build && pnpm --filter @open-design/registry-protocol build && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.tests.json --noEmit"
   },
   "dependencies": {
+    "@derhuerst/ffprobe-static": "5.3.0",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@open-design/agui-adapter": "workspace:*",
     "@open-design/contracts": "workspace:*",
@@ -46,6 +47,7 @@
     "blake3-wasm": "2.1.5",
     "chokidar": "5.0.0",
     "express": "4.22.1",
+    "ffmpeg-static": "5.3.0",
     "jszip": "3.10.1",
     "multer": "2.1.1",
     "posthog-node": "4.18.0",

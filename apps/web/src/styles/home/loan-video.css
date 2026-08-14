@@ -244,9 +244,139 @@
   gap: 7px;
 }
 
+.loan-video-steps__manage {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 10px 0 12px;
+}
+
+.loan-video-steps__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 35px;
+  min-height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-strong) 8%, transparent);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
 .loan-video-steps__list {
   display: grid;
   gap: 12px;
+}
+
+.loan-video-drawer-root {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear 140ms;
+}
+
+.loan-video-drawer-root.is-open {
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.loan-video-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--text-strong) 34%, transparent);
+  opacity: 0;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.loan-video-drawer-root.is-open .loan-video-drawer__backdrop {
+  opacity: 1;
+  transition-duration: 200ms;
+}
+
+.loan-video-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(620px, calc(100vw - 32px));
+  min-width: 0;
+  border-left: 1px solid var(--border-soft);
+  outline: none;
+  background: var(--bg-panel);
+  box-shadow: -20px 0 54px color-mix(in srgb, var(--text-strong) 14%, transparent);
+  transform: translateX(100%);
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.loan-video-drawer-root.is-open .loan-video-drawer {
+  transform: translateX(0);
+  transition-duration: 200ms;
+}
+
+.loan-video-drawer__header {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+  padding: max(14px, env(safe-area-inset-top)) 18px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-panel);
+}
+
+.loan-video-drawer__close {
+  width: 40px;
+  height: 40px;
+}
+
+.loan-video-drawer__title {
+  min-width: 0;
+}
+
+.loan-video-drawer__title h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 17px;
+}
+
+.loan-video-drawer__title p {
+  margin: 4px 0 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-video-drawer__add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.loan-video-drawer__body {
+  min-height: 0;
+  padding: 18px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.loan-video-drawer__steps {
+  gap: 16px;
 }
 
 .loan-video-step {
@@ -599,6 +729,41 @@
 
   .loan-video-steps__heading {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .loan-video-steps__manage {
+    width: 100%;
+  }
+
+  .loan-video-drawer {
+    width: 100%;
+    border-left: 0;
+    transform: translateY(100%);
+  }
+
+  .loan-video-drawer-root.is-open .loan-video-drawer {
+    transform: translateY(0);
+  }
+
+  .loan-video-drawer__header {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 9px;
+    min-height: 74px;
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-left: max(12px, env(safe-area-inset-left));
+  }
+
+  .loan-video-drawer__title p {
+    display: none;
+  }
+
+  .loan-video-drawer__body {
+    padding:
+      14px
+      max(12px, env(safe-area-inset-right))
+      max(24px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
   }
 
   .loan-video-step__body {
@@ -619,5 +784,13 @@
 
   .loan-video-generate {
     width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loan-video-drawer-root,
+  .loan-video-drawer__backdrop,
+  .loan-video-drawer {
+    transition: none !important;
   }
 }

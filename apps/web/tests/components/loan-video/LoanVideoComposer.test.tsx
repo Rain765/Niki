@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LoanVideoComposer } from '../../../src/components/loan-video/LoanVideoComposer';
@@ -28,11 +35,14 @@ describe('LoanVideoComposer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('loan-video-errors').textContent).toContain('Add a video title.');
     expect(screen.getByTestId('loan-video-errors').textContent).toContain('Every step needs an app screenshot.');
+    expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('false');
   });
 
   it('collects screenshots, captions, voiceover, ordering, and tap coordinates', () => {
     const onSubmit = vi.fn();
     render(<LoanVideoComposer onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
 
     fireEvent.change(screen.getByTestId('loan-video-title'), {
       target: { value: 'How to top up' },
@@ -62,6 +72,7 @@ describe('LoanVideoComposer', () => {
       toJSON: () => ({}),
     });
     fireEvent.click(picker, { clientX: 110, clientY: 320 });
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     expect(onSubmit).toHaveBeenCalledOnce();
@@ -82,6 +93,8 @@ describe('LoanVideoComposer', () => {
   it('opens the screenshot picker from the image surface and in-image replace action', () => {
     render(<LoanVideoComposer onSubmit={vi.fn()} />);
 
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
+
     const screenshotInput = screen.getByTestId('loan-video-screenshot-1');
     const inputClick = vi.spyOn(screenshotInput, 'click');
     expect(screenshotInput.hasAttribute('hidden')).toBe(true);
@@ -94,9 +107,67 @@ describe('LoanVideoComposer', () => {
         files: [new File(['screen'], 'screen.png', { type: 'image/png' })],
       },
     });
+    expect(screen.getByTestId('loan-video-manage-steps').textContent).toContain('1/3');
 
     inputClick.mockClear();
     fireEvent.click(screen.getByTestId('loan-video-replace-screenshot-1'));
     expect(inputClick).toHaveBeenCalledOnce();
+  });
+
+  it('moves step editing into a modal drawer and keeps add-step in its top-right action', async () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+
+    const manageButton = screen.getByTestId('loan-video-manage-steps');
+    const stepsSection = manageButton.closest('.loan-video-steps');
+    const drawer = screen.getByTestId('loan-video-upload-drawer');
+
+    expect(manageButton.textContent).toContain('Upload / manage steps');
+    expect(manageButton.textContent).toContain('0/3');
+    expect(manageButton.getAttribute('aria-expanded')).toBe('false');
+    expect(stepsSection?.querySelector('.loan-video-step')).toBeNull();
+    expect(drawer.getAttribute('aria-hidden')).toBe('true');
+    expect(drawer.hasAttribute('inert')).toBe(true);
+
+    manageButton.focus();
+    fireEvent.click(manageButton);
+
+    expect(manageButton.getAttribute('aria-expanded')).toBe('true');
+    expect(drawer.getAttribute('aria-modal')).toBe('true');
+    expect(drawer.getAttribute('aria-hidden')).toBe('false');
+    expect(drawer.hasAttribute('inert')).toBe(false);
+    expect(document.body.style.overflow).toBe('hidden');
+
+    const drawerHeader = drawer.querySelector('.loan-video-drawer__header');
+    expect(drawerHeader).toBeTruthy();
+    const addStep = within(drawerHeader as HTMLElement).getByTestId('loan-video-add-step');
+    fireEvent.click(addStep);
+    expect(screen.getAllByTestId(/loan-video-step-/)).toHaveLength(4);
+    expect(manageButton.textContent).toContain('0/4');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Close' })).toBe(document.activeElement);
+    });
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(drawer.getAttribute('aria-hidden')).toBe('true');
+    expect(drawer.hasAttribute('inert')).toBe(true);
+    expect(document.body.style.overflow).toBe('');
+    expect(manageButton).toBe(document.activeElement);
+  });
+
+  it('closes from the backdrop and preserves the step draft when reopened', () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+
+    const manageButton = screen.getByTestId('loan-video-manage-steps');
+    fireEvent.click(manageButton);
+    fireEvent.change(screen.getByTestId('loan-video-caption-1'), {
+      target: { value: 'Open the application' },
+    });
+    fireEvent.pointerDown(screen.getByTestId('loan-video-upload-drawer-backdrop'));
+
+    expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('true');
+    fireEvent.click(manageButton);
+    expect((screen.getByTestId('loan-video-caption-1') as HTMLInputElement).value)
+      .toBe('Open the application');
   });
 });

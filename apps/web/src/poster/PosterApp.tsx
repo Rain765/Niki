@@ -5,11 +5,9 @@ import { useNikiAuth } from '../auth/NikiAuth';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
 import { LoanVideoComposer } from '../components/loan-video/LoanVideoComposer';
 import {
-  buildLoanVideoPrompt,
-  LOAN_VIDEO_PLUGIN_ID,
-  LOAN_VIDEO_SKILL_ID,
-  loanVideoProjectName,
-} from '../components/loan-video/loan-video';
+  type LoanVideoGenerationPhase,
+  useLoanVideoGeneration,
+} from '../components/loan-video/useLoanVideoGeneration';
 import type { LoanVideoDraft } from '../components/loan-video/types';
 import {
   buildDirectPosterBatches,
@@ -34,9 +32,8 @@ import {
   savePreparedImageFile,
   sharePreparedImageFile,
 } from '../lib/image-file-actions';
-import { uploadProjectFiles } from '../providers/registry';
-import { createProject } from '../state/projects';
-import type { Project, ProjectFile, ProjectMetadata } from '../types';
+import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
+import type { Project, ProjectFile } from '../types';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
@@ -115,9 +112,50 @@ function generationCopy(batch: DirectPosterBatchView | null): {
   };
 }
 
+function videoGenerationCopy(
+  phase: LoanVideoGenerationPhase,
+  hasVideo: boolean,
+  error: string | null,
+): {
+  detail: string;
+  state: 'idle' | 'working' | 'complete' | 'failed';
+  title: string;
+} {
+  if (phase === 'failed' || phase === 'canceled') {
+    return {
+      state: 'failed',
+      title: 'Video generation did not finish',
+      detail: error ?? 'Submit the same tutorial again to retry.',
+    };
+  }
+  if (phase === 'succeeded' && hasVideo) {
+    return {
+      state: 'complete',
+      title: 'Tutorial video generated',
+      detail: 'The latest MP4 is ready to preview or download below.',
+    };
+  }
+  const workingCopy: Partial<Record<LoanVideoGenerationPhase, [string, string]>> = {
+    restoring: ['Loading recent video…', 'Checking the latest project and run.'],
+    preparing: ['Preparing video project', 'Creating a durable project for this tutorial.'],
+    uploading: ['Uploading screenshots', 'Adding the ordered screenshots to the project.'],
+    queued: ['Video generation queued', 'The generation agent will start shortly.'],
+    running: ['Generating tutorial video', 'The task is running. The MP4 will appear here automatically.'],
+    succeeded: ['Finishing tutorial video', 'The run finished. Waiting for the MP4 to appear.'],
+  };
+  const copy = workingCopy[phase];
+  if (copy) return { state: 'working', title: copy[0], detail: copy[1] };
+  return {
+    state: 'idle',
+    title: 'Ready to generate',
+    detail: 'Complete the tutorial steps, then generate an MP4.',
+  };
+}
+
 export function PosterApp() {
   const { user, logout } = useNikiAuth();
   const [creationMode, setCreationMode] = useState<CreationMode>('poster');
+  const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video');
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
@@ -135,12 +173,13 @@ export function PosterApp() {
   const [activeAction, setActiveAction] = useState<'copy' | 'download' | 'share' | null>(null);
   const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
   const [showHistory, setShowHistory] = useState(false);
+  const [showVideoHistory, setShowVideoHistory] = useState(false);
   const [dismissedStatusKey, setDismissedStatusKey] = useState<string | null>(null);
+  const [dismissedVideoStatusKey, setDismissedVideoStatusKey] = useState<string | null>(null);
   const [preparedPreviewImage, setPreparedPreviewImage] = useState<PreparedPreviewImage | null>(null);
   const [failedPreviewKey, setFailedPreviewKey] = useState<string | null>(null);
   const [prepareAttempt, setPrepareAttempt] = useState(0);
-  const [videoSubmitting, setVideoSubmitting] = useState(false);
-  const [videoNotice, setVideoNotice] = useState<Notice | null>(null);
+  const [deletingVideoName, setDeletingVideoName] = useState<string | null>(null);
   const latestBatchRef = useRef<HTMLElement | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
   const modeMenuRef = useRef<HTMLDivElement | null>(null);
@@ -239,6 +278,22 @@ export function PosterApp() {
     status.detail,
   ].join(':');
   const statusDismissed = dismissedStatusKey === statusKey;
+  const videoStatus = videoGenerationCopy(
+    videoGeneration.state.phase,
+    videoGeneration.latestVideo !== null,
+    videoGeneration.state.error,
+  );
+  const videoStatusKey = [
+    videoStatus.state,
+    videoGeneration.state.projectId ?? 'none',
+    videoGeneration.state.runId ?? 'none',
+    videoGeneration.latestVideo?.name ?? 'none',
+    videoGeneration.latestVideo?.mtime ?? 0,
+    videoStatus.title,
+    videoStatus.detail,
+  ].join(':');
+  const videoStatusDismissed = dismissedVideoStatusKey === videoStatusKey;
+  const videoHistory = videoGeneration.videos.slice(1);
 
   useEffect(() => {
     if (status.state === 'working' || status.state === 'failed') return undefined;
@@ -247,6 +302,14 @@ export function PosterApp() {
     }, STATUS_AUTO_DISMISS_MS);
     return () => window.clearTimeout(timeout);
   }, [status.state, statusKey]);
+
+  useEffect(() => {
+    if (videoStatus.state === 'working' || videoStatus.state === 'failed') return undefined;
+    const timeout = window.setTimeout(() => {
+      setDismissedVideoStatusKey(videoStatusKey);
+    }, STATUS_AUTO_DISMISS_MS);
+    return () => window.clearTimeout(timeout);
+  }, [videoStatus.state, videoStatusKey]);
 
   useEffect(() => {
     if (!previewFile || !projectId || !previewFileKey) return undefined;
@@ -407,59 +470,21 @@ export function PosterApp() {
     }
   };
 
-  const generateVideo = async (draft: LoanVideoDraft) => {
-    if (videoSubmitting) return;
-    setVideoSubmitting(true);
-    setVideoNotice(null);
-    try {
-      const prompt = buildLoanVideoPrompt(draft);
-      const metadata: ProjectMetadata = {
-        kind: 'video',
-        nameSource: 'prompt',
-        videoModel: 'hyperframes-html',
-        videoAspect: draft.aspectRatio,
-        videoLength: draft.durationSeconds,
-        skipDiscoveryBrief: true,
-      };
-      const result = await createProject({
-        name: loanVideoProjectName(draft),
-        skillId: LOAN_VIDEO_SKILL_ID,
-        designSystemId: null,
-        pendingPrompt: prompt,
-        metadata,
-        pluginId: LOAN_VIDEO_PLUGIN_ID,
-        pluginInputs: {
-          mediaKind: 'video',
-          subject: draft.title.trim(),
-          style: 'clear mobile tutorial, restrained motion, high contrast, large captions',
-          aspect: draft.aspectRatio,
-        },
-      });
-      if (!result) throw new Error('Could not create the video project');
+  const generateVideo = (draft: LoanVideoDraft) => {
+    void videoGeneration.start(draft);
+  };
 
-      const screenshots = draft.steps
-        .map((step) => step.screenshot)
-        .filter((file): file is File => file instanceof File);
-      const uploadResult = await uploadProjectFiles(result.project.id, screenshots);
-      if (uploadResult.failed.length > 0) {
-        throw new Error(`Could not upload ${uploadResult.failed.length} screenshot(s)`);
-      }
-      try {
-        window.sessionStorage.setItem(`od:auto-send-first:${result.project.id}`, '1');
-        window.sessionStorage.setItem(
-          `od:auto-send-attachments:${result.project.id}`,
-          JSON.stringify(uploadResult.uploaded),
-        );
-      } catch {
-        // The project is still usable when private browsing blocks session storage.
-      }
-      window.location.assign(`/workspace/projects/${encodeURIComponent(result.project.id)}`);
-    } catch (error) {
-      setVideoNotice({
-        message: error instanceof Error ? error.message : 'Could not submit the video task',
-        tone: 'error',
+  const removeVideo = async (file: ProjectFile) => {
+    if (deletingVideoName || !window.confirm(`Delete ${file.name}?`)) return;
+    setDeletingVideoName(file.name);
+    try {
+      const deleted = await videoGeneration.removeVideo(file);
+      setNotice({
+        message: deleted ? 'Video deleted' : 'Could not delete the video',
+        tone: deleted ? 'info' : 'error',
       });
-      setVideoSubmitting(false);
+    } finally {
+      setDeletingVideoName(null);
     }
   };
 
@@ -971,16 +996,133 @@ export function PosterApp() {
         </>
       ) : (
         <section className="poster-app__video" aria-label="Tutorial video generator">
-          {videoNotice ? (
+          <LoanVideoComposer onSubmit={generateVideo} disabled={videoGeneration.active} />
+
+          <section
+            className={`poster-app__status is-${videoStatus.state}${videoStatusDismissed ? ' is-dismissed' : ''}`}
+            role="status"
+            aria-live="polite"
+            aria-hidden={videoStatusDismissed || undefined}
+            data-testid="poster-app-video-generation-status"
+          >
+            <span className="poster-app__status-mark" aria-hidden="true" />
+            <div className="poster-app__status-copy">
+              <strong>{videoStatus.title}</strong>
+              <p>{videoStatus.detail}</p>
+            </div>
             <button
               type="button"
-              className={`poster-app__notice is-${videoNotice.tone}`}
-              onClick={() => setVideoNotice(null)}
+              className="poster-app__status-close"
+              aria-label="Close video status"
+              title="Close video status"
+              tabIndex={videoStatusDismissed ? -1 : 0}
+              onClick={() => setDismissedVideoStatusKey(videoStatusKey)}
             >
-              {videoNotice.message}
+              <Icon name="close" size={16} />
             </button>
+          </section>
+
+          {videoGeneration.latestVideo && videoGeneration.state.projectId ? (
+            <section
+              className="poster-app__batch-section poster-app__latest-batch"
+              aria-label="Latest video"
+            >
+              <header className="poster-app__section-header">
+                <div className="poster-app__section-heading">
+                  <h2>Latest video</h2>
+                  <span className="poster-app__section-meta">MP4</span>
+                </div>
+                <div className="poster-app__video-actions">
+                  <a
+                    className="poster-app__video-action"
+                    href={projectFileDownloadUrl(
+                      videoGeneration.state.projectId,
+                      videoGeneration.latestVideo.name,
+                    )}
+                    download
+                  >
+                    Download video
+                  </a>
+                  <button
+                    type="button"
+                    className="poster-app__video-action is-danger"
+                    disabled={deletingVideoName !== null}
+                    onClick={() => void removeVideo(videoGeneration.latestVideo!)}
+                  >
+                    {deletingVideoName === videoGeneration.latestVideo.name ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+              </header>
+              <video
+                key={`${videoGeneration.latestVideo.name}:${videoGeneration.latestVideo.mtime}`}
+                data-testid="poster-app-video-result"
+                src={projectFileUrl(
+                  videoGeneration.state.projectId,
+                  videoGeneration.latestVideo.name,
+                )}
+                controls
+                playsInline
+                preload="metadata"
+                className="poster-app__video-result"
+              />
+            </section>
           ) : null}
-          <LoanVideoComposer onSubmit={(draft) => void generateVideo(draft)} disabled={videoSubmitting} />
+
+          {videoHistory.length > 0 && videoGeneration.state.projectId ? (
+            <section className="poster-app__batch-section poster-app__history" aria-label="Video history">
+              <button
+                type="button"
+                className="poster-app__history-toggle"
+                aria-expanded={showVideoHistory}
+                aria-label={`${showVideoHistory ? 'Collapse' : 'Expand'} video history`}
+                onClick={() => setShowVideoHistory((current) => !current)}
+              >
+                <span className="poster-app__section-heading">
+                  <span className="poster-app__section-title">Video history</span>
+                  <span className="poster-app__section-meta">({videoHistory.length})</span>
+                </span>
+                <span className="poster-app__history-toggle-icon" aria-hidden="true">
+                  <Icon
+                    name="chevron-down"
+                    size={18}
+                    className={showVideoHistory ? 'is-expanded' : undefined}
+                  />
+                </span>
+              </button>
+              {showVideoHistory ? (
+                <div className="poster-app__video-history-grid">
+                  {videoHistory.map((file) => (
+                    <article className="poster-app__video-card" key={`${file.name}:${file.mtime}`}>
+                      <video
+                        src={projectFileUrl(videoGeneration.state.projectId!, file.name)}
+                        controls
+                        playsInline
+                        preload="metadata"
+                      />
+                      <footer>
+                        <span title={file.name}>{file.name}</span>
+                        <a
+                          className="poster-app__video-action"
+                          href={projectFileDownloadUrl(videoGeneration.state.projectId!, file.name)}
+                          download
+                        >
+                          Download
+                        </a>
+                        <button
+                          type="button"
+                          className="poster-app__video-action is-danger"
+                          disabled={deletingVideoName !== null}
+                          onClick={() => void removeVideo(file)}
+                        >
+                          {deletingVideoName === file.name ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </footer>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ) : null}
         </section>
       )}
     </main>
