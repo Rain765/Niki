@@ -17,7 +17,8 @@ The Skill automatically combines:
 
 and generates image-only poster batches in `1:1`, `16:9`, or portrait `3:4`.
 
-Brand, quantity, and format are caller-selected. The shared visual contract uses
-one background Z reference and intentionally omits standalone brand-name
-wordmarks and corner logos. Zamloan renders use real layer ordering so the Z
-cannot cover models or campaign copy.
+Brand, quantity, and format are caller-selected. The shared visual contract asks
+the image model to compose one background Z together with the complete poster
+and intentionally omits generated standalone brand-name wordmarks and corner
+logos. The exact Zamloan logo is still added after generation; the background Z
+is never applied as a post-generation overlay over flattened campaign content.

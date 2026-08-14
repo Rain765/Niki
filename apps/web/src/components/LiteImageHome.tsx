@@ -7,11 +7,9 @@ import {
   AUTO_POSTER_DEFAULT_ASPECT_RATIO,
   AUTO_POSTER_DEFAULT_BRAND,
   autoPosterBrandLabel,
-  autoPosterUsesZReference,
   buildLoanPosterPrompt,
   LOAN_POSTER_SKILL_ID,
   loadZamloanLogo,
-  loadZambiaPosterReference,
   normalizeZambiaPosterCount,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
@@ -69,8 +67,8 @@ export function LiteImageHome({
         ratio: aspectRatio,
       };
 
-      const referencePromises = autoPosterUsesZReference(brand)
-        ? [loadZambiaPosterReference(), loadZamloanLogo()]
+      const referencePromises = brand === 'zamloan'
+        ? [loadZamloanLogo()]
         : [];
       const project = await createImageProject({
         id: browserUuid(),

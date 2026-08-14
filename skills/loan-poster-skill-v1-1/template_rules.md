@@ -4,9 +4,10 @@
 
 - Respect the requested `1:1` square, `16:9` landscape, or `3:4` portrait canvas.
 - Keep the headline and subline on the left and the main model on the right.
-- Use one centered, large, low-opacity Z supplied by the caller.
-- The Z must sit above the environment/background plate and below every model,
+- Render one centered, large, low-opacity Z inside the unified poster image.
+- The Z must read as part of the background and remain behind every model,
   phone, headline, subtitle, and logo pixel.
+- Never add the Z as a post-generation overlay to a flattened full poster.
 - Use a red-based gradient as the dominant field.
 - Add one glossy curved ribbon along the bottom.
 

@@ -48,12 +48,14 @@ The caller supplies the brand, aspect ratio, quantity, and campaign context.
   clearly visible smartphone.
 - Keep the phone UI white and readable with one solid green checkmark and short
   black status text.
-- Use exactly one large semi-transparent Z from the supplied reference as a
+- Render exactly one large semi-transparent Z as part of the generated
   background structure.
-- For Zamloan, generate the environment/background plate and model foreground
-  on a uniform chroma-green matte separately. Let the daemon isolate the model,
-  then composite in this exact order: background, supplied Z, isolated model,
-  deterministic headline/subtitle, then the exact logo.
+- For Zamloan, generate the background, Z, model, phone, headline, and subtitle
+  together as one full-poster composition. This lets the image model coordinate
+  typography and subject placement instead of combining independent renders.
+- Keep the Z behind every model, phone, headline, and subtitle pixel. Never
+  pass `--overlay-z` after a full-poster render: the flattened result has no
+  background layer, so a later overlay would cover foreground content.
 - Do not render a Zamloan, Biu Money, BiuMoney, or other brand-name wordmark in
   the top-left corner. Do not replace it with another text logo or icon logo.
 - Preserve premium commercial photography and natural skin retouching.
@@ -83,10 +85,9 @@ same model combination in adjacent outputs.
   image-generation command. The daemon composites it in the top-left with a
   subtle shadow after generation; do not redraw the logo in the generated
   artwork.
-- For Zamloan, pass a chroma-matte model-only prompt through
-  `--foreground-prompt-file`, provide copy through `--poster-headline` and
-  `--poster-subtitle`, and align it with `--poster-text-anchor`. Do not include
-  people or poster copy in the background prompt.
+- For Zamloan, pass the complete full-poster prompt in one image-generation
+  command. Do not use `--foreground-prompt-file`, `--poster-headline`,
+  `--poster-subtitle`, `--poster-text-anchor`, or `--overlay-z`.
 - Vary scenarios and model relationships across a batch without changing the
   selected brand system.
 - Keep phone UI simple and readable.

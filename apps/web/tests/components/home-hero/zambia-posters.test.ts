@@ -42,23 +42,16 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('exactly 3 distinct internal scene plans');
     expect(prompt).toContain('1:1 square');
     expect(prompt).toContain('--aspect 1:1');
-    expect(prompt).toContain('single semi-transparent background Z');
+    expect(prompt).toContain('single-pass full-poster composition');
+    expect(prompt).toContain('background Z behind every subject and copy pixel');
+    expect(prompt).toContain('Do not pass `--overlay-z`');
     expect(prompt).toContain(
-      'background → exact supplied Z → isolated model → deterministic copy → exact logo',
+      'Do not pass `--overlay-z`, `--foreground-prompt-file`, `--poster-headline`',
     );
-    expect(prompt).toContain('--overlay-z');
-    expect(prompt).not.toContain('Z reference via `--image`');
-    expect(prompt).toContain('--foreground-prompt-file');
-    expect(prompt).toContain('--poster-headline');
-    expect(prompt).toContain('--poster-subtitle');
-    expect(prompt).toContain('--poster-text-anchor');
     expect(prompt).toContain('phone-screen exception');
     expect(prompt).toContain('must never overlap the model');
     expect(prompt).toContain('zamloan-poster-03.png');
-    expect(prompt).toContain(`\`${ZAMBIA_POSTER_REFERENCE_NAME}\``);
     expect(prompt).toContain('Complete all 3 generation attempts.');
-    expect(prompt).toContain('Never copy the Z reference into a visible output path');
-    expect(prompt).toContain('Remove the internal Z reference');
     expect(prompt).toContain('Do not create `critique.json`');
     expect(prompt).toContain('Only the requested poster PNG files');
     expect(prompt).toContain('Do not render `Zamloan`');
@@ -131,7 +124,7 @@ describe('Zambia poster preset', () => {
     expect(isLoanPosterOutputName('poster.png')).toBe(false);
   });
 
-  it('builds ready-to-dispatch layered scene plans without an agent planning turn', () => {
+  it('builds ready-to-dispatch single-pass scene plans without an agent planning turn', () => {
     const plans = buildLoanPosterScenePlans({
       count: 2,
       aspectRatio: '16:9',
@@ -139,13 +132,9 @@ describe('Zambia poster preset', () => {
     });
 
     expect(plans).toHaveLength(2);
-    expect(plans.map((plan) => plan.headline)).toEqual([
-      'Get Cash In 1 Hour',
-      'Support Your Family Today',
-    ]);
-    expect(plans.every((plan) => plan.foregroundPrompt?.includes(
-      'Application Successful',
-    ))).toBe(true);
+    expect(plans.every((plan) => plan.foregroundPrompt === undefined)).toBe(true);
+    expect(plans.every((plan) => plan.headline === undefined)).toBe(true);
+    expect(plans.every((plan) => plan.prompt.includes('Application Successful'))).toBe(true);
     expect(plans.every((plan) => plan.prompt.includes('Negative prompt:'))).toBe(true);
   });
 
@@ -158,22 +147,13 @@ describe('Zambia poster preset', () => {
     });
 
     expect(plans.map((plan) => plan.logoAnchor)).toEqual(['left', 'right']);
-    expect(plans[0]?.prompt).toContain('left 45% visually calm');
-    expect(plans[1]?.prompt).toContain('right 47% visually calm');
+    expect(plans[0]?.prompt).toContain('left text column');
+    expect(plans[1]?.prompt).toContain('right text column');
     expect(plans.every((plan) => plan.prompt.includes('logo-safe row'))).toBe(true);
-    expect(plans.every((plan) => plan.foregroundPrompt?.includes(
-      'uniform chroma green background',
-    ))).toBe(true);
-    expect(plans.every((plan) => !plan.foregroundPrompt?.includes(
-      'transparent background',
-    ))).toBe(true);
-    expect(plans.map((plan) => plan.textAnchor)).toEqual(['left', 'right']);
-    expect(plans[0]).toMatchObject({
-      headline: 'Get Cash In 1 Hour',
-      subtitle: 'Fast approval through your phone',
-    });
-    expect(plans[0]?.prompt).toContain('Do not render people');
-    expect(plans[0]?.prompt).toContain('Do not render text');
+    expect(plans.every((plan) => plan.textAnchor === undefined)).toBe(true);
+    expect(plans[0]?.prompt).toContain('Get Cash In 1 Hour');
+    expect(plans[0]?.prompt).toContain('Fast approval through your phone');
+    expect(plans[0]?.prompt).toContain('young Zambian man');
   });
 
   it.each(['3:4', '1:1'] as const)(
@@ -188,12 +168,9 @@ describe('Zambia poster preset', () => {
 
       expect(plans.map((plan) => plan.logoAnchor)).toEqual(['left', 'left', 'left']);
       expect(plans.every((plan) => plan.prompt.includes(
-        'left 48%',
+        'logo-safe band',
       ))).toBe(true);
-      expect(plans.every((plan) => plan.prompt.includes(
-        'top 18% reserved as a logo-safe band',
-      ))).toBe(true);
-      expect(plans.every((plan) => plan.textAnchor === 'left')).toBe(true);
+      expect(plans.every((plan) => plan.textAnchor === undefined)).toBe(true);
     },
   );
 
@@ -204,19 +181,13 @@ describe('Zambia poster preset', () => {
       brand: 'zamloan',
     });
 
-    expect(plan?.prompt).toContain('Do not draw any letter Z');
-    expect(plan?.prompt).toContain('exact supplied Z will be composited');
-    expect(plan?.prompt).toContain('Do not render people');
-    expect(plan?.prompt).toContain('Do not render text');
-    expect(plan?.foregroundPrompt).toContain('uniform chroma green background');
-    expect(plan?.foregroundPrompt).not.toContain('transparent background');
-    expect(plan?.foregroundPrompt).toContain('solid green checkmark');
-    expect(plan?.foregroundPrompt).toContain('Application Successful');
-    expect(plan).toMatchObject({
-      headline: 'Get Cash In 1 Hour',
-      subtitle: 'Fast approval through your phone',
-    });
-    expect(plan?.foregroundPrompt).not.toContain('Apply 100% via mobile');
+    expect(plan?.prompt).toContain('one large low-opacity Z silhouette');
+    expect(plan?.prompt).toContain('behind every model, phone, headline, and subtitle pixel');
+    expect(plan?.prompt).toContain('solid green checkmark');
+    expect(plan?.prompt).toContain('Application Successful');
+    expect(plan?.prompt).toContain('Get Cash In 1 Hour');
+    expect(plan?.prompt).toContain('Fast approval through your phone');
+    expect(plan?.foregroundPrompt).toBeUndefined();
   });
 
   it('keeps BiuMoney scenes Z-free while clearly showing the phone success UI', () => {
@@ -266,7 +237,7 @@ describe('Zambia poster preset', () => {
       'Funds Ready',
     ]);
     expect(autoPosterUsesZReference('biumoney')).toBe(false);
-    expect(autoPosterUsesZReference('zamloan')).toBe(true);
+    expect(autoPosterUsesZReference('zamloan')).toBe(false);
   });
 
   it('rotates every creative dimension instead of restarting at scene one', () => {
@@ -283,8 +254,8 @@ describe('Zambia poster preset', () => {
       variationOffset: 1,
     });
 
-    expect(firstBatch[0]?.headline).toBe('Get Cash In 1 Hour');
-    expect(secondBatch[0]?.headline).toBe('Support Your Family Today');
+    expect(firstBatch[0]?.prompt).toContain('Get Cash In 1 Hour');
+    expect(secondBatch[0]?.prompt).toContain('Support Your Family Today');
     expect(secondBatch[0]?.prompt).not.toBe(firstBatch[0]?.prompt);
   });
 

@@ -1,10 +1,8 @@
 import {
   autoPosterBrandLabel,
-  autoPosterUsesZReference,
   buildLoanPosterScenePlans,
   LOAN_POSTER_SKILL_ID,
   loadZamloanLogo,
-  loadZambiaPosterReference,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
 } from './zambia-posters';
@@ -187,8 +185,8 @@ export async function startDirectLoanPosterProject(
   const dateKey = localDateKey();
   const storageKey = lastProjectStorageKey(options.sessionScope);
   let reusableProject = await resolveDirectLoanPosterProject(options.sessionScope);
-  const bundledAssets = autoPosterUsesZReference(options.brand)
-    ? await Promise.all([loadZambiaPosterReference(), loadZamloanLogo()])
+  const bundledLogo = options.brand === 'zamloan'
+    ? await loadZamloanLogo()
     : null;
   const prefix = `${options.brand}-poster`;
   let project: Project | null = null;
@@ -341,21 +339,10 @@ export async function startDirectLoanPosterProject(
       }
     }
 
-    let referencePath: string | undefined;
     let logoPath: string | undefined;
-    if (bundledAssets) {
-      [referencePath, logoPath] = await Promise.all([
-        uploadPosterAsset(project.id, bundledAssets[0], 'upload-z-reference')
-          .then((path) => {
-            logStage('reference-uploaded', project.id);
-            return path;
-          }),
-        uploadPosterAsset(project.id, bundledAssets[1], 'upload-logo')
-          .then((path) => {
-            logStage('logo-uploaded', project.id);
-            return path;
-          }),
-      ]);
+    if (bundledLogo) {
+      logoPath = await uploadPosterAsset(project.id, bundledLogo, 'upload-logo');
+      logStage('logo-uploaded', project.id);
     }
 
     const datedOutputPrefix = `${prefix}-${compactDateKey(dateKey)}`;
@@ -422,22 +409,10 @@ export async function startDirectLoanPosterProject(
           model: IMAGE_MODEL,
           quality: 'low',
           aspect: options.aspectRatio,
-          ...(referencePath ? { overlayZ: referencePath } : {}),
           ...(logoPath
             ? {
               overlayLogo: logoPath,
               overlayLogoAnchor: scenePlan.logoAnchor,
-            }
-            : {}),
-          ...(scenePlan.foregroundPrompt
-            && scenePlan.headline
-            && scenePlan.subtitle
-            && scenePlan.textAnchor
-            ? {
-              foregroundPrompt: scenePlan.foregroundPrompt,
-              posterHeadline: scenePlan.headline,
-              posterSubtitle: scenePlan.subtitle,
-              posterTextAnchor: scenePlan.textAnchor,
             }
             : {}),
           output: batchOutputNames[index],

@@ -89,8 +89,12 @@ export function autoPosterBrandLabel(brand: AutoPosterBrand): string {
   return BRAND_LABELS[brand];
 }
 
-export function autoPosterUsesZReference(brand: AutoPosterBrand): boolean {
-  return brand === 'zamloan';
+export function autoPosterUsesZReference(_brand: AutoPosterBrand): boolean {
+  // A complete poster generated in one pass is a flattened image. Applying
+  // the Z reference afterward necessarily puts it above the model and copy.
+  // Keep this false unless the renderer gains a true background-only edit or
+  // a validated content mask; the model now composes the background Z itself.
+  return false;
 }
 
 const LOAN_POSTER_SCENES = [
@@ -296,25 +300,15 @@ Negative prompt: letter Z, background letter, alphabetic background motif, logo,
 
     return {
       logoAnchor,
-      textAnchor: logoAnchor,
-      headline: plan.headline,
-      subtitle: plan.subline,
-      prompt: `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
+      prompt: `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio} as one unified composition.
 
-Generate only the photographic environment and graphic background plate. Use a ${palette.gradient} dominant background and one ${palette.ribbon} curved ribbon along the bottom. ${aspectRatio === '16:9' ? widescreenComposition.backgroundInstruction : nonWidescreenComposition.backgroundInstruction}.
+Use a ${palette.gradient} dominant background and one ${palette.ribbon} curved ribbon along the bottom. Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, and subtitle pixel; it must never tint, cross, cover, or interrupt foreground content.
 
-The environment should suggest ${plan.scene}. Do not render people, faces, bodies, hands, or phones. Do not render text, letters, numbers, logos, badges, or watermarks. Do not draw any letter Z or alphabetic background motif; the exact supplied Z will be composited above this background plate before the foreground model and copy are added.
+Render exactly two poster-copy text elements: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not add benefit copy, feature callouts, labels, badges, disclaimers, or any other poster text. ${composition}. Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. The phone screen is the only text exception: use a white screen, one solid green checkmark, and short black text “Application Successful”.
 
-Use premium commercial lighting, realistic Zambian environmental detail, generous safe margins, and a coherent light direction that a separately generated foreground subject can share.
+Keep the complete headline and subtitle inside the reserved negative-space region. Preserve a clearly visible gap between the copy and every model, including faces, bodies, hands, clothing, props, vehicles, and phones. Reserve the specified logo-safe row or logo-safe band with no generated wordmark or high-contrast detail. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, expressive campaign typography, and generous safe margins.
 
-Negative prompt: person, people, face, body, hand, phone, text, letter, number, Z, logo, watermark, badge, label, disclaimer, typography, blurry, low quality, mixed brands.`,
-      foregroundPrompt: `Create a premium commercial-photo foreground layer for a ${brandLabel} Zambia mobile-loan poster in ${aspectRatio}. Use one uniform chroma green background (#00FF00) filling the complete canvas, with no environment, backdrop, floor, wall, gradient, ribbon, letter Z, logo, poster copy, headline, subtitle, badge, label, or watermark.
-
-Show ${plan.model} ${plan.scene}, holding or clearly interacting with an anatomically correct smartphone. ${aspectRatio === '16:9' ? widescreenComposition.foregroundInstruction : nonWidescreenComposition.foregroundInstruction}. Keep the complete subject away from every canvas edge and do not use green clothing or green accessories. Preserve clean natural edges around hair, clothing, and hands. Match vivid premium advertising lighting with a red-dominant campaign palette and natural skin retouching.
-
-The phone screen is the only text exception: use a white screen, one solid green checkmark, and short black text “Application Successful”. Do not render any other words or letters.
-
-Negative prompt: alpha background, white background, non-green background, textured background, environment, scenery, floor, wall, gradient, ribbon, Z, logo, watermark, poster headline, subtitle, extra text, green clothing, cropped head, cropped hands, cropped phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, mixed brands.`,
+Negative prompt: Z over subject, Z over text, foreground Z, duplicate Z, extra Z, logo, watermark, brand wordmark, benefit copy, feature callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, text over prop, text over vehicle, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, mixed brands.`,
     };
   });
 }
@@ -338,17 +332,18 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
     '3:4': '3:4 portrait',
   }[aspectRatio];
   const outputPrefix = `${brand}-poster`;
-  const usesZReference = autoPosterUsesZReference(brand);
-  const referenceContract = usesZReference
-    ? `The attached file \`${ZAMBIA_POSTER_REFERENCE_NAME}\` is the sole internal Z silhouette. Locate its project-relative path and pass it through \`--overlay-z\` for every generation. Generate an environment-only background prompt plus a model-only chroma-matte foreground prompt. The daemon will isolate that foreground locally and composite background → exact supplied Z → isolated model → deterministic copy → exact logo, preserving the Z silhouette while keeping it behind every model and copy pixel. Tell both image generations not to draw any Z themselves. Never copy the Z reference into a visible output path or list it as a deliverable.`
+  const isZamloan = brand === 'zamloan';
+  const referenceContract = isZamloan
+    ? `Use a single-pass full-poster composition. Render one low-opacity background Z inside the generated artwork and keep that background Z behind every subject and copy pixel. Do not attach the legacy Z reference and do not pass \`--overlay-z\`: a post-generation overlay would necessarily sit above the flattened model and typography.`
     : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
-  const logoContract = usesZReference
+  const logoContract = isZamloan
     ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
     : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
-  const brandOverride = usesZReference
+  const brandOverride = isZamloan
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
-- Do not let either image generation draw any Z. The single semi-transparent background Z is added deterministically by \`--overlay-z\` between the environment plate and locally isolated model foreground.
-- Do not let either image generation draw poster copy. Pass one headline and one subtitle through \`--poster-headline\` and \`--poster-subtitle\`; the daemon renders them above the model and Z.
+- Generate the background, Z, model, phone, headline, and subtitle together in one image so the model can coordinate the complete composition.
+- Render one large low-opacity Z as part of the background and keep it behind every model, phone, headline, and subtitle pixel.
+- Render exactly one headline and one subtitle inside the scene's reserved negative space.
 - The phone-screen exception is the only additional visible wording: retain the white screen, one solid green checkmark, and \`Application Successful\`.
 - Keep the headline and subtitle entirely inside reserved negative space; they must never overlap the model’s face, body, hands, clothing, or phone.
 - These Zamloan copy and placement rules take precedence over conflicting skill template rules.`
@@ -357,12 +352,7 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - The phone-screen exception is the only additional visible wording: clearly present the phone with its screen facing the camera, fully visible and large enough to read. Use a compact solid green circle containing a white checkmark, keep the circle no larger than about one-sixth of the screen height, leave at least one full circle diameter before the copy below it, and use the scene-specific short status copy instead of repeating one status across every scene.
 - Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
 - This BiuMoney override takes precedence over conflicting skill template rules.`;
-  const generationReference = usesZReference
-    ? ', without an `--image` reference, and with the exact Z silhouette via `--overlay-z`'
-    : ', without an `--image` reference';
-  const referenceCleanup = usesZReference
-    ? '- Remove the internal Z reference after all image generation attempts finish.\n'
-    : '';
+  const generationReference = ', without an `--image` reference';
 
   return `Generate exactly ${count} ${brandLabel} Zambia loan poster${count === 1 ? '' : 's'} now. Do not ask the user for a prompt, scene list, copy, or confirmation.
 
@@ -384,10 +374,10 @@ ${brandOverride}
 
 Generation contract:
 - Use the image model selected in the project metadata.
-- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full prompt${generationReference}${usesZReference ? `, \`--foreground-prompt-file\` for the chroma-matte model-only layer, \`--poster-headline\`, \`--poster-subtitle\`, \`--poster-text-anchor\`, \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', and `--overlay-logo-anchor` matching the scene title column' : ''}` : ''}.
+- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full-poster prompt${generationReference}${isZamloan ? `, and \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', plus `--overlay-logo-anchor` matching the scene title column' : ''}` : ''}. Do not pass \`--overlay-z\`, \`--foreground-prompt-file\`, \`--poster-headline\`, \`--poster-subtitle\`, or \`--poster-text-anchor\`.
 - Write outputs as \`${outputPrefix}-01.png\` through \`${outputPrefix}-${String(count).padStart(2, '0')}.png\`.
 - Complete all ${count} generation attempts. If one fails, continue with the remaining scenes and report the failed item accurately.
-${referenceCleanup}- Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.
+- Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.
 - Do not emit HTML artifacts. The generated image files are the deliverables and will be placed on the canvas automatically.`;
 }
 
