@@ -601,6 +601,19 @@ button {
   box-shadow: 0 8px 22px color-mix(in srgb, var(--poster-mask-dark) 9%, transparent);
 }
 
+.poster-app__video .loan-video-composer__settings .loan-video-field input:focus,
+.poster-app__video .loan-video-composer__settings .loan-video-select__trigger:focus,
+.poster-app__video .loan-video-composer__settings .loan-video-select__trigger[aria-expanded='true'] {
+  box-shadow: none;
+}
+
+.poster-app__video .loan-video-composer__settings .loan-video-field input:focus-visible,
+.poster-app__video .loan-video-composer__settings .loan-video-select__trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
 .poster-app__video .loan-video-narration {
   border: 0;
   background: var(--poster-panel-muted);

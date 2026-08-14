@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { NIKI_POSTER_COLOR_VARIABLES } from '../../src/poster/color-tokens';
 
 const componentCss = readFileSync(
   new URL('../../src/styles/home/loan-video.css', import.meta.url),
@@ -45,6 +46,33 @@ describe('loan video UI', () => {
     expect(menu).toContain('max-width: calc(100vw - 24px);');
     expect(menu).toContain('background: var(--poster-fill-0, var(--bg-panel));');
     expect.soft(option).toContain('width: 100%;');
+  });
+
+  it('keeps homepage controls flat while preserving focus and a portal-safe menu shadow', () => {
+    const globalComponentCss = componentCss.slice(0, componentCss.indexOf('@media'));
+    const globalPosterCss = posterCss.slice(0, posterCss.indexOf('@media'));
+    const flatHomepageControls = rule(
+      globalPosterCss,
+      '.poster-app__video .loan-video-composer__settings .loan-video-field input:focus,\n'
+        + '.poster-app__video .loan-video-composer__settings .loan-video-select__trigger:focus,\n'
+        + ".poster-app__video .loan-video-composer__settings .loan-video-select__trigger[aria-expanded='true']",
+    );
+    const visibleHomepageFocus = rule(
+      globalPosterCss,
+      '.poster-app__video .loan-video-composer__settings .loan-video-field input:focus-visible,\n'
+        + '.poster-app__video .loan-video-composer__settings .loan-video-select__trigger:focus-visible',
+    );
+    const menu = rule(globalComponentCss, '.loan-video-select__menu');
+
+    expect(flatHomepageControls).toContain('box-shadow: none;');
+    expect.soft(visibleHomepageFocus).toContain('outline: 2px solid var(--accent);');
+    expect.soft(visibleHomepageFocus).toContain('outline-offset: 2px;');
+    expect(visibleHomepageFocus).toContain('box-shadow: none;');
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-mask-dark']).toBeDefined();
+    expect(menu).toContain(
+      'box-shadow: 0 16px 40px color-mix(in srgb, var(--poster-mask-dark) 15%, transparent);',
+    );
+    expect(menu).not.toContain('var(--text-strong)');
   });
 
   it('puts the title above four equal-width video filters', () => {

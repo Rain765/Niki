@@ -225,7 +225,7 @@
   border-color: var(--poster-border, var(--border));
   border-radius: 10px;
   background: var(--poster-fill-0, var(--bg-panel));
-  box-shadow: 0 16px 40px color-mix(in srgb, var(--text-strong) 15%, transparent);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--poster-mask-dark) 15%, transparent);
 }
 
 .loan-video-select__menu.portal {
