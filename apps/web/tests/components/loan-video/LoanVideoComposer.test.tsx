@@ -35,7 +35,7 @@ describe('LoanVideoComposer', () => {
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('loan-video-errors').textContent).toContain('Add a video title.');
-    expect(screen.getByTestId('loan-video-errors').textContent).toContain('Every step needs an app screenshot.');
+    expect(screen.getByTestId('loan-video-errors').textContent).toContain('Every step needs an interface image.');
     expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('true');
     await waitFor(() => expect(screen.getByTestId('loan-video-title')).toBe(document.activeElement));
   });
@@ -53,7 +53,7 @@ describe('LoanVideoComposer', () => {
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('false');
     expect(screen.getByTestId('loan-video-errors').textContent)
-      .toContain('Every step needs an app screenshot.');
+      .toContain('Every step needs an interface image.');
   });
 
   it('collects screenshots, captions, voiceover, ordering, and tap coordinates', () => {
@@ -67,7 +67,7 @@ describe('LoanVideoComposer', () => {
     });
 
     for (let index = 1; index <= 3; index += 1) {
-      fireEvent.change(screen.getByTestId(`loan-video-caption-${index}`), {
+      fireEvent.change(screen.getByTestId(`loan-video-text-${index}`), {
         target: { value: `Step ${index}` },
       });
       fireEvent.change(screen.getByTestId(`loan-video-screenshot-${index}`), {
@@ -89,7 +89,14 @@ describe('LoanVideoComposer', () => {
       height: 400,
       toJSON: () => ({}),
     });
+    const preview = picker.querySelector('img')!;
+    Object.defineProperties(preview, {
+      naturalWidth: { configurable: true, value: 200 },
+      naturalHeight: { configurable: true, value: 400 },
+    });
+    fireEvent.load(preview);
     fireEvent.click(picker, { clientX: 110, clientY: 320 });
+    fireEvent.click(screen.getByTestId('loan-video-advance-auto-2'));
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     expect(onSubmit).toHaveBeenCalledOnce();
@@ -99,13 +106,123 @@ describe('LoanVideoComposer', () => {
       brand: 'zamloan',
       aspectRatio: '9:16',
       durationSeconds: 30,
-      narration: true,
       steps: [
-        { caption: 'Step 1', tap: { x: 0.5, y: 0.75 } },
-        { caption: 'Step 2' },
-        { caption: 'Step 3' },
+        {
+          text: 'Step 1',
+          captionEnabled: true,
+          voiceoverEnabled: true,
+          advance: 'tap',
+          tap: { x: 0.5, y: 0.75 },
+        },
+        { text: 'Step 2', advance: 'auto', tap: null },
+        { text: 'Step 3' },
       ],
     });
+  });
+
+  it('uses one step text field with independent caption and voiceover switches', () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
+
+    expect(screen.getByTestId('loan-video-text-1')).toBeTruthy();
+    expect(screen.queryByTestId('loan-video-caption-1')).toBeNull();
+    expect(screen.queryByTestId('loan-video-voiceover-1')).toBeNull();
+
+    const caption = screen.getByTestId('loan-video-caption-enabled-1') as HTMLInputElement;
+    const voiceover = screen.getByTestId('loan-video-voiceover-enabled-1') as HTMLInputElement;
+    const firstStep = within(screen.getByTestId('loan-video-step-1'));
+    expect(firstStep.getByRole('switch', { name: 'Caption' })).toBe(caption);
+    expect(firstStep.getByRole('switch', { name: 'Voiceover' })).toBe(voiceover);
+    expect(caption.checked).toBe(true);
+    expect(voiceover.checked).toBe(true);
+    fireEvent.click(caption);
+    expect(caption.checked).toBe(false);
+    expect(voiceover.checked).toBe(true);
+    fireEvent.click(voiceover);
+    expect(caption.checked).toBe(false);
+    expect(voiceover.checked).toBe(false);
+  });
+
+  it('shows a compact next-step action for non-terminal steps and an end state for the last step', () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
+
+    expect(screen.getByTestId('loan-video-transition-1').textContent).toContain('Step 1 → Step 2');
+    expect(screen.getByTestId('loan-video-advance-tap-1')).toBeTruthy();
+    expect(screen.getByTestId('loan-video-advance-auto-1')).toBeTruthy();
+    expect(screen.queryByTestId('loan-video-transition-3')).toBeNull();
+    expect(screen.getByTestId('loan-video-end-3').textContent).toContain('End');
+  });
+
+  it('reveals an inline transition preview only when both adjacent images exist', async () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
+
+    const firstPreview = screen.getByTestId(
+      'loan-video-transition-preview-1',
+    ) as HTMLButtonElement;
+    const secondPreview = screen.getByTestId(
+      'loan-video-transition-preview-2',
+    ) as HTMLButtonElement;
+    expect(firstPreview.disabled).toBe(true);
+    expect(secondPreview.disabled).toBe(true);
+
+    fireEvent.change(screen.getByTestId('loan-video-screenshot-1'), {
+      target: {
+        files: [new File(['one'], 'one.png', { type: 'image/png' })],
+      },
+    });
+    expect(firstPreview.disabled).toBe(true);
+
+    fireEvent.change(screen.getByTestId('loan-video-screenshot-2'), {
+      target: {
+        files: [new File(['two'], 'two.png', { type: 'image/png' })],
+      },
+    });
+
+    await waitFor(() => expect(firstPreview.disabled).toBe(false));
+    expect(secondPreview.disabled).toBe(true);
+    fireEvent.click(firstPreview);
+    expect(screen.getByTestId('loan-video-transition-preview-panel-1').getAttribute('aria-hidden'))
+      .toBe('false');
+    expect(screen.getByRole('img', { name: 'Step 1 canvas' })).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Step 2 canvas' })).toBeTruthy();
+
+    fireEvent.change(screen.getByTestId('loan-video-screenshot-3'), {
+      target: {
+        files: [new File(['three'], 'three.png', { type: 'image/png' })],
+      },
+    });
+    fireEvent.click(within(screen.getByTestId('loan-video-step-2')).getByRole('button', {
+      name: 'Move step down',
+    }));
+
+    expect(screen.getByTestId('loan-video-transition-preview-1').textContent).toContain('Preview');
+    expect(screen.getByTestId('loan-video-transition-preview-panel-1').getAttribute('aria-hidden'))
+      .toBe('true');
+  });
+
+  it('passes the uploaded image natural ratio to the responsive screenshot surface', () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
+    fireEvent.change(screen.getByTestId('loan-video-screenshot-1'), {
+      target: {
+        files: [new File(['wide'], 'wide.png', { type: 'image/png' })],
+      },
+    });
+
+    const picker = screen.getByTestId('loan-video-tap-picker-1');
+    const image = picker.querySelector('img')!;
+    Object.defineProperties(image, {
+      naturalWidth: { configurable: true, value: 1600 },
+      naturalHeight: { configurable: true, value: 900 },
+    });
+    fireEvent.load(image);
+
+    const surface = picker.closest<HTMLElement>('.loan-video-screenshot');
+    expect(surface?.style.getPropertyValue('--loan-video-screenshot-aspect'))
+      .toBe(String(1600 / 900));
+    expect(surface?.dataset.imageOrientation).toBe('landscape');
   });
 
   it('renders ratio options in product order and supports listbox dismissal', () => {
@@ -244,14 +361,14 @@ describe('LoanVideoComposer', () => {
 
     const manageButton = screen.getByTestId('loan-video-manage-steps');
     fireEvent.click(manageButton);
-    fireEvent.change(screen.getByTestId('loan-video-caption-1'), {
+    fireEvent.change(screen.getByTestId('loan-video-text-1'), {
       target: { value: 'Open the application' },
     });
     fireEvent.pointerDown(screen.getByTestId('loan-video-upload-drawer-backdrop'));
 
     expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('true');
     fireEvent.click(manageButton);
-    expect((screen.getByTestId('loan-video-caption-1') as HTMLInputElement).value)
+    expect((screen.getByTestId('loan-video-text-1') as HTMLInputElement).value)
       .toBe('Open the application');
   });
 });

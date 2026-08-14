@@ -114,7 +114,9 @@ describe('loan video UI', () => {
     expect(screenshot).toContain('position: relative;');
     expect(screenshot).toContain('min-height: 0;');
     expect(screenshot).toContain('height: 100%;');
-    expect(screenshot).toContain('aspect-ratio: 9 / 16;');
+    expect(screenshot).toContain(
+      'aspect-ratio: var(--loan-video-screenshot-aspect, 9 / 16);',
+    );
     expect(screenshot).toContain('width: 100%;');
     expect(screenshot).toContain('justify-self: stretch;');
     expect(screenshot).not.toContain('width: min(240px, 100%);');
@@ -123,6 +125,58 @@ describe('loan video UI', () => {
     expect(media).toContain('aspect-ratio: auto;');
     expect(tapHint).toContain('position: absolute;');
     expect(tapHint).toContain('pointer-events: none;');
+  });
+
+  it('uses the natural uploaded ratio on mobile while keeping a bounded empty state', () => {
+    const screenshot = rules(componentCss, '.loan-video-screenshot');
+
+    expect(screenshot).toContain(
+      'aspect-ratio: var(--loan-video-screenshot-aspect, 9 / 16);',
+    );
+    expect(screenshot).toContain('max-height: min(72vh, 680px);');
+    expect(screenshot).toContain('width: 100%;');
+    expect(
+      rule(componentCss, ".loan-video-screenshot[data-image-orientation='landscape']"),
+    ).toContain('max-height: none;');
+  });
+
+  it('styles independent copy switches and a compact next-step control', () => {
+    const delivery = rule(componentCss, '.loan-video-step__delivery');
+    const toggle = rule(componentCss, '.loan-video-step__toggle');
+    const transition = rule(componentCss, '.loan-video-step__transition');
+    const options = rule(componentCss, '.loan-video-step__advance-options');
+    const inactivePicker = rule(
+      componentCss,
+      ".loan-video-tap-picker[aria-disabled='true']",
+    );
+
+    expect(delivery).toContain('flex-wrap: wrap;');
+    expect(toggle).toContain('background: var(--bg-subtle);');
+    expect(transition).toContain('grid-template-columns: minmax(0, 1fr) auto;');
+    expect(options).toContain('display: inline-flex;');
+    expect(inactivePicker).toContain('cursor: default;');
+  });
+
+  it('keeps transition previews compact, canvas-safe, and motion-accessible', () => {
+    const preview = rule(componentCss, '.loan-video-transition-preview');
+    const toggle = rule(componentCss, '.loan-video-transition-preview__toggle');
+    const stage = rule(componentCss, '.loan-video-transition-preview__stage');
+    const canvasImage = rule(componentCss, '.loan-video-transition-preview__canvas img');
+    const caption = rule(componentCss, '.loan-video-transition-preview__caption');
+    const reducedMotion = rule(
+      componentCss,
+      '.loan-video-transition-preview__stage.is-reduced-motion .loan-video-transition-preview__canvas.is-next',
+    );
+
+    expect(preview).toContain('grid-column: 1 / -1;');
+    expect(toggle).toContain('justify-self: end;');
+    expect(stage).toContain('aspect-ratio: 16 / 10;');
+    expect(canvasImage).toContain('object-fit: contain;');
+    expect(caption).toContain('bottom: 10px;');
+    expect(caption).toContain('white-space: nowrap;');
+    expect(caption).toContain('text-overflow: ellipsis;');
+    expect(reducedMotion).toContain('opacity: 1;');
+    expect(componentCss).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
   it('replaces the inline add action with a compact upload and progress control', () => {

@@ -55,9 +55,11 @@ The request already contains the complete storyboard and exact commands.
   `.od-skills/hyperframes/scripts/build-loan-video.mjs` once through
   `$OD_NODE_BIN`. The staged builder and its fixed
   `assets/loan-video-scaffold.html` are self-contained.
-- The builder uses the real `.od-inputs` screenshots and, when requested,
-  calls daemon model `gpt-4o-mini-tts` exactly once. A TTS error is terminal;
-  never substitute locally installed speech or placeholder bytes.
+- The builder uses the exact `.od-inputs` screenshot bound to each scene and,
+  when requested, calls daemon model `gpt-4o-mini-tts` once per
+  voiceover-enabled scene with bounded concurrency. It measures each real MP3
+  and schedules it at that scene. A TTS error is terminal; never substitute
+  locally installed speech or placeholder bytes.
 - Dispatch exactly one final `hyperframes-html` render through
   `"$OD_NODE_BIN" "$OD_BIN" media generate`, then use only `media wait` if
   the result is a queued task. Do not lint, validate, inspect, preview,

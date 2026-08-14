@@ -471,7 +471,6 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     });
 
     try {
-      const prompt = buildLoanVideoPrompt(draft);
       const executionPromise = resolveExecutionChoice();
       const metadata: ProjectMetadata = {
         kind: 'video',
@@ -490,7 +489,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
         pluginInputs: {
           mediaKind: 'video',
           subject: draft.title.trim(),
-          style: 'clear mobile tutorial, restrained motion, high contrast, large captions',
+          style: 'lively interactive tutorial, adaptive image background, focused camera motion, subtle one-line captions',
           aspect: draft.aspectRatio,
         },
       });
@@ -511,6 +510,10 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
       if (uploadResult.failed.length > 0) {
         throw new Error(`Could not upload ${uploadResult.failed.length} screenshot(s).`);
       }
+      const prompt = buildLoanVideoPrompt(
+        draft,
+        uploadResult.uploaded.map((attachment) => attachment.path),
+      );
 
       const startedAt = Date.now();
       const userMessage: ChatMessage = {

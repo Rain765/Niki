@@ -6,6 +6,7 @@ import { LoanVideoSelect } from './LoanVideoSelect';
 import { LoanVideoUploadDrawer } from './LoanVideoUploadDrawer';
 import {
   createLoanVideoStep,
+  invalidateChangedLoanVideoTapTargets,
   loanVideoBrandLabel,
   loanVideoLanguageLabel,
   validateLoanVideoDraft,
@@ -50,7 +51,6 @@ function initialDraft(): LoanVideoDraft {
     language: 'en',
     aspectRatio: '9:16',
     durationSeconds: 30,
-    narration: true,
     steps: Array.from({ length: INITIAL_STEP_COUNT }, (_, index) => (
       createLoanVideoStep(`step-${index + 1}`)
     )),
@@ -85,10 +85,13 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
   };
 
   const removeStep = (stepId: string) => {
-    setDraft((current) => ({
-      ...current,
-      steps: current.steps.filter((step) => step.id !== stepId),
-    }));
+    setDraft((current) => {
+      const steps = current.steps.filter((step) => step.id !== stepId);
+      return {
+        ...current,
+        steps: invalidateChangedLoanVideoTapTargets(current.steps, steps),
+      };
+    });
   };
 
   const moveStep = (stepId: string, direction: -1 | 1) => {
@@ -100,7 +103,10 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
       const [step] = steps.splice(from, 1);
       if (!step) return current;
       steps.splice(to, 0, step);
-      return { ...current, steps };
+      return {
+        ...current,
+        steps: invalidateChangedLoanVideoTapTargets(current.steps, steps),
+      };
     });
   };
 
@@ -203,22 +209,6 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
           />
         </div>
 
-        <label className="loan-video-narration">
-          <input
-            data-testid="loan-video-narration"
-            type="checkbox"
-            checked={draft.narration}
-            onChange={(event) => setDraft((current) => ({
-              ...current,
-              narration: event.target.checked,
-            }))}
-          />
-          <span>
-            <strong>{t('loanVideo.narration')}</strong>
-            <small>{t('loanVideo.narrationHint')}</small>
-          </span>
-        </label>
-
         <section className="loan-video-steps" aria-labelledby="loan-video-steps-title">
           <div className="loan-video-steps__heading">
             <div>
@@ -262,7 +252,6 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
           open={uploadDrawerOpen}
           outputHint={t('loanVideo.outputHint', { n: draft.steps.length })}
           steps={draft.steps}
-          narration={draft.narration}
           onAddStep={addStep}
           onChangeStep={updateStep}
           onClose={closeUploadDrawer}
@@ -283,8 +272,9 @@ function validationMessage(
   const keys: Record<LoanVideoValidationError, Parameters<typeof t>[0]> = {
     'title-required': 'loanVideo.errorTitle',
     'step-required': 'loanVideo.errorStep',
-    'caption-required': 'loanVideo.errorCaption',
+    'text-required': 'loanVideo.errorText',
     'screenshot-required': 'loanVideo.errorScreenshot',
+    'tap-required': 'loanVideo.errorTap',
   };
   return t(keys[error]);
 }

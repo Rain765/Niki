@@ -158,9 +158,9 @@ beforeEach(() => {
   saveMessageMock.mockResolvedValue(undefined);
   uploadProjectFilesMock.mockResolvedValue({
     uploaded: [
-      { path: 'screen-1.png', name: 'screen-1.png', kind: 'image' },
-      { path: 'screen-2.png', name: 'screen-2.png', kind: 'image' },
-      { path: 'screen-3.png', name: 'screen-3.png', kind: 'image' },
+      { path: '.od-inputs/generated-c.png', name: 'screen-1.png', kind: 'image' },
+      { path: '.od-inputs/generated-a.png', name: 'screen-2.png', kind: 'image' },
+      { path: '.od-inputs/generated-b.png', name: 'screen-3.png', kind: 'image' },
     ],
     failed: [],
   });
@@ -225,7 +225,7 @@ async function fillValidVideoDraft(title = 'How to apply') {
   });
   fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
   for (let index = 1; index <= 3; index += 1) {
-    fireEvent.change(screen.getByTestId(`loan-video-caption-${index}`), {
+    fireEvent.change(screen.getByTestId(`loan-video-text-${index}`), {
       target: { value: `Step ${index}` },
     });
     fireEvent.change(screen.getByTestId(`loan-video-screenshot-${index}`), {
@@ -233,6 +233,7 @@ async function fillValidVideoDraft(title = 'How to apply') {
         files: [new File([`screen-${index}`], `screen-${index}.png`, { type: 'image/png' })],
       },
     });
+    if (index < 3) fireEvent.click(screen.getByTestId(`loan-video-advance-auto-${index}`));
   }
 }
 
@@ -271,9 +272,11 @@ describe('PosterApp mobile-safe flow', () => {
       'video-conversation-1',
       expect.objectContaining({
         role: 'user',
-        content: expect.stringContaining('How to apply'),
+        content: expect.stringMatching(
+          /How to apply[\s\S]*"assetRef": "\.od-inputs\/generated-c\.png"[\s\S]*"assetRef": "\.od-inputs\/generated-a\.png"[\s\S]*"assetRef": "\.od-inputs\/generated-b\.png"/,
+        ),
         attachments: expect.arrayContaining([
-          expect.objectContaining({ path: 'screen-1.png' }),
+          expect.objectContaining({ path: '.od-inputs/generated-c.png' }),
         ]),
       }),
     );
@@ -281,7 +284,11 @@ describe('PosterApp mobile-safe flow', () => {
       agentId: 'codex',
       projectId: 'video-project-1',
       conversationId: 'video-conversation-1',
-      attachments: ['screen-1.png', 'screen-2.png', 'screen-3.png'],
+      attachments: [
+        '.od-inputs/generated-c.png',
+        '.od-inputs/generated-a.png',
+        '.od-inputs/generated-b.png',
+      ],
       model: 'gpt-5',
       reasoning: 'medium',
     }));

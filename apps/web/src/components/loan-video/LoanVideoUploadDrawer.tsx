@@ -15,7 +15,6 @@ interface Props {
   open: boolean;
   outputHint: string;
   steps: LoanVideoStepDraft[];
-  narration: boolean;
   onAddStep: () => void;
   onChangeStep: (stepId: string, update: Partial<LoanVideoStepDraft>) => void;
   onClose: () => void;
@@ -38,7 +37,6 @@ export function LoanVideoUploadDrawer({
   open,
   outputHint,
   steps,
-  narration,
   onAddStep,
   onChangeStep,
   onClose,
@@ -117,9 +115,9 @@ export function LoanVideoUploadDrawer({
               <LoanVideoStepCard
                 key={step.id}
                 step={step}
+                nextStep={steps[index + 1] ?? null}
                 index={index}
                 count={steps.length}
-                narration={narration}
                 onChange={(update) => onChangeStep(step.id, update)}
                 onRemove={() => onRemoveStep(step.id)}
                 onMove={(direction) => onMoveStep(step.id, direction)}
