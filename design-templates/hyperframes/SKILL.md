@@ -41,6 +41,28 @@ root. Composition source files (`hyperframes.json`, `meta.json`,
 `index.html`, assets) belong inside a hidden cache directory so they don't
 clutter the user's FileViewer or the chat's "produced files" chips.
 
+### Loan-video fixed path (highest priority when named by the user prompt)
+
+When the user request contains the heading **Loan-video fast path**, follow
+that compact workflow exactly and ignore the generic authoring workflow below.
+The request already contains the complete storyboard and exact commands.
+
+- Do not read this `SKILL.md` again, any `references/` file, package docs, or
+  repository documentation. Do not invoke safe-task or TodoWrite.
+- Do not run `npx`, `npm`, `pnpm`, Git/GitHub, Python, `pip`, `curl`, `wget`,
+  or any installer. Do not write a composition from scratch.
+- Save the supplied storyboard JSON at the path named by the request, then run
+  `.od-skills/hyperframes/scripts/build-loan-video.mjs` once through
+  `$OD_NODE_BIN`. The staged builder and its fixed
+  `assets/loan-video-scaffold.html` are self-contained.
+- The builder uses the real `.od-inputs` screenshots and, when requested,
+  calls daemon model `gpt-4o-mini-tts` exactly once. A TTS error is terminal;
+  never substitute locally installed speech or placeholder bytes.
+- Dispatch exactly one final `hyperframes-html` render through
+  `"$OD_NODE_BIN" "$OD_BIN" media generate`, then use only `media wait` if
+  the result is a queued task. Do not lint, validate, inspect, preview,
+  critique, create a live artifact, or render a second time.
+
 **Render workflow inside OD — fast path**:
 
 For most OD requests ("test video", "5s product reveal", "demo clip"),
@@ -129,18 +151,19 @@ The lighter HF subcommands you CAN still run from your own shell
 Reserve the daemon dispatch for `render`/`inspect`/`preview` (anything
 Chrome-bound).
 
-**Do NOT** call `"$OD_NODE_BIN" "$OD_BIN" media generate --model hyperframes-html` — that
-dispatcher path returns a 400 (`AGENT_RENDERED`) on purpose. HyperFrames
-is rendered by you directly via npx.
+HyperFrames rendering inside Open Design must go through
+`"$OD_NODE_BIN" "$OD_BIN" media generate --model hyperframes-html` with a
+project-relative `--composition-dir`. Do not run `hyperframes render` from the
+agent shell; the daemon owns the Chrome/FFmpeg process and persists progress.
 
 **Do NOT** drop `hyperframes.json` / `meta.json` / `index.html` in the
 project root; OD's file listing scans recursively and the user would see
 three unrelated files appear in the chat.
 
-For CLI options beyond `render` (lint, preview, transcribe, tts, inspect,
-benchmark) call them directly from your shell tool when the task warrants
-it (e.g., generate TTS audio into the cache before referencing it from
-the composition).
+For generic HyperFrames work (never the loan-video fixed path), lighter CLI
+options such as lint may still be useful when the task explicitly warrants
+them. Narration in the loan-video fixed path always uses the daemon TTS call
+made by its staged builder.
 
 ## Approach
 

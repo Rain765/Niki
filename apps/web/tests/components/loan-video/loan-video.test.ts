@@ -55,4 +55,20 @@ describe('loan video draft helpers', () => {
     expect(prompt).toContain('"voiceover": "Tap Apply Now to begin."');
     expect(loanVideoProjectName(draft)).toBe('ZamLoan · How to apply');
   });
+
+  it('locks generation to the staged fast path without runtime installs or critique loops', () => {
+    const prompt = buildLoanVideoPrompt(completeDraft());
+
+    expect(prompt).toContain('Loan-video fast path');
+    expect(prompt).toContain('.od-skills/hyperframes/scripts/build-loan-video.mjs');
+    expect(prompt).toContain('.hyperframes-cache/loan-video-fast/storyboard.json');
+    expect(prompt).toContain('gpt-4o-mini-tts');
+    expect(prompt).toContain('Run exactly one final video generation');
+    expect(prompt).toContain('--composition-dir ".hyperframes-cache/loan-video-fast"');
+    expect(prompt).toContain('Do not read `SKILL.md` or any reference documentation');
+    expect(prompt).toContain('Do not run critique, validation, inspection, preview, or a second render');
+    expect(prompt).not.toContain('npx hyperframes');
+    expect(prompt).not.toContain('pip install');
+    expect(prompt).not.toContain('github.com');
+  });
 });

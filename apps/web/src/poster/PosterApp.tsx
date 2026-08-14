@@ -8,7 +8,10 @@ import {
   type LoanVideoGenerationPhase,
   useLoanVideoGeneration,
 } from '../components/loan-video/useLoanVideoGeneration';
-import type { LoanVideoDraft } from '../components/loan-video/types';
+import type {
+  LoanVideoAspectRatio,
+  LoanVideoDraft,
+} from '../components/loan-video/types';
 import {
   buildDirectPosterBatches,
   type DirectPosterBatchView,
@@ -152,6 +155,34 @@ function videoGenerationCopy(
   };
 }
 
+function videoAspectClass(aspectRatio: LoanVideoAspectRatio): string {
+  if (aspectRatio === '1:1') return 'is-square';
+  if (aspectRatio === '3:4') return 'is-portrait';
+  if (aspectRatio === '9:16') return 'is-mobile-portrait';
+  return 'is-landscape';
+}
+
+function formatVideoElapsed(requestedAt: number | null, now: number): string {
+  if (requestedAt === null) return '0s';
+  const totalSeconds = Math.max(0, Math.floor((now - requestedAt) / 1_000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${String(seconds).padStart(2, '0')}s` : `${seconds}s`;
+}
+
+function useVideoElapsed(running: boolean, requestedAt: number | null): string {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!running) return undefined;
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [requestedAt, running]);
+
+  return formatVideoElapsed(requestedAt, now);
+}
+
 export function PosterApp() {
   const { user, logout } = useNikiAuth();
   const [creationMode, setCreationMode] = useState<CreationMode>('poster');
@@ -283,6 +314,11 @@ export function PosterApp() {
     videoGeneration.latestVideo !== null,
     videoGeneration.state.error,
   );
+  const videoWorking = videoStatus.state === 'working'
+    && videoGeneration.state.requestedAt !== null;
+  const videoElapsed = useVideoElapsed(videoWorking, videoGeneration.state.requestedAt);
+  const videoResultAvailable = videoGeneration.latestVideo !== null
+    && videoGeneration.state.projectId !== null;
   const videoStatusKey = [
     videoStatus.state,
     videoGeneration.state.projectId ?? 'none',
@@ -1022,7 +1058,7 @@ export function PosterApp() {
             </button>
           </section>
 
-          {videoGeneration.latestVideo && videoGeneration.state.projectId ? (
+          {videoWorking || videoResultAvailable ? (
             <section
               className="poster-app__batch-section poster-app__latest-batch"
               aria-label="Latest video"
@@ -1030,41 +1066,65 @@ export function PosterApp() {
               <header className="poster-app__section-header">
                 <div className="poster-app__section-heading">
                   <h2>Latest video</h2>
-                  <span className="poster-app__section-meta">MP4</span>
+                  <span className="poster-app__section-meta">
+                    {videoGeneration.state.aspectRatio} · MP4
+                  </span>
                 </div>
-                <div className="poster-app__video-actions">
-                  <a
-                    className="poster-app__video-action"
-                    href={projectFileDownloadUrl(
-                      videoGeneration.state.projectId,
-                      videoGeneration.latestVideo.name,
-                    )}
-                    download
-                  >
-                    Download video
-                  </a>
-                  <button
-                    type="button"
-                    className="poster-app__video-action is-danger"
-                    disabled={deletingVideoName !== null}
-                    onClick={() => void removeVideo(videoGeneration.latestVideo!)}
-                  >
-                    {deletingVideoName === videoGeneration.latestVideo.name ? 'Deleting…' : 'Delete'}
-                  </button>
-                </div>
+                {videoResultAvailable ? (
+                  <div className="poster-app__video-actions">
+                    <a
+                      className="poster-app__video-action"
+                      href={projectFileDownloadUrl(
+                        videoGeneration.state.projectId!,
+                        videoGeneration.latestVideo!.name,
+                      )}
+                      download
+                    >
+                      Download video
+                    </a>
+                    <button
+                      type="button"
+                      className="poster-app__video-action is-danger"
+                      disabled={deletingVideoName !== null}
+                      onClick={() => void removeVideo(videoGeneration.latestVideo!)}
+                    >
+                      {deletingVideoName === videoGeneration.latestVideo!.name ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
+                ) : null}
               </header>
-              <video
-                key={`${videoGeneration.latestVideo.name}:${videoGeneration.latestVideo.mtime}`}
-                data-testid="poster-app-video-result"
-                src={projectFileUrl(
-                  videoGeneration.state.projectId,
-                  videoGeneration.latestVideo.name,
-                )}
-                controls
-                playsInline
-                preload="metadata"
-                className="poster-app__video-result"
-              />
+              {videoWorking ? (
+                <div
+                  className={[
+                    'poster-app__poster-skeleton',
+                    'poster-app__video-loading',
+                    videoAspectClass(videoGeneration.state.aspectRatio),
+                  ].join(' ')}
+                  data-aspect-ratio={videoGeneration.state.aspectRatio}
+                  data-testid="poster-app-video-loading"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="poster-app__video-loading-copy">
+                    <strong>{videoStatus.title}</strong>
+                    <span>{videoStatus.detail}</span>
+                    <time>Elapsed {videoElapsed}</time>
+                  </span>
+                </div>
+              ) : videoResultAvailable ? (
+                <video
+                  key={`${videoGeneration.latestVideo!.name}:${videoGeneration.latestVideo!.mtime}`}
+                  data-testid="poster-app-video-result"
+                  src={projectFileUrl(
+                    videoGeneration.state.projectId!,
+                    videoGeneration.latestVideo!.name,
+                  )}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="poster-app__video-result"
+                />
+              ) : null}
             </section>
           ) : null}
 

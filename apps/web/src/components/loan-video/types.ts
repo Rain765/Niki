@@ -1,7 +1,7 @@
 export const LOAN_VIDEO_BRANDS = ['zamloan', 'biumoney'] as const;
 export type LoanVideoBrand = (typeof LOAN_VIDEO_BRANDS)[number];
 
-export const LOAN_VIDEO_ASPECT_RATIOS = ['9:16', '16:9'] as const;
+export const LOAN_VIDEO_ASPECT_RATIOS = ['3:4', '1:1', '9:16', '16:9'] as const;
 export type LoanVideoAspectRatio = (typeof LOAN_VIDEO_ASPECT_RATIOS)[number];
 
 export const LOAN_VIDEO_DURATIONS = [15, 30, 45] as const;

@@ -23,12 +23,14 @@ function rules(css: string, selector: string): string {
 }
 
 describe('loan video UI', () => {
-  it('positions the custom select chevron away from the right edge', () => {
-    const select = rule(componentCss, '.loan-video-field select');
+  it('styles the video listbox trigger and keeps its white portal menu in the viewport', () => {
+    const trigger = rule(componentCss, '.loan-video-select__trigger');
+    const menu = rule(componentCss, '.loan-video-select__menu');
 
-    expect(select).toContain('appearance: none;');
-    expect(select).toContain('padding-right: 40px;');
-    expect(select).toContain('background-position: right 14px center;');
+    expect(trigger).toContain('padding: 9px 14px 9px 11px;');
+    expect(trigger).toContain('background: var(--bg-subtle);');
+    expect(menu).toContain('max-width: calc(100vw - 24px);');
+    expect(menu).toContain('background: var(--poster-fill-0, var(--bg-panel));');
   });
 
   it('uses a dark step header above a borderless transparent body', () => {
@@ -110,6 +112,7 @@ describe('loan video UI', () => {
     const openDrawer = rules(componentCss, '.loan-video-drawer-root.is-open .loan-video-drawer');
     const header = rule(componentCss, '.loan-video-drawer__header');
     const body = rule(componentCss, '.loan-video-drawer__body');
+    const footer = rule(componentCss, '.loan-video-drawer__footer');
 
     expect(root).toContain('position: fixed;');
     expect(root).toContain('visibility: hidden;');
@@ -118,11 +121,14 @@ describe('loan video UI', () => {
     expect(openRoot).toContain('pointer-events: auto;');
     expect(backdrop).toContain('opacity: 0;');
     expect(drawer).toContain('width: min(620px, calc(100vw - 32px));');
+    expect(drawer).toContain('grid-template-rows: auto minmax(0, 1fr) auto;');
     expect(drawer).toContain('transform: translateX(100%);');
     expect(openDrawer).toContain('transform: translateX(0);');
     expect(header).toContain('grid-template-columns: 40px minmax(0, 1fr) auto;');
     expect(body).toContain('overflow: auto;');
     expect(body).toContain('overscroll-behavior: contain;');
+    expect(footer).toContain('border-top: 1px solid var(--border-soft);');
+    expect(footer).toContain('env(safe-area-inset-bottom)');
   });
 
   it('promotes the drawer to a safe-area-aware full-screen sheet on mobile', () => {
@@ -130,6 +136,7 @@ describe('loan video UI', () => {
     const openDrawer = rules(componentCss, '.loan-video-drawer-root.is-open .loan-video-drawer');
     const header = rules(componentCss, '.loan-video-drawer__header');
     const body = rules(componentCss, '.loan-video-drawer__body');
+    const footer = rules(componentCss, '.loan-video-drawer__footer');
     const manage = rules(componentCss, '.loan-video-steps__manage');
 
     expect(drawer).toContain('width: 100%;');
@@ -137,7 +144,20 @@ describe('loan video UI', () => {
     expect(openDrawer).toContain('transform: translateY(0);');
     expect(header).toContain('env(safe-area-inset-left)');
     expect(header).toContain('env(safe-area-inset-right)');
-    expect(body).toContain('env(safe-area-inset-bottom)');
+    expect(body).toContain('padding:');
+    expect(footer).toContain('env(safe-area-inset-bottom)');
     expect(manage).toContain('width: 100%;');
+  });
+
+  it('reuses the poster shimmer with every video aspect ratio and in-image status copy', () => {
+    const loading = rule(posterCss, '.poster-app__video-loading');
+    const loadingCopy = rule(posterCss, '.poster-app__video-loading-copy');
+    const mobilePortrait = rule(posterCss, '.poster-app__poster-skeleton.is-mobile-portrait');
+    const landscape = rule(posterCss, '.poster-app__poster-skeleton.is-landscape');
+
+    expect(loading).toContain('width: min(100%, 720px);');
+    expect(loadingCopy).toContain('display: grid;');
+    expect(mobilePortrait).toContain('aspect-ratio: 9 / 16;');
+    expect(landscape).toContain('aspect-ratio: 16 / 9;');
   });
 });

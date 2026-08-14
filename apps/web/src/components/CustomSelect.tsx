@@ -25,10 +25,13 @@ interface Props {
   className?: string;
   triggerClassName?: string;
   menuClassName?: string;
+  menuGap?: number;
+  menuPlacement?: 'adaptive' | 'bottom';
   disabled?: boolean;
   placeholder?: string;
   portal?: boolean;
   title?: string;
+  testId?: string;
   onFocus?: () => void;
 }
 
@@ -64,10 +67,13 @@ export function CustomSelect({
   className,
   triggerClassName,
   menuClassName,
+  menuGap = 4,
+  menuPlacement = 'adaptive',
   disabled = false,
   placeholder,
   portal = true,
   title,
+  testId,
   onFocus,
 }: Props) {
   const reactId = useId();
@@ -100,22 +106,29 @@ export function CustomSelect({
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const gap = 4;
     const viewportPad = 12;
     const below = window.innerHeight - rect.bottom - viewportPad;
     const above = rect.top - viewportPad;
-    const maxHeight = Math.max(160, Math.min(300, Math.max(below, above) - gap));
-    const openAbove = below < 180 && above > below;
+    const availableHeight = menuPlacement === 'bottom'
+      ? Math.max(0, below - menuGap)
+      : Math.max(below, above) - menuGap;
+    const maxHeight = menuPlacement === 'bottom'
+      ? Math.min(300, availableHeight)
+      : Math.max(160, Math.min(300, availableHeight));
+    const openAbove = menuPlacement === 'adaptive' && below < 180 && above > below;
+    const width = Math.min(rect.width, Math.max(0, window.innerWidth - viewportPad * 2));
     setPosition({
-      top: openAbove ? Math.max(viewportPad, rect.top - maxHeight - gap) : rect.bottom + gap,
+      top: openAbove
+        ? Math.max(viewportPad, rect.top - maxHeight - menuGap)
+        : rect.bottom + menuGap,
       left: Math.min(
         Math.max(viewportPad, rect.left),
-        Math.max(viewportPad, window.innerWidth - rect.width - viewportPad),
+        Math.max(viewportPad, window.innerWidth - width - viewportPad),
       ),
-      width: rect.width,
+      width,
       maxHeight,
     });
-  }, []);
+  }, [menuGap, menuPlacement]);
 
   useEffect(() => {
     if (!portal) return;
@@ -157,7 +170,7 @@ export function CustomSelect({
       window.removeEventListener('resize', onScrollOrResize);
       window.removeEventListener('scroll', onScrollOrResize, true);
     };
-  }, [open, portal]);
+  }, [open, portal, updatePosition]);
 
   const choose = (nextValue: string) => {
     const next = flatOptions.find((option) => option.value === nextValue);
@@ -200,7 +213,9 @@ export function CustomSelect({
       event.preventDefault();
       event.stopPropagation();
       setOpen(false);
+      return;
     }
+    if (event.key === 'Tab' && open) setOpen(false);
   };
 
   const menu = (
@@ -273,6 +288,7 @@ export function CustomSelect({
         aria-activedescendant={activeOptionId}
         aria-describedby={labelledBy}
         aria-label={`${ariaLabel}: ${selectedLabel}`}
+        data-testid={testId}
         disabled={disabled}
         title={title}
         onClick={() => setOpen((current) => !current)}

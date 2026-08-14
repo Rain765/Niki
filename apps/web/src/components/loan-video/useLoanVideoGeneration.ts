@@ -29,7 +29,11 @@ import {
   LOAN_VIDEO_SKILL_ID,
   loanVideoProjectName,
 } from './loan-video';
-import type { LoanVideoDraft } from './types';
+import {
+  LOAN_VIDEO_ASPECT_RATIOS,
+  type LoanVideoAspectRatio,
+  type LoanVideoDraft,
+} from './types';
 
 export type LoanVideoGenerationPhase =
   | 'idle'
@@ -39,18 +43,22 @@ export type LoanVideoGenerationPhase =
   | ChatRunStatus;
 
 export interface LoanVideoGenerationState {
+  aspectRatio: LoanVideoAspectRatio;
   error: string | null;
   files: ProjectFile[];
   phase: LoanVideoGenerationPhase;
   projectId: string | null;
+  requestedAt: number | null;
   runId: string | null;
 }
 
 const INITIAL_STATE: LoanVideoGenerationState = {
+  aspectRatio: '9:16',
   error: null,
   files: [],
   phase: 'restoring',
   projectId: null,
+  requestedAt: null,
   runId: null,
 };
 
@@ -180,6 +188,17 @@ function videoFiles(files: ProjectFile[]): ProjectFile[] {
     .sort((left, right) => right.mtime - left.mtime);
 }
 
+function projectAspectRatio(project: Project): LoanVideoAspectRatio {
+  const aspectRatio = project.metadata?.videoAspect;
+  return LOAN_VIDEO_ASPECT_RATIOS.find((candidate) => candidate === aspectRatio) ?? '9:16';
+}
+
+function restoredRequestedAt(project: Project, run: ChatRunStatusResponse | null): number {
+  return run?.createdAt
+    ?? project.metadata?.directGeneration?.requestedAt
+    ?? project.createdAt;
+}
+
 function runFailureMessage(run: ChatRunStatusResponse): string {
   if (run.status === 'canceled') return 'Video generation was canceled. Submit again to retry.';
   return run.error?.trim() || 'Video generation failed. Submit again to retry.';
@@ -260,7 +279,9 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
       const run = restored.run;
       if (!run) {
         updateState({
+          aspectRatio: projectAspectRatio(restored.project),
           projectId: restored.project.id,
+          requestedAt: restoredRequestedAt(restored.project, null),
           runId: null,
           files: restored.files,
           phase: restoredVideos.length > 0 ? 'succeeded' : 'failed',
@@ -272,7 +293,9 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
       }
 
       updateState({
+        aspectRatio: projectAspectRatio(restored.project),
         projectId: restored.project.id,
+        requestedAt: restoredRequestedAt(restored.project, run),
         runId: run.id,
         files: restored.files,
         phase: phaseFromRun(run, restoredVideos.length > 0),
@@ -436,11 +459,14 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     startGuardRef.current = true;
     subscriptionRef.current?.abort();
     subscriptionRef.current = null;
+    const requestedAt = Date.now();
     updateState({
+      aspectRatio: draft.aspectRatio,
       error: null,
       files: [],
       phase: 'preparing',
       projectId: null,
+      requestedAt,
       runId: null,
     });
 

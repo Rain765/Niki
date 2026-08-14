@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 
 import { useT } from '../../i18n';
 import { Icon } from '../Icon';
+import { LoanVideoSelect } from './LoanVideoSelect';
 import { LoanVideoUploadDrawer } from './LoanVideoUploadDrawer';
 import {
   createLoanVideoStep,
@@ -25,6 +26,22 @@ interface Props {
 }
 
 const INITIAL_STEP_COUNT = 3;
+const BRAND_OPTIONS = LOAN_VIDEO_BRANDS.map((brand) => ({
+  label: loanVideoBrandLabel(brand),
+  value: brand,
+}));
+const LANGUAGE_OPTIONS = LOAN_VIDEO_LANGUAGES.map((language) => ({
+  label: loanVideoLanguageLabel(language),
+  value: language,
+}));
+const ASPECT_RATIO_OPTIONS = LOAN_VIDEO_ASPECT_RATIOS.map((aspectRatio) => ({
+  label: aspectRatio,
+  value: aspectRatio,
+}));
+const DURATION_OPTIONS = LOAN_VIDEO_DURATIONS.map((duration) => ({
+  label: `${duration}s`,
+  value: String(duration),
+}));
 
 function initialDraft(): LoanVideoDraft {
   return {
@@ -46,6 +63,7 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
   const [uploadDrawerOpen, setUploadDrawerOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<LoanVideoValidationError[]>([]);
   const nextStepIdRef = useRef(INITIAL_STEP_COUNT + 1);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
   const completedScreenshotCount = draft.steps.filter((step) => step.screenshot).length;
 
   const updateStep = (stepId: string, update: Partial<LoanVideoStepDraft>) => {
@@ -89,14 +107,17 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
   const submit = () => {
     const errors = validateLoanVideoDraft(draft);
     setValidationErrors(errors);
-    if (errors.some((error) => (
-      error === 'step-required'
-      || error === 'caption-required'
-      || error === 'screenshot-required'
-    ))) {
-      setUploadDrawerOpen(true);
+    if (errors.includes('title-required')) {
+      setUploadDrawerOpen(false);
+      window.setTimeout(() => titleInputRef.current?.focus({ preventScroll: false }), 0);
+      return;
     }
-    if (errors.length > 0 || disabled) return;
+    if (errors.length > 0) {
+      setUploadDrawerOpen(true);
+      return;
+    }
+    if (disabled) return;
+    setUploadDrawerOpen(false);
     onSubmit(draft);
   };
 
@@ -125,8 +146,10 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
           <label className="loan-video-field loan-video-field--wide">
             <span>{t('loanVideo.videoTitle')}</span>
             <input
+              ref={titleInputRef}
               data-testid="loan-video-title"
               value={draft.title}
+              aria-invalid={validationErrors.includes('title-required') || undefined}
               placeholder={t('loanVideo.videoTitlePlaceholder')}
               onChange={(event) => setDraft((current) => ({
                 ...current,
@@ -135,71 +158,49 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
             />
           </label>
 
-          <label className="loan-video-field">
-            <span>{t('loanVideo.product')}</span>
-            <select
-              data-testid="loan-video-brand"
-              value={draft.brand}
-              onChange={(event) => setDraft((current) => ({
+          <LoanVideoSelect
+            label={t('loanVideo.product')}
+            testId="loan-video-brand"
+            value={draft.brand}
+            options={BRAND_OPTIONS}
+            onChange={(value) => setDraft((current) => ({
                 ...current,
-                brand: event.target.value as LoanVideoDraft['brand'],
+                brand: value as LoanVideoDraft['brand'],
               }))}
-            >
-              {LOAN_VIDEO_BRANDS.map((brand) => (
-                <option key={brand} value={brand}>{loanVideoBrandLabel(brand)}</option>
-              ))}
-            </select>
-          </label>
+          />
 
-          <label className="loan-video-field">
-            <span>{t('loanVideo.language')}</span>
-            <select
-              data-testid="loan-video-language"
-              value={draft.language}
-              onChange={(event) => setDraft((current) => ({
+          <LoanVideoSelect
+            label={t('loanVideo.language')}
+            testId="loan-video-language"
+            value={draft.language}
+            options={LANGUAGE_OPTIONS}
+            onChange={(value) => setDraft((current) => ({
                 ...current,
-                language: event.target.value as LoanVideoDraft['language'],
+                language: value as LoanVideoDraft['language'],
               }))}
-            >
-              {LOAN_VIDEO_LANGUAGES.map((language) => (
-                <option key={language} value={language}>
-                  {loanVideoLanguageLabel(language)}
-                </option>
-              ))}
-            </select>
-          </label>
+          />
 
-          <label className="loan-video-field">
-            <span>{t('loanVideo.aspectRatio')}</span>
-            <select
-              data-testid="loan-video-aspect"
-              value={draft.aspectRatio}
-              onChange={(event) => setDraft((current) => ({
+          <LoanVideoSelect
+            label={t('loanVideo.aspectRatio')}
+            testId="loan-video-aspect"
+            value={draft.aspectRatio}
+            options={ASPECT_RATIO_OPTIONS}
+            onChange={(value) => setDraft((current) => ({
                 ...current,
-                aspectRatio: event.target.value as LoanVideoDraft['aspectRatio'],
+                aspectRatio: value as LoanVideoDraft['aspectRatio'],
               }))}
-            >
-              {LOAN_VIDEO_ASPECT_RATIOS.map((aspectRatio) => (
-                <option key={aspectRatio} value={aspectRatio}>{aspectRatio}</option>
-              ))}
-            </select>
-          </label>
+          />
 
-          <label className="loan-video-field">
-            <span>{t('loanVideo.duration')}</span>
-            <select
-              data-testid="loan-video-duration"
-              value={draft.durationSeconds}
-              onChange={(event) => setDraft((current) => ({
+          <LoanVideoSelect
+            label={t('loanVideo.duration')}
+            testId="loan-video-duration"
+            value={String(draft.durationSeconds)}
+            options={DURATION_OPTIONS}
+            onChange={(value) => setDraft((current) => ({
                 ...current,
-                durationSeconds: Number(event.target.value) as LoanVideoDraft['durationSeconds'],
+                durationSeconds: Number(value) as LoanVideoDraft['durationSeconds'],
               }))}
-            >
-              {LOAN_VIDEO_DURATIONS.map((duration) => (
-                <option key={duration} value={duration}>{duration}s</option>
-              ))}
-            </select>
-          </label>
+          />
         </div>
 
         <label className="loan-video-narration">
@@ -245,7 +246,7 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
           </div>
         </section>
 
-        {validationErrors.length > 0 ? (
+        {validationErrors.length > 0 && !uploadDrawerOpen ? (
           <div className="loan-video-errors" role="alert" data-testid="loan-video-errors">
             <strong>{t('loanVideo.fixBeforeGenerate')}</strong>
             <ul>
@@ -256,29 +257,19 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
           </div>
         ) : null}
 
-        <footer className="loan-video-composer__footer">
-          <span>{t('loanVideo.outputHint', { n: draft.steps.length })}</span>
-          <button
-            type="button"
-            className="primary loan-video-generate"
-            data-testid="loan-video-generate"
-            disabled={disabled}
-            onClick={submit}
-          >
-            <Icon name="play" size={16} />
-            {t('loanVideo.generate')}
-          </button>
-        </footer>
-
         <LoanVideoUploadDrawer
+          disabled={disabled}
           open={uploadDrawerOpen}
+          outputHint={t('loanVideo.outputHint', { n: draft.steps.length })}
           steps={draft.steps}
           narration={draft.narration}
           onAddStep={addStep}
           onChangeStep={updateStep}
           onClose={closeUploadDrawer}
+          onGenerate={submit}
           onMoveStep={moveStep}
           onRemoveStep={removeStep}
+          validationMessages={validationErrors.map((error) => validationMessage(error, t))}
         />
       </div>
     </section>

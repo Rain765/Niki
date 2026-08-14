@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="__LANG__">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=__WIDTH__, height=__HEIGHT__" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --canvas-width: __WIDTH__px;
+        --canvas-height: __HEIGHT__px;
+        --accent: __ACCENT__;
+        --accent-soft: __ACCENT_SOFT__;
+        --ink: #f8fafc;
+        --muted: #a8b0bd;
+        --panel: rgba(17, 20, 27, 0.92);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: var(--canvas-width);
+        height: var(--canvas-height);
+        margin: 0;
+        overflow: hidden;
+        background: #080a0f;
+      }
+
+      body {
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 82% 8%, var(--accent-soft), transparent 34%),
+          linear-gradient(145deg, #11151d 0%, #080a0f 60%, #050609 100%);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(24px, 3.2vmin, 54px);
+        padding: clamp(48px, 5.2vmin, 96px);
+        opacity: 0;
+        visibility: hidden;
+        will-change: opacity;
+      }
+
+      .scene__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        min-height: 72px;
+      }
+
+      .scene__brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 16px;
+        color: var(--ink);
+        font-size: clamp(26px, 2.2vmin, 42px);
+        font-weight: 780;
+        letter-spacing: -0.03em;
+      }
+
+      .scene__brand::before {
+        width: 18px;
+        height: 44px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 34px var(--accent-soft);
+        content: "";
+        transform: rotate(18deg);
+      }
+
+      .scene__counter {
+        color: var(--muted);
+        font-size: clamp(22px, 1.8vmin, 34px);
+        font-variant-numeric: tabular-nums;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+      }
+
+      .scene__content {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(36px, 5vmin, 92px);
+      }
+
+      .scene__shot {
+        position: relative;
+        flex: 0 1 auto;
+        aspect-ratio: 3 / 4;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.14);
+        border-radius: clamp(28px, 3vmin, 52px);
+        background: #10141b;
+        box-shadow:
+          0 38px 90px rgba(0, 0, 0, 0.48),
+          0 0 0 10px rgba(255, 255, 255, 0.025);
+        transform-origin: 50% 50%;
+        will-change: transform;
+      }
+
+      .scene__shot img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #0b0d12;
+      }
+
+      .scene__tap {
+        position: absolute;
+        left: var(--tap-x);
+        top: var(--tap-y);
+        width: clamp(62px, 6.2vmin, 108px);
+        height: clamp(62px, 6.2vmin, 108px);
+        border: clamp(5px, 0.45vmin, 8px) solid #fff;
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--accent) 54%, transparent);
+        box-shadow:
+          0 0 0 18px color-mix(in srgb, var(--accent) 22%, transparent),
+          0 0 52px var(--accent-soft);
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.76);
+        will-change: opacity, transform;
+      }
+
+      .scene__copy {
+        display: flex;
+        flex: 0 1 680px;
+        flex-direction: column;
+        justify-content: center;
+        min-width: 0;
+        padding: clamp(30px, 3.8vmin, 64px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: clamp(28px, 3vmin, 48px);
+        background: var(--panel);
+        box-shadow: 0 28px 70px rgba(0, 0, 0, 0.25);
+      }
+
+      .scene__eyebrow {
+        margin: 0 0 18px;
+        color: var(--accent);
+        font-size: clamp(22px, 1.8vmin, 32px);
+        font-weight: 760;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .scene__caption {
+        max-width: 16ch;
+        margin: 0;
+        color: var(--ink);
+        font-size: clamp(48px, 5.2vmin, 92px);
+        font-weight: 780;
+        letter-spacing: -0.045em;
+        line-height: 1.06;
+        overflow-wrap: anywhere;
+      }
+
+      .layout-portrait .scene__content,
+      .layout-square .scene__content {
+        flex-direction: column;
+      }
+
+      .layout-portrait .scene__shot {
+        width: min(88%, 880px);
+        max-height: 68%;
+      }
+
+      .layout-portrait .scene__copy {
+        width: 100%;
+        flex-basis: auto;
+      }
+
+      .layout-portrait .scene__caption {
+        max-width: 22ch;
+        font-size: clamp(46px, 5.1vmin, 86px);
+      }
+
+      .layout-square .scene {
+        padding: clamp(40px, 4.6vmin, 68px);
+      }
+
+      .layout-square .scene__content {
+        flex-direction: row;
+        gap: clamp(30px, 4vmin, 54px);
+      }
+
+      .layout-square .scene__shot {
+        width: min(48%, 500px);
+      }
+
+      .layout-square .scene__copy {
+        flex-basis: 48%;
+      }
+
+      .layout-landscape .scene__shot {
+        height: min(88%, 880px);
+      }
+
+      .layout-landscape .scene__copy {
+        max-width: 46%;
+      }
+    </style>
+  </head>
+  <body class="layout-__LAYOUT__">
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="__DURATION__"
+      data-width="__WIDTH__"
+      data-height="__HEIGHT__"
+    >
+__SCENES__
+__AUDIO__
+    </div>
+
+    <script>
+      (() => {
+        const duration = __DURATION__;
+        const scenes = __TIMINGS__;
+
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+        const renderAt = (seconds) => {
+          const time = clamp(Number(seconds) || 0, 0, Math.max(0, duration - 0.0001));
+          for (const scene of scenes) {
+            const element = document.getElementById(scene.id);
+            if (!element) continue;
+            const local = (time - scene.start) / scene.duration;
+            const active = local >= 0 && local < 1;
+            element.style.visibility = active ? "visible" : "hidden";
+            if (!active) {
+              element.style.opacity = "0";
+              continue;
+            }
+
+            const edge = Math.min(1, local / 0.08, (1 - local) / 0.08);
+            element.style.opacity = String(clamp(edge, 0, 1));
+
+            const shot = element.querySelector(".scene__shot");
+            if (shot) {
+              const eased = 1 - Math.pow(1 - clamp(local, 0, 1), 3);
+              shot.style.transform = `scale(${(1 + eased * 0.022).toFixed(4)})`;
+            }
+
+            const tap = element.querySelector(".scene__tap");
+            if (tap) {
+              const pulseStart = 0.38;
+              const pulseEnd = 0.78;
+              const pulseLocal = (local - pulseStart) / (pulseEnd - pulseStart);
+              const pulseActive = pulseLocal >= 0 && pulseLocal <= 1;
+              const pulse = pulseActive ? Math.sin(Math.PI * pulseLocal) : 0;
+              tap.style.opacity = String((pulse * 0.96).toFixed(4));
+              tap.style.transform = `translate(-50%, -50%) scale(${(0.76 + pulse * 0.38).toFixed(4)})`;
+            }
+          }
+        };
+
+        const timeline = {
+          _time: 0,
+          _rate: 1,
+          duration() {
+            return duration;
+          },
+          time(value) {
+            if (value === undefined) return this._time;
+            return this.seek(value);
+          },
+          totalTime(value) {
+            if (value === undefined) return this._time;
+            return this.seek(value);
+          },
+          seek(value) {
+            this._time = clamp(Number(value) || 0, 0, duration);
+            renderAt(this._time);
+            return this;
+          },
+          pause() {
+            return this;
+          },
+          play() {
+            return this;
+          },
+          timeScale(value) {
+            if (value === undefined) return this._rate;
+            this._rate = Number(value) || 1;
+            return this;
+          },
+        };
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines.main = timeline;
+        renderAt(0.0001);
+      })();
+    </script>
+  </body>
+</html>

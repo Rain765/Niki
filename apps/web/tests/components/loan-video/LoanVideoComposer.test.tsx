@@ -25,17 +25,35 @@ afterEach(() => {
 });
 
 describe('LoanVideoComposer', () => {
-  it('validates required fields before submitting', () => {
+  it('returns title validation to the main form and focuses the title field', async () => {
     const onSubmit = vi.fn();
     render(<LoanVideoComposer onSubmit={onSubmit} />);
 
     expect(screen.getAllByTestId(/loan-video-step-/)).toHaveLength(3);
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('loan-video-errors').textContent).toContain('Add a video title.');
     expect(screen.getByTestId('loan-video-errors').textContent).toContain('Every step needs an app screenshot.');
+    expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('true');
+    await waitFor(() => expect(screen.getByTestId('loan-video-title')).toBe(document.activeElement));
+  });
+
+  it('keeps step validation inside the open drawer', () => {
+    const onSubmit = vi.fn();
+    render(<LoanVideoComposer onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByTestId('loan-video-title'), {
+      target: { value: 'How to apply' },
+    });
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
+    fireEvent.click(screen.getByTestId('loan-video-generate'));
+
+    expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('false');
+    expect(screen.getByTestId('loan-video-errors').textContent)
+      .toContain('Every step needs an app screenshot.');
   });
 
   it('collects screenshots, captions, voiceover, ordering, and tap coordinates', () => {
@@ -72,10 +90,10 @@ describe('LoanVideoComposer', () => {
       toJSON: () => ({}),
     });
     fireEvent.click(picker, { clientX: 110, clientY: 320 });
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     expect(onSubmit).toHaveBeenCalledOnce();
+    expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('true');
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
       title: 'How to top up',
       brand: 'zamloan',
@@ -88,6 +106,21 @@ describe('LoanVideoComposer', () => {
         { caption: 'Step 3' },
       ],
     });
+  });
+
+  it('renders ratio options in product order and supports listbox dismissal', () => {
+    render(<LoanVideoComposer onSubmit={vi.fn()} />);
+
+    const aspect = screen.getByTestId('loan-video-aspect');
+    fireEvent.click(aspect);
+    expect(screen.getAllByRole('option').map((option) => option.textContent?.trim()))
+      .toEqual(['3:4', '1:1', '9:16', '16:9']);
+
+    fireEvent.keyDown(aspect, { key: 'Escape' });
+    expect(aspect.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(aspect);
+    fireEvent.mouseDown(document.body);
+    expect(aspect.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('opens the screenshot picker from the image surface and in-image replace action', () => {
@@ -138,7 +171,10 @@ describe('LoanVideoComposer', () => {
     expect(document.body.style.overflow).toBe('hidden');
 
     const drawerHeader = drawer.querySelector('.loan-video-drawer__header');
+    const drawerFooter = drawer.querySelector('.loan-video-drawer__footer');
     expect(drawerHeader).toBeTruthy();
+    expect(drawerFooter).toBeTruthy();
+    expect(within(drawerFooter as HTMLElement).getByTestId('loan-video-generate')).toBeTruthy();
     const addStep = within(drawerHeader as HTMLElement).getByTestId('loan-video-add-step');
     fireEvent.click(addStep);
     expect(screen.getAllByTestId(/loan-video-step-/)).toHaveLength(4);

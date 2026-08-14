@@ -10,6 +10,36 @@ import type { RouteDeps } from './server-context.js';
 
 export interface RegisterMediaRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'ids' | 'media' | 'appConfig' | 'orbit' | 'nativeDialogs' | 'projectStore' | 'projectFiles' | 'conversations' | 'research'> {}
 
+function mediaTaskFailure(err: any): {
+  message: string;
+  status: number;
+  code?: string;
+  name: string;
+} {
+  const message = String(err?.message ?? err);
+  const causeMessage = typeof err?.cause?.message === 'string'
+    ? err.cause.message
+    : undefined;
+  const code = typeof err?.code === 'string'
+    ? err.code
+    : typeof err?.cause?.code === 'string'
+      ? err.cause.code
+      : undefined;
+  const isNetworkFailure = err instanceof TypeError && message === 'fetch failed';
+  return {
+    message: causeMessage && causeMessage !== message
+      ? `${message}: ${causeMessage}`
+      : message,
+    status: typeof err?.status === 'number' ? err.status : (isNetworkFailure ? 502 : 400),
+    ...(code ? { code } : {}),
+    name: typeof err?.name === 'string' ? err.name : 'Error',
+  };
+}
+
+function oneLine(value: string, limit = 300): string {
+  return value.replace(/\s+/g, ' ').trim().slice(0, limit);
+}
+
 export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) {
   const { db } = ctx;
   const { sendApiError, requireLocalDaemonRequest, isLocalSameOrigin, resolvedPortRef } = ctx.http;
@@ -177,7 +207,8 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         model: req.body?.model,
       });
       console.error(
-        `[task ${taskId.slice(0, 8)}] queued model=${req.body?.model} ` +
+        `[task ${taskId.slice(0, 8)}] stage=queued startedAt=${new Date(task.startedAt).toISOString()} ` +
+          `model=${req.body?.model} ` +
           `surface=${req.body?.surface} ` +
           `image=${req.body?.image ? 'yes' : 'no'} ` +
           `compositionDir=${req.body?.compositionDir ? 'yes' : 'no'}`,
@@ -250,24 +281,26 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
             );
           }
           console.error(
-            `[task ${taskId.slice(0, 8)}] done size=${meta?.size} mime=${meta?.mime} ` +
-              `elapsed=${Math.round((task.endedAt - task.startedAt) / 1000)}s`,
+            `[task ${taskId.slice(0, 8)}] stage=done size=${meta?.size} mime=${meta?.mime} ` +
+              `provider=${meta?.providerId || 'unknown'} elapsedMs=${task.endedAt - task.startedAt}`,
           );
         })
         .catch((err: any) => {
+          const failure = mediaTaskFailure(err);
           task.status = 'failed';
           task.error = {
-            message: String(err && err.message ? err.message : err),
-            status: typeof err?.status === 'number' ? err.status : 400,
-            code: err?.code,
+            message: failure.message,
+            status: failure.status,
+            code: failure.code,
           };
           task.endedAt = Date.now();
           persistMediaTask(task);
           reconcileDirectLoanPosterProject(projectId);
           notifyTaskWaiters(task);
           console.error(
-            `[task ${taskId.slice(0, 8)}] failed status=${task.error.status} ` +
-              `message=${(task.error.message || '').slice(0, 240)}`,
+            `[task ${taskId.slice(0, 8)}] stage=failed elapsedMs=${task.endedAt - task.startedAt} ` +
+              `status=${task.error.status} errorName=${failure.name} ` +
+              `code=${failure.code || 'none'} message=${oneLine(task.error.message || '')}`,
           );
         });
 

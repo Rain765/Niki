@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import * as ffprobeStaticModule from '@derhuerst/ffprobe-static';
@@ -14,6 +15,35 @@ export type HyperFramesBinaryPaths = {
 
 const VERIFY_TIMEOUT_MS = 10_000;
 const verificationCache = new Map<string, Promise<void>>();
+
+export type HyperFramesRenderCommand = {
+  command: string;
+  args: string[];
+};
+
+/** Resolve the CLI entry shipped by the daemon's pinned HyperFrames dependency. */
+export function resolveHyperFramesCliPath(fromUrl: string | URL = import.meta.url): string {
+  return createRequire(fromUrl).resolve('hyperframes/bin/hyperframes.mjs');
+}
+
+/** Build a render invocation that cannot fall back to npx or the network. */
+export function createHyperFramesRenderCommand(
+  compositionDir: string,
+  outputPath: string,
+): HyperFramesRenderCommand {
+  return {
+    command: process.execPath,
+    args: [
+      resolveHyperFramesCliPath(),
+      'render',
+      compositionDir,
+      '--output',
+      outputPath,
+      '--workers',
+      '1',
+    ],
+  };
+}
 
 function requireBundledPath(
   binary: 'FFmpeg' | 'FFprobe',
@@ -81,7 +111,7 @@ function prependUniquePathEntries(
 }
 
 /**
- * Build the exact environment inherited by `npx hyperframes render`.
+ * Build the exact environment inherited by the bundled HyperFrames CLI.
  * HyperFrames reads the two explicit variables during preflight; PATH is also
  * augmented for any nested tool that invokes the conventional command names.
  */

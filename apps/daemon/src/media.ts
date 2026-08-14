@@ -60,6 +60,7 @@ import {
 } from './media-models.js';
 import { assertExternalAssetUrl } from './connectionTest.js';
 import {
+  createHyperFramesRenderCommand,
   createHyperFramesRenderEnv,
   resolveHyperFramesBinaryPaths,
   verifyHyperFramesBinaries,
@@ -1347,8 +1348,8 @@ export async function generateMedia(args: {
     } else if (def.provider === 'hyperframes' && surface === 'video') {
       // HyperFrames is templated by the agent (it reads the vendored
       // skill at skills/hyperframes/SKILL.md and writes a composition
-      // HTML based on the user's prompt). But the actual `npx
-      // hyperframes render` step runs HERE in the daemon process, not
+      // HTML based on the user's prompt). But the actual bundled
+      // HyperFrames render step runs HERE in the daemon process, not
       // in the agent's shell. Reason: the agent's shell on macOS
       // (Claude Code in particular) is wrapped in `sandbox-exec`, and
       // puppeteer's Chrome subprocess hangs partway through frame
@@ -1517,19 +1518,19 @@ function defaultAspectFor(surface: MediaSurface): string | undefined {
 // ---------------------------------------------------------------------------
 
 const AZURE_DEFAULT_API_VERSION = '2024-02-01';
-const OPENAI_IMAGE_CONNECT_TIMEOUT_MS = 3_000;
-const OPENAI_IMAGE_HEADERS_TIMEOUT_MS = 3 * 60 * 1000;
-const OPENAI_IMAGE_BODY_TIMEOUT_MS = 3 * 60 * 1000;
+const OPENAI_CONNECT_TIMEOUT_MS = 3_000;
+const OPENAI_HEADERS_TIMEOUT_MS = 3 * 60 * 1000;
+const OPENAI_BODY_TIMEOUT_MS = 3 * 60 * 1000;
 // Honor HTTP(S)_PROXY / NO_PROXY from the daemon's environment. Users in
 // regions that can only reach api.openai.com through a local proxy (e.g.
 // Clash) otherwise hit a connection timeout here — the chat agent has its own
-// proxy wrapper, but this image request previously used a proxy-blind Agent.
+// proxy wrapper, but media requests previously used a proxy-blind Agent.
 // EnvHttpProxyAgent reads the proxy env when present and connects directly
 // when it is not, so it is inert for users without a proxy.
-const openAIImageDispatcher = new EnvHttpProxyAgent({
-  connectTimeout: OPENAI_IMAGE_CONNECT_TIMEOUT_MS,
-  headersTimeout: OPENAI_IMAGE_HEADERS_TIMEOUT_MS,
-  bodyTimeout: OPENAI_IMAGE_BODY_TIMEOUT_MS,
+const openAIHttpDispatcher = new EnvHttpProxyAgent({
+  connectTimeout: OPENAI_CONNECT_TIMEOUT_MS,
+  headersTimeout: OPENAI_HEADERS_TIMEOUT_MS,
+  bodyTimeout: OPENAI_BODY_TIMEOUT_MS,
 });
 
 function openAIImageRequestTimeoutMs(): number {
@@ -1540,6 +1541,17 @@ function openAIImageRequestTimeoutMs(): number {
 
 function openAIImageRequestSignal(signal?: AbortSignal): AbortSignal {
   const timeout = AbortSignal.timeout(openAIImageRequestTimeoutMs());
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
+function openAISpeechRequestTimeoutMs(): number {
+  const configured = Number(process.env.OD_OPENAI_TTS_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return 2 * 60 * 1000;
+  return Math.min(5 * 60 * 1000, Math.max(30_000, Math.floor(configured)));
+}
+
+function openAISpeechRequestSignal(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(openAISpeechRequestTimeoutMs());
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
@@ -1593,7 +1605,7 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     headers,
     body: JSON.stringify(body),
     signal,
-    dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
+    dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
   });
   const text = await resp.text();
   if (!resp.ok) {
@@ -1614,7 +1626,7 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
   } else if (entry.url) {
     const imgResp = await fetch(entry.url, {
       signal,
-      dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
+      dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
     });
     if (!imgResp.ok) throw new Error(`openai image fetch ${imgResp.status}`);
     const arr = await imgResp.arrayBuffer();
@@ -1967,6 +1979,8 @@ async function renderOpenAISpeech(ctx: MediaContext, credentials: ProviderConfig
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal: openAISpeechRequestSignal(ctx.signal),
+    dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
   });
   if (!resp.ok) {
     const text = await resp.text();
@@ -3310,8 +3324,9 @@ async function renderFishAudioTTS(ctx: MediaContext, credentials: ProviderConfig
 // with a GSAP timeline) into a hidden cache dir under the project, then
 // dispatches here with `--composition-dir <relative-path>`.
 //
-// We run `npx hyperframes render <absolutePath> --output <tmp>/render.mp4`
-// from the daemon process (NOT the agent's shell) for two reasons:
+// We run the pinned daemon-local HyperFrames CLI from the daemon process with
+// the same Node runtime that started it. This path never invokes npx or reaches
+// the network, and it stays outside the agent's shell for two reasons:
 //   1. HyperFrames spawns a puppeteer-controlled Chrome to capture frames.
 //      Claude Code's Bash tool wraps subprocesses in macOS sandbox-exec,
 //      under which Chrome hangs partway through frame capture.
@@ -3399,7 +3414,7 @@ async function renderHyperFramesViaCli(ctx: MediaContext, projectDir: string, on
 }
 
 /**
- * Run `npx hyperframes render` and stream every line of stdout/stderr
+ * Run the bundled HyperFrames CLI and stream every line of stdout/stderr
  * through `onProgress`. Resolves on a clean exit, rejects on non-zero
  * exit (with the stderr tail attached so the dispatcher can surface it).
  *
@@ -3413,25 +3428,16 @@ async function runHyperFramesRender(compAbs: string, tmpOutput: string, onProgre
   const binaries = resolveHyperFramesBinaryPaths();
   await verifyHyperFramesBinaries(binaries);
   const renderEnv = createHyperFramesRenderEnv(process.env, binaries);
+  const invocation = createHyperFramesRenderCommand(compAbs, tmpOutput);
 
   return new Promise<void>((resolve, reject) => {
     const child = spawn(
-      'npx',
-      [
-        '-y',
-        'hyperframes',
-        'render',
-        compAbs,
-        '--output',
-        tmpOutput,
-        '--workers',
-        '1',
-      ],
+      invocation.command,
+      invocation.args,
       {
-        // Keep the daemon environment so npx can find the cached
-        // HyperFrames install, while pinning FFmpeg/FFprobe to the static
-        // binaries shipped with this daemon release. stdin is closed (HF
-        // doesn't read from it); stdout/stderr are piped for progress.
+        // Keep the daemon environment while pinning FFmpeg/FFprobe to the
+        // static binaries shipped with this daemon release. stdin is closed
+        // (HF doesn't read from it); stdout/stderr are piped for progress.
         env: renderEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       },

@@ -371,6 +371,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(await screen.findByText('Provider rejected the video request.')).toBeTruthy();
     expect((screen.getByTestId('loan-video-generate') as HTMLButtonElement).disabled).toBe(false);
 
+    fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     await waitFor(() => expect(streamViaDaemonMock).toHaveBeenCalledTimes(2));
@@ -438,6 +439,55 @@ describe('PosterApp mobile-safe flow', () => {
     expect(reattachDaemonRunMock).not.toHaveBeenCalled();
     expect(streamViaDaemonMock).not.toHaveBeenCalled();
     expect(screen.getByTestId('poster-app-video-generation-status').className).toContain('is-failed');
+  });
+
+  it('restores an active video shimmer with its saved ratio, phase, and elapsed time', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(200_000);
+    const restoredProject = {
+      ...project,
+      id: 'restored-loading-video-project',
+      name: 'ZamLoan · Loading tutorial',
+      skillId: 'hyperframes',
+      createdAt: 25_000,
+      updatedAt: 80_000,
+      metadata: {
+        kind: 'video' as const,
+        videoModel: 'hyperframes-html',
+        videoAspect: '1:1' as const,
+        videoLength: 30,
+      },
+    };
+    const restoredRun = {
+      id: 'restored-loading-video-run',
+      projectId: restoredProject.id,
+      conversationId: 'restored-loading-video-conversation',
+      assistantMessageId: 'restored-loading-video-assistant',
+      agentId: 'codex',
+      status: 'running',
+      createdAt: 75_000,
+      updatedAt: 80_000,
+    } as const;
+    window.localStorage.setItem('niki:loan-video:last-project:user-1', JSON.stringify({
+      projectId: restoredProject.id,
+      conversationId: restoredRun.conversationId,
+      runId: restoredRun.id,
+    }));
+    getProjectMock.mockResolvedValue(restoredProject);
+    fetchChatRunStatusMock.mockResolvedValue(restoredRun);
+    fetchProjectFilesMock.mockResolvedValue([]);
+    reattachDaemonRunMock.mockImplementation(() => new Promise(() => {}));
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
+
+    const loading = await screen.findByTestId('poster-app-video-loading');
+    expect(loading.className).toContain('is-square');
+    expect(loading.getAttribute('data-aspect-ratio')).toBe('1:1');
+    expect(within(loading).getByText('Generating tutorial video')).toBeTruthy();
+    expect(within(loading).getByText('Elapsed 2m 05s')).toBeTruthy();
+    expect(createProjectMock).not.toHaveBeenCalled();
+    expect(streamViaDaemonMock).not.toHaveBeenCalled();
   });
 
   it('reattaches an active video run after refresh without posting a duplicate run', async () => {

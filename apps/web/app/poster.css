@@ -566,7 +566,8 @@ button {
 
 .poster-app__video .loan-video-field input,
 .poster-app__video .loan-video-field select,
-.poster-app__video .loan-video-field textarea {
+.poster-app__video .loan-video-field textarea,
+.poster-app__video .loan-video-select__trigger {
   border: 0;
   background-color: var(--poster-panel-muted);
   transition:
@@ -576,7 +577,9 @@ button {
 
 .poster-app__video .loan-video-field input:hover,
 .poster-app__video .loan-video-field select:hover,
-.poster-app__video .loan-video-field textarea:hover {
+.poster-app__video .loan-video-field textarea:hover,
+.poster-app__video .loan-video-select__trigger:hover:not(:disabled),
+.poster-app__video .loan-video-select__trigger[aria-expanded='true'] {
   background-color: var(--poster-panel-raised);
 }
 
@@ -585,7 +588,9 @@ button {
 .poster-app__video .loan-video-field textarea:focus,
 .poster-app__video .loan-video-field input:focus-visible,
 .poster-app__video .loan-video-field select:focus-visible,
-.poster-app__video .loan-video-field textarea:focus-visible {
+.poster-app__video .loan-video-field textarea:focus-visible,
+.poster-app__video .loan-video-select__trigger:focus-visible,
+.poster-app__video .loan-video-select__trigger[aria-expanded='true'] {
   background-color: var(--poster-panel-raised);
   outline: none;
   box-shadow: 0 8px 22px color-mix(in srgb, var(--poster-mask-dark) 9%, transparent);
@@ -777,6 +782,54 @@ button {
   max-height: min(72vh, 760px);
   border-radius: 12px;
   background: var(--poster-text-primary);
+}
+
+.poster-app__video-loading {
+  position: relative;
+  width: min(100%, 720px);
+  min-height: 0;
+  justify-self: start;
+}
+
+.poster-app__video-loading.is-square {
+  width: min(100%, 620px);
+}
+
+.poster-app__video-loading.is-portrait {
+  width: min(100%, 560px);
+}
+
+.poster-app__video-loading.is-mobile-portrait {
+  width: min(100%, 420px);
+}
+
+.poster-app__video-loading-copy {
+  display: grid;
+  max-width: min(82%, 430px);
+  gap: var(--poster-space-2);
+  padding: var(--poster-space-4);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--poster-fill-0) 84%, transparent);
+  color: var(--poster-text);
+  box-shadow: 0 12px 34px color-mix(in srgb, var(--poster-mask-dark) 9%, transparent);
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+
+.poster-app__video-loading-copy strong {
+  font-size: 15px;
+}
+
+.poster-app__video-loading-copy > span {
+  color: var(--poster-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.poster-app__video-loading-copy time {
+  color: var(--poster-text-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .poster-app__video-history-grid {
@@ -1243,6 +1296,14 @@ button {
   aspect-ratio: 3 / 4;
 }
 
+.poster-app__poster-skeleton.is-mobile-portrait {
+  aspect-ratio: 9 / 16;
+}
+
+.poster-app__poster-skeleton.is-landscape {
+  aspect-ratio: 16 / 9;
+}
+
 .poster-preview {
   position: fixed;
   inset: 0;
@@ -1437,6 +1498,10 @@ button {
   .poster-app__poster,
   .poster-app__poster-skeleton {
     min-height: 170px;
+  }
+
+  .poster-app__video-loading {
+    width: 100%;
   }
 
   .poster-preview__footer {

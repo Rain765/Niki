@@ -11,14 +11,18 @@ import { LoanVideoStepCard } from './LoanVideoStepCard';
 import type { LoanVideoStepDraft } from './types';
 
 interface Props {
+  disabled: boolean;
   open: boolean;
+  outputHint: string;
   steps: LoanVideoStepDraft[];
   narration: boolean;
   onAddStep: () => void;
   onChangeStep: (stepId: string, update: Partial<LoanVideoStepDraft>) => void;
   onClose: () => void;
+  onGenerate: () => void;
   onMoveStep: (stepId: string, direction: -1 | 1) => void;
   onRemoveStep: (stepId: string) => void;
+  validationMessages: string[];
 }
 
 const FOCUSABLE_SELECTOR = [
@@ -30,14 +34,18 @@ const FOCUSABLE_SELECTOR = [
 ].join(',');
 
 export function LoanVideoUploadDrawer({
+  disabled,
   open,
+  outputHint,
   steps,
   narration,
   onAddStep,
   onChangeStep,
   onClose,
+  onGenerate,
   onMoveStep,
   onRemoveStep,
+  validationMessages,
 }: Props) {
   const t = useT();
   const drawerRef = useRef<HTMLElement | null>(null);
@@ -119,6 +127,30 @@ export function LoanVideoUploadDrawer({
             ))}
           </div>
         </div>
+
+        <footer className="loan-video-drawer__footer">
+          {open && validationMessages.length > 0 ? (
+            <div className="loan-video-errors" role="alert" data-testid="loan-video-errors">
+              <strong>{t('loanVideo.fixBeforeGenerate')}</strong>
+              <ul>
+                {validationMessages.map((message) => <li key={message}>{message}</li>)}
+              </ul>
+            </div>
+          ) : null}
+          <div className="loan-video-drawer__footer-actions">
+            <span>{outputHint}</span>
+            <button
+              type="button"
+              className="primary loan-video-generate"
+              data-testid="loan-video-generate"
+              disabled={disabled}
+              onClick={onGenerate}
+            >
+              <Icon name="play" size={16} />
+              {t('loanVideo.generate')}
+            </button>
+          </div>
+        </footer>
       </aside>
     </div>
   );

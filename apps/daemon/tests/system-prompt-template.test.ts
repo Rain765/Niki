@@ -329,7 +329,7 @@ describe('composeSystemPrompt — metadata.promptTemplate', () => {
     expect(out).not.toContain('fishaudio, …) are still stubs');
   });
 
-  it('documents media generate handoffs as successful queued results', () => {
+  it('documents media generate and wait with the same still-running exit code', () => {
     const out = composeSystemPrompt({
       metadata: {
         kind: 'video',
@@ -339,11 +339,9 @@ describe('composeSystemPrompt — metadata.promptTemplate', () => {
       },
     });
 
-    expect(out).toContain('`media generate` treats the handoff as');
-    expect(out).toContain('exit `0` so the first dispatch does not look like a failed shell call');
-    expect(out).toContain('`"$OD_NODE_BIN" "$OD_BIN" media generate` exits `0`');
-    expect(out).toContain('either `file` or `taskId`');
-    expect(out).toContain('`2` from `media wait` is not a failure');
+    expect(out).toContain('Both `media generate` and `media wait` use the same exit code contract');
+    expect(out).toContain('`exit 2` — still **running**');
+    expect(out).toContain('`2` from either media command is not a failure');
   });
 
   it('surfaces ElevenLabs voice options for project discovery when no voice was preselected', () => {
