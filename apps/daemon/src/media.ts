@@ -324,10 +324,10 @@ export async function overlayZamloanLogo(
     throw new Error('Zamloan logo has no readable dimensions');
   }
 
-  const dimPaddingX = Math.max(28, Math.round(logoMetadata.width * 0.22));
-  const dimPaddingY = Math.max(22, Math.round(logoMetadata.height * 0.75));
-  const logoInsetX = dimPaddingX;
-  const logoInsetY = dimPaddingY;
+  const backdropPaddingX = Math.max(28, Math.round(logoMetadata.width * 0.22));
+  const backdropPaddingY = Math.max(22, Math.round(logoMetadata.height * 0.75));
+  const logoInsetX = backdropPaddingX;
+  const logoInsetY = backdropPaddingY;
   const layerWidth = logoMetadata.width + logoInsetX * 2;
   const layerHeight = logoMetadata.height + logoInsetY * 2;
   const logoLeft = Math.round(
@@ -339,36 +339,36 @@ export async function overlayZamloanLogo(
     Math.min(metadata.width - layerWidth, logoLeft - logoInsetX),
   );
   const layerTop = Math.max(0, logoTop - logoInsetY);
-  const dimMaskSvg = Buffer.from(
+  const backdropMaskSvg = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${layerWidth}" height="${layerHeight}">` +
-      '<defs><radialGradient id="dim" cx="50%" cy="50%" r="50%">' +
+      '<defs><radialGradient id="backdrop" cx="50%" cy="50%" r="50%">' +
       '<stop offset="0%" stop-color="white" stop-opacity="0.68"/>' +
       '<stop offset="42%" stop-color="white" stop-opacity="0.42"/>' +
       '<stop offset="74%" stop-color="white" stop-opacity="0.16"/>' +
       '<stop offset="100%" stop-color="white" stop-opacity="0"/>' +
       '</radialGradient></defs>' +
-      `<rect width="${layerWidth}" height="${layerHeight}" fill="url(#dim)"/>` +
+      `<rect width="${layerWidth}" height="${layerHeight}" fill="url(#backdrop)"/>` +
       '</svg>',
   );
-  const dimmedBackground = await sharp(input)
+  const neutralBackground = await sharp(input)
     .extract({
       left: layerLeft,
       top: layerTop,
       width: layerWidth,
       height: layerHeight,
     })
-    .linear(0.82, 0)
+    .modulate({ brightness: 0.82, saturation: 0.35 })
     .ensureAlpha()
     .png()
     .toBuffer();
-  const dimmedLayer = await sharp(dimmedBackground)
-    .composite([{ input: dimMaskSvg, blend: 'dest-in' }])
+  const neutralBackdropLayer = await sharp(neutralBackground)
+    .composite([{ input: backdropMaskSvg, blend: 'dest-in' }])
     .png()
     .toBuffer();
 
   return image
     .composite([
-      { input: dimmedLayer, left: layerLeft, top: layerTop },
+      { input: neutralBackdropLayer, left: layerLeft, top: layerTop },
       { input: resizedLogo, left: logoLeft, top: logoTop },
     ])
     .png()
