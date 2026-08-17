@@ -179,7 +179,7 @@ function TransitionStage({
     setImageSize({ width: naturalWidth, height: naturalHeight });
   };
 
-  const tapPosition = advance === 'tap' && tap && contentBox
+  const tapPosition = advance !== 'auto' && tap && contentBox
     ? {
         left: contentBox.left + tap.x * contentBox.width,
         top: contentBox.top + tap.y * contentBox.height,
@@ -192,7 +192,7 @@ function TransitionStage({
     'loan-video-transition-preview__stage',
     playing && !reducedMotion ? 'is-animating' : '',
     reducedMotion ? 'is-reduced-motion' : '',
-    advance === 'tap' ? 'is-tap' : 'is-auto',
+    advance !== 'auto' ? 'is-tap' : 'is-auto',
   ].filter(Boolean).join(' ');
 
   return (

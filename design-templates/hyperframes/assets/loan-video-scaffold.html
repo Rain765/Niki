@@ -94,7 +94,7 @@ __PRELOADS__
         position: absolute;
         inset: 0;
         opacity: 0;
-        will-change: opacity, transform;
+        will-change: opacity, transform, clip-path;
       }
 
       .tutorial__asset-slot--current {
@@ -130,6 +130,84 @@ __PRELOADS__
         z-index: 2;
         inset: 0;
         pointer-events: none;
+      }
+
+      .tutorial__interaction-layer {
+        position: absolute;
+        z-index: 3;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+      }
+
+      .tutorial__type-field {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        background: #fff;
+        color: #292a2d;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        opacity: 0;
+      }
+
+      .tutorial__typed-text {
+        display: inline-block;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tutorial__caret {
+        display: inline-block;
+        width: clamp(2px, 0.28vmin, 5px);
+        height: 72%;
+        margin-left: 0.035em;
+        border-radius: 999px;
+        background: #ff7068;
+        opacity: 0;
+      }
+
+      .tutorial__otp-field {
+        position: absolute;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        align-items: stretch;
+        background: #fff;
+        opacity: 0;
+      }
+
+      .tutorial__otp-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: clamp(2px, 0.22vmin, 4px) solid transparent;
+        border-radius: clamp(6px, 0.7vmin, 12px);
+        background: #f6f6f6;
+        color: #292a2d;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .tutorial__otp-box[data-active="true"] {
+        border-color: #ff7068;
+        background: #fff;
+      }
+
+      .tutorial__otp-box[data-active="true"]::after {
+        position: absolute;
+        top: 30%;
+        bottom: 30%;
+        left: 50%;
+        width: clamp(2px, 0.28vmin, 5px);
+        border-radius: 999px;
+        background: #ff7068;
+        content: "";
+        transform: translateX(-50%);
       }
 
       .tutorial__focus-target {
@@ -234,6 +312,13 @@ __ASSET_CATALOG__
           <div class="tutorial__asset-slot tutorial__asset-slot--target" data-presentation="full">
             <img class="tutorial__asset" data-loan-video-target src="__INITIAL_TARGET__" alt="" />
           </div>
+          <div class="tutorial__interaction-layer" data-loan-video-interaction-layer aria-hidden="true">
+            <div class="tutorial__type-field" data-loan-video-type-field>
+              <span class="tutorial__typed-text" data-loan-video-typed-text></span>
+              <span class="tutorial__caret" data-loan-video-caret></span>
+            </div>
+            <div class="tutorial__otp-field" data-loan-video-otp-field></div>
+          </div>
           <div class="tutorial__focus-layer" data-loan-video-focus-layer aria-hidden="true"></div>
           <span class="tutorial__press" data-loan-video-press aria-hidden="true"></span>
           <span class="tutorial__tap" data-loan-video-tap aria-hidden="true"></span>
@@ -258,12 +343,23 @@ __AUDIO__
         const currentAsset = root.querySelector("[data-loan-video-current]");
         const targetAsset = root.querySelector("[data-loan-video-target]");
         const backgroundImage = root.querySelector("[data-loan-video-background-image]");
+        const interactionLayer = root.querySelector("[data-loan-video-interaction-layer]");
+        const typeField = root.querySelector("[data-loan-video-type-field]");
+        const typedText = root.querySelector("[data-loan-video-typed-text]");
+        const caret = root.querySelector("[data-loan-video-caret]");
+        const otpField = root.querySelector("[data-loan-video-otp-field]");
         const focusLayer = root.querySelector("[data-loan-video-focus-layer]");
         const press = root.querySelector("[data-loan-video-press]");
         const tap = root.querySelector(".tutorial__tap");
         const hand = root.querySelector(".tutorial__hand");
         const subtitle = root.querySelector(".tutorial__subtitle");
         const handWidthRatio = 0.46;
+        const otpPool = Array.from({ length: 8 }, () => {
+          const box = document.createElement("span");
+          box.className = "tutorial__otp-box";
+          otpField.appendChild(box);
+          return box;
+        });
         const focusPool = Array.from({ length: 12 }, () => {
           const target = document.createElement("span");
           target.className = "tutorial__focus-target";
@@ -297,6 +393,67 @@ __AUDIO__
           };
         };
 
+        const renderInteraction = (scene, time, imageRect) => {
+          const interaction = scene.interaction;
+          typeField.style.opacity = "0";
+          otpField.style.opacity = "0";
+          interactionLayer.style.opacity = "1";
+          if (!interaction || scene.presentation !== "device") return;
+
+          const start = scene.start + interaction.start;
+          const end = start + interaction.duration;
+          const progress = clamp((time - start) / Math.max(0.000001, interaction.duration), 0, 1);
+          const target = interaction.target;
+          const left = imageRect.left + imageRect.width * target.x;
+          const top = imageRect.top + imageRect.height * target.y;
+          const width = imageRect.width * target.width;
+          const height = imageRect.height * target.height;
+          const transitionFadeStart = scene.transition.start === null
+            ? scene.start + scene.duration
+            : scene.transition.start - 0.08;
+          const fade = 1 - ease((time - transitionFadeStart) / 0.08);
+          interactionLayer.style.opacity = String(clamp(fade, 0, 1).toFixed(4));
+
+          if (interaction.type === "type") {
+            const characters = Math.min(
+              interaction.text.length,
+              Math.floor(progress * (interaction.text.length + 0.999)),
+            );
+            typeField.style.left = `${left.toFixed(2)}px`;
+            typeField.style.top = `${top.toFixed(2)}px`;
+            typeField.style.width = `${width.toFixed(2)}px`;
+            typeField.style.height = `${height.toFixed(2)}px`;
+            typeField.style.padding = `0 ${(height * 0.08).toFixed(2)}px`;
+            typeField.style.fontSize = `${(height * 0.62).toFixed(2)}px`;
+            typeField.style.opacity = "1";
+            typedText.textContent = interaction.text.slice(0, characters);
+            caret.style.opacity = time >= start && time <= end + 0.18
+              ? String((Math.floor((time - start) * 6) % 2 === 0 ? 1 : 0.28).toFixed(2))
+              : "0";
+            return;
+          }
+
+          const boxCount = interaction.text.length;
+          const gap = width * 0.04;
+          otpField.style.left = `${left.toFixed(2)}px`;
+          otpField.style.top = `${top.toFixed(2)}px`;
+          otpField.style.width = `${width.toFixed(2)}px`;
+          otpField.style.height = `${height.toFixed(2)}px`;
+          otpField.style.gap = `${gap.toFixed(2)}px`;
+          otpField.style.fontSize = `${(height * 0.58).toFixed(2)}px`;
+          otpField.style.opacity = "1";
+          const characters = Math.min(boxCount, Math.floor(progress * (boxCount + 0.999)));
+          otpPool.forEach((box, index) => {
+            const exists = index < boxCount;
+            box.style.display = exists ? "flex" : "none";
+            box.textContent = exists && index < characters ? interaction.text[index] : "";
+            box.setAttribute(
+              "data-active",
+              exists && index === Math.min(characters, boxCount - 1) && time <= end ? "true" : "false",
+            );
+          });
+        };
+
         const renderFocusTargets = (scene, time, imageRect) => {
           const targets = scene.presentation === "device" ? (scene.focusTargets || []) : [];
           const localTime = time - scene.start;
@@ -327,6 +484,77 @@ __AUDIO__
           });
         };
 
+        const renderGesture = (gesture, time, imageRect) => {
+          if (!gesture || time < gesture.pointerStartAt || time >= gesture.endAt) {
+            press.style.opacity = "0";
+            tap.style.opacity = "0";
+            hand.style.opacity = "0";
+            return;
+          }
+          const focalX = imageRect.left + imageRect.width * gesture.x;
+          const focalY = imageRect.top + imageRect.height * gesture.y;
+          const pointerProgress = ease(
+            (time - gesture.pointerStartAt)
+              / Math.max(0.000001, gesture.pressAt - gesture.pointerStartAt),
+          );
+          const pressProgress = clamp(
+            (time - gesture.pressAt) / Math.max(0.000001, gesture.rippleAt - gesture.pressAt),
+            0,
+            1,
+          );
+          const rippleProgress = clamp(
+            (time - gesture.rippleAt)
+              / Math.max(0.000001, gesture.responseAt - gesture.rippleAt),
+            0,
+            1,
+          );
+          const responseProgress = clamp(
+            (time - gesture.responseAt)
+              / Math.max(0.000001, gesture.endAt - gesture.responseAt),
+            0,
+            1,
+          );
+          const ripple = Math.sin(Math.PI * rippleProgress);
+          tap.style.left = `${focalX.toFixed(2)}px`;
+          tap.style.top = `${focalY.toFixed(2)}px`;
+          tap.style.opacity = String((pointerProgress * (1 - responseProgress) * 0.96).toFixed(4));
+          tap.style.transform = `translate(-50%, -50%) scale(${(
+            0.9 - pressProgress * 0.08 + ripple * 0.3
+          ).toFixed(4)})`;
+
+          const pressWidth = imageRect.width * (gesture.width || 0.16);
+          const pressHeight = imageRect.height * (gesture.height || 0.055);
+          press.style.left = `${focalX.toFixed(2)}px`;
+          press.style.top = `${focalY.toFixed(2)}px`;
+          press.style.width = `${pressWidth.toFixed(2)}px`;
+          press.style.height = `${pressHeight.toFixed(2)}px`;
+          press.style.opacity = String((pressProgress * (1 - responseProgress) * 0.78).toFixed(4));
+          press.style.transform = `translate(-50%, -50%) scale(${(
+            1 - pressProgress * 0.035 + ripple * 0.018
+          ).toFixed(4)})`;
+
+          const handWidth = clamp(imageRect.width * handWidthRatio, 150, 420);
+          const mirrored = gesture.x > 0.72;
+          const anchorX = handWidth * (mirrored ? 0.86 : 0.14);
+          const anchorY = handWidth * 0.085;
+          const approachOffsetX = (mirrored ? -1 : 1)
+            * imageRect.width * 0.17 * (1 - pointerProgress);
+          const approachOffsetY = imageRect.height * 0.075 * (1 - pointerProgress);
+          const pressDepth = imageRect.width * 0.008 * pressProgress;
+          const lift = imageRect.width * 0.006 * rippleProgress;
+          const handScale = 1 - pressProgress * 0.025 + ripple * 0.012;
+          hand.style.left = `${focalX.toFixed(2)}px`;
+          hand.style.top = `${focalY.toFixed(2)}px`;
+          hand.style.width = `${handWidth.toFixed(2)}px`;
+          hand.style.opacity = String((pointerProgress * (1 - responseProgress)).toFixed(4));
+          hand.style.transformOrigin = `${anchorX.toFixed(2)}px ${anchorY.toFixed(2)}px`;
+          hand.style.transform = `translate(${(
+            -anchorX + approachOffsetX + pressDepth - lift
+          ).toFixed(2)}px, ${(
+            -anchorY + approachOffsetY + pressDepth - lift
+          ).toFixed(2)}px) rotate(${mirrored ? "-2deg" : "2deg"}) scaleX(${mirrored ? -1 : 1}) scale(${handScale.toFixed(4)})`;
+        };
+
         const renderAt = (seconds) => {
           const time = clamp(Number(seconds) || 0, 0, Math.max(0, duration));
           let sceneIndex = scenes.findIndex((scene) => time < scene.start + scene.duration - 0.000001);
@@ -338,6 +566,7 @@ __AUDIO__
           const transitionProgress = targetScene && scene.transition.start !== null
             ? ease((time - scene.transition.start) / (scene.transition.end - scene.transition.start))
             : 0;
+          const action = scene.transition;
 
           const currentPresentation = scene.presentation || "full";
           const targetPresentation = targetScene?.presentation || "full";
@@ -346,29 +575,55 @@ __AUDIO__
           setSource(targetAsset, targetScene?.asset);
           setPresentation(currentSlot, currentPresentation);
           setPresentation(targetSlot, targetPresentation);
-          currentSlot.style.opacity = String(1 - transitionProgress);
-          targetSlot.style.opacity = String(transitionProgress);
+          const imageRect = displayedImageRect(currentAsset, currentPresentation);
+          const targetImageRect = displayedImageRect(targetAsset, targetPresentation);
+          const modalTransition = action.type === "open-modal"
+            || action.type === "close-modal";
+          currentSlot.style.clipPath = "none";
+          targetSlot.style.clipPath = "none";
           const deviceToDevice = currentPresentation === "device"
             && targetPresentation === "device";
-          if (deviceToDevice) {
+          if (action.type === "open-modal") {
+            const clipTop = targetImageRect.top + targetImageRect.height * (action.clipTop || 0);
+            const travel = targetImageRect.height * (1 - (action.clipTop || 0));
+            currentSlot.style.opacity = "1";
+            targetSlot.style.opacity = "1";
+            currentSlot.style.transform = "none";
+            targetSlot.style.clipPath = `inset(${clipTop.toFixed(2)}px 0 0 0)`;
+            targetSlot.style.transform = `translateY(${((1 - transitionProgress) * travel).toFixed(2)}px)`;
+          } else if (action.type === "close-modal") {
+            const clipTop = imageRect.top + imageRect.height * (action.clipTop || 0);
+            const travel = imageRect.height * (1 - (action.clipTop || 0));
+            currentSlot.style.opacity = "1";
+            targetSlot.style.opacity = "1";
+            currentSlot.style.clipPath = `inset(${clipTop.toFixed(2)}px 0 0 0)`;
+            currentSlot.style.transform = `translateY(${(transitionProgress * travel).toFixed(2)}px)`;
+            targetSlot.style.transform = "none";
+          } else if (deviceToDevice) {
+            currentSlot.style.opacity = String(1 - transitionProgress);
+            targetSlot.style.opacity = String(transitionProgress);
             currentSlot.style.transform = `translateX(${(-4 * transitionProgress).toFixed(3)}%) scale(${(1 - transitionProgress * 0.008).toFixed(4)})`;
             targetSlot.style.transform = `translateX(${(7 * (1 - transitionProgress)).toFixed(3)}%) scale(${(0.99 + transitionProgress * 0.01).toFixed(4)})`;
           } else if (currentPresentation === "full" && targetPresentation === "device") {
+            currentSlot.style.opacity = String(1 - transitionProgress);
+            targetSlot.style.opacity = String(transitionProgress);
             currentSlot.style.transform = "none";
             targetSlot.style.transform = `translateY(${(6 * (1 - transitionProgress)).toFixed(3)}%) scale(${(0.96 + transitionProgress * 0.04).toFixed(4)})`;
           } else if (currentPresentation === "device" && targetPresentation === "full") {
+            currentSlot.style.opacity = String(1 - transitionProgress);
+            targetSlot.style.opacity = String(transitionProgress);
             currentSlot.style.transform = `translateY(${(-3 * transitionProgress).toFixed(3)}%) scale(${(1 - transitionProgress * 0.02).toFixed(4)})`;
             targetSlot.style.transform = "none";
           } else {
+            currentSlot.style.opacity = String(1 - transitionProgress);
+            targetSlot.style.opacity = String(transitionProgress);
             currentSlot.style.transform = "none";
             targetSlot.style.transform = "none";
           }
 
-          const action = scene.transition;
-          const isTap = action.type === "tap";
+          const isTap = action.type === "tap" || modalTransition;
           const x = isTap ? action.x : 0.5;
           const y = isTap ? action.y : 0.5;
-          const imageRect = displayedImageRect(currentAsset, currentPresentation);
           const focalX = imageRect.left + imageRect.width * x;
           const focalY = imageRect.top + imageRect.height * y;
           camera.style.transformOrigin = `${focalX.toFixed(2)}px ${focalY.toFixed(2)}px`;
@@ -387,80 +642,44 @@ __AUDIO__
           const panX = isTap ? (0.5 - x) * imageRect.width * 0.13 * focus : 0;
           const panY = isTap ? (0.5 - y) * imageRect.height * 0.13 * focus : 0;
           camera.style.transform = `translate(${panX.toFixed(2)}px, ${panY.toFixed(2)}px) scale(${(1 + zoomAmount * focus).toFixed(5)})`;
+          renderInteraction(scene, time, imageRect);
           renderFocusTargets(scene, time, imageRect);
-
-          if (isTap && scene.keyframes.pointerStartAt !== null) {
-            const pointerProgress = ease(
-              (time - scene.keyframes.pointerStartAt)
-                / Math.max(0.000001, scene.keyframes.pressAt - scene.keyframes.pointerStartAt),
-            );
-            const pressProgress = clamp(
-              (time - scene.keyframes.pressAt)
-                / Math.max(0.000001, scene.keyframes.rippleAt - scene.keyframes.pressAt),
-              0,
-              1,
-            );
-            const rippleProgress = clamp(
-              (time - scene.keyframes.rippleAt)
-                / Math.max(0.000001, scene.keyframes.responseAt - scene.keyframes.rippleAt),
-              0,
-              1,
-            );
-            const responseProgress = clamp(
-              (time - scene.keyframes.responseAt)
-                / Math.max(0.000001, action.start - scene.keyframes.responseAt),
-              0,
-              1,
-            );
-            const visible = time >= scene.keyframes.pointerStartAt && time < action.start;
-            const ripple = Math.sin(Math.PI * rippleProgress);
-            tap.style.left = `${focalX.toFixed(2)}px`;
-            tap.style.top = `${focalY.toFixed(2)}px`;
-            tap.style.opacity = visible
-              ? String((pointerProgress * (1 - responseProgress) * 0.96).toFixed(4))
-              : "0";
-            tap.style.transform = `translate(-50%, -50%) scale(${(
-              0.9 - pressProgress * 0.08 + ripple * 0.3
-            ).toFixed(4)})`;
-
-            const pressWidth = imageRect.width * (action.width || 0.16);
-            const pressHeight = imageRect.height * (action.height || 0.055);
-            press.style.left = `${focalX.toFixed(2)}px`;
-            press.style.top = `${focalY.toFixed(2)}px`;
-            press.style.width = `${pressWidth.toFixed(2)}px`;
-            press.style.height = `${pressHeight.toFixed(2)}px`;
-            press.style.opacity = visible
-              ? String((pressProgress * (1 - responseProgress) * 0.78).toFixed(4))
-              : "0";
-            press.style.transform = `translate(-50%, -50%) scale(${(1 - pressProgress * 0.035 + ripple * 0.018).toFixed(4)})`;
-
-            const handWidth = clamp(imageRect.width * handWidthRatio, 150, 420);
-            const mirrored = x > 0.72;
-            const anchorX = handWidth * (mirrored ? 0.86 : 0.14);
-            const anchorY = handWidth * 0.085;
-            const approachOffsetX = (mirrored ? -1 : 1)
-              * imageRect.width * 0.17 * (1 - pointerProgress);
-            const approachOffsetY = imageRect.height * 0.075 * (1 - pointerProgress);
-            const pressDepth = imageRect.width * 0.008 * pressProgress;
-            const lift = imageRect.width * 0.006 * rippleProgress;
-            const handScale = 1 - pressProgress * 0.025 + ripple * 0.012;
-            hand.style.left = `${focalX.toFixed(2)}px`;
-            hand.style.top = `${focalY.toFixed(2)}px`;
-            hand.style.width = `${handWidth.toFixed(2)}px`;
-            hand.style.opacity = visible
-              ? String((pointerProgress * (1 - responseProgress)).toFixed(4))
-              : "0";
-            hand.style.transformOrigin = `${anchorX.toFixed(2)}px ${anchorY.toFixed(2)}px`;
-            hand.style.transform = `translate(${(
-              -anchorX + approachOffsetX + pressDepth - lift
-            ).toFixed(2)}px, ${(
-              -anchorY + approachOffsetY + pressDepth - lift
-            ).toFixed(2)}px) rotate(${mirrored ? "-2deg" : "2deg"}) scaleX(${mirrored ? -1 : 1}) scale(${handScale.toFixed(4)})`;
-          } else {
-            press.style.opacity = "0";
-            tap.style.opacity = "0";
-            hand.style.opacity = "0";
+          let gesture = null;
+          if (scene.interaction) {
+            const interactionEnd = scene.start + scene.interaction.start;
+            const interactionStart = Math.max(scene.start + 0.06, interactionEnd - 0.52);
+            const gestureDuration = Math.max(0.12, interactionEnd - interactionStart);
+            if (time >= interactionStart && time < interactionEnd) {
+              gesture = {
+                x: scene.interaction.type === "otp"
+                  ? scene.interaction.target.x
+                    + scene.interaction.target.width / (scene.interaction.text.length * 2)
+                  : scene.interaction.target.x + scene.interaction.target.width / 2,
+                y: scene.interaction.target.y + scene.interaction.target.height / 2,
+                width: scene.interaction.target.width,
+                height: scene.interaction.target.height,
+                pointerStartAt: interactionStart,
+                pressAt: interactionStart + gestureDuration * 0.36,
+                rippleAt: interactionStart + gestureDuration * 0.54,
+                responseAt: interactionStart + gestureDuration * 0.82,
+                endAt: interactionEnd,
+              };
+            }
           }
+          if (!gesture && isTap && scene.keyframes.pointerStartAt !== null) {
+            gesture = {
+              x,
+              y,
+              width: action.width,
+              height: action.height,
+              pointerStartAt: scene.keyframes.pointerStartAt,
+              pressAt: scene.keyframes.pressAt,
+              rippleAt: scene.keyframes.rippleAt,
+              responseAt: scene.keyframes.responseAt,
+              endAt: action.start,
+            };
+          }
+          renderGesture(gesture, time, imageRect);
 
           if (subtitle) {
             subtitle.textContent = scene.caption || "";

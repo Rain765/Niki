@@ -42,6 +42,7 @@ const PRESS_SECONDS = 0.09;
 const RIPPLE_SECONDS = 0.24;
 const RESPONSE_SECONDS = 0.12;
 const CROSSFADE_SECONDS = 0.28;
+const MODAL_TRANSITION_SECONDS = 0.46;
 const MICROS_PER_SECOND = 1_000_000;
 
 function fail(message) {
@@ -310,12 +311,66 @@ function normalizeStoryboard(raw) {
       ), 0.005, 1 - y);
       return { x, y, width, height };
     });
+    let interaction = null;
+    if (scene.interaction !== undefined && scene.interaction !== null) {
+      const rawInteraction = scene.interaction;
+      if (!rawInteraction || typeof rawInteraction !== 'object' || Array.isArray(rawInteraction)) {
+        fail(`storyboard.scenes[${index}].interaction must be an object`);
+      }
+      if (rawInteraction.type !== 'type' && rawInteraction.type !== 'otp') {
+        fail(`storyboard.scenes[${index}].interaction has unsupported type`);
+      }
+      const target = rawInteraction.target;
+      if (!target || typeof target !== 'object' || Array.isArray(target)) {
+        fail(`storyboard.scenes[${index}].interaction.target must be an object`);
+      }
+      const x = clamp(finiteNumber(
+        target.x,
+        `storyboard.scenes[${index}].interaction.target.x`,
+      ), 0, 0.995);
+      const y = clamp(finiteNumber(
+        target.y,
+        `storyboard.scenes[${index}].interaction.target.y`,
+      ), 0, 0.995);
+      const width = clamp(finiteNumber(
+        target.width,
+        `storyboard.scenes[${index}].interaction.target.width`,
+      ), 0.005, 1 - x);
+      const height = clamp(finiteNumber(
+        target.height,
+        `storyboard.scenes[${index}].interaction.target.height`,
+      ), 0.005, 1 - y);
+      const interactionText = cleanString(
+        rawInteraction.text,
+        `storyboard.scenes[${index}].interaction.text`,
+      );
+      if (interactionText.length > 64) {
+        fail(`storyboard.scenes[${index}].interaction.text cannot exceed 64 characters`);
+      }
+      if (rawInteraction.type === 'otp' && !/^\d{1,8}$/.test(interactionText)) {
+        fail(`storyboard.scenes[${index}].interaction.text must contain 1 to 8 digits for otp`);
+      }
+      interaction = {
+        type: rawInteraction.type,
+        start: clamp(finiteNumber(
+          rawInteraction.start,
+          `storyboard.scenes[${index}].interaction.start`,
+        ), 0, 30),
+        duration: clamp(finiteNumber(
+          rawInteraction.duration,
+          `storyboard.scenes[${index}].interaction.duration`,
+        ), 0.2, 10),
+        text: interactionText,
+        target: { x, y, width, height },
+      };
+    }
     return {
       id,
       assetRef: cleanString(scene.assetRef, `storyboard.scenes[${index}].assetRef`),
       caption: text,
       captionEnabled,
       focusTargets,
+      interaction,
       presentation,
       voiceover: text,
       voiceoverEnabled,
@@ -355,12 +410,12 @@ function normalizeStoryboard(raw) {
     if (action.type === 'auto') {
       return { type: 'auto', targetSceneIndex };
     }
-    if (action.type === 'tap') {
+    if (action.type === 'tap' || action.type === 'open-modal' || action.type === 'close-modal') {
       const normalized = {
-        type: 'tap',
+        type: action.type,
         targetSceneIndex,
-        x: clamp(finiteNumber(action.x, `storyboard scene ${index + 1} tap x`), 0, 1),
-        y: clamp(finiteNumber(action.y, `storyboard scene ${index + 1} tap y`), 0, 1),
+        x: clamp(finiteNumber(action.x, `storyboard scene ${index + 1} action x`), 0, 1),
+        y: clamp(finiteNumber(action.y, `storyboard scene ${index + 1} action y`), 0, 1),
       };
       if (action.width !== undefined) {
         normalized.width = clamp(
@@ -374,6 +429,13 @@ function normalizeStoryboard(raw) {
           finiteNumber(action.height, `storyboard scene ${index + 1} tap height`),
           0.01,
           1,
+        );
+      }
+      if (action.type === 'open-modal' || action.type === 'close-modal') {
+        normalized.clipTop = clamp(
+          finiteNumber(action.clipTop ?? 0, `storyboard scene ${index + 1} modal clipTop`),
+          0,
+          0.8,
         );
       }
       return normalized;
@@ -523,10 +585,14 @@ function microsToSeconds(micros) {
 function renderTimings(storyboard, requestedDurationSeconds, audioClips) {
   const audioBySceneIndex = new Map(audioClips.map((clip) => [clip.sceneIndex - 1, clip]));
   const minimumMicros = storyboard.scenes.map((_, index) => {
+    const scene = storyboard.scenes[index];
     const clip = audioBySceneIndex.get(index);
     return Math.max(
       secondsToMicros(READABLE_SCENE_MIN_SECONDS),
       clip ? secondsToMicros(clip.durationSeconds + AUDIO_TAIL_SECONDS) : 0,
+      scene.interaction
+        ? secondsToMicros(scene.interaction.start + scene.interaction.duration + 0.72)
+        : 0,
     );
   });
   const minimumTotalMicros = minimumMicros.reduce((sum, duration) => sum + duration, 0);
@@ -553,19 +619,26 @@ function renderTimings(storyboard, requestedDurationSeconds, audioClips) {
     const endMicros = startMicros + durationSceneMicros;
     cursorMicros = endMicros;
     const hasTarget = scene.transition.type !== 'none';
+    const transitionSeconds = scene.transition.type === 'open-modal'
+      || scene.transition.type === 'close-modal'
+      ? MODAL_TRANSITION_SECONDS
+      : CROSSFADE_SECONDS;
     const transitionStartMicros = hasTarget
-      ? endMicros - secondsToMicros(CROSSFADE_SECONDS)
+      ? endMicros - secondsToMicros(transitionSeconds)
       : null;
     const responseMicros = hasTarget
       ? transitionStartMicros - secondsToMicros(RESPONSE_SECONDS)
       : null;
-    const rippleMicros = scene.transition.type === 'tap'
+    const hasPointer = scene.transition.type === 'tap'
+      || scene.transition.type === 'open-modal'
+      || scene.transition.type === 'close-modal';
+    const rippleMicros = hasPointer
       ? responseMicros - secondsToMicros(RIPPLE_SECONDS)
       : null;
-    const pressMicros = scene.transition.type === 'tap'
+    const pressMicros = hasPointer
       ? rippleMicros - secondsToMicros(PRESS_SECONDS)
       : null;
-    const pointerStartMicros = scene.transition.type === 'tap'
+    const pointerStartMicros = hasPointer
       ? pressMicros - secondsToMicros(POINTER_APPROACH_SECONDS)
       : null;
     return {
@@ -706,6 +779,7 @@ function buildManifest(
       asset: `assets/${assetNames[index]}`,
       caption: scene.captionEnabled ? scene.caption : null,
       focusTargets: scene.focusTargets ?? [],
+      interaction: scene.interaction ?? null,
       presentation: scene.presentation ?? 'full',
       voiceoverEnabled: scene.voiceoverEnabled,
       start: timings[index].start,

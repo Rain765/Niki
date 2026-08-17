@@ -37,13 +37,22 @@ export function LoanVideoStepCard({
   const previewUrl = useObjectUrl(step.screenshot);
   const nextPreviewUrl = useObjectUrl(nextStep?.screenshot ?? outro);
   const [screenshotAspectRatio, setScreenshotAspectRatio] = useState<number | null>(null);
+  const [targetMode, setTargetMode] = useState<'advance' | 'interaction'>('advance');
   const screenshotInputRef = useRef<HTMLInputElement | null>(null);
-  const collectsTap = step.advance === 'tap';
+  const collectsAdvanceTap = step.advance !== 'auto';
+  const collectsInteractionTap = step.interaction !== 'none';
+  const effectiveTargetMode = targetMode === 'interaction' && collectsInteractionTap
+    ? 'interaction'
+    : 'advance';
+  const collectsTap = effectiveTargetMode === 'interaction'
+    ? collectsInteractionTap
+    : collectsAdvanceTap;
+  const selectedTap = effectiveTargetMode === 'interaction' ? step.interactionTap : step.tap;
 
   const selectScreenshot = (event: ChangeEvent<HTMLInputElement>) => {
     const screenshot = event.target.files?.[0] ?? null;
     setScreenshotAspectRatio(null);
-    onChange({ screenshot, tap: null });
+    onChange({ screenshot, tap: null, interactionTap: null });
     event.target.value = '';
   };
 
@@ -105,9 +114,11 @@ export function LoanVideoStepCard({
                 src={previewUrl}
                 alt={step.screenshot?.name ?? t('loanVideo.screenshot')}
                 testId={`loan-video-tap-picker-${index + 1}`}
-                tap={collectsTap ? step.tap : null}
+                tap={collectsTap ? selectedTap : null}
                 interactive={collectsTap}
-                onChange={(tap) => onChange({ tap })}
+                onChange={(tap) => onChange(effectiveTargetMode === 'interaction'
+                  ? { interactionTap: tap }
+                  : { tap })}
                 onAspectRatioChange={setScreenshotAspectRatio}
               />
             ) : (
@@ -146,10 +157,30 @@ export function LoanVideoStepCard({
             data-testid={`loan-video-screenshot-${index + 1}`}
             onChange={selectScreenshot}
           />
-          {previewUrl && collectsTap ? (
-            <small className="loan-video-screenshot__tap-hint">
-              {step.tap ? t('loanVideo.tapMarked') : t('loanVideo.tapHint')}
-            </small>
+          {previewUrl && (collectsAdvanceTap || collectsInteractionTap) ? (
+            <div className="loan-video-screenshot__target-tools">
+              {collectsInteractionTap ? (
+                <button
+                  type="button"
+                  className={effectiveTargetMode === 'interaction' ? 'is-active' : ''}
+                  onClick={() => setTargetMode('interaction')}
+                >
+                  {t('loanVideo.markInteraction')}
+                </button>
+              ) : null}
+              {collectsAdvanceTap ? (
+                <button
+                  type="button"
+                  className={effectiveTargetMode === 'advance' ? 'is-active' : ''}
+                  onClick={() => setTargetMode('advance')}
+                >
+                  {t('loanVideo.markAdvance')}
+                </button>
+              ) : null}
+              <small className="loan-video-screenshot__tap-hint">
+                {selectedTap ? t('loanVideo.tapMarked') : t('loanVideo.tapHint')}
+              </small>
+            </div>
           ) : null}
         </div>
 
@@ -185,6 +216,62 @@ export function LoanVideoStepCard({
               <span>{t('loanVideo.voiceover')}</span>
             </label>
           </div>
+          <div className="loan-video-step__interaction">
+            <strong>{t('loanVideo.interaction')}</strong>
+            <div
+              className="loan-video-step__advance-options"
+              role="group"
+              aria-label={t('loanVideo.interaction')}
+            >
+              <button
+                type="button"
+                className={step.interaction === 'none' ? 'is-active' : ''}
+                onClick={() => onChange({
+                  interaction: 'none',
+                  interactionText: '',
+                  interactionTap: null,
+                })}
+              >
+                {t('loanVideo.interactionNone')}
+              </button>
+              <button
+                type="button"
+                className={step.interaction === 'type' ? 'is-active' : ''}
+                onClick={() => {
+                  setTargetMode('interaction');
+                  onChange({ interaction: 'type' });
+                }}
+              >
+                {t('loanVideo.interactionType')}
+              </button>
+              <button
+                type="button"
+                className={step.interaction === 'otp' ? 'is-active' : ''}
+                onClick={() => {
+                  setTargetMode('interaction');
+                  onChange({ interaction: 'otp' });
+                }}
+              >
+                {t('loanVideo.interactionOtp')}
+              </button>
+            </div>
+            {step.interaction !== 'none' ? (
+              <label className="loan-video-field">
+                <span>{t('loanVideo.interactionText')}</span>
+                <input
+                  value={step.interactionText}
+                  inputMode={step.interaction === 'otp' ? 'numeric' : 'text'}
+                  placeholder={step.interaction === 'otp' ? '2479' : '971 234 567'}
+                  onChange={(event) => onChange({ interactionText: event.target.value })}
+                />
+              </label>
+            ) : null}
+            <small>{step.interaction === 'otp'
+              ? t('loanVideo.interactionOtpHint')
+              : step.interaction === 'type'
+                ? t('loanVideo.interactionTypeHint')
+                : t('loanVideo.interactionNoneHint')}</small>
+          </div>
           <div
             className="loan-video-step__transition"
             data-testid={`loan-video-transition-${index + 1}`}
@@ -210,6 +297,22 @@ export function LoanVideoStepCard({
               </button>
               <button
                 type="button"
+                className={step.advance === 'open-modal' ? 'is-active' : ''}
+                aria-pressed={step.advance === 'open-modal'}
+                onClick={() => onChange({ advance: 'open-modal' })}
+              >
+                {t('loanVideo.advanceOpenModal')}
+              </button>
+              <button
+                type="button"
+                className={step.advance === 'close-modal' ? 'is-active' : ''}
+                aria-pressed={step.advance === 'close-modal'}
+                onClick={() => onChange({ advance: 'close-modal' })}
+              >
+                {t('loanVideo.advanceCloseModal')}
+              </button>
+              <button
+                type="button"
                 className={step.advance === 'auto' ? 'is-active' : ''}
                 data-testid={`loan-video-advance-auto-${index + 1}`}
                 aria-pressed={step.advance === 'auto'}
@@ -219,9 +322,13 @@ export function LoanVideoStepCard({
               </button>
             </div>
             <small>
-              {step.advance === 'tap'
-                ? t('loanVideo.advanceTapHint')
-                : t('loanVideo.advanceAutoHint')}
+              {step.advance === 'auto'
+                ? t('loanVideo.advanceAutoHint')
+                : step.advance === 'open-modal'
+                  ? t('loanVideo.advanceOpenModalHint')
+                  : step.advance === 'close-modal'
+                    ? t('loanVideo.advanceCloseModalHint')
+                    : t('loanVideo.advanceTapHint')}
             </small>
             <LoanVideoTransitionPreview
               key={`${step.id}:${nextStep?.id ?? 'end'}`}

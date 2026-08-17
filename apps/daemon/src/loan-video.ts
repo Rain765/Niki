@@ -110,6 +110,69 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
       }
       return { x, y, width, height };
     });
+    let interaction: LoanVideoStoryboard['scenes'][number]['interaction'];
+    if (scene.interaction !== undefined) {
+      if (!scene.interaction || typeof scene.interaction !== 'object' || Array.isArray(scene.interaction)) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction must be an object`);
+      }
+      const rawInteraction = scene.interaction as Record<string, unknown>;
+      if (rawInteraction.type !== 'type' && rawInteraction.type !== 'otp') {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction.type is unsupported`);
+      }
+      if (!rawInteraction.target || typeof rawInteraction.target !== 'object' || Array.isArray(rawInteraction.target)) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction.target must be an object`);
+      }
+      const rawTarget = rawInteraction.target as Record<string, unknown>;
+      const target = {
+        x: normalizedUnitNumber(
+          rawTarget.x,
+          `loanVideoStoryboard.scenes[${offset}].interaction.target.x`,
+        ),
+        y: normalizedUnitNumber(
+          rawTarget.y,
+          `loanVideoStoryboard.scenes[${offset}].interaction.target.y`,
+        ),
+        width: normalizedUnitNumber(
+          rawTarget.width,
+          `loanVideoStoryboard.scenes[${offset}].interaction.target.width`,
+        ),
+        height: normalizedUnitNumber(
+          rawTarget.height,
+          `loanVideoStoryboard.scenes[${offset}].interaction.target.height`,
+        ),
+      };
+      if (
+        target.width <= 0
+        || target.height <= 0
+        || target.x + target.width > 1
+        || target.y + target.height > 1
+      ) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction.target exceeds the image bounds`);
+      }
+      const interactionText = nonEmptyString(
+        rawInteraction.text,
+        `loanVideoStoryboard.scenes[${offset}].interaction.text`,
+        64,
+      );
+      if (rawInteraction.type === 'otp' && !/^\d{1,8}$/.test(interactionText)) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction.text must contain 1-8 digits`);
+      }
+      const start = Number(rawInteraction.start);
+      const interactionDuration = Number(rawInteraction.duration);
+      if (!Number.isFinite(start) || start < 0 || start > 30) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction.start is invalid`);
+      }
+      if (!Number.isFinite(interactionDuration) || interactionDuration < 0.2 || interactionDuration > 10) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction.duration is invalid`);
+      }
+      interaction = {
+        type: rawInteraction.type,
+        start,
+        duration: interactionDuration,
+        text: interactionText,
+        target,
+      };
+    }
     return {
       id: nonEmptyString(scene.id, `loanVideoStoryboard.scenes[${offset}].id`, 100),
       index: offset + 1,
@@ -127,6 +190,7 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
       terminal: offset === rawScenes.length - 1,
       ...(presentation ? { presentation } : {}),
       ...(focusTargets.length > 0 ? { focusTargets } : {}),
+      ...(interaction ? { interaction } : {}),
     };
   });
   if (new Set(scenes.map((scene) => scene.id)).size !== scenes.length) {
@@ -152,10 +216,22 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
     const rawAction = action as Record<string, unknown>;
     let normalizedAction:
       | { type: 'auto' }
-      | { type: 'tap'; x: number; y: number; width?: number; height?: number };
+      | { type: 'tap'; x: number; y: number; width?: number; height?: number }
+      | {
+          type: 'open-modal' | 'close-modal';
+          x: number;
+          y: number;
+          width?: number;
+          height?: number;
+          clipTop?: number;
+        };
     if (rawAction.type === 'auto') {
       normalizedAction = { type: 'auto' };
-    } else if (rawAction.type === 'tap') {
+    } else if (
+      rawAction.type === 'tap'
+      || rawAction.type === 'open-modal'
+      || rawAction.type === 'close-modal'
+    ) {
       const x = normalizedUnitNumber(
         rawAction.x,
         `loanVideoStoryboard.transitions[${offset}].action.x`,
@@ -179,12 +255,19 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
       if (width === 0 || height === 0) {
         invalid(`loanVideoStoryboard.transitions[${offset}] tap size must be greater than 0`);
       }
+      const clipTop = rawAction.type === 'tap' || rawAction.clipTop === undefined
+        ? undefined
+        : normalizedUnitNumber(
+            rawAction.clipTop,
+            `loanVideoStoryboard.transitions[${offset}].action.clipTop`,
+          );
       normalizedAction = {
-        type: 'tap',
+        type: rawAction.type,
         x,
         y,
         ...(width === undefined ? {} : { width }),
         ...(height === undefined ? {} : { height }),
+        ...(clipTop === undefined ? {} : { clipTop }),
       };
     } else {
       invalid(`loanVideoStoryboard.transitions[${offset}].action.type is unsupported`);

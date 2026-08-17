@@ -288,6 +288,8 @@ function validationMessage(
     'step-required': 'loanVideo.errorStep',
     'text-required': 'loanVideo.errorText',
     'screenshot-required': 'loanVideo.errorScreenshot',
+    'interaction-text-required': 'loanVideo.errorInteractionText',
+    'interaction-target-required': 'loanVideo.errorInteractionTarget',
     'tap-required': 'loanVideo.errorTap',
   };
   return t(keys[error]);

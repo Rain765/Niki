@@ -17,6 +17,9 @@ export function createLoanVideoStep(id: string): LoanVideoStepDraft {
     captionEnabled: true,
     voiceoverEnabled: true,
     screenshot: null,
+    interaction: 'none',
+    interactionText: '',
+    interactionTap: null,
     advance: 'tap',
     tap: null,
   };
@@ -32,7 +35,7 @@ export function invalidateChangedLoanVideoTapTargets(
   ]));
 
   return nextSteps.map((step, index) => {
-    if (step.advance !== 'tap' || !step.tap) return step;
+    if (step.advance === 'auto' || !step.tap) return step;
     const nextTargetId = nextSteps[index + 1]?.id ?? null;
     const targetChanged = !previousTargetBySource.has(step.id)
       || previousTargetBySource.get(step.id) !== nextTargetId;
@@ -54,8 +57,16 @@ export function validateLoanVideoDraft(
       errors.add('text-required');
     }
     if (!step.screenshot) errors.add('screenshot-required');
+    if (step.interaction !== 'none') {
+      const interactionText = step.interactionText.trim();
+      if (
+        !interactionText
+        || (step.interaction === 'otp' && !/^\d{1,8}$/.test(interactionText))
+      ) errors.add('interaction-text-required');
+      if (!step.interactionTap) errors.add('interaction-target-required');
+    }
     if (
-      step.advance === 'tap'
+      step.advance !== 'auto'
       && !step.tap
     ) {
       errors.add('tap-required');
@@ -99,18 +110,22 @@ export function buildLoanVideoStoryboard(
   if (![assetRefs.intro, assetRefs.background, assetRefs.outro].every((ref) => ref.trim())) {
     throw new Error('Loan video generation requires uploaded intro, background, and outro references.');
   }
-  const pageScenes: LoanVideoStoryboard['scenes'] = draft.steps.map((step, index) => ({
-    id: step.id,
-    index: index + 2,
-    screenshotAttachmentIndex: index + 3,
-    screenshotOriginalName: step.screenshot?.name ?? null,
-    assetRef: assetRefs.pages[index]!,
-    text: step.text.trim(),
-    captionEnabled: step.captionEnabled,
-    voiceoverEnabled: step.voiceoverEnabled,
-    terminal: false,
-    presentation: 'device',
-  }));
+  const pageScenes: LoanVideoStoryboard['scenes'] = draft.steps.map((step, index) => {
+    const interaction = stepInteraction(step);
+    return {
+      id: step.id,
+      index: index + 2,
+      screenshotAttachmentIndex: index + 3,
+      screenshotOriginalName: step.screenshot?.name ?? null,
+      assetRef: assetRefs.pages[index]!,
+      text: step.text.trim(),
+      captionEnabled: step.captionEnabled,
+      voiceoverEnabled: step.voiceoverEnabled,
+      terminal: false,
+      presentation: 'device',
+      ...(interaction ? { interaction } : {}),
+    };
+  });
   const sceneIds = ['intro', ...draft.steps.map((step) => step.id), 'outro'];
   return {
     version: 2,
@@ -163,9 +178,36 @@ function transitionAction(step: LoanVideoStepDraft) {
     throw new Error(`Step ${step.id} requires a marked tap position.`);
   }
   return {
-    type: 'tap' as const,
+    type: step.advance,
     x: roundCoordinate(step.tap.x),
     y: roundCoordinate(step.tap.y),
+    ...(step.advance === 'open-modal' || step.advance === 'close-modal'
+      ? { clipTop: 0.106 }
+      : {}),
+  };
+}
+
+function stepInteraction(step: LoanVideoStepDraft) {
+  if (step.interaction === 'none') return null;
+  if (!step.interactionTap || !step.interactionText.trim()) {
+    throw new Error(`Step ${step.id} requires interaction text and a marked field.`);
+  }
+  const text = step.interactionText.trim();
+  const isOtp = step.interaction === 'otp';
+  const width = isOtp ? 0.83 : 0.4;
+  const height = isOtp ? 0.073 : 0.05;
+  const firstCellOffset = isOtp ? width / (Math.max(1, text.length) * 2) : width / 2;
+  return {
+    type: step.interaction,
+    start: isOtp ? 0.66 : 0.68,
+    duration: isOtp ? 1.12 : 1.1,
+    text,
+    target: {
+      x: roundCoordinate(Math.min(1 - width, Math.max(0, step.interactionTap.x - firstCellOffset))),
+      y: roundCoordinate(Math.min(1 - height, Math.max(0, step.interactionTap.y - height / 2))),
+      width,
+      height,
+    },
   };
 }
 
