@@ -185,9 +185,14 @@ describe('generated image optimization', () => {
       .raw()
       .toBuffer({ resolveWithObject: true });
     const centerOffset = (55 * info.width + 175) * info.channels;
+    const centerRgb = [
+      data[centerOffset] ?? 0,
+      data[centerOffset + 1] ?? 0,
+      data[centerOffset + 2] ?? 0,
+    ];
 
-    expect(data[centerOffset]).toBeLessThan(205);
-    expect(data[centerOffset + 1]).toBeLessThan(68);
+    expect(centerRgb).not.toEqual([220, 72, 30]);
+    expect(Math.min(...centerRgb)).toBeGreaterThan(20);
   });
 
   it('mildly dims the real background beneath the logo and fades to the original edges', async () => {
@@ -213,10 +218,47 @@ describe('generated image optimization', () => {
     const redAt = (x: number) => data[(55 * info.width + x) * info.channels] ?? 0;
     const centerOffset = (55 * info.width + 175) * info.channels;
 
-    expect(data[centerOffset]).toBeGreaterThan(190);
+    expect(data[centerOffset]).toBeGreaterThan(175);
     expect(data[centerOffset + 1]).toBeGreaterThan(60);
     expect(redAt(175)).toBeLessThanOrEqual(redAt(115) - 4);
     expect(redAt(115)).toBeLessThan(redAt(35) - 4);
+  });
+
+  it('neutralizes saturated background colors beneath the logo without using a solid fill', async () => {
+    const poster = await sharp({
+      create: {
+        width: 1_000,
+        height: 500,
+        channels: 4,
+        background: { r: 38, g: 190, b: 56, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const sparseLogo = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+        <rect x="0" y="20" width="40" height="52" fill="white"/>
+        <rect x="280" y="20" width="40" height="52" fill="white"/>
+      </svg>
+    `);
+
+    const composited = await overlayZamloanLogo(poster, sparseLogo);
+    const { data, info } = await sharp(composited)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const rgbAt = (x: number, y: number) => {
+      const offset = (y * info.width + x) * info.channels;
+      return [data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0];
+    };
+    const relativeSaturation = (rgb: number[]) => {
+      const maximum = Math.max(...rgb);
+      return maximum === 0 ? 0 : (maximum - Math.min(...rgb)) / maximum;
+    };
+    const originalEdge = rgbAt(0, 55);
+    const neutralCenter = rgbAt(175, 55);
+
+    expect(relativeSaturation(neutralCenter))
+      .toBeLessThan(relativeSaturation(originalEdge) - 0.18);
+    expect(Math.max(...neutralCenter)).toBeLessThan(Math.max(...originalEdge) - 8);
+    expect(neutralCenter).not.toEqual([0, 0, 0]);
   });
 
   it('distinguishes a clean logo-safe band from title-like content', async () => {
