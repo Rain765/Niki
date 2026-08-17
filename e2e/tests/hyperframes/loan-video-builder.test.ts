@@ -154,6 +154,18 @@ type LoanVideoManifest = {
     asset: string;
     caption: string | null;
     duration: number;
+    interaction?: {
+      duration: number;
+      start: number;
+      target: {
+        height: number;
+        width: number;
+        x: number;
+        y: number;
+      };
+      text: string;
+      type: 'otp' | 'type';
+    } | null;
     focusTargets?: Array<{
       height: number;
       width: number;
@@ -173,7 +185,8 @@ type LoanVideoManifest = {
       end: number | null;
       start: number | null;
       targetSceneIndex: number | null;
-      type: 'auto' | 'none' | 'tap';
+      type: 'auto' | 'close-modal' | 'none' | 'open-modal' | 'tap';
+      clipTop?: number;
       height?: number;
       width?: number;
       x?: number;
@@ -423,6 +436,86 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toContain('data-loan-video-focus-layer');
     expect(html).toContain('data-loan-video-press');
     expect(html).not.toContain('tutorial-background__image--target');
+  });
+
+  it('preserves typed fields and uses clipped modal transitions instead of whole-screen crossfades', async () => {
+    const projectDir = await createProjectFixture({
+      aspectRatio: '3:4',
+      narration: false,
+      sceneCount: 4,
+      version: 2,
+    });
+    const storyboardPath = path.join(projectDir, STORYBOARD_RELATIVE_PATH);
+    const storyboard = JSON.parse(await readFile(storyboardPath, 'utf8')) as {
+      scenes: Array<Record<string, unknown>>;
+      transitions: Array<{ action: Record<string, unknown> }>;
+    };
+    storyboard.scenes[0]!.presentation = 'device';
+    storyboard.scenes[0]!.interaction = {
+      type: 'type',
+      start: 0.42,
+      duration: 0.96,
+      text: '971 234 567',
+      target: { x: 0.25, y: 0.268, width: 0.34, height: 0.052 },
+    };
+    storyboard.scenes[1]!.presentation = 'device';
+    storyboard.scenes[1]!.interaction = {
+      type: 'otp',
+      start: 0.38,
+      duration: 1.08,
+      text: '2479',
+      target: { x: 0.09, y: 0.27, width: 0.82, height: 0.074 },
+    };
+    storyboard.scenes[2]!.presentation = 'device';
+    storyboard.scenes[3]!.presentation = 'device';
+    storyboard.transitions[1]!.action = {
+      type: 'open-modal',
+      x: 0.88,
+      y: 0.145,
+      width: 0.2,
+      height: 0.09,
+      clipTop: 0.105,
+    };
+    storyboard.transitions[2]!.action = {
+      type: 'close-modal',
+      x: 0.92,
+      y: 0.205,
+      width: 0.1,
+      height: 0.08,
+      clipTop: 0.105,
+    };
+    await writeFile(storyboardPath, JSON.stringify(storyboard), 'utf8');
+
+    await runBuilder(projectDir);
+    const html = await readFile(
+      path.join(projectDir, '.hyperframes-cache/loan-video-fast/index.html'),
+      'utf8',
+    );
+    const manifest = readManifest(html);
+
+    expect(manifest.scenes[0]?.interaction).toEqual({
+      type: 'type',
+      start: 0.42,
+      duration: 0.96,
+      text: '971 234 567',
+      target: { x: 0.25, y: 0.268, width: 0.34, height: 0.052 },
+    });
+    expect(manifest.scenes[1]?.interaction?.type).toBe('otp');
+    expect(manifest.scenes[2]?.transition).toMatchObject({
+      type: 'close-modal',
+      clipTop: 0.105,
+    });
+    expect(manifest.scenes[1]?.transition).toMatchObject({
+      type: 'open-modal',
+      clipTop: 0.105,
+    });
+    expect(html).toContain('data-loan-video-interaction-layer');
+    expect(html).toContain('tutorial__typed-text');
+    expect(html).toContain('tutorial__otp-box');
+    expect(html).toContain('const modalTransition = action.type === "open-modal"');
+    expect(html).toContain('if (action.type === "open-modal")');
+    expect(html).toContain('currentSlot.style.opacity = "1";');
+    expect(html).toContain('targetSlot.style.clipPath = `inset(${clipTop.toFixed(2)}px 0 0 0)`;');
   });
 
   it('copies v2 screenshots by assetRef when upload timestamps and lexical order collide', async () => {

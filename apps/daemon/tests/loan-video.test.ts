@@ -30,6 +30,13 @@ describe('loan video storyboard normalization', () => {
           text: '',
           captionEnabled: false,
           voiceoverEnabled: false,
+          interaction: {
+            type: 'otp',
+            start: 0.66,
+            duration: 1.12,
+            text: '2479',
+            target: { x: 0.09, y: 0.27, width: 0.83, height: 0.073 },
+          },
         },
         {
           id: 'outro',
@@ -45,7 +52,14 @@ describe('loan video storyboard normalization', () => {
         {
           fromSceneId: 'step-1',
           toSceneId: 'outro',
-          action: { type: 'tap', x: 0.5, y: 0.75, width: 0.2, height: 0.08 },
+          action: {
+            type: 'open-modal',
+            x: 0.5,
+            y: 0.75,
+            width: 0.2,
+            height: 0.08,
+            clipTop: 0.106,
+          },
         },
       ],
     });
@@ -53,12 +67,20 @@ describe('loan video storyboard normalization', () => {
     expect(storyboard.backgroundRef).toBe('.od-inputs/background.png');
     expect(storyboard.scenes.map((scene) => scene.presentation))
       .toEqual(['full', 'device', 'full']);
+    expect(storyboard.scenes[1]?.interaction).toEqual({
+      type: 'otp',
+      start: 0.66,
+      duration: 1.12,
+      text: '2479',
+      target: { x: 0.09, y: 0.27, width: 0.83, height: 0.073 },
+    });
     expect(storyboard.transitions[1]?.action).toEqual({
-      type: 'tap',
+      type: 'open-modal',
       x: 0.5,
       y: 0.75,
       width: 0.2,
       height: 0.08,
+      clipTop: 0.106,
     });
   });
 });

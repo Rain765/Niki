@@ -79,6 +79,31 @@ describe('loan video draft helpers', () => {
 
     draft.steps[1] = { ...draft.steps[1]!, advance: 'auto' };
     expect(validateLoanVideoDraft(draft)).not.toContain('tap-required');
+
+    draft.steps[1] = { ...draft.steps[1]!, advance: 'open-modal', tap: null };
+    expect(validateLoanVideoDraft(draft)).toContain('tap-required');
+  });
+
+  it('requires input text and a separately marked input target', () => {
+    const draft = completeDraft();
+    draft.steps[0] = {
+      ...draft.steps[0]!,
+      interaction: 'type',
+      interactionText: '',
+      interactionTap: null,
+    };
+    expect(validateLoanVideoDraft(draft)).toEqual(expect.arrayContaining([
+      'interaction-text-required',
+      'interaction-target-required',
+    ]));
+
+    draft.steps[0] = {
+      ...draft.steps[0]!,
+      interactionText: '971 234 567',
+      interactionTap: { x: 0.45, y: 0.28 },
+    };
+    expect(validateLoanVideoDraft(draft)).not.toContain('interaction-text-required');
+    expect(validateLoanVideoDraft(draft)).not.toContain('interaction-target-required');
   });
 
   it('clears tap data only when that source step receives a different next target', () => {
@@ -177,5 +202,48 @@ describe('loan video draft helpers', () => {
     });
 
     expect(storyboard.narration).toBe(false);
+  });
+
+  it('builds compound input interactions and modal layer transitions', () => {
+    const draft = completeDraft();
+    draft.steps[0] = {
+      ...draft.steps[0]!,
+      interaction: 'type',
+      interactionText: '971 234 567',
+      interactionTap: { x: 0.45, y: 0.28 },
+      advance: 'open-modal',
+      tap: { x: 0.88, y: 0.145 },
+    };
+    draft.steps[1] = {
+      ...draft.steps[1]!,
+      advance: 'close-modal',
+      tap: { x: 0.92, y: 0.205 },
+    };
+    const storyboard = buildLoanVideoStoryboard(draft, {
+      intro: '.od-inputs/01-intro.png',
+      background: '.od-inputs/02-background.png',
+      pages: ['.od-inputs/03-apply.png', '.od-inputs/04-details.png'],
+      outro: '.od-inputs/05-outro.png',
+    });
+
+    expect(storyboard.scenes[1]?.interaction).toEqual({
+      type: 'type',
+      start: 0.68,
+      duration: 1.1,
+      text: '971 234 567',
+      target: { x: 0.25, y: 0.255, width: 0.4, height: 0.05 },
+    });
+    expect(storyboard.transitions[1]?.action).toEqual({
+      type: 'open-modal',
+      x: 0.88,
+      y: 0.145,
+      clipTop: 0.106,
+    });
+    expect(storyboard.transitions[2]?.action).toEqual({
+      type: 'close-modal',
+      x: 0.92,
+      y: 0.205,
+      clipTop: 0.106,
+    });
   });
 });

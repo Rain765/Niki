@@ -14,6 +14,23 @@ export interface LoanVideoAutoAction {
   type: 'auto';
 }
 
+export interface LoanVideoModalAction {
+  type: 'open-modal' | 'close-modal';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  clipTop?: number;
+}
+
+export interface LoanVideoSceneInteraction {
+  type: 'type' | 'otp';
+  start: number;
+  duration: number;
+  text: string;
+  target: LoanVideoFocusTarget;
+}
+
 export interface LoanVideoStoryboardScene {
   id: string;
   index: number;
@@ -26,6 +43,7 @@ export interface LoanVideoStoryboardScene {
   terminal: boolean;
   presentation?: 'full' | 'device';
   focusTargets?: LoanVideoFocusTarget[];
+  interaction?: LoanVideoSceneInteraction;
 }
 
 export interface LoanVideoFocusTarget {
@@ -38,7 +56,7 @@ export interface LoanVideoFocusTarget {
 export interface LoanVideoStoryboardTransition {
   fromSceneId: string;
   toSceneId: string;
-  action: LoanVideoTapAction | LoanVideoAutoAction;
+  action: LoanVideoTapAction | LoanVideoAutoAction | LoanVideoModalAction;
 }
 
 export interface LoanVideoStoryboard {

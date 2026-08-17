@@ -871,6 +871,48 @@
   text-align: center;
 }
 
+.loan-video-screenshot__target-tools {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  left: 10px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text-strong) 82%, transparent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--text-strong) 22%, transparent);
+}
+
+.loan-video-screenshot__target-tools button {
+  min-height: 26px;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-panel) 12%, transparent);
+  color: var(--bg-panel);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.loan-video-screenshot__target-tools button.is-active {
+  background: var(--bg-panel);
+  color: var(--text-strong);
+}
+
+.loan-video-screenshot__target-tools .loan-video-screenshot__tap-hint {
+  position: static;
+  flex-basis: 100%;
+  padding: 2px 4px;
+  background: transparent;
+  color: var(--bg-panel);
+  text-align: left;
+}
+
 .loan-video-tap-picker {
   position: relative;
   display: block;
@@ -982,6 +1024,29 @@
   background: var(--bg-subtle);
 }
 
+.loan-video-step__interaction {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 11px;
+  background: var(--bg-subtle);
+}
+
+.loan-video-step__interaction strong {
+  color: var(--text-strong);
+  font-size: 12px;
+}
+
+.loan-video-step__interaction small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.loan-video-step__interaction .loan-video-step__advance-options {
+  justify-self: start;
+}
+
 .loan-video-step__transition strong {
   color: var(--text-strong);
   font-size: 12px;
@@ -995,6 +1060,7 @@
 
 .loan-video-step__advance-options {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 2px;
   border-radius: 9px;

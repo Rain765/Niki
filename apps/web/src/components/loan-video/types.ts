@@ -15,8 +15,11 @@ export interface LoanVideoTapPoint {
   y: number;
 }
 
-export const LOAN_VIDEO_ADVANCE_TYPES = ['tap', 'auto'] as const;
+export const LOAN_VIDEO_ADVANCE_TYPES = ['tap', 'auto', 'open-modal', 'close-modal'] as const;
 export type LoanVideoAdvanceType = (typeof LOAN_VIDEO_ADVANCE_TYPES)[number];
+
+export const LOAN_VIDEO_INTERACTION_TYPES = ['none', 'type', 'otp'] as const;
+export type LoanVideoInteractionType = (typeof LOAN_VIDEO_INTERACTION_TYPES)[number];
 
 export interface LoanVideoStepDraft {
   id: string;
@@ -24,6 +27,9 @@ export interface LoanVideoStepDraft {
   captionEnabled: boolean;
   voiceoverEnabled: boolean;
   screenshot: File | null;
+  interaction: LoanVideoInteractionType;
+  interactionText: string;
+  interactionTap: LoanVideoTapPoint | null;
   advance: LoanVideoAdvanceType;
   tap: LoanVideoTapPoint | null;
 }
@@ -55,4 +61,6 @@ export type LoanVideoValidationError =
   | 'step-required'
   | 'text-required'
   | 'screenshot-required'
+  | 'interaction-text-required'
+  | 'interaction-target-required'
   | 'tap-required';
