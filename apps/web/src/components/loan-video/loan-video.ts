@@ -2,6 +2,7 @@ import type { LoanVideoStoryboard } from '@open-design/contracts';
 
 import type {
   LoanVideoDraft,
+  LoanVideoAssetRefs,
   LoanVideoStepDraft,
   LoanVideoValidationError,
 } from './types';
@@ -44,15 +45,17 @@ export function validateLoanVideoDraft(
 ): LoanVideoValidationError[] {
   const errors = new Set<LoanVideoValidationError>();
   if (!draft.title.trim()) errors.add('title-required');
+  if (!draft.intro) errors.add('intro-required');
+  if (!draft.background) errors.add('background-required');
+  if (!draft.outro) errors.add('outro-required');
   if (draft.steps.length === 0) errors.add('step-required');
-  for (const [index, step] of draft.steps.entries()) {
+  for (const step of draft.steps) {
     if ((step.captionEnabled || step.voiceoverEnabled) && !step.text.trim()) {
       errors.add('text-required');
     }
     if (!step.screenshot) errors.add('screenshot-required');
     if (
-      index < draft.steps.length - 1
-      && step.advance === 'tap'
+      step.advance === 'tap'
       && !step.tap
     ) {
       errors.add('tap-required');
@@ -85,14 +88,30 @@ export function loanVideoOutputName(draft: LoanVideoDraft): string {
 
 export function buildLoanVideoStoryboard(
   draft: LoanVideoDraft,
-  assetRefs: readonly string[],
+  assetRefs: LoanVideoAssetRefs,
 ): LoanVideoStoryboard {
   if (
-    assetRefs.length !== draft.steps.length
-    || assetRefs.some((assetRef) => !assetRef.trim())
+    assetRefs.pages.length !== draft.steps.length
+    || assetRefs.pages.some((assetRef) => !assetRef.trim())
   ) {
-    throw new Error('Loan video generation requires one uploaded asset reference per scene.');
+    throw new Error('Loan video generation requires one uploaded page reference per tutorial step.');
   }
+  if (![assetRefs.intro, assetRefs.background, assetRefs.outro].every((ref) => ref.trim())) {
+    throw new Error('Loan video generation requires uploaded intro, background, and outro references.');
+  }
+  const pageScenes: LoanVideoStoryboard['scenes'] = draft.steps.map((step, index) => ({
+    id: step.id,
+    index: index + 2,
+    screenshotAttachmentIndex: index + 3,
+    screenshotOriginalName: step.screenshot?.name ?? null,
+    assetRef: assetRefs.pages[index]!,
+    text: step.text.trim(),
+    captionEnabled: step.captionEnabled,
+    voiceoverEnabled: step.voiceoverEnabled,
+    terminal: false,
+    presentation: 'device',
+  }));
+  const sceneIds = ['intro', ...draft.steps.map((step) => step.id), 'outro'];
   return {
     version: 2,
     title: draft.title.trim(),
@@ -102,21 +121,38 @@ export function buildLoanVideoStoryboard(
     durationSeconds: draft.durationSeconds,
     narration: draft.steps.some((step) => step.voiceoverEnabled),
     subtitles: draft.steps.some((step) => step.captionEnabled),
-    scenes: draft.steps.map((step, index) => ({
-      id: step.id,
-      index: index + 1,
-      screenshotAttachmentIndex: index + 1,
-      screenshotOriginalName: step.screenshot?.name ?? null,
-      assetRef: assetRefs[index]!,
-      text: step.text.trim(),
-      captionEnabled: step.captionEnabled,
-      voiceoverEnabled: step.voiceoverEnabled,
-      terminal: index === draft.steps.length - 1,
-    })),
-    transitions: draft.steps.slice(0, -1).map((step, index) => ({
-      fromSceneId: step.id,
-      toSceneId: draft.steps[index + 1]!.id,
-      action: transitionAction(step),
+    backgroundRef: assetRefs.background,
+    scenes: [
+      {
+        id: 'intro',
+        index: 1,
+        screenshotAttachmentIndex: 1,
+        screenshotOriginalName: draft.intro?.name ?? null,
+        assetRef: assetRefs.intro,
+        text: '',
+        captionEnabled: false,
+        voiceoverEnabled: false,
+        terminal: false,
+        presentation: 'full',
+      },
+      ...pageScenes,
+      {
+        id: 'outro',
+        index: draft.steps.length + 2,
+        screenshotAttachmentIndex: draft.steps.length + 3,
+        screenshotOriginalName: draft.outro?.name ?? null,
+        assetRef: assetRefs.outro,
+        text: '',
+        captionEnabled: false,
+        voiceoverEnabled: false,
+        terminal: true,
+        presentation: 'full',
+      },
+    ],
+    transitions: sceneIds.slice(0, -1).map((sceneId, index) => ({
+      fromSceneId: sceneId!,
+      toSceneId: sceneIds[index + 1]!,
+      action: index === 0 ? { type: 'auto' as const } : transitionAction(draft.steps[index - 1]!),
     })),
   };
 }

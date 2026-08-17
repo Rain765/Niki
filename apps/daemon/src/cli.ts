@@ -1314,8 +1314,9 @@ Common options:
                             its bundled HyperFrames renderer against it.
   --storyboard-file <path|-> hyperframes-html tutorial mode — read a structured
                             loan-video storyboard from JSON and let the daemon
-                            build the composition before rendering. This avoids
-                            a planning-agent round trip.
+                            build the composition before rendering. Use
+                            backgroundRef plus full/device scene presentations
+                            for intro, fixed background, pages, and outro.
   --image <path>            Project-relative path to a reference image
                             (image-to-video for Seedance i2v models, or
                             future image-edit endpoints). Daemon reads

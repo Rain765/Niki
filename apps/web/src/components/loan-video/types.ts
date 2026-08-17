@@ -34,11 +34,24 @@ export interface LoanVideoDraft {
   language: LoanVideoLanguage;
   aspectRatio: LoanVideoAspectRatio;
   durationSeconds: LoanVideoDuration;
+  intro: File | null;
+  background: File | null;
+  outro: File | null;
   steps: LoanVideoStepDraft[];
+}
+
+export interface LoanVideoAssetRefs {
+  intro: string;
+  background: string;
+  pages: readonly string[];
+  outro: string;
 }
 
 export type LoanVideoValidationError =
   | 'title-required'
+  | 'intro-required'
+  | 'background-required'
+  | 'outro-required'
   | 'step-required'
   | 'text-required'
   | 'screenshot-required'

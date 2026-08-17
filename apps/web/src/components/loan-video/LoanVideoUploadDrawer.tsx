@@ -7,6 +7,7 @@ import {
 
 import { useT } from '../../i18n';
 import { Icon } from '../Icon';
+import { LoanVideoAssetField } from './LoanVideoAssetField';
 import { LoanVideoStepCard } from './LoanVideoStepCard';
 import type { LoanVideoStepDraft } from './types';
 
@@ -14,10 +15,16 @@ interface Props {
   disabled: boolean;
   open: boolean;
   outputHint: string;
+  intro: File | null;
+  background: File | null;
+  outro: File | null;
   steps: LoanVideoStepDraft[];
   onAddStep: () => void;
   onChangeStep: (stepId: string, update: Partial<LoanVideoStepDraft>) => void;
   onClose: () => void;
+  onChangeIntro: (file: File | null) => void;
+  onChangeBackground: (file: File | null) => void;
+  onChangeOutro: (file: File | null) => void;
   onGenerate: () => void;
   onMoveStep: (stepId: string, direction: -1 | 1) => void;
   onRemoveStep: (stepId: string) => void;
@@ -36,10 +43,16 @@ export function LoanVideoUploadDrawer({
   disabled,
   open,
   outputHint,
+  intro,
+  background,
+  outro,
   steps,
   onAddStep,
   onChangeStep,
   onClose,
+  onChangeIntro,
+  onChangeBackground,
+  onChangeOutro,
   onGenerate,
   onMoveStep,
   onRemoveStep,
@@ -110,6 +123,35 @@ export function LoanVideoUploadDrawer({
         </header>
 
         <div className="loan-video-drawer__body">
+          <section className="loan-video-roles" aria-labelledby="loan-video-roles-title">
+            <div className="loan-video-roles__heading">
+              <h3 id="loan-video-roles-title">{t('loanVideo.structureAssets')}</h3>
+              <p>{t('loanVideo.structureAssetsHint')}</p>
+            </div>
+            <div className="loan-video-roles__grid">
+              <LoanVideoAssetField
+                file={intro}
+                label={t('loanVideo.intro')}
+                hint={t('loanVideo.introHint')}
+                onChange={onChangeIntro}
+                testId="loan-video-intro"
+              />
+              <LoanVideoAssetField
+                file={background}
+                label={t('loanVideo.background')}
+                hint={t('loanVideo.backgroundHint')}
+                onChange={onChangeBackground}
+                testId="loan-video-background"
+              />
+              <LoanVideoAssetField
+                file={outro}
+                label={t('loanVideo.outro')}
+                hint={t('loanVideo.outroHint')}
+                onChange={onChangeOutro}
+                testId="loan-video-outro"
+              />
+            </div>
+          </section>
           <div className="loan-video-steps__list loan-video-drawer__steps">
             {steps.map((step, index) => (
               <LoanVideoStepCard
@@ -118,6 +160,7 @@ export function LoanVideoUploadDrawer({
                 nextStep={steps[index + 1] ?? null}
                 index={index}
                 count={steps.length}
+                outro={outro}
                 onChange={(update) => onChangeStep(step.id, update)}
                 onRemove={() => onRemoveStep(step.id)}
                 onMove={(direction) => onMoveStep(step.id, direction)}

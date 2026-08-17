@@ -361,17 +361,26 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
       const screenshots = draft.steps
         .map((step) => step.screenshot)
         .filter((file): file is File => file instanceof File);
+      if (!draft.intro || !draft.background || !draft.outro) {
+        throw new Error('Intro, background, and outro images are required.');
+      }
+      const assets = [draft.intro, draft.background, ...screenshots, draft.outro];
       const uploadResult = await uploadProjectFiles(
         projectId,
-        screenshots,
+        assets,
         { visibility: 'internal' },
       );
       if (uploadResult.failed.length > 0) {
-        throw new Error(`Could not upload ${uploadResult.failed.length} screenshot(s).`);
+        throw new Error(`Could not upload ${uploadResult.failed.length} tutorial asset(s).`);
       }
       const storyboard = buildLoanVideoStoryboard(
         draft,
-        uploadResult.uploaded.map((attachment) => attachment.path),
+        {
+          intro: uploadResult.uploaded[0]!.path,
+          background: uploadResult.uploaded[1]!.path,
+          pages: uploadResult.uploaded.slice(2, -1).map((attachment) => attachment.path),
+          outro: uploadResult.uploaded.at(-1)!.path,
+        },
       );
       const accepted = await startProjectMediaTask(projectId, {
         clientRequestId: `loan-video-${randomUUID()}`,

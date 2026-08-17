@@ -1,0 +1,64 @@
+import { describe, expect, it } from 'vitest';
+
+import { normalizeLoanVideoStoryboard } from '../src/loan-video.js';
+
+describe('loan video storyboard normalization', () => {
+  it('preserves the fixed background and full/device presentation roles', () => {
+    const storyboard = normalizeLoanVideoStoryboard({
+      version: 2,
+      title: 'Structured tutorial',
+      product: 'zamloan',
+      language: 'zh-CN',
+      aspectRatio: '3:4',
+      durationSeconds: 30,
+      narration: false,
+      subtitles: false,
+      backgroundRef: '.od-inputs/background.png',
+      scenes: [
+        {
+          id: 'intro',
+          assetRef: '.od-inputs/intro.png',
+          presentation: 'full',
+          text: '',
+          captionEnabled: false,
+          voiceoverEnabled: false,
+        },
+        {
+          id: 'step-1',
+          assetRef: '.od-inputs/page.png',
+          presentation: 'device',
+          text: '',
+          captionEnabled: false,
+          voiceoverEnabled: false,
+        },
+        {
+          id: 'outro',
+          assetRef: '.od-inputs/outro.png',
+          presentation: 'full',
+          text: '',
+          captionEnabled: false,
+          voiceoverEnabled: false,
+        },
+      ],
+      transitions: [
+        { fromSceneId: 'intro', toSceneId: 'step-1', action: { type: 'auto' } },
+        {
+          fromSceneId: 'step-1',
+          toSceneId: 'outro',
+          action: { type: 'tap', x: 0.5, y: 0.75, width: 0.2, height: 0.08 },
+        },
+      ],
+    });
+
+    expect(storyboard.backgroundRef).toBe('.od-inputs/background.png');
+    expect(storyboard.scenes.map((scene) => scene.presentation))
+      .toEqual(['full', 'device', 'full']);
+    expect(storyboard.transitions[1]?.action).toEqual({
+      type: 'tap',
+      x: 0.5,
+      y: 0.75,
+      width: 0.2,
+      height: 0.08,
+    });
+  });
+});
