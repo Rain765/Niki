@@ -23,6 +23,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const COMPOSITION_RELATIVE_DIR = '.hyperframes-cache/loan-video-fast';
+const HAND_ASSET_NAME = 'tutorial-dark-hand.png';
 const IMAGE_EXTENSIONS = new Set(['.avif', '.jpeg', '.jpg', '.png', '.webp']);
 const SUPPORTED_ASPECTS = {
   '1:1': { width: 1080, height: 1080, layout: 'square' },
@@ -783,6 +784,7 @@ async function build() {
   });
   const metadataOutputs = ['index.html', 'hyperframes.json', 'meta.json']
     .map((name) => path.join(compositionDir, name));
+  const handOutput = path.join(assetsDir, HAND_ASSET_NAME);
   await Promise.all([
     ...assetNames.map((assetName) => assertSafeOutputFile(
       projectDir,
@@ -794,6 +796,7 @@ async function build() {
       output,
       `composition metadata ${path.basename(output)}`,
     )),
+    assertSafeOutputFile(projectDir, handOutput, 'tutorial hand asset'),
   ]);
   for (let index = 0; index < screenshots.length; index += 1) {
     const assetName = assetNames[index];
@@ -804,6 +807,15 @@ async function build() {
       `composition asset ${assetName}`,
     );
   }
+  const handSource = fileURLToPath(new URL(`../assets/${HAND_ASSET_NAME}`, import.meta.url));
+  const handSourceStat = await stat(handSource).catch(() => null);
+  if (!handSourceStat?.isFile()) fail(`tutorial hand asset not found: ${handSource}`);
+  await writeSafeOutputFile(
+    projectDir,
+    handOutput,
+    await readFile(handSource),
+    'tutorial hand asset',
+  );
 
   const narrationDir = path.join(compositionDir, 'narration');
   let audioClips = [];
@@ -946,6 +958,7 @@ async function build() {
     AUDIO: audioMarkup,
     DURATION: durationSeconds,
     HEIGHT: storyboard.aspect.height,
+    HAND_ASSET: `assets/${HAND_ASSET_NAME}`,
     INITIAL_CURRENT: escapeHtml(initialCurrentAsset),
     INITIAL_TARGET: escapeHtml(initialTargetAsset),
     LANG: escapeHtml(storyboard.language),

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=__WIDTH__, height=__HEIGHT__" />
 __PRELOADS__
+    <link rel="preload" as="image" href="__HAND_ASSET__" />
     <style>
       :root {
         color-scheme: dark;
@@ -124,17 +125,31 @@ __PRELOADS__
         z-index: 3;
         left: 50%;
         top: 50%;
-        width: clamp(60px, 5.8vmin, 104px);
-        height: clamp(60px, 5.8vmin, 104px);
-        border: clamp(4px, 0.42vmin, 8px) solid #fff;
+        width: clamp(42px, 4.2vmin, 76px);
+        height: clamp(42px, 4.2vmin, 76px);
+        border: clamp(3px, 0.32vmin, 6px) solid #fff;
         border-radius: 50%;
         background: color-mix(in srgb, var(--accent) 52%, transparent);
         box-shadow:
-          0 0 0 16px color-mix(in srgb, var(--accent) 21%, transparent),
-          0 0 48px var(--accent-soft);
+          0 0 0 12px color-mix(in srgb, var(--accent) 21%, transparent),
+          0 0 32px var(--accent-soft);
         opacity: 0;
         transform: translate(-50%, -50%) scale(0.9);
         will-change: left, top, opacity, transform;
+      }
+
+      .tutorial__hand {
+        position: absolute;
+        z-index: 4;
+        left: 50%;
+        top: 50%;
+        display: block;
+        width: 22%;
+        height: auto;
+        opacity: 0;
+        pointer-events: none;
+        user-select: none;
+        will-change: left, top, width, opacity, transform;
       }
 
       .tutorial__subtitle {
@@ -189,6 +204,7 @@ __ASSET_CATALOG__
           <img class="tutorial__asset tutorial__asset--current" data-loan-video-current src="__INITIAL_CURRENT__" alt="" />
           <img class="tutorial__asset tutorial__asset--target" data-loan-video-target src="__INITIAL_TARGET__" alt="" />
           <span class="tutorial__tap" data-loan-video-tap aria-hidden="true"></span>
+          <img class="tutorial__hand" data-loan-video-hand src="__HAND_ASSET__" alt="" aria-hidden="true" />
         </div>
       </div>
 __SUBTITLE__
@@ -209,7 +225,9 @@ __AUDIO__
         const currentBackground = root.querySelector(".tutorial-background__image--current");
         const targetBackground = root.querySelector(".tutorial-background__image--target");
         const tap = root.querySelector(".tutorial__tap");
+        const hand = root.querySelector(".tutorial__hand");
         const subtitle = root.querySelector(".tutorial__subtitle");
+        const handWidthRatio = 0.22;
 
         const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
         const ease = (value) => 1 - Math.pow(1 - clamp(value, 0, 1), 3);
@@ -313,8 +331,32 @@ __AUDIO__
             tap.style.transform = `translate(-50%, -50%) scale(${(
               0.9 - pressProgress * 0.08 + ripple * 0.3
             ).toFixed(4)})`;
+
+            const handWidth = clamp(imageRect.width * handWidthRatio, 150, 420);
+            const mirrored = x > 0.72;
+            const anchorX = handWidth * (mirrored ? 0.86 : 0.14);
+            const anchorY = handWidth * 0.085;
+            const approachOffsetX = (mirrored ? -1 : 1)
+              * imageRect.width * 0.17 * (1 - pointerProgress);
+            const approachOffsetY = imageRect.height * 0.075 * (1 - pointerProgress);
+            const pressDepth = imageRect.width * 0.008 * pressProgress;
+            const lift = imageRect.width * 0.006 * rippleProgress;
+            const handScale = 1 - pressProgress * 0.025 + ripple * 0.012;
+            hand.style.left = `${focalX.toFixed(2)}px`;
+            hand.style.top = `${focalY.toFixed(2)}px`;
+            hand.style.width = `${handWidth.toFixed(2)}px`;
+            hand.style.opacity = visible
+              ? String((pointerProgress * (1 - responseProgress)).toFixed(4))
+              : "0";
+            hand.style.transformOrigin = `${anchorX.toFixed(2)}px ${anchorY.toFixed(2)}px`;
+            hand.style.transform = `translate(${(
+              -anchorX + approachOffsetX + pressDepth - lift
+            ).toFixed(2)}px, ${(
+              -anchorY + approachOffsetY + pressDepth - lift
+            ).toFixed(2)}px) rotate(${mirrored ? "-2deg" : "2deg"}) scaleX(${mirrored ? -1 : 1}) scale(${handScale.toFixed(4)})`;
           } else {
             tap.style.opacity = "0";
+            hand.style.opacity = "0";
           }
 
           if (subtitle) {
