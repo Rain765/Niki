@@ -188,11 +188,13 @@ async function runBuilder(
   projectDir: string,
   odBin = path.join(projectDir, 'unused-od.mjs'),
   storyboardRelativePath = STORYBOARD_RELATIVE_PATH,
+  allowSilentFallback = false,
 ) {
   return execFileAsync(process.execPath, [
     BUILDER,
     '--storyboard',
     storyboardRelativePath,
+    ...(allowSilentFallback ? ['--allow-silent-fallback'] : []),
   ], {
     cwd: projectDir,
     env: {
@@ -697,7 +699,7 @@ process.stdout.write(JSON.stringify({
     expect([...audio.subarray(0, 2)]).toEqual([0xff, 0xfb]);
     expect(html).toContain('src="narration/scene-01.mp3"');
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('gpt-4o-mini-tts');
+    expect(calls[0]).toContain('tts-1');
     expect(calls[0]).toContain('speech');
     await expect(
       stat(path.join(projectDir, 'loan-video-fast-narration-scene-01.mp3')),
@@ -764,6 +766,41 @@ process.exit(9);
     expect(calls).toHaveLength(2);
     expect(calls[1]?.slice(0, 3)).toEqual(['media', 'wait', 'tts-task']);
     expect(calls[1]).toContain('3');
+  });
+
+  it('renders captions without audio when direct mode allows a TTS failure fallback', async () => {
+    const projectDir = await createProjectFixture({
+      aspectRatio: '9:16',
+      narration: true,
+      sceneCount: 1,
+      version: 2,
+    });
+    const fakeOd = path.join(projectDir, 'fake-od-failed.mjs');
+    await writeFile(fakeOd, `
+process.stdout.write(JSON.stringify({
+  taskId: 'tts-failed',
+  status: 'failed',
+  error: { message: 'temporary TTS failure' },
+}) + '\\n');
+process.exit(5);
+`, 'utf8');
+
+    const { stdout } = await runBuilder(
+      projectDir,
+      fakeOd,
+      STORYBOARD_RELATIVE_PATH,
+      true,
+    );
+
+    const summary = JSON.parse(stdout.trim()) as { narration: boolean; warnings: string[] };
+    const compositionDir = path.join(projectDir, '.hyperframes-cache/loan-video-fast');
+    const html = await readFile(path.join(compositionDir, 'index.html'), 'utf8');
+    expect(summary.narration).toBe(false);
+    expect(summary.warnings).toEqual([
+      expect.stringContaining('temporary TTS failure'),
+    ]);
+    expect(readManifest(html).audio).toBeNull();
+    expect(html).not.toContain('<audio');
   });
 
   it('uses only enabled v2 voiceovers and synchronizes the manifest to real MP3 duration', async () => {

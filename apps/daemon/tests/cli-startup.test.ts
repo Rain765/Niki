@@ -1,4 +1,4 @@
-import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -168,6 +168,93 @@ describe('CLI startup boundaries', () => {
       expect(failed.stderr).toContain('still running');
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('sends a structured tutorial storyboard through media generate', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'od-cli-storyboard-'));
+    const storyboardPath = join(root, 'storyboard.json');
+    const storyboard = {
+      version: 2,
+      title: 'CLI tutorial',
+      product: 'zamloan',
+      language: 'en',
+      aspectRatio: '1:1',
+      durationSeconds: 1,
+      narration: false,
+      subtitles: true,
+      scenes: [],
+      transitions: [],
+    };
+    await writeFile(storyboardPath, JSON.stringify(storyboard), 'utf8');
+    let requestBody: Record<string, unknown> | null = null;
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.url === '/api/projects/repro/media/generate') {
+        let body = '';
+        req.setEncoding('utf8');
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          requestBody = JSON.parse(body) as Record<string, unknown>;
+          res.statusCode = 202;
+          res.end(JSON.stringify({ taskId: 'task-storyboard', status: 'running' }));
+        });
+        return;
+      }
+      if (req.url === '/api/media/tasks/task-storyboard/wait') {
+        res.end(JSON.stringify({
+          taskId: 'task-storyboard',
+          status: 'done',
+          progress: [],
+          nextSince: 0,
+          file: { name: 'tutorial.mp4', size: 42 },
+        }));
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('server not listening');
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          cliEntry,
+          'media',
+          'generate',
+          '--project',
+          'repro',
+          '--surface',
+          'video',
+          '--model',
+          'hyperframes-html',
+          '--storyboard-file',
+          storyboardPath,
+          '--output',
+          'tutorial.mp4',
+          '--daemon-url',
+          `http://127.0.0.1:${address.port}`,
+        ],
+        { cwd: daemonRoot },
+      );
+
+      expect(requestBody).toMatchObject({
+        surface: 'video',
+        model: 'hyperframes-html',
+        output: 'tutorial.mp4',
+        loanVideoStoryboard: storyboard,
+      });
+      expect(JSON.parse(result.stdout.trim())).toMatchObject({
+        file: { name: 'tutorial.mp4', size: 42 },
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await rm(root, { recursive: true, force: true });
     }
   });
 

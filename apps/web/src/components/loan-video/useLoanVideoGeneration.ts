@@ -1,32 +1,28 @@
-import type { ChatRunStatus, ChatRunStatusResponse } from '@open-design/contracts';
+import type { MediaTaskSnapshot } from '@open-design/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { AgentEvent, ChatMessage, Project, ProjectFile, ProjectMetadata } from '../../types';
+import type { Project, ProjectFile, ProjectMetadata } from '../../types';
 import {
-  fetchChatRunStatus,
-  listProjectRuns,
-  reattachDaemonRun,
-  streamViaDaemon,
-} from '../../providers/daemon';
+  listProjectMediaTasks,
+  startProjectMediaTask,
+  waitForMediaTask,
+} from '../../providers/media';
 import {
   deleteProjectFile,
-  fetchAgents,
   fetchProjectFiles,
   uploadProjectFiles,
 } from '../../providers/registry';
-import { fetchDaemonConfig } from '../../state/config';
 import {
   createProject,
   getProject,
-  listMessages,
   listProjects,
-  saveMessage,
 } from '../../state/projects';
 import { randomUUID } from '../../utils/uuid';
 import {
-  buildLoanVideoPrompt,
+  buildLoanVideoStoryboard,
   LOAN_VIDEO_PLUGIN_ID,
   LOAN_VIDEO_SKILL_ID,
+  loanVideoOutputName,
   loanVideoProjectName,
 } from './loan-video';
 import {
@@ -40,7 +36,10 @@ export type LoanVideoGenerationPhase =
   | 'restoring'
   | 'preparing'
   | 'uploading'
-  | ChatRunStatus;
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed';
 
 export interface LoanVideoGenerationState {
   aspectRatio: LoanVideoAspectRatio;
@@ -49,7 +48,7 @@ export interface LoanVideoGenerationState {
   phase: LoanVideoGenerationPhase;
   projectId: string | null;
   requestedAt: number | null;
-  runId: string | null;
+  taskId: string | null;
 }
 
 const INITIAL_STATE: LoanVideoGenerationState = {
@@ -59,53 +58,49 @@ const INITIAL_STATE: LoanVideoGenerationState = {
   phase: 'restoring',
   projectId: null,
   requestedAt: null,
-  runId: null,
+  taskId: null,
 };
 
 const LAST_VIDEO_PROJECT_STORAGE_KEY = 'niki:loan-video:last-project';
-const RUN_FINISHED_WITHOUT_MP4 = 'The generation run finished without producing an MP4. Submit again to retry.';
+const RUN_FINISHED_WITHOUT_MP4 = 'The video task finished without producing a durable MP4. Submit again to retry.';
 
-interface StoredVideoRunPointer {
-  conversationId: string;
+interface StoredVideoTaskPointer {
   projectId: string;
-  runId?: string;
+  taskId?: string;
 }
 
-interface RestoredVideoRun {
+interface RestoredVideoTask {
   files: ProjectFile[];
   project: Project;
-  run: ChatRunStatusResponse | null;
+  task: MediaTaskSnapshot | null;
 }
 
 function scopedStorageKey(sessionScope: string): string {
   return `${LAST_VIDEO_PROJECT_STORAGE_KEY}:${encodeURIComponent(sessionScope.trim())}`;
 }
 
-function readStoredPointer(sessionScope: string): StoredVideoRunPointer | null {
+function readStoredPointer(sessionScope: string): StoredVideoTaskPointer | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = window.localStorage.getItem(scopedStorageKey(sessionScope));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<StoredVideoRunPointer>;
-    if (typeof parsed.projectId !== 'string' || typeof parsed.conversationId !== 'string') {
-      return null;
-    }
+    const parsed = JSON.parse(raw) as Partial<StoredVideoTaskPointer>;
+    if (typeof parsed.projectId !== 'string') return null;
     return {
       projectId: parsed.projectId,
-      conversationId: parsed.conversationId,
-      ...(typeof parsed.runId === 'string' ? { runId: parsed.runId } : {}),
+      ...(typeof parsed.taskId === 'string' ? { taskId: parsed.taskId } : {}),
     };
   } catch {
     return null;
   }
 }
 
-function writeStoredPointer(sessionScope: string, pointer: StoredVideoRunPointer): void {
+function writeStoredPointer(sessionScope: string, pointer: StoredVideoTaskPointer): void {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(scopedStorageKey(sessionScope), JSON.stringify(pointer));
   } catch {
-    // Persistence is an optimization. The project and run remain durable in SQLite.
+    // SQLite-backed projects and tasks remain authoritative if storage is blocked.
   }
 }
 
@@ -124,26 +119,46 @@ function isTutorialVideoProject(project: Project): boolean {
     && project.metadata.videoModel === 'hyperframes-html';
 }
 
-function latestProjectRun(
-  projectId: string,
-  runs: ChatRunStatusResponse[],
-  preferredRunId?: string,
-): ChatRunStatusResponse | null {
-  const projectRuns = runs.filter((run) => run.projectId === projectId);
-  if (preferredRunId) {
-    const preferred = projectRuns.find((run) => run.id === preferredRunId);
-    if (preferred) return preferred;
-  }
-  return projectRuns.sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+function videoFiles(files: ProjectFile[]): ProjectFile[] {
+  return files
+    .filter((file) => file.kind === 'video' || file.name.toLowerCase().endsWith('.mp4'))
+    .sort((left, right) => right.mtime - left.mtime);
 }
 
-async function restoreLatestVideoRun(sessionScope: string): Promise<RestoredVideoRun | null> {
+function projectAspectRatio(project: Project): LoanVideoAspectRatio {
+  const aspectRatio = project.metadata?.videoAspect;
+  return LOAN_VIDEO_ASPECT_RATIOS.find((candidate) => candidate === aspectRatio) ?? '9:16';
+}
+
+function phaseFromTask(task: MediaTaskSnapshot | null, hasVideo: boolean): LoanVideoGenerationPhase {
+  if (hasVideo) return 'succeeded';
+  if (!task) return 'failed';
+  if (task.status === 'queued' || task.status === 'running') return task.status;
+  return 'failed';
+}
+
+function taskFailureMessage(task: MediaTaskSnapshot | null): string {
+  if (!task) return 'This video project did not start. Submit again to retry.';
+  if (task.status === 'done') return RUN_FINISHED_WITHOUT_MP4;
+  if (task.status === 'interrupted') {
+    return task.error?.message || 'Video generation was interrupted. Submit again to retry.';
+  }
+  return task.error?.message || 'Video generation failed. Submit again to retry.';
+}
+
+function activePhase(phase: LoanVideoGenerationPhase): boolean {
+  return phase === 'restoring'
+    || phase === 'preparing'
+    || phase === 'uploading'
+    || phase === 'queued'
+    || phase === 'running';
+}
+
+async function restoreLatestVideoTask(sessionScope: string): Promise<RestoredVideoTask | null> {
   const pointer = readStoredPointer(sessionScope);
-  const [storedProject, storedRun, projects, runs] = await Promise.all([
+  const [storedProject, projects] = await Promise.all([
     pointer ? getProject(pointer.projectId) : Promise.resolve(null),
-    pointer?.runId ? fetchChatRunStatus(pointer.runId) : Promise.resolve(null),
     listProjects(),
-    listProjectRuns(),
   ]);
   const candidates = projects.filter(isTutorialVideoProject);
   if (
@@ -158,82 +173,20 @@ async function restoreLatestVideoRun(sessionScope: string): Promise<RestoredVide
     if (pointer) clearStoredPointer(sessionScope);
     return null;
   }
-
-  const run = storedRun?.projectId === project.id
-    ? storedRun
-    : latestProjectRun(project.id, runs, pointer?.runId);
-  if (run?.conversationId) {
-    writeStoredPointer(sessionScope, {
-      projectId: project.id,
-      conversationId: run.conversationId,
-      runId: run.id,
-    });
-  }
-  return {
-    project,
-    run,
-    files: await fetchProjectFiles(project.id),
-  };
-}
-
-function phaseFromRun(run: ChatRunStatusResponse, hasVideo: boolean): LoanVideoGenerationPhase {
-  if (run.status === 'canceled') return 'failed';
-  if (run.status === 'succeeded' && !hasVideo) return 'failed';
-  return run.status;
-}
-
-function videoFiles(files: ProjectFile[]): ProjectFile[] {
-  return files
-    .filter((file) => file.kind === 'video' || file.name.toLowerCase().endsWith('.mp4'))
-    .sort((left, right) => right.mtime - left.mtime);
-}
-
-function projectAspectRatio(project: Project): LoanVideoAspectRatio {
-  const aspectRatio = project.metadata?.videoAspect;
-  return LOAN_VIDEO_ASPECT_RATIOS.find((candidate) => candidate === aspectRatio) ?? '9:16';
-}
-
-function restoredRequestedAt(project: Project, run: ChatRunStatusResponse | null): number {
-  return run?.createdAt
-    ?? project.metadata?.directGeneration?.requestedAt
-    ?? project.createdAt;
-}
-
-function runFailureMessage(run: ChatRunStatusResponse): string {
-  if (run.status === 'canceled') return 'Video generation was canceled. Submit again to retry.';
-  return run.error?.trim() || 'Video generation failed. Submit again to retry.';
-}
-
-async function resolveExecutionChoice(): Promise<{
-  agentId: string;
-  model: string | null;
-  reasoning: string | null;
-}> {
-  const [config, agents] = await Promise.all([fetchDaemonConfig(), fetchAgents()]);
-  const configuredAgent = config?.agentId
-    ? agents.find((agent) => agent.id === config.agentId)
-    : null;
-  const agentId = configuredAgent?.available
-    ? configuredAgent.id
-    : agents.find((agent) => agent.available)?.id
-      ?? (agents.length === 0 ? config?.agentId : null);
-  if (!agentId) {
-    throw new Error('No local generation agent is available. Configure an agent and try again.');
-  }
-  const choice = config?.agentModels?.[agentId];
-  return {
-    agentId,
-    model: choice?.model ?? null,
-    reasoning: choice?.reasoning ?? null,
-  };
-}
-
-function activePhase(phase: LoanVideoGenerationPhase): boolean {
-  return phase === 'restoring'
-    || phase === 'preparing'
-    || phase === 'uploading'
-    || phase === 'queued'
-    || phase === 'running';
+  const [files, taskResponse] = await Promise.all([
+    fetchProjectFiles(project.id),
+    listProjectMediaTasks(project.id),
+  ]);
+  const videoTasks = taskResponse.tasks.filter((task) => (
+    task.surface === 'video' && task.model === 'hyperframes-html'
+  ));
+  const task = (
+    pointer?.taskId
+      ? videoTasks.find((candidate) => candidate.taskId === pointer.taskId)
+      : null
+  ) ?? videoTasks[0] ?? null;
+  if (task) writeStoredPointer(sessionScope, { projectId: project.id, taskId: task.taskId });
+  return { project, files, task };
 }
 
 export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
@@ -255,11 +208,39 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
 
   const refreshFiles = useCallback(async (projectId: string): Promise<ProjectFile[]> => {
     const files = await fetchProjectFiles(projectId);
-    if (stateRef.current.projectId === projectId) {
-      updateState({ files });
-    }
+    if (stateRef.current.projectId === projectId) updateState({ files });
     return files;
   }, [updateState]);
+
+  const monitorTask = useCallback(async (
+    projectId: string,
+    taskId: string,
+    signal: AbortSignal,
+    initialSince = 0,
+  ): Promise<void> => {
+    let since = initialSince;
+    while (!signal.aborted) {
+      const task = await waitForMediaTask(taskId, since, signal);
+      since = task.nextSince;
+      if (task.status === 'queued' || task.status === 'running') {
+        updateState({ phase: task.status, error: null });
+        continue;
+      }
+      if (task.status === 'failed' || task.status === 'interrupted') {
+        updateState({ phase: 'failed', error: taskFailureMessage(task) });
+        return;
+      }
+      const files = await refreshFiles(projectId);
+      const expectedName = task.file?.name;
+      const persisted = videoFiles(files).find((file) => !expectedName || file.name === expectedName);
+      if (!persisted || persisted.size <= 0) {
+        updateState({ phase: 'failed', error: RUN_FINISHED_WITHOUT_MP4 });
+        return;
+      }
+      updateState({ phase: 'succeeded', error: null, files });
+      return;
+    }
+  }, [refreshFiles, updateState]);
 
   useEffect(() => {
     if (!enabled) return undefined;
@@ -268,153 +249,33 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     subscriptionRef.current = controller;
     updateState(INITIAL_STATE);
 
-    void restoreLatestVideoRun(sessionScope).then(async (restored) => {
+    void restoreLatestVideoTask(sessionScope).then(async (restored) => {
       if (controller.signal.aborted) return;
       if (!restored) {
         updateState({ ...INITIAL_STATE, phase: 'idle' });
         return;
       }
-
-      const restoredVideos = videoFiles(restored.files);
-      const run = restored.run;
-      if (!run) {
-        updateState({
-          aspectRatio: projectAspectRatio(restored.project),
-          projectId: restored.project.id,
-          requestedAt: restoredRequestedAt(restored.project, null),
-          runId: null,
-          files: restored.files,
-          phase: restoredVideos.length > 0 ? 'succeeded' : 'failed',
-          error: restoredVideos.length > 0
-            ? null
-            : 'This video project did not start. Submit again to retry.',
-        });
-        return;
-      }
-
+      const videos = videoFiles(restored.files);
+      const phase = phaseFromTask(restored.task, videos.length > 0);
       updateState({
         aspectRatio: projectAspectRatio(restored.project),
         projectId: restored.project.id,
-        requestedAt: restoredRequestedAt(restored.project, run),
-        runId: run.id,
+        requestedAt: restored.task?.startedAt ?? restored.project.createdAt,
+        taskId: restored.task?.taskId ?? null,
         files: restored.files,
-        phase: phaseFromRun(run, restoredVideos.length > 0),
-        error: run.status === 'succeeded' && restoredVideos.length === 0
-          ? RUN_FINISHED_WITHOUT_MP4
-          : run.status === 'failed' || run.status === 'canceled'
-            ? runFailureMessage(run)
-            : null,
+        phase,
+        error: phase === 'failed' ? taskFailureMessage(restored.task) : null,
       });
-
-      if (run.status !== 'queued' && run.status !== 'running') return;
-      const messages = run.conversationId
-        ? await listMessages(restored.project.id, run.conversationId)
-        : [];
-      if (controller.signal.aborted) return;
-      let assistantMessage = messages.find((message) => message.id === run.assistantMessageId)
-        ?? (run.assistantMessageId
-          ? {
-              id: run.assistantMessageId,
-              role: 'assistant' as const,
-              content: '',
-              createdAt: run.createdAt,
-              startedAt: run.createdAt,
-              runId: run.id,
-              runStatus: run.status,
-              events: [],
-            }
-          : null);
-      let persistQueue = Promise.resolve();
-      const persistAssistant = (options: { finalized?: boolean } = {}) => {
-        if (!assistantMessage || !run.conversationId) return;
-        const snapshot = assistantMessage;
-        persistQueue = persistQueue.then(() => saveMessage(
+      if (
+        restored.task
+        && (restored.task.status === 'queued' || restored.task.status === 'running')
+      ) {
+        await monitorTask(
           restored.project.id,
-          run.conversationId!,
-          snapshot,
-          options.finalized ? { telemetryFinalized: true } : {},
-        ));
-      };
-      let streamedText = assistantMessage?.content ?? '';
-
-      await reattachDaemonRun({
-        runId: run.id,
-        signal: controller.signal,
-        initialLastEventId: assistantMessage?.lastRunEventId ?? null,
-        handlers: {
-          onDelta: (delta) => {
-            streamedText += delta;
-          },
-          onAgentEvent: (event) => {
-            if (assistantMessage) {
-              assistantMessage = {
-                ...assistantMessage,
-                events: [...(assistantMessage.events ?? []), event],
-              };
-            }
-          },
-          onDone: (fullText = '') => {
-            const endedAt = Date.now();
-            if (assistantMessage) {
-              assistantMessage = {
-                ...assistantMessage,
-                content: fullText || streamedText,
-                endedAt,
-                runStatus: 'succeeded',
-              };
-              persistAssistant({ finalized: true });
-            }
-            updateState({ phase: 'succeeded', error: null });
-          },
-          onError: (error) => {
-            const endedAt = Date.now();
-            if (assistantMessage) {
-              assistantMessage = {
-                ...assistantMessage,
-                endedAt,
-                runStatus: 'failed',
-              };
-              persistAssistant({ finalized: true });
-            }
-            updateState({ phase: 'failed', error: error.message });
-          },
-        },
-        onRunStatus: (status) => {
-          const phase = status === 'canceled' ? 'failed' : status;
-          updateState({
-            phase,
-            error: status === 'canceled'
-              ? 'Video generation was canceled. Submit again to retry.'
-              : status === 'failed'
-                ? 'Video generation failed. Submit again to retry.'
-                : null,
-          });
-          if (assistantMessage) {
-            assistantMessage = {
-              ...assistantMessage,
-              runStatus: status,
-              ...(status === 'succeeded' || status === 'failed' || status === 'canceled'
-                ? { endedAt: assistantMessage.endedAt ?? Date.now() }
-                : {}),
-            };
-            persistAssistant({
-              finalized: status === 'succeeded' || status === 'failed' || status === 'canceled',
-            });
-          }
-        },
-        onRunEventId: (lastRunEventId) => {
-          if (assistantMessage) assistantMessage = { ...assistantMessage, lastRunEventId };
-        },
-      });
-      await persistQueue;
-      if (!controller.signal.aborted) {
-        const finalFiles = await refreshFiles(restored.project.id);
-        if (
-          stateRef.current.phase === 'succeeded'
-          && videoFiles(finalFiles).length === 0
-        ) {
-          updateState({ phase: 'failed', error: RUN_FINISHED_WITHOUT_MP4 });
-        }
+          restored.task.taskId,
+          controller.signal,
+          restored.task.nextSince,
+        );
       }
     }).catch((error) => {
       if (controller.signal.aborted) return;
@@ -426,10 +287,9 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
 
     return () => {
       controller.abort();
-      subscriptionRef.current?.abort();
-      subscriptionRef.current = null;
+      if (subscriptionRef.current === controller) subscriptionRef.current = null;
     };
-  }, [enabled, refreshFiles, sessionScope, updateState]);
+  }, [enabled, monitorTask, sessionScope, updateState]);
 
   useEffect(() => {
     if (!enabled || !state.projectId || state.phase === 'failed') return undefined;
@@ -458,7 +318,8 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     if (startGuardRef.current) return;
     startGuardRef.current = true;
     subscriptionRef.current?.abort();
-    subscriptionRef.current = null;
+    const controller = new AbortController();
+    subscriptionRef.current = controller;
     const requestedAt = Date.now();
     updateState({
       aspectRatio: draft.aspectRatio,
@@ -467,11 +328,10 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
       phase: 'preparing',
       projectId: null,
       requestedAt,
-      runId: null,
+      taskId: null,
     });
 
     try {
-      const executionPromise = resolveExecutionChoice();
       const metadata: ProjectMetadata = {
         kind: 'video',
         nameSource: 'prompt',
@@ -496,144 +356,40 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
       if (!result) throw new Error('Could not create the video project.');
 
       const projectId = result.project.id;
-      const conversationId = result.conversationId;
-      writeStoredPointer(sessionScope, { projectId, conversationId });
+      writeStoredPointer(sessionScope, { projectId });
       updateState({ projectId, phase: 'uploading' });
-
       const screenshots = draft.steps
         .map((step) => step.screenshot)
         .filter((file): file is File => file instanceof File);
-      const [uploadResult, execution] = await Promise.all([
-        uploadProjectFiles(projectId, screenshots, { visibility: 'internal' }),
-        executionPromise,
-      ]);
+      const uploadResult = await uploadProjectFiles(
+        projectId,
+        screenshots,
+        { visibility: 'internal' },
+      );
       if (uploadResult.failed.length > 0) {
         throw new Error(`Could not upload ${uploadResult.failed.length} screenshot(s).`);
       }
-      const prompt = buildLoanVideoPrompt(
+      const storyboard = buildLoanVideoStoryboard(
         draft,
         uploadResult.uploaded.map((attachment) => attachment.path),
       );
-
-      const startedAt = Date.now();
-      const userMessage: ChatMessage = {
-        id: randomUUID(),
-        role: 'user',
-        content: prompt,
-        createdAt: startedAt,
-        attachments: uploadResult.uploaded,
-      };
-      await saveMessage(projectId, conversationId, userMessage);
-
-      const assistantMessageId = randomUUID();
-      let assistantMessage: ChatMessage = {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        agentId: execution.agentId,
-        events: [],
-        createdAt: startedAt,
-        startedAt,
-        runStatus: 'running',
-      };
-      let streamedText = '';
-      let persistQueue = Promise.resolve();
-      const persistAssistant = (options: { finalized?: boolean } = {}) => {
-        const snapshot = assistantMessage;
-        persistQueue = persistQueue.then(() => saveMessage(
-          projectId,
-          conversationId,
-          snapshot,
-          options.finalized ? { telemetryFinalized: true } : {},
-        ));
-      };
-      const controller = new AbortController();
-      subscriptionRef.current = controller;
-      updateState({ phase: 'queued' });
-
-      await streamViaDaemon({
-        agentId: execution.agentId,
-        history: [userMessage],
-        signal: controller.signal,
-        handlers: {
-          onDelta: (delta) => {
-            streamedText += delta;
-          },
-          onAgentEvent: (event: AgentEvent) => {
-            assistantMessage = {
-              ...assistantMessage,
-              events: [...(assistantMessage.events ?? []), event],
-            };
-          },
-          onDone: (fullText = '') => {
-            assistantMessage = {
-              ...assistantMessage,
-              content: fullText || streamedText,
-              endedAt: Date.now(),
-              runStatus: 'succeeded',
-            };
-            persistAssistant({ finalized: true });
-            updateState({ phase: 'succeeded', error: null });
-          },
-          onError: (error) => {
-            assistantMessage = {
-              ...assistantMessage,
-              endedAt: Date.now(),
-              runStatus: 'failed',
-            };
-            persistAssistant({ finalized: true });
-            updateState({ phase: 'failed', error: error.message });
-          },
-        },
-        projectId,
-        conversationId,
-        assistantMessageId,
-        clientRequestId: randomUUID(),
-        skillId: result.project.skillId ?? LOAN_VIDEO_SKILL_ID,
-        designSystemId: result.project.designSystemId ?? null,
-        attachments: uploadResult.uploaded.map((attachment) => attachment.path),
-        model: execution.model,
-        reasoning: execution.reasoning,
-        onRunCreated: (runId) => {
-          writeStoredPointer(sessionScope, { projectId, conversationId, runId });
-          assistantMessage = {
-            ...assistantMessage,
-            runId,
-            runStatus: 'queued',
-          };
-          persistAssistant();
-          updateState({ runId, phase: 'queued' });
-        },
-        onRunStatus: (status) => {
-          const terminal = status === 'succeeded' || status === 'failed' || status === 'canceled';
-          assistantMessage = {
-            ...assistantMessage,
-            runStatus: status,
-            ...(terminal ? { endedAt: assistantMessage.endedAt ?? Date.now() } : {}),
-          };
-          persistAssistant({ finalized: terminal });
-          updateState({
-            phase: status === 'canceled' ? 'failed' : status,
-            error: status === 'canceled'
-              ? 'Video generation was canceled. Submit again to retry.'
-              : status === 'failed'
-                ? 'Video generation failed. Submit again to retry.'
-                : null,
-          });
-        },
-        onRunEventId: (lastRunEventId) => {
-          assistantMessage = { ...assistantMessage, lastRunEventId };
-        },
+      const accepted = await startProjectMediaTask(projectId, {
+        clientRequestId: `loan-video-${randomUUID()}`,
+        surface: 'video',
+        model: 'hyperframes-html',
+        output: loanVideoOutputName(draft),
+        aspect: draft.aspectRatio,
+        length: draft.durationSeconds,
+        loanVideoStoryboard: storyboard,
       });
-      await persistQueue;
-      const finalFiles = await refreshFiles(projectId);
-      if (
-        stateRef.current.phase === 'succeeded'
-        && videoFiles(finalFiles).length === 0
-      ) {
-        updateState({ phase: 'failed', error: RUN_FINISHED_WITHOUT_MP4 });
-      }
+      writeStoredPointer(sessionScope, { projectId, taskId: accepted.taskId });
+      updateState({
+        taskId: accepted.taskId,
+        phase: accepted.status === 'running' ? 'running' : 'queued',
+      });
+      await monitorTask(projectId, accepted.taskId, controller.signal);
     } catch (error) {
+      if (controller.signal.aborted) return;
       updateState({
         phase: 'failed',
         error: error instanceof Error ? error.message : 'Could not submit the video task.',
@@ -641,7 +397,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     } finally {
       startGuardRef.current = false;
     }
-  }, [refreshFiles, sessionScope, updateState]);
+  }, [monitorTask, sessionScope, updateState]);
 
   const removeVideo = useCallback(async (file: ProjectFile): Promise<boolean> => {
     const projectId = stateRef.current.projectId;
@@ -661,7 +417,6 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
   }, [updateState]);
 
   const videos = videoFiles(state.files);
-
   return {
     active: activePhase(state.phase),
     latestVideo: videos[0] ?? null,

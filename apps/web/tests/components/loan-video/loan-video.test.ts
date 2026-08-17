@@ -3,9 +3,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildLoanVideoPrompt,
+  buildLoanVideoStoryboard,
   createLoanVideoStep,
   invalidateChangedLoanVideoTapTargets,
+  loanVideoOutputName,
   loanVideoProjectName,
   validateLoanVideoDraft,
 } from '../../../src/components/loan-video/loan-video';
@@ -94,63 +95,49 @@ describe('loan video draft helpers', () => {
 
   it('builds explicit v2 scenes and from/to transitions with clamped tap coordinates', () => {
     const draft = completeDraft();
-    const prompt = buildLoanVideoPrompt(draft, [
+    const storyboard = buildLoanVideoStoryboard(draft, [
       '.od-inputs/01-apply.png',
       '.od-inputs/02-details.png',
     ]);
 
-    expect(prompt).toContain('This brief is complete. Do not ask follow-up questions.');
-    expect(prompt).toContain('"version": 2');
-    expect(prompt).toContain('"id": "step-1"');
-    expect(prompt).toContain('"screenshotAttachmentIndex": 1');
-    expect(prompt).toContain('"screenshotOriginalName": "apply.png"');
-    expect(prompt).toContain('"assetRef": ".od-inputs/01-apply.png"');
-    expect(prompt).toContain('"text": "Tap Apply Now"');
-    expect(prompt).toContain('"captionEnabled": true');
-    expect(prompt).toContain('"voiceoverEnabled": true');
-    expect(prompt).toContain('"fromSceneId": "step-1"');
-    expect(prompt).toContain('"toSceneId": "step-2"');
-    expect(prompt).toContain('"type": "tap"');
-    expect(prompt).toContain('"x": 1');
-    expect(prompt).toContain('"y": 0');
-    expect(prompt).toContain('"terminal": true');
-    expect(prompt).toContain('"narration": true');
+    expect(storyboard).toMatchObject({
+      version: 2,
+      narration: true,
+      scenes: [
+        {
+          id: 'step-1',
+          screenshotAttachmentIndex: 1,
+          screenshotOriginalName: 'apply.png',
+          assetRef: '.od-inputs/01-apply.png',
+          text: 'Tap Apply Now',
+          captionEnabled: true,
+          voiceoverEnabled: true,
+        },
+        { id: 'step-2', terminal: true },
+      ],
+      transitions: [{
+        fromSceneId: 'step-1',
+        toSceneId: 'step-2',
+        action: { type: 'tap', x: 1, y: 0 },
+      }],
+    });
     expect(loanVideoProjectName(draft)).toBe('ZamLoan · How to apply');
-  });
-
-  it('locks generation to the staged fast path without runtime installs or critique loops', () => {
-    const prompt = buildLoanVideoPrompt(completeDraft(), [
-      '.od-inputs/01-apply.png',
-      '.od-inputs/02-details.png',
-    ]);
-
-    expect(prompt).toContain('Loan-video fast path');
-    expect(prompt).toContain('.od-skills/hyperframes/scripts/build-loan-video.mjs');
-    expect(prompt).toContain('.hyperframes-cache/loan-video-fast/storyboard.json');
-    expect(prompt).toContain('gpt-4o-mini-tts');
-    expect(prompt).toContain('Run exactly one final video generation');
-    expect(prompt).toContain('--composition-dir ".hyperframes-cache/loan-video-fast"');
-    expect(prompt).toContain('Do not read `SKILL.md` or any reference documentation');
-    expect(prompt).toContain('Do not run critique, validation, inspection, preview, or a second render');
-    expect(prompt).not.toContain('npx hyperframes');
-    expect(prompt).not.toContain('pip install');
-    expect(prompt).not.toContain('github.com');
+    expect(loanVideoOutputName(draft)).toBe('zamloan-how-to-apply.mp4');
   });
 
   it('requires one exact uploaded asset reference per scene', () => {
-    expect(() => buildLoanVideoPrompt(completeDraft(), ['.od-inputs/only-one.png']))
+    expect(() => buildLoanVideoStoryboard(completeDraft(), ['.od-inputs/only-one.png']))
       .toThrow('one uploaded asset reference per scene');
   });
 
   it('disables narration when no scene has voiceover enabled', () => {
     const draft = completeDraft();
     draft.steps = draft.steps.map((step) => ({ ...step, voiceoverEnabled: false }));
-    const prompt = buildLoanVideoPrompt(draft, [
+    const storyboard = buildLoanVideoStoryboard(draft, [
       '.od-inputs/01-apply.png',
       '.od-inputs/02-details.png',
     ]);
 
-    expect(prompt).toContain('"narration": false');
-    expect(prompt).toContain('Do not generate narration.');
+    expect(storyboard.narration).toBe(false);
   });
 });

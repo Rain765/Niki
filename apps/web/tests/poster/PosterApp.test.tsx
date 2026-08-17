@@ -13,6 +13,7 @@ const {
   fetchProjectFilesMock,
   getProjectMock,
   listMessagesMock,
+  listProjectMediaTasksMock,
   listProjectRunsMock,
   listProjectsMock,
   logoutMock,
@@ -22,8 +23,10 @@ const {
   savePreparedImageFileMock,
   saveMessageMock,
   startDirectLoanPosterProjectMock,
+  startProjectMediaTaskMock,
   streamViaDaemonMock,
   uploadProjectFilesMock,
+  waitForMediaTaskMock,
 } = vi.hoisted(() => ({
   copyOrSharePreparedImageFileMock: vi.fn(),
   createProjectMock: vi.fn(),
@@ -34,6 +37,7 @@ const {
   fetchProjectFilesMock: vi.fn(),
   getProjectMock: vi.fn(),
   listMessagesMock: vi.fn(),
+  listProjectMediaTasksMock: vi.fn(),
   listProjectRunsMock: vi.fn(),
   listProjectsMock: vi.fn(),
   logoutMock: vi.fn(),
@@ -43,8 +47,10 @@ const {
   savePreparedImageFileMock: vi.fn(),
   saveMessageMock: vi.fn(),
   startDirectLoanPosterProjectMock: vi.fn(),
+  startProjectMediaTaskMock: vi.fn(),
   streamViaDaemonMock: vi.fn(),
   uploadProjectFilesMock: vi.fn(),
+  waitForMediaTaskMock: vi.fn(),
 }));
 
 vi.mock('../../src/auth/NikiAuth', () => ({
@@ -64,6 +70,12 @@ vi.mock('../../src/providers/daemon', () => ({
   listProjectRuns: listProjectRunsMock,
   reattachDaemonRun: reattachDaemonRunMock,
   streamViaDaemon: streamViaDaemonMock,
+}));
+
+vi.mock('../../src/providers/media', () => ({
+  listProjectMediaTasks: listProjectMediaTasksMock,
+  startProjectMediaTask: startProjectMediaTaskMock,
+  waitForMediaTask: waitForMediaTaskMock,
 }));
 
 vi.mock('../../src/providers/registry', () => ({
@@ -152,10 +164,16 @@ beforeEach(() => {
   fetchChatRunStatusMock.mockResolvedValue(null);
   getProjectMock.mockResolvedValue(null);
   listMessagesMock.mockResolvedValue([]);
+  listProjectMediaTasksMock.mockResolvedValue({ tasks: [] });
   listProjectRunsMock.mockResolvedValue([]);
   listProjectsMock.mockResolvedValue([]);
   reattachDaemonRunMock.mockResolvedValue(undefined);
   saveMessageMock.mockResolvedValue(undefined);
+  startProjectMediaTaskMock.mockResolvedValue({
+    taskId: 'video-task-1',
+    status: 'queued',
+    startedAt: 10,
+  });
   uploadProjectFilesMock.mockResolvedValue({
     uploaded: [
       { path: '.od-inputs/generated-c.png', name: 'screen-1.png', kind: 'image' },
@@ -170,6 +188,14 @@ beforeEach(() => {
     options.onRunStatus?.('running');
     options.onRunStatus?.('succeeded');
     options.handlers.onDone('Video rendered.');
+  });
+  waitForMediaTaskMock.mockResolvedValue({
+    taskId: 'video-task-1',
+    status: 'done',
+    startedAt: 10,
+    endedAt: 20,
+    progress: [],
+    nextSince: 0,
   });
   prepareImageFileMock.mockResolvedValue(new File(['png'], 'biumoney-poster-20260804-001.png', {
     type: 'image/png',
@@ -238,7 +264,7 @@ async function fillValidVideoDraft(title = 'How to apply') {
 }
 
 describe('PosterApp mobile-safe flow', () => {
-  it('starts tutorial video generation in place and persists the first turn', async () => {
+  it('starts tutorial video generation directly without an agent turn', async () => {
     fetchProjectFilesMock.mockResolvedValue([{
       name: 'zamloan-how-to-apply.mp4',
       kind: 'video',
@@ -253,7 +279,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
-    await waitFor(() => expect(streamViaDaemonMock).toHaveBeenCalledOnce());
+    await waitFor(() => expect(startProjectMediaTaskMock).toHaveBeenCalledOnce());
     expect(window.location.href).toBe(initialHref);
     expect(createProjectMock).toHaveBeenCalledWith(expect.not.objectContaining({
       pendingPrompt: expect.anything(),
@@ -267,31 +293,24 @@ describe('PosterApp mobile-safe flow', () => {
       ]),
       { visibility: 'internal' },
     );
-    expect(saveMessageMock).toHaveBeenCalledWith(
+    expect(startProjectMediaTaskMock).toHaveBeenCalledWith(
       'video-project-1',
-      'video-conversation-1',
       expect.objectContaining({
-        role: 'user',
-        content: expect.stringMatching(
-          /How to apply[\s\S]*"assetRef": "\.od-inputs\/generated-c\.png"[\s\S]*"assetRef": "\.od-inputs\/generated-a\.png"[\s\S]*"assetRef": "\.od-inputs\/generated-b\.png"/,
-        ),
-        attachments: expect.arrayContaining([
-          expect.objectContaining({ path: '.od-inputs/generated-c.png' }),
-        ]),
+        surface: 'video',
+        model: 'hyperframes-html',
+        output: 'zamloan-how-to-apply.mp4',
+        loanVideoStoryboard: expect.objectContaining({
+          title: 'How to apply',
+          scenes: expect.arrayContaining([
+            expect.objectContaining({ assetRef: '.od-inputs/generated-c.png' }),
+            expect.objectContaining({ assetRef: '.od-inputs/generated-a.png' }),
+            expect.objectContaining({ assetRef: '.od-inputs/generated-b.png' }),
+          ]),
+        }),
       }),
     );
-    expect(streamViaDaemonMock).toHaveBeenCalledWith(expect.objectContaining({
-      agentId: 'codex',
-      projectId: 'video-project-1',
-      conversationId: 'video-conversation-1',
-      attachments: [
-        '.od-inputs/generated-c.png',
-        '.od-inputs/generated-a.png',
-        '.od-inputs/generated-b.png',
-      ],
-      model: 'gpt-5',
-      reasoning: 'medium',
-    }));
+    expect(streamViaDaemonMock).not.toHaveBeenCalled();
+    expect(saveMessageMock).not.toHaveBeenCalled();
     expect(
       (await screen.findByTestId('poster-app-video-result')).getAttribute('src'),
     ).toBe(
@@ -343,7 +362,7 @@ describe('PosterApp mobile-safe flow', () => {
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Video history' })).toBeNull());
   });
 
-  it('keeps a failed video run on the page and allows an in-place retry', async () => {
+  it('keeps a failed video task on the page and allows an in-place retry', async () => {
     let videoReady = false;
     fetchProjectFilesMock.mockImplementation(async () => videoReady
       ? [{
@@ -354,22 +373,20 @@ describe('PosterApp mobile-safe flow', () => {
           mtime: 20,
         }]
       : []);
-    streamViaDaemonMock
-      .mockImplementationOnce(async (options) => {
-        options.onRunCreated?.('video-run-failed');
-        options.onRunStatus?.('queued');
-        options.onRunStatus?.('running');
-        options.onRunStatus?.('failed');
-        options.handlers.onError(new Error('Provider rejected the video request.'));
-      })
-      .mockImplementationOnce(async (options) => {
-        options.onRunCreated?.('video-run-retry');
-        options.onRunStatus?.('queued');
-        options.onRunStatus?.('running');
-        videoReady = true;
-        options.onRunStatus?.('succeeded');
-        options.handlers.onDone('Video rendered after retry.');
-      });
+    startProjectMediaTaskMock
+      .mockRejectedValueOnce(new Error('Provider rejected the video request.'))
+      .mockResolvedValueOnce({ taskId: 'video-task-retry', status: 'queued', startedAt: 20 });
+    waitForMediaTaskMock.mockImplementation(async () => {
+      videoReady = true;
+      return {
+        taskId: 'video-task-retry',
+        status: 'done',
+        startedAt: 20,
+        endedAt: 30,
+        progress: [],
+        nextSince: 0,
+      };
+    });
     const initialHref = window.location.href;
     render(<PosterApp />);
     await fillValidVideoDraft('Retry this tutorial');
@@ -381,14 +398,14 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
-    await waitFor(() => expect(streamViaDaemonMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(startProjectMediaTaskMock).toHaveBeenCalledTimes(2));
     expect(window.location.href).toBe(initialHref);
     expect(
       (await screen.findByTestId('poster-app-video-result')).getAttribute('src'),
     ).toBe('/api/projects/video-project-1/raw/zamloan-retried-video.mp4');
   });
 
-  it('fails a succeeded run that finishes without producing an MP4', async () => {
+  it('fails a completed task that finishes without producing an MP4', async () => {
     fetchProjectFilesMock.mockResolvedValue([]);
     render(<PosterApp />);
     await fillValidVideoDraft('Missing output tutorial');
@@ -396,14 +413,14 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     expect(await screen.findByText(
-      'The generation run finished without producing an MP4. Submit again to retry.',
+      'The video task finished without producing a durable MP4. Submit again to retry.',
     )).toBeTruthy();
     expect(screen.getByTestId('poster-app-video-generation-status').className).toContain('is-failed');
     expect((screen.getByTestId('loan-video-generate') as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByTestId('poster-app-video-result')).toBeNull();
   });
 
-  it('restores a succeeded run without an MP4 as failed instead of waiting forever', async () => {
+  it('restores a completed task without an MP4 as failed instead of waiting forever', async () => {
     const restoredProject = {
       ...project,
       id: 'restored-missing-video-project',
@@ -417,23 +434,24 @@ describe('PosterApp mobile-safe flow', () => {
         videoLength: 30,
       },
     };
-    const restoredRun = {
-      id: 'restored-missing-video-run',
-      projectId: restoredProject.id,
-      conversationId: 'restored-missing-video-conversation',
-      assistantMessageId: 'restored-missing-video-assistant',
-      agentId: 'codex',
-      status: 'succeeded',
-      createdAt: 40,
-      updatedAt: 45,
+    const restoredTask = {
+      taskId: 'restored-missing-video-task',
+      status: 'done',
+      startedAt: 40,
+      endedAt: 45,
+      elapsed: 0,
+      surface: 'video',
+      model: 'hyperframes-html',
+      progress: [],
+      progressCount: 0,
+      nextSince: 0,
     } as const;
     window.localStorage.setItem('niki:loan-video:last-project:user-1', JSON.stringify({
       projectId: restoredProject.id,
-      conversationId: restoredRun.conversationId,
-      runId: restoredRun.id,
+      taskId: restoredTask.taskId,
     }));
     getProjectMock.mockResolvedValue(restoredProject);
-    fetchChatRunStatusMock.mockResolvedValue(restoredRun);
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [restoredTask] });
     fetchProjectFilesMock.mockResolvedValue([]);
     render(<PosterApp />);
 
@@ -441,7 +459,7 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
 
     expect(await screen.findByText(
-      'The generation run finished without producing an MP4. Submit again to retry.',
+      'The video task finished without producing a durable MP4. Submit again to retry.',
     )).toBeTruthy();
     expect(reattachDaemonRunMock).not.toHaveBeenCalled();
     expect(streamViaDaemonMock).not.toHaveBeenCalled();
@@ -464,25 +482,25 @@ describe('PosterApp mobile-safe flow', () => {
         videoLength: 30,
       },
     };
-    const restoredRun = {
-      id: 'restored-loading-video-run',
-      projectId: restoredProject.id,
-      conversationId: 'restored-loading-video-conversation',
-      assistantMessageId: 'restored-loading-video-assistant',
-      agentId: 'codex',
+    const restoredTask = {
+      taskId: 'restored-loading-video-task',
       status: 'running',
-      createdAt: 75_000,
-      updatedAt: 80_000,
+      startedAt: 75_000,
+      elapsed: 5,
+      surface: 'video',
+      model: 'hyperframes-html',
+      progress: [],
+      progressCount: 0,
+      nextSince: 0,
     } as const;
     window.localStorage.setItem('niki:loan-video:last-project:user-1', JSON.stringify({
       projectId: restoredProject.id,
-      conversationId: restoredRun.conversationId,
-      runId: restoredRun.id,
+      taskId: restoredTask.taskId,
     }));
     getProjectMock.mockResolvedValue(restoredProject);
-    fetchChatRunStatusMock.mockResolvedValue(restoredRun);
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [restoredTask] });
     fetchProjectFilesMock.mockResolvedValue([]);
-    reattachDaemonRunMock.mockImplementation(() => new Promise(() => {}));
+    waitForMediaTaskMock.mockImplementation(() => new Promise(() => {}));
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
@@ -497,7 +515,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(streamViaDaemonMock).not.toHaveBeenCalled();
   });
 
-  it('reattaches an active video run after refresh without posting a duplicate run', async () => {
+  it('reattaches an active video task after refresh without posting a duplicate task', async () => {
     const restoredProject = {
       ...project,
       id: 'restored-video-project',
@@ -512,33 +530,24 @@ describe('PosterApp mobile-safe flow', () => {
       },
     };
     let videoReady = false;
-    const restoredRun = {
-      id: 'restored-video-run',
-      projectId: restoredProject.id,
-      conversationId: 'restored-video-conversation',
-      assistantMessageId: 'restored-video-assistant',
-      agentId: 'codex',
+    const restoredTask = {
+      taskId: 'restored-video-task',
       status: 'running',
-      createdAt: 40,
-      updatedAt: 45,
+      startedAt: 40,
+      elapsed: 5,
+      surface: 'video',
+      model: 'hyperframes-html',
+      progress: [],
+      progressCount: 0,
+      nextSince: 0,
     } as const;
     window.localStorage.setItem('niki:loan-video:last-project:user-1', JSON.stringify({
       projectId: restoredProject.id,
-      conversationId: restoredRun.conversationId,
-      runId: restoredRun.id,
+      taskId: restoredTask.taskId,
     }));
     getProjectMock.mockResolvedValue(restoredProject);
-    fetchChatRunStatusMock.mockResolvedValue(restoredRun);
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [restoredTask] });
     listProjectsMock.mockResolvedValue([]);
-    listProjectRunsMock.mockResolvedValue([]);
-    listMessagesMock.mockResolvedValue([{
-      id: 'restored-video-assistant',
-      role: 'assistant',
-      content: '',
-      runId: 'restored-video-run',
-      runStatus: 'running',
-      createdAt: 40,
-    }]);
     fetchProjectFilesMock.mockImplementation(async () => videoReady
       ? [{
           name: 'restored-video.mp4',
@@ -548,19 +557,24 @@ describe('PosterApp mobile-safe flow', () => {
           mtime: 60,
         }]
       : []);
-    reattachDaemonRunMock.mockImplementation(async (options) => {
-      options.onRunStatus?.('running');
+    waitForMediaTaskMock.mockImplementation(async () => {
       videoReady = true;
-      options.onRunStatus?.('succeeded');
-      options.handlers.onDone('Restored video rendered.');
+      return {
+        taskId: restoredTask.taskId,
+        status: 'done',
+        startedAt: 40,
+        endedAt: 45,
+        progress: [],
+        nextSince: 0,
+      };
     });
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
     fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
 
-    await waitFor(() => expect(reattachDaemonRunMock).toHaveBeenCalledOnce());
-    expect(streamViaDaemonMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(waitForMediaTaskMock).toHaveBeenCalledOnce());
+    expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
     expect(createProjectMock).not.toHaveBeenCalled();
     expect(
       (await screen.findByTestId('poster-app-video-result')).getAttribute('src'),

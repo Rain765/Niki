@@ -65,6 +65,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'voice',
   'audio-kind',
   'composition-dir',
+  'storyboard-file',
   'image',
   'overlay-z',
   'overlay-logo',
@@ -786,6 +787,15 @@ async function runMediaGenerate(rawArgs) {
     prompt: flags['foreground-prompt'],
     'prompt-file': flags['foreground-prompt-file'],
   });
+  let loanVideoStoryboard;
+  if (flags['storyboard-file']) {
+    try {
+      loanVideoStoryboard = JSON.parse(await readSecretFile(flags['storyboard-file']));
+    } catch (error) {
+      console.error(`could not read --storyboard-file: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(2);
+    }
+  }
   const body = {
     surface,
     model: flags.model,
@@ -805,6 +815,7 @@ async function runMediaGenerate(rawArgs) {
     posterSubtitle: flags['poster-subtitle'],
     posterTextAnchor: flags['poster-text-anchor'],
     language: flags.language,
+    ...(loanVideoStoryboard ? { loanVideoStoryboard } : {}),
   };
   if (flags.length != null) body.length = Number(flags.length);
   if (flags.duration != null) body.duration = Number(flags.duration);
@@ -1301,6 +1312,10 @@ Common options:
                             to the dir containing hyperframes.json /
                             meta.json / index.html. The daemon runs
                             its bundled HyperFrames renderer against it.
+  --storyboard-file <path|-> hyperframes-html tutorial mode — read a structured
+                            loan-video storyboard from JSON and let the daemon
+                            build the composition before rendering. This avoids
+                            a planning-agent round trip.
   --image <path>            Project-relative path to a reference image
                             (image-to-video for Seedance i2v models, or
                             future image-edit endpoints). Daemon reads

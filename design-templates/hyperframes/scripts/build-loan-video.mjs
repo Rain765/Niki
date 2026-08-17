@@ -197,6 +197,7 @@ async function writeSafeOutputFile(root, target, contents, label) {
 
 function parseArgs(argv) {
   let storyboard = '';
+  let allowSilentFallback = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--storyboard') {
@@ -204,15 +205,22 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+    if (arg === '--allow-silent-fallback') {
+      allowSilentFallback = true;
+      continue;
+    }
     if (arg === '--help' || arg === '-h') {
       process.stdout.write(
-        'Usage: "$OD_NODE_BIN" build-loan-video.mjs --storyboard <project-relative-json>\n',
+        'Usage: "$OD_NODE_BIN" build-loan-video.mjs --storyboard <project-relative-json> [--allow-silent-fallback]\n',
       );
       process.exit(0);
     }
     fail(`unsupported argument: ${arg}`);
   }
-  return { storyboard: cleanString(storyboard, '--storyboard') };
+  return {
+    allowSilentFallback,
+    storyboard: cleanString(storyboard, '--storyboard'),
+  };
 }
 
 function normalizeStoryboard(raw) {
@@ -755,7 +763,10 @@ async function runMediaToCompletion(projectDir, generateArgs) {
 }
 
 async function build() {
-  const { storyboard: storyboardPathArg } = parseArgs(process.argv.slice(2));
+  const {
+    allowSilentFallback,
+    storyboard: storyboardPathArg,
+  } = parseArgs(process.argv.slice(2));
   const projectDir = path.resolve(cleanString(process.env.OD_PROJECT_DIR, 'OD_PROJECT_DIR'));
   const storyboardPath = resolveInside(projectDir, storyboardPathArg, '--storyboard');
   const realStoryboardPath = await realFileInside(projectDir, storyboardPath, '--storyboard');
@@ -796,6 +807,7 @@ async function build() {
 
   const narrationDir = path.join(compositionDir, 'narration');
   let audioClips = [];
+  const warnings = [];
   if (storyboard.narration) {
     await ensureSafeOutputDirectory(projectDir, narrationDir, 'composition narration directory');
     const narratedScenes = storyboard.scenes
@@ -831,28 +843,40 @@ async function build() {
         );
         const generatedOutputName = `loan-video-fast-narration-scene-${number}.mp3`;
         await unlink(path.join(projectDir, generatedOutputName)).catch(() => {});
-        const file = await runMediaToCompletion(projectDir, [
-          '--surface',
-          'audio',
-          '--audio-kind',
-          'speech',
-          '--model',
-          'gpt-4o-mini-tts',
-          '--prompt-file',
-          narrationRelativePath,
-          '--voice',
-          'Warm, clear mobile tutorial narration. Speak at a measured pace.',
-          '--output',
-          generatedOutputName,
-        ]);
-        const generatedAudioPath = resolveInside(
+        const generatedAudioPath = path.join(projectDir, generatedOutputName);
+        let file;
+        try {
+          file = await runMediaToCompletion(projectDir, [
+            '--surface',
+            'audio',
+            '--audio-kind',
+            'speech',
+            '--model',
+            'tts-1',
+            '--prompt-file',
+            narrationRelativePath,
+            '--voice',
+            'alloy',
+            '--output',
+            generatedOutputName,
+          ]);
+        } catch (error) {
+          if (!allowSilentFallback) throw error;
+          const message = error instanceof Error ? error.message : String(error);
+          warnings.push(
+            `Scene ${index + 1} narration unavailable; rendered captions only: ${message}`,
+          );
+          await unlink(generatedAudioPath).catch(() => {});
+          return null;
+        }
+        const resolvedGeneratedAudioPath = resolveInside(
           projectDir,
           cleanString(file.name, 'generated audio filename'),
           'generated audio',
         );
         const realGeneratedAudioPath = await realFileInside(
           projectDir,
-          generatedAudioPath,
+          resolvedGeneratedAudioPath,
           'generated audio',
         );
         const source = `narration/scene-${number}.mp3`;
@@ -863,7 +887,7 @@ async function build() {
           await readFile(realGeneratedAudioPath),
           `scene ${index + 1} narration audio`,
         );
-        await unlink(generatedAudioPath);
+        await unlink(resolvedGeneratedAudioPath);
         const audioStat = await stat(audioTarget);
         if (audioStat.size === 0) fail(`daemon TTS returned an empty file for scene ${index + 1}`);
         return {
@@ -872,7 +896,7 @@ async function build() {
           source,
         };
       },
-    );
+    ).then((clips) => clips.filter(Boolean));
   }
 
   const scaffoldPath = fileURLToPath(new URL('../assets/loan-video-scaffold.html', import.meta.url));
@@ -962,10 +986,11 @@ async function build() {
   process.stdout.write(`${JSON.stringify({
     compositionDir: COMPOSITION_RELATIVE_DIR,
     durationSeconds,
-    narration: storyboard.narration,
+    narration: audioClips.length > 0,
     scenes: storyboard.scenes.length,
     size: `${storyboard.aspect.width}x${storyboard.aspect.height}`,
     version: storyboard.version,
+    warnings,
   })}\n`);
 }
 

@@ -1,9 +1,17 @@
 import type http from 'node:http';
+import path from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { closeDatabase, insertProject, openDatabase } from '../src/db.js';
 import { insertMediaTask } from '../src/media-tasks.js';
+import { readProjectFile } from '../src/projects.js';
 import { startServer } from '../src/server.js';
+
+const ONE_PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=',
+  'base64',
+);
 
 describe('media task route recovery', () => {
   let server: http.Server | null = null;
@@ -65,4 +73,116 @@ describe('media task route recovery', () => {
       message: 'media task interrupted by daemon restart',
     });
   });
+
+  it('builds and persists a tutorial MP4 directly from a storyboard media task', async () => {
+    const dataDir = process.env.OD_DATA_DIR;
+    if (!dataDir) throw new Error('OD_DATA_DIR is required for daemon tests');
+    const projectsRoot = path.join(dataDir, 'projects');
+    const db = openDatabase(process.cwd(), { dataDir });
+    const projectId = `project_${randomUUID()}`;
+    const now = Date.now();
+
+    insertProject(db, {
+      id: projectId,
+      name: 'Direct tutorial video',
+      createdAt: now,
+      updatedAt: now,
+      metadata: {
+        kind: 'video',
+        videoModel: 'hyperframes-html',
+        videoAspect: '1:1',
+        videoLength: 1,
+      },
+    });
+    const inputsDir = path.join(projectsRoot, projectId, '.od-inputs');
+    await mkdir(inputsDir, { recursive: true });
+    for (let index = 1; index <= 3; index += 1) {
+      await writeFile(path.join(inputsDir, `scene-${index}.png`), ONE_PIXEL_PNG);
+    }
+
+    const started = await startServer({ port: 0, returnServer: true }) as {
+      url: string;
+      server: http.Server;
+    };
+    server = started.server;
+
+    const response = await fetch(`${started.url}/api/projects/${projectId}/media/generate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        clientRequestId: `loan-video-${randomUUID()}`,
+        surface: 'video',
+        model: 'hyperframes-html',
+        output: 'direct-tutorial.mp4',
+        aspect: '1:1',
+        length: 1,
+        loanVideoStoryboard: {
+          version: 2,
+          title: 'How to apply',
+          product: 'zamloan',
+          language: 'en',
+          aspectRatio: '1:1',
+          durationSeconds: 1,
+          narration: false,
+          subtitles: true,
+          scenes: [1, 2, 3].map((index) => ({
+            id: `step-${index}`,
+            index,
+            screenshotAttachmentIndex: index,
+            screenshotOriginalName: `scene-${index}.png`,
+            assetRef: `.od-inputs/scene-${index}.png`,
+            text: `Step ${index}`,
+            captionEnabled: true,
+            voiceoverEnabled: false,
+            terminal: index === 3,
+          })),
+          transitions: [
+            {
+              fromSceneId: 'step-1',
+              toSceneId: 'step-2',
+              action: { type: 'tap', x: 0.5, y: 0.75 },
+            },
+            {
+              fromSceneId: 'step-2',
+              toSceneId: 'step-3',
+              action: { type: 'auto' },
+            },
+          ],
+        },
+      }),
+    });
+    expect(response.status).toBe(202);
+    const accepted = await response.json() as { taskId: string };
+
+    type TaskSnapshot = {
+      status?: string;
+      file?: { name?: string; size?: number };
+      error?: { message?: string };
+      nextSince?: number;
+    };
+    let terminal: TaskSnapshot | null = null;
+    let since = 0;
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      const waitResponse = await fetch(
+        `${started.url}/api/media/tasks/${encodeURIComponent(accepted.taskId)}/wait`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ since, timeoutMs: 5_000 }),
+        },
+      );
+      terminal = await waitResponse.json() as TaskSnapshot;
+      since = terminal?.nextSince ?? since;
+      if (terminal?.status === 'done' || terminal?.status === 'failed') break;
+    }
+
+    expect(terminal).toMatchObject({
+      status: 'done',
+      file: { name: 'direct-tutorial.mp4' },
+    });
+    expect(terminal?.file?.size).toBeGreaterThan(0);
+    const persisted = await readProjectFile(projectsRoot, projectId, 'direct-tutorial.mp4');
+    expect(persisted.size).toBe(terminal?.file?.size);
+  }, 120_000);
 });

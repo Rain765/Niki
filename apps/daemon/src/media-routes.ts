@@ -7,6 +7,10 @@ import {
   NikiQuotaExceededError,
 } from './niki-quota.js';
 import type { RouteDeps } from './server-context.js';
+import {
+  normalizeLoanVideoStoryboard,
+  prepareLoanVideoComposition,
+} from './loan-video.js';
 
 export interface RegisterMediaRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'ids' | 'media' | 'appConfig' | 'orbit' | 'nativeDialogs' | 'projectStore' | 'projectFiles' | 'conversations' | 'research'> {}
 
@@ -79,14 +83,20 @@ export function resolveMediaGenerationTaskAdmission<T extends MediaTaskAdmission
 export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) {
   const { db } = ctx;
   const { sendApiError, requireLocalDaemonRequest, isLocalSameOrigin, resolvedPortRef } = ctx.http;
-  const { PROJECT_ROOT, PROJECTS_DIR, RUNTIME_DATA_DIR } = ctx.paths;
+  const {
+    PROJECT_ROOT,
+    PROJECTS_DIR,
+    RUNTIME_DATA_DIR,
+    DESIGN_TEMPLATES_DIR,
+    OD_BIN,
+  } = ctx.paths;
   const { randomUUID } = ctx.ids;
   const { MEDIA_PROVIDERS, IMAGE_MODELS, VIDEO_MODELS, AUDIO_MODELS_BY_KIND, MEDIA_ASPECTS, VIDEO_LENGTHS_SEC, AUDIO_DURATIONS_SEC, readMaskedConfig, writeConfig, generateMedia, createMediaTask, persistMediaTask, appendTaskProgress, notifyTaskWaiters, getLiveMediaTask, mediaTaskSnapshot, listMediaTasksByProject, reconcileDirectLoanPosterProject, listElevenLabsVoiceOptions } = ctx.media;
   const { readAppConfig, writeAppConfig } = ctx.appConfig;
   const { orbitService } = ctx.orbit;
   const { openNativeFolderDialog } = ctx.nativeDialogs;
   const { getProject } = ctx.projectStore;
-  const { writeProjectFile } = ctx.projectFiles;
+  const { resolveProjectDir, writeProjectFile } = ctx.projectFiles;
   const { insertConversation, upsertMessage } = ctx.conversations;
   const { searchResearch, ResearchError } = ctx.research;
   const getResolvedPort = () => resolvedPortRef.current;
@@ -228,6 +238,18 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       const projectId = req.params.id;
       const project = getProject(db, projectId);
       if (!project) return res.status(404).json({ error: 'project not found' });
+      const loanVideoStoryboard = req.body?.loanVideoStoryboard === undefined
+        ? null
+        : normalizeLoanVideoStoryboard(req.body.loanVideoStoryboard);
+      if (
+        loanVideoStoryboard
+        && (req.body?.surface !== 'video' || req.body?.model !== 'hyperframes-html')
+      ) {
+        return res.status(400).json({
+          error: 'loanVideoStoryboard requires surface=video and model=hyperframes-html',
+          code: 'invalid_loan_video_media_target',
+        });
+      }
       const nikiUser = currentNikiUser();
       if (nikiUser) {
         await assertNikiGenerationAllowed(
@@ -269,42 +291,67 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
 
       task.status = 'running';
       persistMediaTask(task);
-      generateMedia({
-        projectRoot: PROJECT_ROOT,
-        projectsRoot: PROJECTS_DIR,
-        projectId,
-        surface: req.body?.surface,
-        model: req.body?.model,
-        prompt: req.body?.prompt,
-        output: req.body?.output,
-        aspect: req.body?.aspect,
-        quality: req.body?.quality,
-        loanPosterOutput:
-          project.metadata?.directGeneration?.kind === 'loan-poster',
-        length:
-          typeof req.body?.length === 'number' ? req.body.length : undefined,
-        duration:
-          typeof req.body?.duration === 'number'
-            ? req.body.duration
-            : undefined,
-        voice: req.body?.voice,
-        audioKind: req.body?.audioKind,
-        language: typeof req.body?.language === 'string' ? req.body.language : undefined,
-        loop: typeof req.body?.loop === 'boolean' ? req.body.loop : undefined,
-        promptInfluence: typeof req.body?.promptInfluence === 'number'
-          ? req.body.promptInfluence
-          : undefined,
-        compositionDir: req.body?.compositionDir,
-        image: req.body?.image,
-        overlayZ: req.body?.overlayZ,
-        overlayLogo: req.body?.overlayLogo,
-        overlayLogoAnchor: req.body?.overlayLogoAnchor,
-        foregroundPrompt: req.body?.foregroundPrompt,
-        posterHeadline: req.body?.posterHeadline,
-        posterSubtitle: req.body?.posterSubtitle,
-        posterTextAnchor: req.body?.posterTextAnchor,
-        onProgress: (line: any) => appendTaskProgress(task, line),
-      })
+      const prepareComposition = loanVideoStoryboard
+        ? prepareLoanVideoComposition({
+            projectDir: resolveProjectDir(PROJECTS_DIR, projectId, project.metadata),
+            projectId,
+            storyboard: loanVideoStoryboard,
+            designTemplatesDir: DESIGN_TEMPLATES_DIR,
+            odBin: OD_BIN,
+            onProgress: (line) => appendTaskProgress(task, line),
+          })
+        : Promise.resolve(null);
+      prepareComposition
+        .then(async (prepared) => {
+          if (prepared) {
+            appendTaskProgress(
+              task,
+              `Prepared ${prepared.scenes} tutorial scenes at ${prepared.size}`,
+            );
+          }
+          const meta = await generateMedia({
+            projectRoot: PROJECT_ROOT,
+            projectsRoot: PROJECTS_DIR,
+            projectId,
+            surface: req.body?.surface,
+            model: req.body?.model,
+            prompt: req.body?.prompt,
+            output: req.body?.output,
+            aspect: loanVideoStoryboard?.aspectRatio ?? req.body?.aspect,
+            quality: req.body?.quality,
+            loanPosterOutput:
+              project.metadata?.directGeneration?.kind === 'loan-poster',
+            length: loanVideoStoryboard?.durationSeconds
+              ?? (typeof req.body?.length === 'number' ? req.body.length : undefined),
+            duration:
+              typeof req.body?.duration === 'number'
+                ? req.body.duration
+                : undefined,
+            voice: req.body?.voice,
+            audioKind: req.body?.audioKind,
+            language: typeof req.body?.language === 'string' ? req.body.language : undefined,
+            loop: typeof req.body?.loop === 'boolean' ? req.body.loop : undefined,
+            promptInfluence: typeof req.body?.promptInfluence === 'number'
+              ? req.body.promptInfluence
+              : undefined,
+            compositionDir: prepared?.compositionDir
+              ?? req.body?.compositionDir,
+            image: req.body?.image,
+            overlayZ: req.body?.overlayZ,
+            overlayLogo: req.body?.overlayLogo,
+            overlayLogoAnchor: req.body?.overlayLogoAnchor,
+            foregroundPrompt: req.body?.foregroundPrompt,
+            posterHeadline: req.body?.posterHeadline,
+            posterSubtitle: req.body?.posterSubtitle,
+            posterTextAnchor: req.body?.posterTextAnchor,
+            onProgress: (line: any) => appendTaskProgress(task, line),
+          });
+          if (!prepared?.warnings.length) return meta;
+          return {
+            ...meta,
+            warnings: [...(Array.isArray(meta.warnings) ? meta.warnings : []), ...prepared.warnings],
+          };
+        })
         .then((meta: any) => {
           task.status = 'done';
           task.file = meta;
@@ -415,12 +462,15 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   });
 
   app.post('/api/media/tasks/:id/wait', async (req, res) => {
-    if (!isLocalSameOrigin(req, getResolvedPort())) {
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
       return res.status(403).json({ error: 'cross-origin request rejected' });
     }
     const taskId = req.params.id;
     const task = getLiveMediaTask(taskId);
     if (!task) return res.status(404).json({ error: 'task not found' });
+    if (currentNikiUser() && !getProject(db, task.projectId)) {
+      return res.status(404).json({ error: 'task not found' });
+    }
 
     const since = Number.isFinite(req.body?.since) ? Number(req.body.since) : 0;
     const requestedTimeout = Number.isFinite(req.body?.timeoutMs)
@@ -456,27 +506,31 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   });
 
   app.get('/api/projects/:id/media/tasks', (req, res) => {
-    if (!isLocalSameOrigin(req, getResolvedPort())) {
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
       return res.status(403).json({ error: 'cross-origin request rejected' });
     }
     const projectId = req.params.id;
+    if (!getProject(db, projectId)) {
+      return res.status(404).json({ error: 'project not found' });
+    }
     const includeDone =
       req.query.includeDone === '1' || req.query.includeDone === 'true';
     const tasks = listMediaTasksByProject(db, projectId, {
       includeTerminal: includeDone,
     }).map((t: any) => ({
-        taskId: t.id,
-        status: t.status,
-        startedAt: t.startedAt,
-        endedAt: t.endedAt,
-        elapsed: Math.round(((t.endedAt ?? Date.now()) - t.startedAt) / 1000),
-        surface: t.surface,
-        model: t.model,
-        progress: t.progress.slice(-3),
-        progressCount: t.progress.length,
-        ...(t.status === 'done' ? { file: t.file } : {}),
-        ...(t.status === 'failed' || t.status === 'interrupted' ? { error: t.error } : {}),
-      }));
+      taskId: t.id,
+      status: t.status,
+      startedAt: t.startedAt,
+      endedAt: t.endedAt,
+      elapsed: Math.round(((t.endedAt ?? Date.now()) - t.startedAt) / 1000),
+      surface: t.surface,
+      model: t.model,
+      progress: t.progress.slice(-3),
+      progressCount: t.progress.length,
+      nextSince: t.progress.length,
+      ...(t.status === 'done' ? { file: t.file } : {}),
+      ...(t.status === 'failed' || t.status === 'interrupted' ? { error: t.error } : {}),
+    }));
     res.json({ tasks });
   });
 

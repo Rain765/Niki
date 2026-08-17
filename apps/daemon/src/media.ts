@@ -40,7 +40,7 @@
 // so the CLI can exit non-zero and the agent can't silently narrate the
 // placeholder as the final result.
 
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, stat, unlink, writeFile } from 'node:fs/promises';
 import { execFile as execFileCb, spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -1465,7 +1465,16 @@ export async function generateMedia(args: {
     });
   }
   const finalTarget = path.join(dir, finalOut);
-  await writeFile(finalTarget, bytes);
+  const temporaryTarget = path.join(
+    dir,
+    `.${path.basename(finalOut)}.${process.pid}.${Date.now()}.tmp`,
+  );
+  try {
+    await writeFile(temporaryTarget, bytes);
+    await rename(temporaryTarget, finalTarget);
+  } finally {
+    await unlink(temporaryTarget).catch(() => {});
+  }
   const st = await stat(finalTarget);
   return {
     name: finalOut,

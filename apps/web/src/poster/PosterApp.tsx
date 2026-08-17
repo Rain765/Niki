@@ -124,7 +124,7 @@ function videoGenerationCopy(
   state: 'idle' | 'working' | 'complete' | 'failed';
   title: string;
 } {
-  if (phase === 'failed' || phase === 'canceled') {
+  if (phase === 'failed') {
     return {
       state: 'failed',
       title: 'Video generation did not finish',
@@ -142,7 +142,7 @@ function videoGenerationCopy(
     restoring: ['Loading recent video…', 'Checking the latest project and run.'],
     preparing: ['Preparing video project', 'Creating a durable project for this tutorial.'],
     uploading: ['Uploading screenshots', 'Adding the ordered screenshots to the project.'],
-    queued: ['Video generation queued', 'The generation agent will start shortly.'],
+    queued: ['Video generation queued', 'The rendering task will start shortly.'],
     running: ['Generating tutorial video', 'The task is running. The MP4 will appear here automatically.'],
     succeeded: ['Finishing tutorial video', 'The run finished. Waiting for the MP4 to appear.'],
   };
@@ -322,7 +322,7 @@ export function PosterApp() {
   const videoStatusKey = [
     videoStatus.state,
     videoGeneration.state.projectId ?? 'none',
-    videoGeneration.state.runId ?? 'none',
+    videoGeneration.state.taskId ?? 'none',
     videoGeneration.latestVideo?.name ?? 'none',
     videoGeneration.latestVideo?.mtime ?? 0,
     videoStatus.title,
