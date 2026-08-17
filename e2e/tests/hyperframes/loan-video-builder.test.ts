@@ -279,6 +279,12 @@ describe('loan-video fixed HyperFrames builder', () => {
       'utf8',
     );
     const manifest = readManifest(html);
+    const hand = PNG.sync.read(await readFile(
+      path.join(
+        projectDir,
+        '.hyperframes-cache/loan-video-fast/assets/tutorial-dark-hand.png',
+      ),
+    ));
 
     expect(manifest.version).toBe(2);
     expect(manifest.scenes.map((scene) => scene.transition.type))
@@ -326,6 +332,11 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toContain('data-loan-video-current');
     expect(html).toContain('data-loan-video-target');
     expect(html).toContain('data-loan-video-tap');
+    expect(html).toContain('data-loan-video-hand');
+    expect(html).toContain('assets/tutorial-dark-hand.png');
+    expect(html).toContain('const handWidthRatio = 0.22;');
+    expect(hand).toMatchObject({ width: 1254, height: 1254 });
+    expect(hand.data[3]).toBe(0);
     expect(html).not.toContain('<section id="scene-');
     expect(html).not.toContain('aspect-ratio: 3 / 4');
     expect(html).toContain('object-fit: contain');
