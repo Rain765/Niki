@@ -148,11 +148,18 @@ type LoanVideoManifest = {
     durationSeconds: number;
     sceneIndexes: number[];
   };
+  backgroundAsset?: string | null;
   durationSeconds: number;
   scenes: Array<{
     asset: string;
     caption: string | null;
     duration: number;
+    focusTargets?: Array<{
+      height: number;
+      width: number;
+      x: number;
+      y: number;
+    }>;
     keyframes: {
       currentAt: number;
       pointerStartAt: number | null;
@@ -167,9 +174,12 @@ type LoanVideoManifest = {
       start: number | null;
       targetSceneIndex: number | null;
       type: 'auto' | 'none' | 'tap';
+      height?: number;
+      width?: number;
       x?: number;
       y?: number;
     };
+    presentation?: 'device' | 'full';
     start: number;
   }>;
   subtitles: boolean;
@@ -328,13 +338,14 @@ describe('loan-video fixed HyperFrames builder', () => {
       .toBeCloseTo(0.28, 5);
     expect(manifest.scenes[1]!.transition.start! - manifest.scenes[1]!.keyframes.responseAt!)
       .toBeCloseTo(0.12, 5);
-    expect(html.match(/data-loan-video-background/g)).toHaveLength(1);
+    expect(html.match(/<div class="tutorial-background" data-loan-video-background/g))
+      .toHaveLength(1);
     expect(html).toContain('data-loan-video-current');
     expect(html).toContain('data-loan-video-target');
     expect(html).toContain('data-loan-video-tap');
     expect(html).toContain('data-loan-video-hand');
     expect(html).toContain('assets/tutorial-dark-hand.png');
-    expect(html).toContain('const handWidthRatio = 0.22;');
+    expect(html).toContain('const handWidthRatio = 0.46;');
     expect(hand).toMatchObject({ width: 1254, height: 1254 });
     expect(hand.data[3]).toBe(0);
     expect(html).not.toContain('<section id="scene-');
@@ -348,6 +359,70 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toMatch(
       /<div class="tutorial__camera">[\s\S]*data-loan-video-tap[\s\S]*?<\/div>/,
     );
+  });
+
+  it('keeps a supplied tutorial background fixed while full-frame and device scenes transition', async () => {
+    const projectDir = await createProjectFixture({
+      aspectRatio: '3:4',
+      narration: false,
+      sceneCount: 3,
+      version: 2,
+    });
+    const backgroundName = '1700000000000-tutorial-background.png';
+    const background = new PNG({ width: 60, height: 80 });
+    background.data.fill(28);
+    await writeFile(
+      path.join(projectDir, '.od-inputs', backgroundName),
+      PNG.sync.write(background),
+    );
+    const storyboardPath = path.join(projectDir, STORYBOARD_RELATIVE_PATH);
+    const storyboard = JSON.parse(await readFile(storyboardPath, 'utf8')) as {
+      backgroundRef?: string;
+      scenes: Array<Record<string, unknown>>;
+      transitions: Array<{ action: Record<string, unknown> }>;
+    };
+    storyboard.backgroundRef = `.od-inputs/${backgroundName}`;
+    storyboard.scenes[0]!.presentation = 'full';
+    storyboard.scenes[1]!.presentation = 'device';
+    storyboard.scenes[1]!.focusTargets = [
+      { x: 0.31, y: 0.24, width: 0.42, height: 0.06 },
+    ];
+    storyboard.scenes[2]!.presentation = 'full';
+    storyboard.transitions[1]!.action = {
+      type: 'tap',
+      x: 0.5,
+      y: 0.91,
+      width: 0.82,
+      height: 0.055,
+    };
+    await writeFile(storyboardPath, JSON.stringify(storyboard), 'utf8');
+
+    await runBuilder(projectDir);
+    const compositionDir = path.join(projectDir, '.hyperframes-cache/loan-video-fast');
+    const html = await readFile(path.join(compositionDir, 'index.html'), 'utf8');
+    const manifest = readManifest(html);
+    const copiedBackground = PNG.sync.read(await readFile(
+      path.join(compositionDir, 'assets/tutorial-background.png'),
+    ));
+
+    expect(copiedBackground).toMatchObject({ width: 60, height: 80 });
+    expect(manifest.backgroundAsset).toBe('assets/tutorial-background.png');
+    expect(manifest.scenes.map((scene) => scene.presentation))
+      .toEqual(['full', 'device', 'full']);
+    expect(manifest.scenes[1]?.focusTargets).toEqual([
+      { x: 0.31, y: 0.24, width: 0.42, height: 0.06 },
+    ]);
+    expect(manifest.scenes[1]?.transition).toMatchObject({
+      type: 'tap',
+      width: 0.82,
+      height: 0.055,
+    });
+    expect(html).toContain('data-loan-video-background-image');
+    expect(html.match(/<img class="tutorial-background__image" data-loan-video-background-image/g))
+      .toHaveLength(1);
+    expect(html).toContain('data-loan-video-focus-layer');
+    expect(html).toContain('data-loan-video-press');
+    expect(html).not.toContain('tutorial-background__image--target');
   });
 
   it('copies v2 screenshots by assetRef when upload timestamps and lexical order collide', async () => {

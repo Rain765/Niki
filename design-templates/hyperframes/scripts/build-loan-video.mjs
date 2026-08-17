@@ -275,11 +275,48 @@ function normalizeStoryboard(raw) {
     if ((captionEnabled || voiceoverEnabled) && !text) {
       fail(`storyboard.scenes[${index}].text must be non-empty when caption or voiceover is enabled`);
     }
+    const presentation = scene.presentation === undefined
+      ? 'full'
+      : cleanString(scene.presentation, `storyboard.scenes[${index}].presentation`);
+    if (presentation !== 'full' && presentation !== 'device') {
+      fail(`storyboard.scenes[${index}].presentation must be full or device`);
+    }
+    const rawFocusTargets = scene.focusTargets ?? [];
+    if (!Array.isArray(rawFocusTargets)) {
+      fail(`storyboard.scenes[${index}].focusTargets must be an array`);
+    }
+    if (rawFocusTargets.length > 12) {
+      fail(`storyboard.scenes[${index}].focusTargets cannot exceed 12 entries`);
+    }
+    const focusTargets = rawFocusTargets.map((target, targetIndex) => {
+      if (!target || typeof target !== 'object' || Array.isArray(target)) {
+        fail(`storyboard.scenes[${index}].focusTargets[${targetIndex}] must be an object`);
+      }
+      const x = clamp(finiteNumber(
+        target.x,
+        `storyboard.scenes[${index}].focusTargets[${targetIndex}].x`,
+      ), 0, 0.995);
+      const y = clamp(finiteNumber(
+        target.y,
+        `storyboard.scenes[${index}].focusTargets[${targetIndex}].y`,
+      ), 0, 0.995);
+      const width = clamp(finiteNumber(
+        target.width,
+        `storyboard.scenes[${index}].focusTargets[${targetIndex}].width`,
+      ), 0.005, 1 - x);
+      const height = clamp(finiteNumber(
+        target.height,
+        `storyboard.scenes[${index}].focusTargets[${targetIndex}].height`,
+      ), 0.005, 1 - y);
+      return { x, y, width, height };
+    });
     return {
       id,
       assetRef: cleanString(scene.assetRef, `storyboard.scenes[${index}].assetRef`),
       caption: text,
       captionEnabled,
+      focusTargets,
+      presentation,
       voiceover: text,
       voiceoverEnabled,
       sourceTransition: scene.transition,
@@ -319,12 +356,27 @@ function normalizeStoryboard(raw) {
       return { type: 'auto', targetSceneIndex };
     }
     if (action.type === 'tap') {
-      return {
+      const normalized = {
         type: 'tap',
         targetSceneIndex,
         x: clamp(finiteNumber(action.x, `storyboard scene ${index + 1} tap x`), 0, 1),
         y: clamp(finiteNumber(action.y, `storyboard scene ${index + 1} tap y`), 0, 1),
       };
+      if (action.width !== undefined) {
+        normalized.width = clamp(
+          finiteNumber(action.width, `storyboard scene ${index + 1} tap width`),
+          0.01,
+          1,
+        );
+      }
+      if (action.height !== undefined) {
+        normalized.height = clamp(
+          finiteNumber(action.height, `storyboard scene ${index + 1} tap height`),
+          0.01,
+          1,
+        );
+      }
+      return normalized;
     }
     fail(`storyboard transition from scene ${index + 1} has unsupported action type`);
   }
@@ -380,6 +432,9 @@ function normalizeStoryboard(raw) {
     language,
     aspectRatio,
     aspect,
+    backgroundRef: version === 2 && raw.backgroundRef !== undefined
+      ? cleanString(raw.backgroundRef, 'storyboard.backgroundRef')
+      : null,
     durationSeconds,
     narration: raw.narration === true
       && scenes.some((scene) => scene.voiceoverEnabled && scene.voiceover),
@@ -412,42 +467,41 @@ async function discoverScreenshotPaths(projectDir, expectedCount) {
   }));
 }
 
+async function resolveInputAsset(projectDir, assetRef, label) {
+  const inputDir = path.resolve(projectDir, '.od-inputs');
+  const realInputDir = await realDirectoryInside(projectDir, inputDir, '.od-inputs');
+  if (path.isAbsolute(assetRef)) fail(`${label} must be project-relative`);
+  const resolved = resolveInside(projectDir, assetRef, label);
+  const relativeToInputs = path.relative(inputDir, resolved);
+  if (
+    !relativeToInputs
+    || relativeToInputs === '..'
+    || relativeToInputs.startsWith(`..${path.sep}`)
+    || path.isAbsolute(relativeToInputs)
+  ) {
+    fail(`${label} must reference a file in .od-inputs`);
+  }
+  if (!IMAGE_EXTENSIONS.has(path.extname(resolved).toLowerCase())) {
+    fail(`${label} must reference a supported image`);
+  }
+  const realAsset = await realFileInside(projectDir, resolved, label);
+  if (!isPathInside(realInputDir, realAsset)) fail(`${label} resolves outside the project directory`);
+  if (!IMAGE_EXTENSIONS.has(path.extname(realAsset).toLowerCase())) {
+    fail(`${label} must resolve to a supported image`);
+  }
+  return realAsset;
+}
+
 async function resolveScreenshotPaths(projectDir, storyboard) {
   if (storyboard.version === 1) {
     return discoverScreenshotPaths(projectDir, storyboard.scenes.length);
   }
-  const inputDir = path.resolve(projectDir, '.od-inputs');
-  const realInputDir = await realDirectoryInside(projectDir, inputDir, '.od-inputs');
   return Promise.all(storyboard.scenes.map(async (scene, index) => {
-    if (path.isAbsolute(scene.assetRef)) {
-      fail(`storyboard.scenes[${index}].assetRef must be project-relative`);
-    }
-    const resolved = resolveInside(
+    return resolveInputAsset(
       projectDir,
       scene.assetRef,
       `storyboard.scenes[${index}].assetRef`,
     );
-    const relativeToInputs = path.relative(inputDir, resolved);
-    if (
-      !relativeToInputs
-      || relativeToInputs === '..'
-      || relativeToInputs.startsWith(`..${path.sep}`)
-      || path.isAbsolute(relativeToInputs)
-    ) {
-      fail(`storyboard.scenes[${index}].assetRef must reference a file in .od-inputs`);
-    }
-    if (!IMAGE_EXTENSIONS.has(path.extname(resolved).toLowerCase())) {
-      fail(`storyboard.scenes[${index}].assetRef must reference a supported image`);
-    }
-    const label = `storyboard.scenes[${index}].assetRef`;
-    const realAsset = await realFileInside(projectDir, resolved, label);
-    if (!isPathInside(realInputDir, realAsset)) {
-      fail(`${label} resolves outside the project directory`);
-    }
-    if (!IMAGE_EXTENSIONS.has(path.extname(realAsset).toLowerCase())) {
-      fail(`${label} must resolve to a supported image`);
-    }
-    return realAsset;
   }));
 }
 
@@ -632,17 +686,27 @@ function renderAssetCatalog(assetNames) {
   ].join('\n');
 }
 
-function buildManifest(storyboard, assetNames, timings, durationSeconds, audio) {
+function buildManifest(
+  storyboard,
+  assetNames,
+  backgroundAssetName,
+  timings,
+  durationSeconds,
+  audio,
+) {
   return {
     version: storyboard.version,
     title: storyboard.title,
     durationSeconds,
+    backgroundAsset: backgroundAssetName ? `assets/${backgroundAssetName}` : null,
     subtitles: storyboard.subtitles,
     audio,
     scenes: storyboard.scenes.map((scene, index) => ({
       id: scene.id,
       asset: `assets/${assetNames[index]}`,
       caption: scene.captionEnabled ? scene.caption : null,
+      focusTargets: scene.focusTargets ?? [],
+      presentation: scene.presentation ?? 'full',
       voiceoverEnabled: scene.voiceoverEnabled,
       start: timings[index].start,
       duration: timings[index].duration,
@@ -777,11 +841,19 @@ async function build() {
   await ensureSafeOutputDirectory(projectDir, compositionDir, 'composition output directory');
   await ensureSafeOutputDirectory(projectDir, assetsDir, 'composition assets directory');
 
-  const screenshots = await resolveScreenshotPaths(projectDir, storyboard);
+  const [screenshots, background] = await Promise.all([
+    resolveScreenshotPaths(projectDir, storyboard),
+    storyboard.backgroundRef
+      ? resolveInputAsset(projectDir, storyboard.backgroundRef, 'storyboard.backgroundRef')
+      : null,
+  ]);
   const assetNames = screenshots.map((screenshot, index) => {
     const extension = path.extname(screenshot).toLowerCase();
     return `scene-${String(index + 1).padStart(2, '0')}${extension}`;
   });
+  const backgroundAssetName = background
+    ? `tutorial-background${path.extname(background).toLowerCase()}`
+    : null;
   const metadataOutputs = ['index.html', 'hyperframes.json', 'meta.json']
     .map((name) => path.join(compositionDir, name));
   const handOutput = path.join(assetsDir, HAND_ASSET_NAME);
@@ -796,6 +868,11 @@ async function build() {
       output,
       `composition metadata ${path.basename(output)}`,
     )),
+    ...(backgroundAssetName ? [assertSafeOutputFile(
+      projectDir,
+      path.join(assetsDir, backgroundAssetName),
+      'tutorial background asset',
+    )] : []),
     assertSafeOutputFile(projectDir, handOutput, 'tutorial hand asset'),
   ]);
   for (let index = 0; index < screenshots.length; index += 1) {
@@ -805,6 +882,14 @@ async function build() {
       path.join(assetsDir, assetName),
       await readFile(screenshots[index]),
       `composition asset ${assetName}`,
+    );
+  }
+  if (background && backgroundAssetName) {
+    await writeSafeOutputFile(
+      projectDir,
+      path.join(assetsDir, backgroundAssetName),
+      await readFile(background),
+      'tutorial background asset',
     );
   }
   const handSource = fileURLToPath(new URL(`../assets/${HAND_ASSET_NAME}`, import.meta.url));
@@ -916,6 +1001,9 @@ async function build() {
   const brand = brandTokens(storyboard.product);
   const initialCurrentAsset = `assets/${assetNames[0]}`;
   const initialTargetAsset = `assets/${assetNames[1] ?? assetNames[0]}`;
+  const initialBackgroundAsset = backgroundAssetName
+    ? `assets/${backgroundAssetName}`
+    : initialCurrentAsset;
   const timeline = renderTimings(storyboard, storyboard.durationSeconds, audioClips);
   const durationSeconds = timeline.durationSeconds;
   const timings = timeline.timings;
@@ -947,6 +1035,7 @@ async function build() {
   const manifest = buildManifest(
     storyboard,
     assetNames,
+    backgroundAssetName,
     timings,
     durationSeconds,
     audio,
@@ -959,12 +1048,16 @@ async function build() {
     DURATION: durationSeconds,
     HEIGHT: storyboard.aspect.height,
     HAND_ASSET: `assets/${HAND_ASSET_NAME}`,
+    INITIAL_BACKGROUND: escapeHtml(initialBackgroundAsset),
     INITIAL_CURRENT: escapeHtml(initialCurrentAsset),
     INITIAL_TARGET: escapeHtml(initialTargetAsset),
     LANG: escapeHtml(storyboard.language),
     LAYOUT: storyboard.aspect.layout,
     MANIFEST: safeJsonForHtml(manifest),
-    PRELOADS: renderPreloads(assetNames),
+    PRELOADS: renderPreloads([
+      ...assetNames,
+      ...(backgroundAssetName ? [backgroundAssetName] : []),
+    ]),
     SUBTITLE: storyboard.subtitles
       ? '      <div class="tutorial__subtitle" data-loan-video-subtitle></div>'
       : '',
