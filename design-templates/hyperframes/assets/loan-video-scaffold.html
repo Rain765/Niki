@@ -47,8 +47,8 @@ __PRELOADS__
 
       .tutorial-background {
         position: absolute;
-        z-index: -3;
-        inset: -8%;
+        z-index: 0;
+        inset: 0;
         overflow: hidden;
         background: #090b11;
       }
@@ -59,18 +59,7 @@ __PRELOADS__
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0;
-        transform: scale(1.11);
-        will-change: opacity, transform;
-      }
-
-      .tutorial-background::after {
-        position: absolute;
-        inset: 0;
-        background:
-          radial-gradient(circle at var(--ambient-x) var(--ambient-y), var(--accent-soft), transparent 34%),
-          linear-gradient(180deg, rgba(5, 7, 11, 0.24), rgba(5, 7, 11, 0.76));
-        content: "";
+        opacity: 1;
       }
 
       .tutorial__asset-catalog {
@@ -91,8 +80,8 @@ __PRELOADS__
       .tutorial__visual {
         position: absolute;
         z-index: 1;
-        inset: clamp(24px, 3.8vmin, 72px);
-        overflow: visible;
+        inset: 0;
+        overflow: hidden;
       }
 
       .tutorial__camera {
@@ -101,28 +90,76 @@ __PRELOADS__
         will-change: transform;
       }
 
-      .tutorial__asset {
+      .tutorial__asset-slot {
         position: absolute;
         inset: 0;
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        object-position: center;
+        opacity: 0;
         will-change: opacity, transform;
       }
 
-      .tutorial__asset--current {
+      .tutorial__asset-slot--current {
         opacity: 1;
       }
 
-      .tutorial__asset--target {
+      .tutorial__asset {
+        position: absolute;
+        display: block;
+        object-position: center;
+        user-select: none;
+      }
+
+      .tutorial__asset-slot[data-presentation="full"] .tutorial__asset {
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .tutorial__asset-slot[data-presentation="device"] .tutorial__asset {
+        top: 52%;
+        left: 50%;
+        width: auto;
+        max-width: 78%;
+        height: 88%;
+        object-fit: contain;
+        transform: translate(-50%, -50%);
+      }
+
+      .tutorial__focus-layer {
+        position: absolute;
+        z-index: 2;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .tutorial__focus-target {
+        position: absolute;
+        border: clamp(2px, 0.22vmin, 4px) solid transparent;
+        border-radius: clamp(5px, 0.7vmin, 12px);
+        background: rgba(255, 255, 255, 0.96);
+        box-shadow: none;
         opacity: 0;
+        will-change: left, top, width, height, opacity, transform;
+      }
+
+      .tutorial__press {
+        position: absolute;
+        z-index: 3;
+        left: 50%;
+        top: 50%;
+        border: clamp(2px, 0.22vmin, 4px) solid rgba(255, 255, 255, 0.8);
+        border-radius: clamp(10px, 1.4vmin, 24px);
+        background: color-mix(in srgb, var(--accent) 34%, transparent);
+        box-shadow: 0 0 24px var(--accent-soft);
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, -50%) scale(1);
+        will-change: left, top, width, height, opacity, transform;
       }
 
       .tutorial__tap {
         position: absolute;
-        z-index: 3;
+        z-index: 4;
         left: 50%;
         top: 50%;
         width: clamp(42px, 4.2vmin, 76px);
@@ -140,11 +177,11 @@ __PRELOADS__
 
       .tutorial__hand {
         position: absolute;
-        z-index: 4;
+        z-index: 5;
         left: 50%;
         top: 50%;
         display: block;
-        width: 22%;
+        width: 46%;
         height: auto;
         opacity: 0;
         pointer-events: none;
@@ -174,15 +211,6 @@ __PRELOADS__
         white-space: nowrap;
       }
 
-      .layout-portrait .tutorial__visual {
-        right: clamp(18px, 2.6vmin, 44px);
-        left: clamp(18px, 2.6vmin, 44px);
-      }
-
-      .layout-square .tutorial__visual {
-        top: clamp(24px, 3.8vmin, 52px);
-        bottom: clamp(24px, 3.8vmin, 52px);
-      }
     </style>
   </head>
   <body class="layout-__LAYOUT__">
@@ -195,14 +223,19 @@ __PRELOADS__
       data-height="__HEIGHT__"
     >
       <div class="tutorial-background" data-loan-video-background aria-hidden="true">
-        <img class="tutorial-background__image tutorial-background__image--current" src="__INITIAL_CURRENT__" alt="" />
-        <img class="tutorial-background__image tutorial-background__image--target" src="__INITIAL_TARGET__" alt="" />
+        <img class="tutorial-background__image" data-loan-video-background-image src="__INITIAL_BACKGROUND__" alt="" />
       </div>
 __ASSET_CATALOG__
       <div class="tutorial__visual">
         <div class="tutorial__camera">
-          <img class="tutorial__asset tutorial__asset--current" data-loan-video-current src="__INITIAL_CURRENT__" alt="" />
-          <img class="tutorial__asset tutorial__asset--target" data-loan-video-target src="__INITIAL_TARGET__" alt="" />
+          <div class="tutorial__asset-slot tutorial__asset-slot--current" data-presentation="full">
+            <img class="tutorial__asset" data-loan-video-current src="__INITIAL_CURRENT__" alt="" />
+          </div>
+          <div class="tutorial__asset-slot tutorial__asset-slot--target" data-presentation="full">
+            <img class="tutorial__asset" data-loan-video-target src="__INITIAL_TARGET__" alt="" />
+          </div>
+          <div class="tutorial__focus-layer" data-loan-video-focus-layer aria-hidden="true"></div>
+          <span class="tutorial__press" data-loan-video-press aria-hidden="true"></span>
           <span class="tutorial__tap" data-loan-video-tap aria-hidden="true"></span>
           <img class="tutorial__hand" data-loan-video-hand src="__HAND_ASSET__" alt="" aria-hidden="true" />
         </div>
@@ -220,14 +253,23 @@ __AUDIO__
         const root = document.getElementById("root");
         const visual = root.querySelector(".tutorial__visual");
         const camera = root.querySelector(".tutorial__camera");
-        const currentAsset = root.querySelector(".tutorial__asset--current");
-        const targetAsset = root.querySelector(".tutorial__asset--target");
-        const currentBackground = root.querySelector(".tutorial-background__image--current");
-        const targetBackground = root.querySelector(".tutorial-background__image--target");
+        const currentSlot = root.querySelector(".tutorial__asset-slot--current");
+        const targetSlot = root.querySelector(".tutorial__asset-slot--target");
+        const currentAsset = root.querySelector("[data-loan-video-current]");
+        const targetAsset = root.querySelector("[data-loan-video-target]");
+        const backgroundImage = root.querySelector("[data-loan-video-background-image]");
+        const focusLayer = root.querySelector("[data-loan-video-focus-layer]");
+        const press = root.querySelector("[data-loan-video-press]");
         const tap = root.querySelector(".tutorial__tap");
         const hand = root.querySelector(".tutorial__hand");
         const subtitle = root.querySelector(".tutorial__subtitle");
-        const handWidthRatio = 0.22;
+        const handWidthRatio = 0.46;
+        const focusPool = Array.from({ length: 12 }, () => {
+          const target = document.createElement("span");
+          target.className = "tutorial__focus-target";
+          focusLayer.appendChild(target);
+          return target;
+        });
 
         const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
         const ease = (value) => 1 - Math.pow(1 - clamp(value, 0, 1), 3);
@@ -235,20 +277,54 @@ __AUDIO__
           if (source && image.getAttribute("src") !== source) image.setAttribute("src", source);
           if (!source) image.removeAttribute("src");
         };
-        const displayedImageRect = (image) => {
+        const setPresentation = (slot, presentation) => {
+          slot.setAttribute("data-presentation", presentation === "device" ? "device" : "full");
+        };
+        const displayedImageRect = (image, presentation) => {
           const width = visual.clientWidth;
           const height = visual.clientHeight;
+          if (presentation !== "device") return { left: 0, top: 0, width, height };
           const naturalWidth = image.naturalWidth || width;
           const naturalHeight = image.naturalHeight || height;
-          const scale = Math.min(width / naturalWidth, height / naturalHeight);
+          const scale = Math.min((width * 0.78) / naturalWidth, (height * 0.88) / naturalHeight);
           const displayedWidth = naturalWidth * scale;
           const displayedHeight = naturalHeight * scale;
           return {
             left: (width - displayedWidth) / 2,
-            top: (height - displayedHeight) / 2,
+            top: height * 0.52 - displayedHeight / 2,
             width: displayedWidth,
             height: displayedHeight,
           };
+        };
+
+        const renderFocusTargets = (scene, time, imageRect) => {
+          const targets = scene.presentation === "device" ? (scene.focusTargets || []) : [];
+          const localTime = time - scene.start;
+          const revealWindow = Math.max(0.36, scene.duration * 0.48);
+          focusPool.forEach((element, index) => {
+            const target = targets[index];
+            if (!target) {
+              element.style.opacity = "0";
+              return;
+            }
+            const step = revealWindow / Math.max(1, targets.length);
+            const start = Math.max(0.18, scene.duration * 0.1) + step * index;
+            const end = start + Math.min(0.34, Math.max(0.18, step * 0.72));
+            const progress = ease((localTime - start) / Math.max(0.000001, end - start));
+            const active = localTime >= start && localTime < end;
+            element.style.left = `${(imageRect.left + imageRect.width * target.x).toFixed(2)}px`;
+            element.style.top = `${(imageRect.top + imageRect.height * target.y).toFixed(2)}px`;
+            element.style.width = `${(imageRect.width * target.width).toFixed(2)}px`;
+            element.style.height = `${(imageRect.height * target.height).toFixed(2)}px`;
+            element.style.opacity = localTime < start
+              ? "0.96"
+              : String((active ? 0.96 * (1 - progress) : 0).toFixed(4));
+            element.style.borderColor = active ? "rgba(255, 106, 42, 0.88)" : "transparent";
+            element.style.boxShadow = active
+              ? "0 0 0 8px rgba(255, 106, 42, 0.12)"
+              : "none";
+            element.style.transform = `scale(${(active ? 1 - Math.sin(Math.PI * progress) * 0.025 : 1).toFixed(4)})`;
+          });
         };
 
         const renderAt = (seconds) => {
@@ -263,22 +339,36 @@ __AUDIO__
             ? ease((time - scene.transition.start) / (scene.transition.end - scene.transition.start))
             : 0;
 
+          const currentPresentation = scene.presentation || "full";
+          const targetPresentation = targetScene?.presentation || "full";
+          setSource(backgroundImage, manifest.backgroundAsset || scene.asset);
           setSource(currentAsset, scene.asset);
-          setSource(currentBackground, scene.asset);
           setSource(targetAsset, targetScene?.asset);
-          setSource(targetBackground, targetScene?.asset);
-          currentAsset.style.opacity = String(1 - transitionProgress);
-          targetAsset.style.opacity = String(transitionProgress);
-          currentBackground.style.opacity = String(1 - transitionProgress);
-          targetBackground.style.opacity = String(transitionProgress);
-          currentBackground.style.transform = `scale(${(1.11 + transitionProgress * 0.015).toFixed(4)})`;
-          targetBackground.style.transform = `scale(${(1.125 - transitionProgress * 0.015).toFixed(4)})`;
+          setPresentation(currentSlot, currentPresentation);
+          setPresentation(targetSlot, targetPresentation);
+          currentSlot.style.opacity = String(1 - transitionProgress);
+          targetSlot.style.opacity = String(transitionProgress);
+          const deviceToDevice = currentPresentation === "device"
+            && targetPresentation === "device";
+          if (deviceToDevice) {
+            currentSlot.style.transform = `translateX(${(-4 * transitionProgress).toFixed(3)}%) scale(${(1 - transitionProgress * 0.008).toFixed(4)})`;
+            targetSlot.style.transform = `translateX(${(7 * (1 - transitionProgress)).toFixed(3)}%) scale(${(0.99 + transitionProgress * 0.01).toFixed(4)})`;
+          } else if (currentPresentation === "full" && targetPresentation === "device") {
+            currentSlot.style.transform = "none";
+            targetSlot.style.transform = `translateY(${(6 * (1 - transitionProgress)).toFixed(3)}%) scale(${(0.96 + transitionProgress * 0.04).toFixed(4)})`;
+          } else if (currentPresentation === "device" && targetPresentation === "full") {
+            currentSlot.style.transform = `translateY(${(-3 * transitionProgress).toFixed(3)}%) scale(${(1 - transitionProgress * 0.02).toFixed(4)})`;
+            targetSlot.style.transform = "none";
+          } else {
+            currentSlot.style.transform = "none";
+            targetSlot.style.transform = "none";
+          }
 
           const action = scene.transition;
           const isTap = action.type === "tap";
           const x = isTap ? action.x : 0.5;
           const y = isTap ? action.y : 0.5;
-          const imageRect = displayedImageRect(currentAsset);
+          const imageRect = displayedImageRect(currentAsset, currentPresentation);
           const focalX = imageRect.left + imageRect.width * x;
           const focalY = imageRect.top + imageRect.height * y;
           camera.style.transformOrigin = `${focalX.toFixed(2)}px ${focalY.toFixed(2)}px`;
@@ -297,6 +387,7 @@ __AUDIO__
           const panX = isTap ? (0.5 - x) * imageRect.width * 0.13 * focus : 0;
           const panY = isTap ? (0.5 - y) * imageRect.height * 0.13 * focus : 0;
           camera.style.transform = `translate(${panX.toFixed(2)}px, ${panY.toFixed(2)}px) scale(${(1 + zoomAmount * focus).toFixed(5)})`;
+          renderFocusTargets(scene, time, imageRect);
 
           if (isTap && scene.keyframes.pointerStartAt !== null) {
             const pointerProgress = ease(
@@ -332,6 +423,17 @@ __AUDIO__
               0.9 - pressProgress * 0.08 + ripple * 0.3
             ).toFixed(4)})`;
 
+            const pressWidth = imageRect.width * (action.width || 0.16);
+            const pressHeight = imageRect.height * (action.height || 0.055);
+            press.style.left = `${focalX.toFixed(2)}px`;
+            press.style.top = `${focalY.toFixed(2)}px`;
+            press.style.width = `${pressWidth.toFixed(2)}px`;
+            press.style.height = `${pressHeight.toFixed(2)}px`;
+            press.style.opacity = visible
+              ? String((pressProgress * (1 - responseProgress) * 0.78).toFixed(4))
+              : "0";
+            press.style.transform = `translate(-50%, -50%) scale(${(1 - pressProgress * 0.035 + ripple * 0.018).toFixed(4)})`;
+
             const handWidth = clamp(imageRect.width * handWidthRatio, 150, 420);
             const mirrored = x > 0.72;
             const anchorX = handWidth * (mirrored ? 0.86 : 0.14);
@@ -355,6 +457,7 @@ __AUDIO__
               -anchorY + approachOffsetY + pressDepth - lift
             ).toFixed(2)}px) rotate(${mirrored ? "-2deg" : "2deg"}) scaleX(${mirrored ? -1 : 1}) scale(${handScale.toFixed(4)})`;
           } else {
+            press.style.opacity = "0";
             tap.style.opacity = "0";
             hand.style.opacity = "0";
           }
@@ -400,7 +503,7 @@ __AUDIO__
         };
 
         window.__timelines = window.__timelines || {};
-        window.__timelines.main = timeline;
+        window.__timelines["main"] = timeline;
         renderAt(0.0001);
       })();
     </script>
