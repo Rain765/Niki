@@ -87,7 +87,6 @@ __PRELOADS__
       .tutorial__camera {
         position: absolute;
         inset: 0;
-        will-change: transform;
       }
 
       .tutorial__asset-slot {
@@ -106,6 +105,7 @@ __PRELOADS__
         display: block;
         object-position: center;
         user-select: none;
+        will-change: transform;
       }
 
       .tutorial__asset-slot[data-presentation="full"] .tutorial__asset {
@@ -220,21 +220,6 @@ __PRELOADS__
         will-change: left, top, width, height, opacity, transform;
       }
 
-      .tutorial__press {
-        position: absolute;
-        z-index: 3;
-        left: 50%;
-        top: 50%;
-        border: clamp(2px, 0.22vmin, 4px) solid rgba(255, 255, 255, 0.8);
-        border-radius: clamp(10px, 1.4vmin, 24px);
-        background: color-mix(in srgb, var(--accent) 34%, transparent);
-        box-shadow: 0 0 24px var(--accent-soft);
-        opacity: 0;
-        pointer-events: none;
-        transform: translate(-50%, -50%) scale(1);
-        will-change: left, top, width, height, opacity, transform;
-      }
-
       .tutorial__tap {
         position: absolute;
         z-index: 4;
@@ -320,7 +305,6 @@ __ASSET_CATALOG__
             <div class="tutorial__otp-field" data-loan-video-otp-field></div>
           </div>
           <div class="tutorial__focus-layer" data-loan-video-focus-layer aria-hidden="true"></div>
-          <span class="tutorial__press" data-loan-video-press aria-hidden="true"></span>
           <span class="tutorial__tap" data-loan-video-tap aria-hidden="true"></span>
           <img class="tutorial__hand" data-loan-video-hand src="__HAND_ASSET__" alt="" aria-hidden="true" />
         </div>
@@ -349,7 +333,6 @@ __AUDIO__
         const caret = root.querySelector("[data-loan-video-caret]");
         const otpField = root.querySelector("[data-loan-video-otp-field]");
         const focusLayer = root.querySelector("[data-loan-video-focus-layer]");
-        const press = root.querySelector("[data-loan-video-press]");
         const tap = root.querySelector(".tutorial__tap");
         const hand = root.querySelector(".tutorial__hand");
         const subtitle = root.querySelector(".tutorial__subtitle");
@@ -486,7 +469,6 @@ __AUDIO__
 
         const renderGesture = (gesture, time, imageRect) => {
           if (!gesture || time < gesture.pointerStartAt || time >= gesture.endAt) {
-            press.style.opacity = "0";
             tap.style.opacity = "0";
             hand.style.opacity = "0";
             return;
@@ -522,21 +504,10 @@ __AUDIO__
             0.9 - pressProgress * 0.08 + ripple * 0.3
           ).toFixed(4)})`;
 
-          const pressWidth = imageRect.width * (gesture.width || 0.16);
-          const pressHeight = imageRect.height * (gesture.height || 0.055);
-          press.style.left = `${focalX.toFixed(2)}px`;
-          press.style.top = `${focalY.toFixed(2)}px`;
-          press.style.width = `${pressWidth.toFixed(2)}px`;
-          press.style.height = `${pressHeight.toFixed(2)}px`;
-          press.style.opacity = String((pressProgress * (1 - responseProgress) * 0.78).toFixed(4));
-          press.style.transform = `translate(-50%, -50%) scale(${(
-            1 - pressProgress * 0.035 + ripple * 0.018
-          ).toFixed(4)})`;
-
           const handWidth = clamp(imageRect.width * handWidthRatio, 150, 420);
           const mirrored = gesture.x > 0.72;
-          const anchorX = handWidth * (mirrored ? 0.86 : 0.14);
-          const anchorY = handWidth * 0.085;
+          const fingertipX = handWidth * 0.145;
+          const fingertipY = handWidth * 0.105;
           const approachOffsetX = (mirrored ? -1 : 1)
             * imageRect.width * 0.17 * (1 - pointerProgress);
           const approachOffsetY = imageRect.height * 0.075 * (1 - pointerProgress);
@@ -547,12 +518,13 @@ __AUDIO__
           hand.style.top = `${focalY.toFixed(2)}px`;
           hand.style.width = `${handWidth.toFixed(2)}px`;
           hand.style.opacity = String((pointerProgress * (1 - responseProgress)).toFixed(4));
-          hand.style.transformOrigin = `${anchorX.toFixed(2)}px ${anchorY.toFixed(2)}px`;
+          hand.style.transformOrigin = "0 0";
           hand.style.transform = `translate(${(
-            -anchorX + approachOffsetX + pressDepth - lift
+            (mirrored ? fingertipX : -fingertipX) * handScale
+              + approachOffsetX + pressDepth - lift
           ).toFixed(2)}px, ${(
-            -anchorY + approachOffsetY + pressDepth - lift
-          ).toFixed(2)}px) rotate(${mirrored ? "-2deg" : "2deg"}) scaleX(${mirrored ? -1 : 1}) scale(${handScale.toFixed(4)})`;
+            -fingertipY * handScale + approachOffsetY + pressDepth - lift
+          ).toFixed(2)}px) scaleX(${mirrored ? -1 : 1}) scale(${handScale.toFixed(4)})`;
         };
 
         const renderAt = (seconds) => {
@@ -581,29 +553,37 @@ __AUDIO__
             || action.type === "close-modal";
           currentSlot.style.clipPath = "none";
           targetSlot.style.clipPath = "none";
+          currentSlot.style.transform = "none";
+          targetSlot.style.transform = "none";
+          currentAsset.style.transform = "";
+          targetAsset.style.transform = "";
           const deviceToDevice = currentPresentation === "device"
             && targetPresentation === "device";
           if (action.type === "open-modal") {
             const clipTop = targetImageRect.top + targetImageRect.height * (action.clipTop || 0);
             const travel = targetImageRect.height * (1 - (action.clipTop || 0));
+            const offsetY = (1 - transitionProgress) * travel;
             currentSlot.style.opacity = "1";
             targetSlot.style.opacity = "1";
-            currentSlot.style.transform = "none";
             targetSlot.style.clipPath = `inset(${clipTop.toFixed(2)}px 0 0 0)`;
-            targetSlot.style.transform = `translateY(${((1 - transitionProgress) * travel).toFixed(2)}px)`;
+            targetAsset.style.transform = `translate(-50%, calc(-50% + ${offsetY.toFixed(2)}px))`;
           } else if (action.type === "close-modal") {
             const clipTop = imageRect.top + imageRect.height * (action.clipTop || 0);
             const travel = imageRect.height * (1 - (action.clipTop || 0));
+            const offsetY = transitionProgress * travel;
             currentSlot.style.opacity = "1";
             targetSlot.style.opacity = "1";
             currentSlot.style.clipPath = `inset(${clipTop.toFixed(2)}px 0 0 0)`;
-            currentSlot.style.transform = `translateY(${(transitionProgress * travel).toFixed(2)}px)`;
-            targetSlot.style.transform = "none";
+            currentAsset.style.transform = `translate(-50%, calc(-50% + ${offsetY.toFixed(2)}px))`;
           } else if (deviceToDevice) {
-            currentSlot.style.opacity = String(1 - transitionProgress);
-            targetSlot.style.opacity = String(transitionProgress);
-            currentSlot.style.transform = `translateX(${(-4 * transitionProgress).toFixed(3)}%) scale(${(1 - transitionProgress * 0.008).toFixed(4)})`;
-            targetSlot.style.transform = `translateX(${(7 * (1 - transitionProgress)).toFixed(3)}%) scale(${(0.99 + transitionProgress * 0.01).toFixed(4)})`;
+            const deviceContentClipTop = targetImageRect.top + targetImageRect.height * 0.106;
+            const deviceClipRight = visual.clientWidth - targetImageRect.left - targetImageRect.width;
+            const deviceClipBottom = visual.clientHeight - targetImageRect.top - targetImageRect.height;
+            const offsetX = (1 - transitionProgress) * targetImageRect.width;
+            currentSlot.style.opacity = "1";
+            targetSlot.style.opacity = "1";
+            targetSlot.style.clipPath = `inset(${deviceContentClipTop.toFixed(2)}px ${deviceClipRight.toFixed(2)}px ${deviceClipBottom.toFixed(2)}px ${targetImageRect.left.toFixed(2)}px)`;
+            targetAsset.style.transform = `translate(calc(-50% + ${offsetX.toFixed(2)}px), -50%)`;
           } else if (currentPresentation === "full" && targetPresentation === "device") {
             currentSlot.style.opacity = String(1 - transitionProgress);
             targetSlot.style.opacity = String(transitionProgress);
@@ -624,24 +604,7 @@ __AUDIO__
           const isTap = action.type === "tap" || modalTransition;
           const x = isTap ? action.x : 0.5;
           const y = isTap ? action.y : 0.5;
-          const focalX = imageRect.left + imageRect.width * x;
-          const focalY = imageRect.top + imageRect.height * y;
-          camera.style.transformOrigin = `${focalX.toFixed(2)}px ${focalY.toFixed(2)}px`;
-
-          const focusStart = scene.keyframes.pointerStartAt
-            ?? scene.keyframes.responseAt
-            ?? scene.keyframes.currentAt;
-          const focusEnd = isTap
-            ? (scene.keyframes.responseAt ?? action.start ?? (scene.start + scene.duration))
-            : (action.start ?? (scene.start + scene.duration));
-          const approach = ease((time - focusStart) / Math.max(0.000001, focusEnd - focusStart));
-          const focus = action.start !== null && time >= action.start
-            ? 1 - transitionProgress
-            : approach;
-          const zoomAmount = isTap ? 0.075 : action.type === "auto" ? 0.022 : 0;
-          const panX = isTap ? (0.5 - x) * imageRect.width * 0.13 * focus : 0;
-          const panY = isTap ? (0.5 - y) * imageRect.height * 0.13 * focus : 0;
-          camera.style.transform = `translate(${panX.toFixed(2)}px, ${panY.toFixed(2)}px) scale(${(1 + zoomAmount * focus).toFixed(5)})`;
+          camera.style.transform = "none";
           renderInteraction(scene, time, imageRect);
           renderFocusTargets(scene, time, imageRect);
           let gesture = null;

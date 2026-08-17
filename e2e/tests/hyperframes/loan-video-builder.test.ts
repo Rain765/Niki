@@ -434,7 +434,13 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html.match(/<img class="tutorial-background__image" data-loan-video-background-image/g))
       .toHaveLength(1);
     expect(html).toContain('data-loan-video-focus-layer');
-    expect(html).toContain('data-loan-video-press');
+    expect(html).not.toContain('data-loan-video-press');
+    expect(html).toContain('const deviceContentClipTop = targetImageRect.top + targetImageRect.height * 0.106;');
+    expect(html).toContain('targetAsset.style.transform = `translate(calc(-50% + ${offsetX.toFixed(2)}px), -50%)`;');
+    expect(html).toContain('camera.style.transform = "none";');
+    expect(html).toContain('const fingertipX = handWidth * 0.145;');
+    expect(html).toContain('hand.style.transformOrigin = "0 0";');
+    expect(html).not.toContain('currentSlot.style.transform = `translateX(');
     expect(html).not.toContain('tutorial-background__image--target');
   });
 
