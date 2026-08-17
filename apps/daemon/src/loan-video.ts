@@ -35,6 +35,14 @@ function safeAssetRef(value: unknown, label: string): string {
   return ref;
 }
 
+function normalizedUnitNumber(value: unknown, label: string): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0 || numeric > 1) {
+    invalid(`${label} must be between 0 and 1`);
+  }
+  return numeric;
+}
+
 export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboard {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     invalid('loanVideoStoryboard must be an object');
@@ -56,11 +64,52 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
   if (!Array.isArray(rawScenes) || rawScenes.length === 0 || rawScenes.length > 20) {
     invalid('loanVideoStoryboard.scenes must contain 1-20 scenes');
   }
+  const backgroundRef = raw.backgroundRef === undefined
+    ? undefined
+    : safeAssetRef(raw.backgroundRef, 'loanVideoStoryboard.backgroundRef');
   const scenes = rawScenes.map((entry, offset) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
       invalid(`loanVideoStoryboard.scenes[${offset}] must be an object`);
     }
     const scene = entry as Record<string, unknown>;
+    const rawPresentation = scene.presentation;
+    if (rawPresentation !== undefined && rawPresentation !== 'full' && rawPresentation !== 'device') {
+      invalid(`loanVideoStoryboard.scenes[${offset}].presentation is unsupported`);
+    }
+    const presentation: 'full' | 'device' | undefined = rawPresentation === 'full'
+      || rawPresentation === 'device'
+      ? rawPresentation
+      : undefined;
+    const rawFocusTargets = scene.focusTargets ?? [];
+    if (!Array.isArray(rawFocusTargets) || rawFocusTargets.length > 12) {
+      invalid(`loanVideoStoryboard.scenes[${offset}].focusTargets must contain 0-12 targets`);
+    }
+    const focusTargets = rawFocusTargets.map((target, targetIndex) => {
+      if (!target || typeof target !== 'object' || Array.isArray(target)) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].focusTargets[${targetIndex}] must be an object`);
+      }
+      const rawTarget = target as Record<string, unknown>;
+      const x = normalizedUnitNumber(
+        rawTarget.x,
+        `loanVideoStoryboard.scenes[${offset}].focusTargets[${targetIndex}].x`,
+      );
+      const y = normalizedUnitNumber(
+        rawTarget.y,
+        `loanVideoStoryboard.scenes[${offset}].focusTargets[${targetIndex}].y`,
+      );
+      const width = normalizedUnitNumber(
+        rawTarget.width,
+        `loanVideoStoryboard.scenes[${offset}].focusTargets[${targetIndex}].width`,
+      );
+      const height = normalizedUnitNumber(
+        rawTarget.height,
+        `loanVideoStoryboard.scenes[${offset}].focusTargets[${targetIndex}].height`,
+      );
+      if (width <= 0 || height <= 0 || x + width > 1 || y + height > 1) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].focusTargets[${targetIndex}] exceeds the image bounds`);
+      }
+      return { x, y, width, height };
+    });
     return {
       id: nonEmptyString(scene.id, `loanVideoStoryboard.scenes[${offset}].id`, 100),
       index: offset + 1,
@@ -76,6 +125,8 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
       captionEnabled: scene.captionEnabled === true,
       voiceoverEnabled: scene.voiceoverEnabled === true,
       terminal: offset === rawScenes.length - 1,
+      ...(presentation ? { presentation } : {}),
+      ...(focusTargets.length > 0 ? { focusTargets } : {}),
     };
   });
   if (new Set(scenes.map((scene) => scene.id)).size !== scenes.length) {
@@ -99,16 +150,42 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
       invalid(`loanVideoStoryboard.transitions[${offset}].action must be an object`);
     }
     const rawAction = action as Record<string, unknown>;
-    let normalizedAction: { type: 'auto' } | { type: 'tap'; x: number; y: number };
+    let normalizedAction:
+      | { type: 'auto' }
+      | { type: 'tap'; x: number; y: number; width?: number; height?: number };
     if (rawAction.type === 'auto') {
       normalizedAction = { type: 'auto' };
     } else if (rawAction.type === 'tap') {
-      const x = Number(rawAction.x);
-      const y = Number(rawAction.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) {
-        invalid(`loanVideoStoryboard.transitions[${offset}] tap coordinates must be between 0 and 1`);
+      const x = normalizedUnitNumber(
+        rawAction.x,
+        `loanVideoStoryboard.transitions[${offset}].action.x`,
+      );
+      const y = normalizedUnitNumber(
+        rawAction.y,
+        `loanVideoStoryboard.transitions[${offset}].action.y`,
+      );
+      const width = rawAction.width === undefined
+        ? undefined
+        : normalizedUnitNumber(
+            rawAction.width,
+            `loanVideoStoryboard.transitions[${offset}].action.width`,
+          );
+      const height = rawAction.height === undefined
+        ? undefined
+        : normalizedUnitNumber(
+            rawAction.height,
+            `loanVideoStoryboard.transitions[${offset}].action.height`,
+          );
+      if (width === 0 || height === 0) {
+        invalid(`loanVideoStoryboard.transitions[${offset}] tap size must be greater than 0`);
       }
-      normalizedAction = { type: 'tap', x, y };
+      normalizedAction = {
+        type: 'tap',
+        x,
+        y,
+        ...(width === undefined ? {} : { width }),
+        ...(height === undefined ? {} : { height }),
+      };
     } else {
       invalid(`loanVideoStoryboard.transitions[${offset}].action.type is unsupported`);
     }
@@ -133,6 +210,7 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
     durationSeconds,
     narration: raw.narration === true && scenes.some((scene) => scene.voiceoverEnabled),
     subtitles: raw.subtitles !== false && scenes.some((scene) => scene.captionEnabled),
+    ...(backgroundRef ? { backgroundRef } : {}),
     scenes,
     transitions,
   };

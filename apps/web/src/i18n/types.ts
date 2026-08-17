@@ -735,6 +735,14 @@ export interface Dict {
   'loanVideo.narrationHint': string;
   'loanVideo.steps': string;
   'loanVideo.stepsHint': string;
+  'loanVideo.structureAssets': string;
+  'loanVideo.structureAssetsHint': string;
+  'loanVideo.intro': string;
+  'loanVideo.introHint': string;
+  'loanVideo.background': string;
+  'loanVideo.backgroundHint': string;
+  'loanVideo.outro': string;
+  'loanVideo.outroHint': string;
   'loanVideo.manageSteps': string;
   'loanVideo.addStep': string;
   'loanVideo.step': string;
@@ -753,6 +761,7 @@ export interface Dict {
   'loanVideo.voiceover': string;
   'loanVideo.voiceoverPlaceholder': string;
   'loanVideo.transition': string;
+  'loanVideo.transitionOutro': string;
   'loanVideo.advanceTap': string;
   'loanVideo.advanceAuto': string;
   'loanVideo.advanceTapHint': string;
@@ -765,6 +774,9 @@ export interface Dict {
   'loanVideo.end': string;
   'loanVideo.fixBeforeGenerate': string;
   'loanVideo.errorTitle': string;
+  'loanVideo.errorIntro': string;
+  'loanVideo.errorBackground': string;
+  'loanVideo.errorOutro': string;
   'loanVideo.errorStep': string;
   'loanVideo.errorCaption': string;
   'loanVideo.errorText': string;

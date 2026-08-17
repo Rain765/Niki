@@ -176,9 +176,12 @@ beforeEach(() => {
   });
   uploadProjectFilesMock.mockResolvedValue({
     uploaded: [
+      { path: '.od-inputs/generated-intro.png', name: 'intro.png', kind: 'image' },
+      { path: '.od-inputs/generated-background.png', name: 'background.png', kind: 'image' },
       { path: '.od-inputs/generated-c.png', name: 'screen-1.png', kind: 'image' },
       { path: '.od-inputs/generated-a.png', name: 'screen-2.png', kind: 'image' },
       { path: '.od-inputs/generated-b.png', name: 'screen-3.png', kind: 'image' },
+      { path: '.od-inputs/generated-outro.png', name: 'outro.png', kind: 'image' },
     ],
     failed: [],
   });
@@ -250,6 +253,13 @@ async function fillValidVideoDraft(title = 'How to apply') {
     target: { value: title },
   });
   fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
+  for (const role of ['intro', 'background', 'outro']) {
+    fireEvent.change(screen.getByTestId(`loan-video-${role}`), {
+      target: {
+        files: [new File([role], `${role}.png`, { type: 'image/png' })],
+      },
+    });
+  }
   for (let index = 1; index <= 3; index += 1) {
     fireEvent.change(screen.getByTestId(`loan-video-text-${index}`), {
       target: { value: `Step ${index}` },
@@ -259,7 +269,7 @@ async function fillValidVideoDraft(title = 'How to apply') {
         files: [new File([`screen-${index}`], `screen-${index}.png`, { type: 'image/png' })],
       },
     });
-    if (index < 3) fireEvent.click(screen.getByTestId(`loan-video-advance-auto-${index}`));
+    fireEvent.click(screen.getByTestId(`loan-video-advance-auto-${index}`));
   }
 }
 
@@ -287,9 +297,12 @@ describe('PosterApp mobile-safe flow', () => {
     expect(uploadProjectFilesMock).toHaveBeenCalledWith(
       'video-project-1',
       expect.arrayContaining([
+        expect.objectContaining({ name: 'intro.png' }),
+        expect.objectContaining({ name: 'background.png' }),
         expect.objectContaining({ name: 'screen-1.png' }),
         expect.objectContaining({ name: 'screen-2.png' }),
         expect.objectContaining({ name: 'screen-3.png' }),
+        expect.objectContaining({ name: 'outro.png' }),
       ]),
       { visibility: 'internal' },
     );
@@ -301,10 +314,19 @@ describe('PosterApp mobile-safe flow', () => {
         output: 'zamloan-how-to-apply.mp4',
         loanVideoStoryboard: expect.objectContaining({
           title: 'How to apply',
+          backgroundRef: '.od-inputs/generated-background.png',
           scenes: expect.arrayContaining([
+            expect.objectContaining({
+              assetRef: '.od-inputs/generated-intro.png',
+              presentation: 'full',
+            }),
             expect.objectContaining({ assetRef: '.od-inputs/generated-c.png' }),
             expect.objectContaining({ assetRef: '.od-inputs/generated-a.png' }),
             expect.objectContaining({ assetRef: '.od-inputs/generated-b.png' }),
+            expect.objectContaining({
+              assetRef: '.od-inputs/generated-outro.png',
+              presentation: 'full',
+            }),
           ]),
         }),
       }),

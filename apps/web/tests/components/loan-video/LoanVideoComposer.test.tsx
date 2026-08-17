@@ -35,6 +35,7 @@ describe('LoanVideoComposer', () => {
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByTestId('loan-video-errors').textContent).toContain('Add a video title.');
+    expect(screen.getByTestId('loan-video-errors').textContent).toContain('Upload an intro image.');
     expect(screen.getByTestId('loan-video-errors').textContent).toContain('Every step needs an interface image.');
     expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('true');
     await waitFor(() => expect(screen.getByTestId('loan-video-title')).toBe(document.activeElement));
@@ -65,6 +66,14 @@ describe('LoanVideoComposer', () => {
     fireEvent.change(screen.getByTestId('loan-video-title'), {
       target: { value: 'How to top up' },
     });
+
+    for (const role of ['intro', 'background', 'outro']) {
+      fireEvent.change(screen.getByTestId(`loan-video-${role}`), {
+        target: {
+          files: [new File([role], `${role}.png`, { type: 'image/png' })],
+        },
+      });
+    }
 
     for (let index = 1; index <= 3; index += 1) {
       fireEvent.change(screen.getByTestId(`loan-video-text-${index}`), {
@@ -97,6 +106,7 @@ describe('LoanVideoComposer', () => {
     fireEvent.load(preview);
     fireEvent.click(picker, { clientX: 110, clientY: 320 });
     fireEvent.click(screen.getByTestId('loan-video-advance-auto-2'));
+    fireEvent.click(screen.getByTestId('loan-video-advance-auto-3'));
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     expect(onSubmit).toHaveBeenCalledOnce();
@@ -106,6 +116,9 @@ describe('LoanVideoComposer', () => {
       brand: 'zamloan',
       aspectRatio: '9:16',
       durationSeconds: 30,
+      intro: expect.objectContaining({ name: 'intro.png' }),
+      background: expect.objectContaining({ name: 'background.png' }),
+      outro: expect.objectContaining({ name: 'outro.png' }),
       steps: [
         {
           text: 'Step 1',
@@ -115,7 +128,7 @@ describe('LoanVideoComposer', () => {
           tap: { x: 0.5, y: 0.75 },
         },
         { text: 'Step 2', advance: 'auto', tap: null },
-        { text: 'Step 3' },
+        { text: 'Step 3', advance: 'auto' },
       ],
     });
   });
@@ -143,15 +156,15 @@ describe('LoanVideoComposer', () => {
     expect(voiceover.checked).toBe(false);
   });
 
-  it('shows a compact next-step action for non-terminal steps and an end state for the last step', () => {
+  it('shows page-to-page actions and a final page-to-outro action', () => {
     render(<LoanVideoComposer onSubmit={vi.fn()} />);
     fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
 
     expect(screen.getByTestId('loan-video-transition-1').textContent).toContain('Step 1 → Step 2');
     expect(screen.getByTestId('loan-video-advance-tap-1')).toBeTruthy();
     expect(screen.getByTestId('loan-video-advance-auto-1')).toBeTruthy();
-    expect(screen.queryByTestId('loan-video-transition-3')).toBeNull();
-    expect(screen.getByTestId('loan-video-end-3').textContent).toContain('End');
+    expect(screen.getByTestId('loan-video-transition-3').textContent).toContain('Step 3 → Outro');
+    expect(screen.queryByTestId('loan-video-end-3')).toBeNull();
   });
 
   it('reveals an inline transition preview only when both adjacent images exist', async () => {
@@ -305,7 +318,7 @@ describe('LoanVideoComposer', () => {
         files: [new File(['screen'], 'screen.png', { type: 'image/png' })],
       },
     });
-    expect(screen.getByTestId('loan-video-manage-steps').textContent).toContain('1/3');
+    expect(screen.getByTestId('loan-video-manage-steps').textContent).toContain('1/6');
 
     inputClick.mockClear();
     fireEvent.click(screen.getByTestId('loan-video-replace-screenshot-1'));
@@ -320,7 +333,7 @@ describe('LoanVideoComposer', () => {
     const drawer = screen.getByTestId('loan-video-upload-drawer');
 
     expect(manageButton.textContent).toContain('Upload / manage steps');
-    expect(manageButton.textContent).toContain('0/3');
+    expect(manageButton.textContent).toContain('0/6');
     expect(manageButton.getAttribute('aria-expanded')).toBe('false');
     expect(stepsSection?.querySelector('.loan-video-step')).toBeNull();
     expect(drawer.getAttribute('aria-hidden')).toBe('true');
@@ -343,7 +356,7 @@ describe('LoanVideoComposer', () => {
     const addStep = within(drawerHeader as HTMLElement).getByTestId('loan-video-add-step');
     fireEvent.click(addStep);
     expect(screen.getAllByTestId(/loan-video-step-/)).toHaveLength(4);
-    expect(manageButton.textContent).toContain('0/4');
+    expect(manageButton.textContent).toContain('0/7');
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Close' })).toBe(document.activeElement);

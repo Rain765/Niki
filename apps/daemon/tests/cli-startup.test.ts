@@ -183,8 +183,16 @@ describe('CLI startup boundaries', () => {
       durationSeconds: 1,
       narration: false,
       subtitles: true,
-      scenes: [],
-      transitions: [],
+      backgroundRef: '.od-inputs/background.png',
+      scenes: [
+        { id: 'intro', presentation: 'full', assetRef: '.od-inputs/intro.png' },
+        { id: 'page', presentation: 'device', assetRef: '.od-inputs/page.png' },
+        { id: 'outro', presentation: 'full', assetRef: '.od-inputs/outro.png' },
+      ],
+      transitions: [
+        { fromSceneId: 'intro', toSceneId: 'page', action: { type: 'auto' } },
+        { fromSceneId: 'page', toSceneId: 'outro', action: { type: 'auto' } },
+      ],
     };
     await writeFile(storyboardPath, JSON.stringify(storyboard), 'utf8');
     let requestBody: Record<string, unknown> | null = null;

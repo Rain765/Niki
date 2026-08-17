@@ -6,6 +6,8 @@ export interface LoanVideoTapAction {
   type: 'tap';
   x: number;
   y: number;
+  width?: number;
+  height?: number;
 }
 
 export interface LoanVideoAutoAction {
@@ -22,6 +24,15 @@ export interface LoanVideoStoryboardScene {
   captionEnabled: boolean;
   voiceoverEnabled: boolean;
   terminal: boolean;
+  presentation?: 'full' | 'device';
+  focusTargets?: LoanVideoFocusTarget[];
+}
+
+export interface LoanVideoFocusTarget {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface LoanVideoStoryboardTransition {
@@ -39,6 +50,7 @@ export interface LoanVideoStoryboard {
   durationSeconds: number;
   narration: boolean;
   subtitles: boolean;
+  backgroundRef?: string;
   scenes: LoanVideoStoryboardScene[];
   transitions: LoanVideoStoryboardTransition[];
 }

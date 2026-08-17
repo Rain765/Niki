@@ -51,6 +51,9 @@ function initialDraft(): LoanVideoDraft {
     language: 'en',
     aspectRatio: '9:16',
     durationSeconds: 30,
+    intro: null,
+    background: null,
+    outro: null,
     steps: Array.from({ length: INITIAL_STEP_COUNT }, (_, index) => (
       createLoanVideoStep(`step-${index + 1}`)
     )),
@@ -64,7 +67,9 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
   const [validationErrors, setValidationErrors] = useState<LoanVideoValidationError[]>([]);
   const nextStepIdRef = useRef(INITIAL_STEP_COUNT + 1);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
-  const completedScreenshotCount = draft.steps.filter((step) => step.screenshot).length;
+  const completedScreenshotCount = draft.steps.filter((step) => step.screenshot).length
+    + [draft.intro, draft.background, draft.outro].filter(Boolean).length;
+  const totalAssetCount = draft.steps.length + 3;
 
   const updateStep = (stepId: string, update: Partial<LoanVideoStepDraft>) => {
     setDraft((current) => ({
@@ -228,9 +233,9 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
               <span>{t('loanVideo.manageSteps')}</span>
               <span
                 className="loan-video-steps__count"
-                aria-label={`${completedScreenshotCount}/${draft.steps.length}`}
+                aria-label={`${completedScreenshotCount}/${totalAssetCount}`}
               >
-                {completedScreenshotCount}/{draft.steps.length}
+                {completedScreenshotCount}/{totalAssetCount}
               </span>
             </button>
           </div>
@@ -251,10 +256,16 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
           disabled={disabled}
           open={uploadDrawerOpen}
           outputHint={t('loanVideo.outputHint', { n: draft.steps.length })}
+          intro={draft.intro}
+          background={draft.background}
+          outro={draft.outro}
           steps={draft.steps}
           onAddStep={addStep}
           onChangeStep={updateStep}
           onClose={closeUploadDrawer}
+          onChangeIntro={(intro) => setDraft((current) => ({ ...current, intro }))}
+          onChangeBackground={(background) => setDraft((current) => ({ ...current, background }))}
+          onChangeOutro={(outro) => setDraft((current) => ({ ...current, outro }))}
           onGenerate={submit}
           onMoveStep={moveStep}
           onRemoveStep={removeStep}
@@ -271,6 +282,9 @@ function validationMessage(
 ): string {
   const keys: Record<LoanVideoValidationError, Parameters<typeof t>[0]> = {
     'title-required': 'loanVideo.errorTitle',
+    'intro-required': 'loanVideo.errorIntro',
+    'background-required': 'loanVideo.errorBackground',
+    'outro-required': 'loanVideo.errorOutro',
     'step-required': 'loanVideo.errorStep',
     'text-required': 'loanVideo.errorText',
     'screenshot-required': 'loanVideo.errorScreenshot',

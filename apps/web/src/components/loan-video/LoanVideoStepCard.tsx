@@ -17,6 +17,7 @@ interface Props {
   nextStep: LoanVideoStepDraft | null;
   index: number;
   count: number;
+  outro: File | null;
   onChange: (update: Partial<LoanVideoStepDraft>) => void;
   onRemove: () => void;
   onMove: (direction: -1 | 1) => void;
@@ -27,17 +28,17 @@ export function LoanVideoStepCard({
   nextStep,
   index,
   count,
+  outro,
   onChange,
   onRemove,
   onMove,
 }: Props) {
   const t = useT();
   const previewUrl = useObjectUrl(step.screenshot);
-  const nextPreviewUrl = useObjectUrl(nextStep?.screenshot ?? null);
+  const nextPreviewUrl = useObjectUrl(nextStep?.screenshot ?? outro);
   const [screenshotAspectRatio, setScreenshotAspectRatio] = useState<number | null>(null);
   const screenshotInputRef = useRef<HTMLInputElement | null>(null);
-  const hasNextStep = index < count - 1;
-  const collectsTap = hasNextStep && step.advance === 'tap';
+  const collectsTap = step.advance === 'tap';
 
   const selectScreenshot = (event: ChangeEvent<HTMLInputElement>) => {
     const screenshot = event.target.files?.[0] ?? null;
@@ -184,66 +185,58 @@ export function LoanVideoStepCard({
               <span>{t('loanVideo.voiceover')}</span>
             </label>
           </div>
-          {hasNextStep ? (
+          <div
+            className="loan-video-step__transition"
+            data-testid={`loan-video-transition-${index + 1}`}
+          >
+            <strong>{nextStep
+              ? t('loanVideo.transition', { from: index + 1, to: index + 2 })
+              : t('loanVideo.transitionOutro', { from: index + 1 })}</strong>
             <div
-              className="loan-video-step__transition"
-              data-testid={`loan-video-transition-${index + 1}`}
+              className="loan-video-step__advance-options"
+              role="group"
+              aria-label={nextStep
+                ? t('loanVideo.transition', { from: index + 1, to: index + 2 })
+                : t('loanVideo.transitionOutro', { from: index + 1 })}
             >
-              <strong>
-                {t('loanVideo.transition', { from: index + 1, to: index + 2 })}
-              </strong>
-              <div
-                className="loan-video-step__advance-options"
-                role="group"
-                aria-label={t('loanVideo.transition', { from: index + 1, to: index + 2 })}
+              <button
+                type="button"
+                className={step.advance === 'tap' ? 'is-active' : ''}
+                data-testid={`loan-video-advance-tap-${index + 1}`}
+                aria-pressed={step.advance === 'tap'}
+                onClick={() => onChange({ advance: 'tap' })}
               >
-                <button
-                  type="button"
-                  className={step.advance === 'tap' ? 'is-active' : ''}
-                  data-testid={`loan-video-advance-tap-${index + 1}`}
-                  aria-pressed={step.advance === 'tap'}
-                  onClick={() => onChange({ advance: 'tap' })}
-                >
-                  {t('loanVideo.advanceTap')}
-                </button>
-                <button
-                  type="button"
-                  className={step.advance === 'auto' ? 'is-active' : ''}
-                  data-testid={`loan-video-advance-auto-${index + 1}`}
-                  aria-pressed={step.advance === 'auto'}
-                  onClick={() => onChange({ advance: 'auto', tap: null })}
-                >
-                  {t('loanVideo.advanceAuto')}
-                </button>
-              </div>
-              <small>
-                {step.advance === 'tap'
-                  ? t('loanVideo.advanceTapHint')
-                  : t('loanVideo.advanceAutoHint')}
-              </small>
-              <LoanVideoTransitionPreview
-                key={`${step.id}:${nextStep?.id ?? 'end'}`}
-                currentSrc={previewUrl}
-                nextSrc={nextPreviewUrl}
-                fromStep={index + 1}
-                toStep={index + 2}
-                advance={step.advance}
-                tap={step.tap}
-                caption={step.text}
-                captionEnabled={step.captionEnabled}
-                nextCaption={nextStep?.text ?? ''}
-                nextCaptionEnabled={nextStep?.captionEnabled ?? false}
-              />
+                {t('loanVideo.advanceTap')}
+              </button>
+              <button
+                type="button"
+                className={step.advance === 'auto' ? 'is-active' : ''}
+                data-testid={`loan-video-advance-auto-${index + 1}`}
+                aria-pressed={step.advance === 'auto'}
+                onClick={() => onChange({ advance: 'auto', tap: null })}
+              >
+                {t('loanVideo.advanceAuto')}
+              </button>
             </div>
-          ) : (
-            <div
-              className="loan-video-step__end"
-              data-testid={`loan-video-end-${index + 1}`}
-            >
-              <span aria-hidden>✓</span>
-              {t('loanVideo.end')}
-            </div>
-          )}
+            <small>
+              {step.advance === 'tap'
+                ? t('loanVideo.advanceTapHint')
+                : t('loanVideo.advanceAutoHint')}
+            </small>
+            <LoanVideoTransitionPreview
+              key={`${step.id}:${nextStep?.id ?? 'end'}`}
+              currentSrc={previewUrl}
+              nextSrc={nextPreviewUrl}
+              fromStep={index + 1}
+              toStep={index + 2}
+              advance={step.advance}
+              tap={step.tap}
+              caption={step.text}
+              captionEnabled={step.captionEnabled}
+              nextCaption={nextStep?.text ?? ''}
+              nextCaptionEnabled={nextStep?.captionEnabled ?? false}
+            />
+          </div>
         </div>
       </div>
     </article>
