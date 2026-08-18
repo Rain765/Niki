@@ -184,7 +184,10 @@ export function DocumentSearch() {
       </div>
 
       {hasOutput ? (
-        <div className="document-search__results" aria-live="polite">
+        <div
+          className={`document-search__results${document ? ' has-document' : ''}`}
+          aria-live="polite"
+        >
           {loading ? (
             <div className="document-search__empty">
               <Icon name="spinner" size={22} />
