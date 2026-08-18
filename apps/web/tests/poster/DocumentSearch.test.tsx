@@ -7,6 +7,28 @@ import {
   parseFeishuDocumentUrl,
 } from '../../src/poster/DocumentSearch';
 
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+function workspaceProject() {
+  return {
+    id: 'documents-project',
+    name: 'Product documents',
+    skillId: null,
+    designSystemId: null,
+    metadata: {
+      kind: 'other',
+      documentWorkspace: { version: 1, source: 'feishu' },
+    },
+    createdAt: 100,
+    updatedAt: 200,
+  };
+}
+
 describe('DocumentSearch', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -34,18 +56,25 @@ describe('DocumentSearch', () => {
   });
 
   it('uses one input for keyword search and renders matching documents', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
-      query: 'launch plan',
-      results: [{
-        title: '<h>Launch</h> plan',
-        summary: 'The rollout and owner list',
-        url: 'https://acme.feishu.cn/docx/LaunchPlan123',
-        ownerName: 'Rain',
-        updatedAt: 1_786_944_000,
-      }],
-      total: 1,
-      hasMore: false,
-    }), { status: 200 }));
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === '/api/projects') return jsonResponse({ projects: [] });
+      if (url === '/api/feishu/documents/search') {
+        return jsonResponse({
+          query: 'launch plan',
+          results: [{
+            title: '<h>Launch</h> plan',
+            summary: 'The rollout and owner list',
+            url: 'https://acme.feishu.cn/docx/LaunchPlan123',
+            ownerName: 'Rain',
+            updatedAt: 1_786_944_000,
+          }],
+          total: 1,
+          hasMore: false,
+        });
+      }
+      return jsonResponse({}, 404);
+    });
 
     render(<DocumentSearch />);
     const input = screen.getByRole('textbox', {
@@ -67,14 +96,44 @@ describe('DocumentSearch', () => {
   });
 
   it('reads a pasted Feishu link without calling document search', async () => {
-    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+    const document = {
       url: 'https://acme.feishu.cn/docx/DirectDoc123',
       documentId: 'DirectDoc123',
       sourceType: 'docx',
       title: 'Direct document',
       content: 'This content came from the pasted link.',
       truncated: false,
-    }), { status: 200 }));
+    };
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? 'GET';
+      if (url === '/api/projects' && method === 'GET') {
+        return jsonResponse({ projects: [] });
+      }
+      if (url === '/api/feishu/documents/read') return jsonResponse(document);
+      if (url === '/api/projects' && method === 'POST') {
+        return jsonResponse({
+          project: workspaceProject(),
+          conversationId: 'conversation-1',
+        });
+      }
+      if (url === '/api/projects/documents-project/conversations/conversation-1'
+        && method === 'PATCH') {
+        return jsonResponse({
+          conversation: {
+            id: 'conversation-1',
+            projectId: 'documents-project',
+            title: 'Direct document',
+            createdAt: 100,
+            updatedAt: 200,
+          },
+        });
+      }
+      if (url.includes('/messages/') && method === 'PUT') {
+        return jsonResponse({ message: {} });
+      }
+      return jsonResponse({}, 404);
+    });
 
     render(<DocumentSearch />);
     const input = screen.getByRole('textbox', {
@@ -94,10 +153,65 @@ describe('DocumentSearch', () => {
         }),
       }),
     ));
-    expect(screen.getByText('Direct document')).toBeTruthy();
-    expect(screen.getByText('This content came from the pasted link.')).toBeTruthy();
+    expect(await screen.findByText('Direct document')).toBeTruthy();
+    expect(screen.getAllByText('This content came from the pasted link.')).toHaveLength(2);
     expect(vi.mocked(fetch).mock.calls.some(
       ([url]) => String(url).includes('/search'),
     )).toBe(false);
+  });
+
+  it('restores saved summaries from the Recent navigation', async () => {
+    const project = workspaceProject();
+    const conversation = {
+      id: 'conversation-1',
+      projectId: project.id,
+      title: 'Saved launch plan',
+      createdAt: 100,
+      updatedAt: Date.now(),
+    };
+    const savedDocument = {
+      url: 'https://acme.feishu.cn/docx/SavedDoc123',
+      documentId: 'SavedDoc123',
+      sourceType: 'docx',
+      title: 'Saved launch plan',
+      content: 'The full saved source document.',
+      truncated: false,
+    };
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === '/api/projects') return jsonResponse({ projects: [project] });
+      if (url === `/api/projects/${project.id}/conversations`) {
+        return jsonResponse({ conversations: [conversation] });
+      }
+      if (url.endsWith('/messages')) {
+        return jsonResponse({
+          messages: [{
+            id: 'user-1',
+            role: 'user',
+            content: 'Summarize this document',
+            createdAt: 100,
+          }, {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'A saved summary.',
+            createdAt: 101,
+            events: [{
+              kind: 'raw',
+              line: `niki-feishu-document:${JSON.stringify(savedDocument)}`,
+            }],
+          }],
+        });
+      }
+      return jsonResponse({}, 404);
+    });
+
+    render(<DocumentSearch />);
+    expect(await screen.findByRole('button', { name: /Saved launch plan/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Saved launch plan/ }));
+
+    expect(await screen.findByText('A saved summary.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Open in Feishu/ }).getAttribute('href')).toBe(
+      savedDocument.url,
+    );
   });
 });
