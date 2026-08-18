@@ -117,7 +117,7 @@ describe('Feishu document search routes', () => {
     saveFeishuOAuthCredential(db, user.id, {
       accessToken: 'document-token',
       accessTokenExpiresAt: Date.now() + 3_600_000,
-      scope: 'docs:document.content:read',
+      scope: 'docx:document:readonly',
     });
     vi.mocked(feishuFetch)
       .mockReset()
@@ -151,11 +151,61 @@ describe('Feishu document search routes', () => {
     )).toBe(true);
   });
 
+  it('requires reauthorization when the credential only has the legacy document scope', async () => {
+    saveFeishuOAuthCredential(db, user.id, {
+      accessToken: 'legacy-document-token',
+      accessTokenExpiresAt: Date.now() + 3_600_000,
+      scope: 'docs:document.content:read',
+    });
+    vi.mocked(feishuFetch).mockClear();
+
+    const response = await fetch(`${baseUrl}/api/feishu/documents/read`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'https://acme.feishu.cn/docx/LaunchPlan123' }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'FEISHU_AUTH_REQUIRED',
+      reconnectUrl: expect.stringContaining('capability=read'),
+    });
+    expect(feishuFetch).not.toHaveBeenCalled();
+  });
+
+  it('surfaces Feishu action privilege errors as a reauthorization prompt', async () => {
+    saveFeishuOAuthCredential(db, user.id, {
+      accessToken: 'document-token',
+      accessTokenExpiresAt: Date.now() + 3_600_000,
+      scope: 'docx:document:readonly',
+    });
+    const permissionResponse = () => new Response(JSON.stringify({
+      code: 99991679,
+      msg: 'Unauthorized. required privilege: docx:document:readonly',
+    }), { status: 400 });
+    vi.mocked(feishuFetch)
+      .mockReset()
+      .mockResolvedValueOnce(permissionResponse())
+      .mockResolvedValueOnce(permissionResponse());
+
+    const response = await fetch(`${baseUrl}/api/feishu/documents/read`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'https://acme.feishu.cn/docx/LaunchPlan123' }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'FEISHU_AUTH_REQUIRED',
+      reconnectUrl: expect.stringContaining('capability=read'),
+    });
+  });
+
   it('asks for search permission when a content-only credential performs a keyword search', async () => {
     saveFeishuOAuthCredential(db, user.id, {
       accessToken: 'document-token',
       accessTokenExpiresAt: Date.now() + 3_600_000,
-      scope: 'docs:document.content:read',
+      scope: 'docx:document:readonly',
     });
     vi.mocked(feishuFetch).mockClear();
 
@@ -177,7 +227,7 @@ describe('Feishu document search routes', () => {
     saveFeishuOAuthCredential(db, user.id, {
       accessToken: 'wiki-token',
       accessTokenExpiresAt: Date.now() + 3_600_000,
-      scope: 'docs:document.content:read wiki:node:read',
+      scope: 'docx:document:readonly wiki:node:read',
     });
     vi.mocked(feishuFetch)
       .mockReset()
