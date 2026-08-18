@@ -10,7 +10,6 @@ import {
 describe('DocumentSearch', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
-    vi.spyOn(window, 'open').mockImplementation(() => null);
   });
 
   afterEach(() => {
@@ -62,7 +61,16 @@ describe('DocumentSearch', () => {
     ).toBe('https://acme.feishu.cn/docx/LaunchPlan123');
   });
 
-  it('opens a pasted Feishu link directly without calling search', () => {
+  it('reads a pasted Feishu link without calling document search', async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({
+      url: 'https://acme.feishu.cn/docx/DirectDoc123',
+      documentId: 'DirectDoc123',
+      sourceType: 'docx',
+      title: 'Direct document',
+      content: 'This content came from the pasted link.',
+      truncated: false,
+    }), { status: 200 }));
+
     render(<DocumentSearch />);
     const input = screen.getByRole('textbox', {
       name: 'Search Feishu documents or paste a link',
@@ -72,11 +80,19 @@ describe('DocumentSearch', () => {
     });
     fireEvent.submit(input.closest('form') as HTMLFormElement);
 
-    expect(window.open).toHaveBeenCalledWith(
-      'https://acme.feishu.cn/docx/DirectDoc123',
-      '_blank',
-      'noopener,noreferrer',
-    );
-    expect(fetch).not.toHaveBeenCalled();
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      '/api/feishu/documents/read',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          url: 'https://acme.feishu.cn/docx/DirectDoc123',
+        }),
+      }),
+    ));
+    expect(screen.getByText('Direct document')).toBeTruthy();
+    expect(screen.getByText('This content came from the pasted link.')).toBeTruthy();
+    expect(vi.mocked(fetch).mock.calls.some(
+      ([url]) => String(url).includes('/search'),
+    )).toBe(false);
   });
 });

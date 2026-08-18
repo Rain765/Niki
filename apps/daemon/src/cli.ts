@@ -90,10 +90,10 @@ const CANVAS_BOOLEAN_FLAGS = new Set(['json', 'help', 'h']);
 const MCP_STRING_FLAGS = new Set([
   'daemon-url',
 ]);
-const DOCUMENT_SEARCH_STRING_FLAGS = new Set([
-  'daemon-url', 'query', 'prompt-file',
+const DOCUMENT_STRING_FLAGS = new Set([
+  'daemon-url', 'query', 'url', 'prompt-file',
 ]);
-const DOCUMENT_SEARCH_BOOLEAN_FLAGS = new Set([
+const DOCUMENT_BOOLEAN_FLAGS = new Set([
   'json', 'help', 'h',
 ]);
 const MCP_BOOLEAN_FLAGS = new Set([
@@ -274,7 +274,7 @@ async function runDocuments(args) {
     printDocumentsHelp();
     process.exit(sub === 'help' || args.includes('--help') || args.includes('-h') ? 0 : 2);
   }
-  if (sub !== 'search') {
+  if (sub !== 'search' && sub !== 'read') {
     console.error(`unknown subcommand: od documents ${sub}`);
     printDocumentsHelp();
     process.exit(2);
@@ -283,29 +283,32 @@ async function runDocuments(args) {
   let flags;
   try {
     flags = parseFlags(rest, {
-      string: DOCUMENT_SEARCH_STRING_FLAGS,
-      boolean: DOCUMENT_SEARCH_BOOLEAN_FLAGS,
+      string: DOCUMENT_STRING_FLAGS,
+      boolean: DOCUMENT_BOOLEAN_FLAGS,
     });
   } catch (error) {
     console.error(error.message);
     process.exit(2);
   }
-  const query = (
-    typeof flags.query === 'string' && flags.query.trim()
-      ? flags.query
+  const input = (
+    typeof flags[sub === 'read' ? 'url' : 'query'] === 'string'
+      && flags[sub === 'read' ? 'url' : 'query'].trim()
+      ? flags[sub === 'read' ? 'url' : 'query']
       : await readPromptFromFlags({ 'prompt-file': flags['prompt-file'] })
   )?.trim();
-  if (!query) {
-    console.error('--query or --prompt-file required');
+  if (!input) {
+    console.error(`${sub === 'read' ? '--url' : '--query'} or --prompt-file required`);
     process.exit(2);
   }
   const daemonUrl = await cliDaemonUrl(flags);
   let response;
   try {
-    response = await fetch(`${daemonUrl.replace(/\/$/, '')}/api/feishu/documents/search`, {
+    response = await fetch(`${daemonUrl.replace(/\/$/, '')}/api/feishu/documents/${sub}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ query, pageSize: 20 }),
+      body: JSON.stringify(sub === 'read'
+        ? { url: input }
+        : { query: input, pageSize: 20 }),
     });
   } catch (error) {
     surfaceFetchError(error, daemonUrl);
@@ -320,8 +323,13 @@ async function runDocuments(args) {
     process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
     return;
   }
+  if (sub === 'read') {
+    console.log(`${body.title}\n${body.url}\n\n${body.content}`);
+    if (body.truncated) console.log('\n[Preview truncated]');
+    return;
+  }
   if (!Array.isArray(body.results) || body.results.length === 0) {
-    console.log(`No Feishu documents found for "${query}".`);
+    console.log(`No Feishu documents found for "${input}".`);
     return;
   }
   for (const item of body.results) {
@@ -333,8 +341,10 @@ function printDocumentsHelp() {
   console.log(`Usage:
   od documents search (--query <text> | --prompt-file <path|->)
                       [--json] [--daemon-url <url>]
+  od documents read (--url <feishu-url> | --prompt-file <path|->)
+                    [--json] [--daemon-url <url>]
 
-Searches Feishu documents visible to the signed-in user. Set
+Searches or reads Feishu documents visible to the signed-in user. Set
 OD_NIKI_SESSION_TOKEN when calling a Feishu-authenticated remote daemon.`);
 }
 
