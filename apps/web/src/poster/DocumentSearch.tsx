@@ -13,12 +13,13 @@ import { Icon } from '../components/Icon';
 
 const FEISHU_DOCUMENT_HOST = /(^|\.)feishu\.cn$/i;
 const FEISHU_DOCUMENT_PATH = /^\/(docx|wiki)\/[^/?#]+/i;
+const FEISHU_DOCUMENT_URL_IN_TEXT = /https:\/\/(?:[a-z0-9-]+\.)*feishu\.cn\/(?:docx|wiki)\/[a-z0-9_-]+/i;
 
 export function parseFeishuDocumentUrl(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
+  const candidate = value.match(FEISHU_DOCUMENT_URL_IN_TEXT)?.[0];
+  if (!candidate) return null;
   try {
-    const url = new URL(trimmed);
+    const url = new URL(candidate);
     if (
       url.protocol !== 'https:'
       || !FEISHU_DOCUMENT_HOST.test(url.hostname)
@@ -26,7 +27,7 @@ export function parseFeishuDocumentUrl(value: string): string | null {
     ) {
       return null;
     }
-    return url.toString();
+    return `${url.origin}${url.pathname}`;
   } catch {
     return null;
   }
