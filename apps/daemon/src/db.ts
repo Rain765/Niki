@@ -93,6 +93,17 @@ function migrate(db: SqliteDb): void {
     CREATE INDEX IF NOT EXISTS idx_niki_auth_sessions_user
       ON niki_auth_sessions(user_id, expires_at);
 
+    CREATE TABLE IF NOT EXISTS niki_feishu_credentials (
+      user_id TEXT PRIMARY KEY,
+      access_token TEXT NOT NULL,
+      refresh_token TEXT,
+      access_token_expires_at INTEGER NOT NULL,
+      refresh_token_expires_at INTEGER,
+      scope TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES niki_users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS niki_password_accounts (
       user_id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE COLLATE NOCASE,

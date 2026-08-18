@@ -23,9 +23,11 @@ import {
   listPasswordUsers,
   NikiPasswordAccountError,
   resolveNikiSession,
+  saveFeishuOAuthCredential,
   updatePasswordUser,
   upsertFeishuUser,
   verifyPasswordUser,
+  type FeishuOAuthCredential,
   type FeishuUserProfile,
 } from './niki-auth.js';
 import {
@@ -158,7 +160,10 @@ export function registerNikiAuthRoutes(
     authorizeUrl.searchParams.set('client_id', config.appId);
     authorizeUrl.searchParams.set('redirect_uri', config.redirectUri);
     authorizeUrl.searchParams.set('response_type', 'code');
-    authorizeUrl.searchParams.set('scope', 'auth:user.id:read');
+    authorizeUrl.searchParams.set(
+      'scope',
+      'auth:user.id:read search:docs:read docs:document.content:read offline_access',
+    );
     authorizeUrl.searchParams.set('state', state);
     return res.redirect(authorizeUrl.toString());
   });
@@ -179,9 +184,10 @@ export function registerNikiAuthRoutes(
     if (!returnTo) return res.redirect('/?authError=expired_state');
 
     try {
-      const accessToken = await exchangeFeishuCode(fetchImpl, config, code);
-      const profile = await fetchFeishuProfile(fetchImpl, accessToken);
+      const credential = await exchangeFeishuCode(fetchImpl, config, code);
+      const profile = await fetchFeishuProfile(fetchImpl, credential.accessToken);
       const user = upsertFeishuUser(db, profile);
+      saveFeishuOAuthCredential(db, user.id, credential);
       const session = createNikiSession(db, user.id);
       setCookie(res, SESSION_COOKIE, session.token, {
         maxAgeSeconds: SESSION_TTL_SECONDS,
@@ -576,7 +582,7 @@ async function exchangeFeishuCode(
   fetchImpl: FetchLike,
   config: NikiAuthRuntimeConfig,
   code: string,
-): Promise<string> {
+): Promise<FeishuOAuthCredential> {
   const response = await fetchImpl(
     'https://open.feishu.cn/open-apis/authen/v2/oauth/token',
     {
@@ -601,7 +607,23 @@ async function exchangeFeishuCode(
   if (!response.ok || !accessToken) {
     throw new Error(`Feishu token exchange failed (${response.status})`);
   }
-  return accessToken;
+  const now = Date.now();
+  const expiresIn = typeof data.expires_in === 'number' ? data.expires_in : 7_200;
+  const refreshToken = typeof data.refresh_token === 'string' && data.refresh_token
+    ? data.refresh_token
+    : undefined;
+  const refreshExpiresIn = typeof data.refresh_token_expires_in === 'number'
+    ? data.refresh_token_expires_in
+    : undefined;
+  return {
+    accessToken,
+    accessTokenExpiresAt: now + Math.max(0, expiresIn) * 1_000,
+    scope: typeof data.scope === 'string' ? data.scope : '',
+    ...(refreshToken ? { refreshToken } : {}),
+    ...(refreshExpiresIn
+      ? { refreshTokenExpiresAt: now + Math.max(0, refreshExpiresIn) * 1_000 }
+      : {}),
+  };
 }
 
 async function fetchFeishuProfile(

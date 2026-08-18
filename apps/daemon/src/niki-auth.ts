@@ -25,6 +25,14 @@ export interface NikiSession {
   expiresAt: number;
 }
 
+export interface FeishuOAuthCredential {
+  accessToken: string;
+  refreshToken?: string;
+  accessTokenExpiresAt: number;
+  refreshTokenExpiresAt?: number;
+  scope: string;
+}
+
 export interface CreatePasswordUserInput {
   username: string;
   name: string;
@@ -172,6 +180,64 @@ export function upsertFeishuUser(
   });
 
   return transaction();
+}
+
+export function saveFeishuOAuthCredential(
+  db: SqliteDb,
+  userId: string,
+  credential: FeishuOAuthCredential,
+  now = Date.now(),
+): void {
+  db.prepare(
+    `INSERT INTO niki_feishu_credentials
+      (user_id, access_token, refresh_token, access_token_expires_at,
+       refresh_token_expires_at, scope, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       access_token = excluded.access_token,
+       refresh_token = excluded.refresh_token,
+       access_token_expires_at = excluded.access_token_expires_at,
+       refresh_token_expires_at = excluded.refresh_token_expires_at,
+       scope = excluded.scope,
+       updated_at = excluded.updated_at`,
+  ).run(
+    userId,
+    credential.accessToken,
+    credential.refreshToken ?? null,
+    credential.accessTokenExpiresAt,
+    credential.refreshTokenExpiresAt ?? null,
+    credential.scope,
+    now,
+  );
+}
+
+export function getFeishuOAuthCredential(
+  db: SqliteDb,
+  userId: string,
+): FeishuOAuthCredential | null {
+  const row = db.prepare(
+    `SELECT access_token AS accessToken,
+            refresh_token AS refreshToken,
+            access_token_expires_at AS accessTokenExpiresAt,
+            refresh_token_expires_at AS refreshTokenExpiresAt,
+            scope
+       FROM niki_feishu_credentials
+      WHERE user_id = ?`,
+  ).get(userId) as Record<string, unknown> | undefined;
+  if (!row || typeof row.accessToken !== 'string') return null;
+  const refreshToken = typeof row.refreshToken === 'string' && row.refreshToken
+    ? row.refreshToken
+    : undefined;
+  const refreshTokenExpiresAt = typeof row.refreshTokenExpiresAt === 'number'
+    ? row.refreshTokenExpiresAt
+    : undefined;
+  return {
+    accessToken: row.accessToken,
+    accessTokenExpiresAt: Number(row.accessTokenExpiresAt),
+    scope: typeof row.scope === 'string' ? row.scope : '',
+    ...(refreshToken ? { refreshToken } : {}),
+    ...(refreshTokenExpiresAt ? { refreshTokenExpiresAt } : {}),
+  };
 }
 
 function normalizeUsername(username: string): string {
