@@ -115,6 +115,15 @@ export interface DirectLoanPosterBatch {
 export interface ProjectMetadata {
   kind: ProjectKind;
   /**
+   * Marks a project as a Feishu document-query workspace. These projects use
+   * the existing conversation/message persistence model for saved document
+   * summaries and follow-up questions instead of creating design artifacts.
+   */
+  documentWorkspace?: {
+    version: 1;
+    source: 'feishu';
+  };
+  /**
    * Marks projects whose first deliverables are started directly through the
    * media API instead of through a chat/agent turn. The web uses this to show
    * generation progress without exposing an internal execution prompt as a

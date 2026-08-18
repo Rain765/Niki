@@ -679,7 +679,7 @@ export function PosterApp() {
   };
 
   return (
-    <main className="poster-app">
+    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}`}>
       <header className="poster-app__header">
         <div className="poster-app__mode-select" ref={modeMenuRef}>
           <span className="poster-app__eyebrow">
