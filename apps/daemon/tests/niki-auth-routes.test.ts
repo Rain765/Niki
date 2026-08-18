@@ -102,8 +102,6 @@ describe('Niki Feishu authentication routes', () => {
       new URL(start.headers.get('location') ?? '').searchParams.get('scope')?.split(' '),
     )).toEqual(new Set([
       'auth:user.id:read',
-      'search:docs:read',
-      'docs:document.content:read',
       'offline_access',
     ]));
 
@@ -137,6 +135,29 @@ describe('Niki Feishu authentication routes', () => {
       headers: { cookie: authenticatedCookie },
     });
     expect(afterLogin.status).toBe(200);
+  });
+
+  it('requests document and search permissions only for the selected capability', async () => {
+    const expectations = [
+      ['read', ['auth:user.id:read', 'offline_access', 'docs:document.content:read']],
+      ['read-wiki', [
+        'auth:user.id:read',
+        'offline_access',
+        'docs:document.content:read',
+        'wiki:node:read',
+      ]],
+      ['search', ['auth:user.id:read', 'offline_access', 'search:docs:read']],
+    ] as const;
+
+    for (const [capability, expectedScopes] of expectations) {
+      const start = await fetch(
+        `${baseUrl}/api/auth/feishu/start?capability=${capability}`,
+        { redirect: 'manual' },
+      );
+      const scopes = new URL(start.headers.get('location') ?? '')
+        .searchParams.get('scope')?.split(' ') ?? [];
+      expect(new Set(scopes)).toEqual(new Set(expectedScopes));
+    }
   });
 
   it('allows only strict local operator routes to bypass the web session', async () => {

@@ -27,3 +27,27 @@ export interface FeishuDocumentSearchErrorResponse {
     | 'INVALID_QUERY';
   reconnectUrl?: string;
 }
+
+export interface FeishuDocumentReadRequest {
+  url: string;
+}
+
+export interface FeishuDocumentReadResponse {
+  url: string;
+  documentId: string;
+  sourceType: 'docx' | 'wiki';
+  title: string;
+  content: string;
+  truncated: boolean;
+}
+
+export interface FeishuDocumentReadErrorResponse {
+  error: string;
+  code:
+    | 'FEISHU_AUTH_REQUIRED'
+    | 'FEISHU_PERMISSION_DENIED'
+    | 'FEISHU_DOCUMENT_UNSUPPORTED'
+    | 'FEISHU_READ_FAILED'
+    | 'INVALID_DOCUMENT_URL';
+  reconnectUrl?: string;
+}

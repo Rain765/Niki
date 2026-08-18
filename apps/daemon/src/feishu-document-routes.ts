@@ -1,6 +1,9 @@
 import type { Express } from 'express';
 import type Database from 'better-sqlite3';
 import type {
+  FeishuDocumentReadErrorResponse,
+  FeishuDocumentReadRequest,
+  FeishuDocumentReadResponse,
   FeishuDocumentSearchErrorResponse,
   FeishuDocumentSearchRequest,
   FeishuDocumentSearchResponse,
@@ -24,17 +27,35 @@ interface RegisterFeishuDocumentRoutesOptions {
 }
 
 const TOKEN_REFRESH_SKEW_MS = 60_000;
+const MAX_DOCUMENT_CONTENT_LENGTH = 250_000;
+const DOCUMENTS_RETURN_TO = '%2F%3Fmode%3Ddocuments';
+
+type FeishuCapability = 'read' | 'read-wiki' | 'search';
 
 function errorBody(
   code: FeishuDocumentSearchErrorResponse['code'],
   error: string,
-  reconnect = false,
+  capability?: FeishuCapability,
 ): FeishuDocumentSearchErrorResponse {
   return {
     code,
     error,
-    ...(reconnect
-      ? { reconnectUrl: '/api/auth/feishu/start?returnTo=%2F%3Fmode%3Ddocuments' }
+    ...(capability
+      ? { reconnectUrl: `/api/auth/feishu/start?capability=${capability}&returnTo=${DOCUMENTS_RETURN_TO}` }
+      : {}),
+  };
+}
+
+function readErrorBody(
+  code: FeishuDocumentReadErrorResponse['code'],
+  error: string,
+  capability?: FeishuCapability,
+): FeishuDocumentReadErrorResponse {
+  return {
+    code,
+    error,
+    ...(capability
+      ? { reconnectUrl: `/api/auth/feishu/start?capability=${capability}&returnTo=${DOCUMENTS_RETURN_TO}` }
       : {}),
   };
 }
@@ -92,11 +113,14 @@ async function refreshCredential(
 
 async function userAccessToken(
   options: RegisterFeishuDocumentRoutesOptions,
+  requiredScopes: readonly string[],
 ): Promise<string | null> {
   const user = currentNikiUser();
   if (!user) return null;
   const credential = getFeishuOAuthCredential(options.db, user.id);
   if (!credential) return null;
+  const scopes = new Set(credential.scope.split(/[\s,]+/).filter(Boolean));
+  if (requiredScopes.some((scope) => !scopes.has(scope))) return null;
   if (credential.accessTokenExpiresAt > Date.now() + TOKEN_REFRESH_SKEW_MS) {
     return credential.accessToken;
   }
@@ -108,6 +132,56 @@ async function userAccessToken(
   if (!refreshed) return null;
   saveFeishuOAuthCredential(options.db, user.id, refreshed);
   return refreshed.accessToken;
+}
+
+interface ParsedFeishuDocumentUrl {
+  sourceType: 'docx' | 'wiki';
+  token: string;
+  url: string;
+}
+
+function parseDocumentUrl(value: string): ParsedFeishuDocumentUrl | null {
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== 'https:' || !/(^|\.)feishu\.cn$/i.test(url.hostname)) {
+      return null;
+    }
+    const match = url.pathname.match(/^\/(docx|wiki)\/([^/?#]+)/i);
+    if (!match?.[1] || !match[2]) return null;
+    return {
+      sourceType: match[1].toLowerCase() as 'docx' | 'wiki',
+      token: match[2],
+      url: url.toString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+interface FeishuApiPayload {
+  code?: number;
+  msg?: string;
+  data?: Record<string, unknown>;
+}
+
+async function getFeishuJson(
+  fetchImpl: FetchLike,
+  url: string,
+  accessToken: string,
+): Promise<{ response: Response; payload: FeishuApiPayload }> {
+  const response = await fetchImpl(url, {
+    headers: { authorization: `Bearer ${accessToken}` },
+  });
+  const payload = await response.json() as FeishuApiPayload;
+  return { response, payload };
+}
+
+function apiSucceeded(result: Awaited<ReturnType<typeof getFeishuJson>>): boolean {
+  return result.response.ok && result.payload.code === 0;
+}
+
+function nestedRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
 
 function text(value: unknown): string | undefined {
@@ -169,12 +243,12 @@ export function registerFeishuDocumentRoutes(
       : 12;
     const pageSize = Math.min(20, Math.max(1, Math.round(requestedPageSize)));
     try {
-      const accessToken = await userAccessToken(options);
+      const accessToken = await userAccessToken(options, ['search:docs:read']);
       if (!accessToken) {
         return res.status(409).json(errorBody(
           'FEISHU_AUTH_REQUIRED',
           'Reconnect Feishu to search your documents.',
-          true,
+          'search',
         ));
       }
       const response = await (options.fetchImpl ?? fetch)(
@@ -205,7 +279,7 @@ export function registerFeishuDocumentRoutes(
           needsAuth
             ? 'Feishu permission changed. Reconnect to continue searching.'
             : 'Feishu search is temporarily unavailable.',
-          needsAuth,
+          needsAuth ? 'search' : undefined,
         ));
       }
       const data = payload.data ?? {};
@@ -221,6 +295,136 @@ export function registerFeishuDocumentRoutes(
       };
       res.setHeader('cache-control', 'no-store');
       return res.json(body);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/feishu/documents/read', async (req, res, next) => {
+    const body = req.body as Partial<FeishuDocumentReadRequest> | undefined;
+    const parsed = parseDocumentUrl(typeof body?.url === 'string' ? body.url : '');
+    if (!parsed) {
+      return res.status(400).json(readErrorBody(
+        'INVALID_DOCUMENT_URL',
+        'Paste a valid Feishu docx or wiki link.',
+      ));
+    }
+
+    const capability: FeishuCapability = parsed.sourceType === 'wiki'
+      ? 'read-wiki'
+      : 'read';
+    const requiredScopes = parsed.sourceType === 'wiki'
+      ? ['docs:document.content:read', 'wiki:node:read']
+      : ['docs:document.content:read'];
+
+    try {
+      const accessToken = await userAccessToken(options, requiredScopes);
+      if (!accessToken) {
+        return res.status(409).json(readErrorBody(
+          'FEISHU_AUTH_REQUIRED',
+          parsed.sourceType === 'wiki'
+            ? 'Allow view-only document and wiki access to read this link.'
+            : 'Allow view-only document access to read this link.',
+          capability,
+        ));
+      }
+
+      const fetchImpl = options.fetchImpl ?? fetch;
+      let documentId = parsed.token;
+      let title = '';
+
+      if (parsed.sourceType === 'wiki') {
+        const wiki = await getFeishuJson(
+          fetchImpl,
+          `https://open.feishu.cn/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(parsed.token)}`,
+          accessToken,
+        );
+        if (!apiSucceeded(wiki)) {
+          const permissionDenied = wiki.response.status === 403;
+          const authExpired = wiki.response.status === 401;
+          return res.status(permissionDenied ? 403 : authExpired ? 409 : 502).json(
+            readErrorBody(
+              permissionDenied
+                ? 'FEISHU_PERMISSION_DENIED'
+                : authExpired
+                  ? 'FEISHU_AUTH_REQUIRED'
+                  : 'FEISHU_READ_FAILED',
+              permissionDenied
+                ? 'You do not have permission to view this Feishu wiki document.'
+                : authExpired
+                  ? 'Reconnect Feishu to read this document.'
+                  : 'Feishu could not resolve this wiki link.',
+              authExpired ? capability : undefined,
+            ),
+          );
+        }
+        const node = nestedRecord(wiki.payload.data?.node);
+        if (text(node.obj_type)?.toLowerCase() !== 'docx' || !text(node.obj_token)) {
+          return res.status(422).json(readErrorBody(
+            'FEISHU_DOCUMENT_UNSUPPORTED',
+            'This wiki link is not a Feishu document.',
+          ));
+        }
+        documentId = text(node.obj_token) ?? parsed.token;
+        title = text(node.title) ?? '';
+      }
+
+      const rawContentPromise = getFeishuJson(
+        fetchImpl,
+        `https://open.feishu.cn/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}/raw_content`,
+        accessToken,
+      );
+      const documentInfoPromise = parsed.sourceType === 'docx'
+        ? getFeishuJson(
+          fetchImpl,
+          `https://open.feishu.cn/open-apis/docx/v1/documents/${encodeURIComponent(documentId)}`,
+          accessToken,
+        )
+        : null;
+      const [rawContent, documentInfo] = await Promise.all([
+        rawContentPromise,
+        documentInfoPromise,
+      ]);
+      if (!apiSucceeded(rawContent) || (documentInfo && !apiSucceeded(documentInfo))) {
+        const status = !apiSucceeded(rawContent)
+          ? rawContent.response.status
+          : documentInfo?.response.status ?? 502;
+        const permissionDenied = status === 403;
+        const authExpired = status === 401;
+        return res.status(permissionDenied ? 403 : authExpired ? 409 : 502).json(
+          readErrorBody(
+            permissionDenied
+              ? 'FEISHU_PERMISSION_DENIED'
+              : authExpired
+                ? 'FEISHU_AUTH_REQUIRED'
+                : 'FEISHU_READ_FAILED',
+            permissionDenied
+              ? 'You do not have permission to view this Feishu document.'
+              : authExpired
+                ? 'Reconnect Feishu to read this document.'
+                : 'Feishu could not read this document.',
+            authExpired ? capability : undefined,
+          ),
+        );
+      }
+
+      if (documentInfo) {
+        const document = nestedRecord(documentInfo.payload.data?.document);
+        title = text(document.title) ?? title;
+      }
+      const fullContent = typeof rawContent.payload.data?.content === 'string'
+        ? rawContent.payload.data.content
+        : '';
+      const responseBody: FeishuDocumentReadResponse = {
+        url: parsed.url,
+        documentId,
+        sourceType: parsed.sourceType,
+        title: title || 'Untitled document',
+        content: fullContent.slice(0, MAX_DOCUMENT_CONTENT_LENGTH),
+        truncated: fullContent.length > MAX_DOCUMENT_CONTENT_LENGTH,
+      };
+      res.setHeader('cache-control', 'no-store');
+      return res.json(responseBody);
     } catch (error) {
       next(error);
     }

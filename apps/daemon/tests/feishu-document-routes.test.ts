@@ -17,11 +17,13 @@ describe('Feishu document search routes', () => {
   let server: http.Server;
   let baseUrl: string;
   let feishuFetch: typeof fetch;
+  let db: ReturnType<typeof openDatabase>;
+  let user: ReturnType<typeof upsertFeishuUser>;
 
   beforeEach(async () => {
     tempDir = mkdtempSync(path.join(os.tmpdir(), 'feishu-document-routes-'));
-    const db = openDatabase(tempDir, { dataDir: tempDir });
-    const user = upsertFeishuUser(db, {
+    db = openDatabase(tempDir, { dataDir: tempDir });
+    user = upsertFeishuUser(db, {
       tenantKey: 'tenant-a',
       openId: 'open-a',
       name: 'Rain',
@@ -109,5 +111,103 @@ describe('Feishu document search routes', () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ code: 'INVALID_QUERY' });
     expect(feishuFetch).not.toHaveBeenCalled();
+  });
+
+  it('reads a pasted docx link with content-read scope and without search scope', async () => {
+    saveFeishuOAuthCredential(db, user.id, {
+      accessToken: 'document-token',
+      accessTokenExpiresAt: Date.now() + 3_600_000,
+      scope: 'docs:document.content:read',
+    });
+    vi.mocked(feishuFetch)
+      .mockReset()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        code: 0,
+        data: { content: 'Launch plan\nShip on Friday.' },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        code: 0,
+        data: { document: { title: 'Launch plan' } },
+      }), { status: 200 }));
+
+    const response = await fetch(`${baseUrl}/api/feishu/documents/read`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'https://acme.feishu.cn/docx/LaunchPlan123' }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      url: 'https://acme.feishu.cn/docx/LaunchPlan123',
+      documentId: 'LaunchPlan123',
+      sourceType: 'docx',
+      title: 'Launch plan',
+      content: 'Launch plan\nShip on Friday.',
+      truncated: false,
+    });
+    expect(feishuFetch).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(feishuFetch).mock.calls.every(
+      ([url]) => !String(url).includes('/search/'),
+    )).toBe(true);
+  });
+
+  it('asks for search permission when a content-only credential performs a keyword search', async () => {
+    saveFeishuOAuthCredential(db, user.id, {
+      accessToken: 'document-token',
+      accessTokenExpiresAt: Date.now() + 3_600_000,
+      scope: 'docs:document.content:read',
+    });
+    vi.mocked(feishuFetch).mockClear();
+
+    const response = await fetch(`${baseUrl}/api/feishu/documents/search`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ query: 'launch' }),
+    });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'FEISHU_AUTH_REQUIRED',
+      reconnectUrl: expect.stringContaining('capability=search'),
+    });
+    expect(feishuFetch).not.toHaveBeenCalled();
+  });
+
+  it('resolves a wiki link with the minimal wiki and document read scopes', async () => {
+    saveFeishuOAuthCredential(db, user.id, {
+      accessToken: 'wiki-token',
+      accessTokenExpiresAt: Date.now() + 3_600_000,
+      scope: 'docs:document.content:read wiki:node:read',
+    });
+    vi.mocked(feishuFetch)
+      .mockReset()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        code: 0,
+        data: {
+          node: {
+            obj_type: 'docx',
+            obj_token: 'ResolvedDoc123',
+            title: 'Wiki launch plan',
+          },
+        },
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        code: 0,
+        data: { content: 'Resolved wiki content' },
+      }), { status: 200 }));
+
+    const response = await fetch(`${baseUrl}/api/feishu/documents/read`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'https://acme.feishu.cn/wiki/WikiNode123' }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      documentId: 'ResolvedDoc123',
+      sourceType: 'wiki',
+      title: 'Wiki launch plan',
+      content: 'Resolved wiki content',
+    });
   });
 });

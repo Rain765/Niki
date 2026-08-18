@@ -20,6 +20,7 @@ import {
   createNikiSession,
   deleteNikiSession,
   disablePasswordUser,
+  getFeishuOAuthCredential,
   listPasswordUsers,
   NikiPasswordAccountError,
   resolveNikiSession,
@@ -50,6 +51,18 @@ type FetchLike = typeof fetch;
 const SESSION_COOKIE = 'niki_session';
 const OAUTH_STATE_COOKIE = 'niki_oauth_state';
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
+const BASE_FEISHU_OAUTH_SCOPES = ['auth:user.id:read', 'offline_access'] as const;
+const FEISHU_CAPABILITY_SCOPES = {
+  read: ['docs:document.content:read'],
+  'read-wiki': ['docs:document.content:read', 'wiki:node:read'],
+  search: ['search:docs:read'],
+} as const;
+
+type FeishuCapability = keyof typeof FEISHU_CAPABILITY_SCOPES;
+
+function isFeishuCapability(value: string): value is FeishuCapability {
+  return Object.hasOwn(FEISHU_CAPABILITY_SCOPES, value);
+}
 
 export interface NikiAuthRuntimeConfig {
   enabled: boolean;
@@ -149,6 +162,25 @@ export function registerNikiAuthRoutes(
     const returnTo = safeReturnTo(
       typeof req.query.returnTo === 'string' ? req.query.returnTo : '/',
     );
+    const capability = typeof req.query.capability === 'string'
+      ? req.query.capability
+      : '';
+    if (capability && !isFeishuCapability(capability)) {
+      return res.status(400).json({ error: 'Unsupported Feishu capability' });
+    }
+    const sessionUser = resolveNikiSession(db, requestSessionToken(req));
+    const existingCredential = sessionUser
+      ? getFeishuOAuthCredential(db, sessionUser.id)
+      : null;
+    const existingScopes = existingCredential?.scope.split(/[\s,]+/).filter(Boolean) ?? [];
+    const capabilityScopes = capability
+      ? FEISHU_CAPABILITY_SCOPES[capability as FeishuCapability]
+      : [];
+    const scopes = [...new Set([
+      ...BASE_FEISHU_OAUTH_SCOPES,
+      ...existingScopes,
+      ...capabilityScopes,
+    ])];
     const state = createNikiOAuthState(db, returnTo);
     setCookie(res, OAUTH_STATE_COOKIE, state, {
       maxAgeSeconds: 10 * 60,
@@ -162,7 +194,7 @@ export function registerNikiAuthRoutes(
     authorizeUrl.searchParams.set('response_type', 'code');
     authorizeUrl.searchParams.set(
       'scope',
-      'auth:user.id:read search:docs:read docs:document.content:read offline_access',
+      scopes.join(' '),
     );
     authorizeUrl.searchParams.set('state', state);
     return res.redirect(authorizeUrl.toString());

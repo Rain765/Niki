@@ -1,6 +1,8 @@
 'use client';
 
 import type {
+  FeishuDocumentReadErrorResponse,
+  FeishuDocumentReadResponse,
   FeishuDocumentSearchErrorResponse,
   FeishuDocumentSearchResponse,
   FeishuDocumentSearchResult,
@@ -10,7 +12,7 @@ import type { FormEvent } from 'react';
 import { Icon } from '../components/Icon';
 
 const FEISHU_DOCUMENT_HOST = /(^|\.)feishu\.cn$/i;
-const FEISHU_DOCUMENT_PATH = /^\/(docx|docs|wiki)\/[^/?#]+/i;
+const FEISHU_DOCUMENT_PATH = /^\/(docx|wiki)\/[^/?#]+/i;
 
 export function parseFeishuDocumentUrl(value: string): string | null {
   const trimmed = value.trim();
@@ -78,49 +80,66 @@ export function DocumentSearch() {
   const [value, setValue] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [results, setResults] = useState<FeishuDocumentSearchResult[]>([]);
+  const [document, setDocument] = useState<FeishuDocumentReadResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<FeishuDocumentSearchErrorResponse | null>(null);
+  const [error, setError] = useState<(
+    FeishuDocumentReadErrorResponse | FeishuDocumentSearchErrorResponse
+  ) | null>(null);
   const requestIdRef = useRef(0);
   const documentUrl = useMemo(() => parseFeishuDocumentUrl(value), [value]);
-  const hasSearched = Boolean(submittedQuery) || Boolean(error);
+  const hasOutput = loading || Boolean(submittedQuery) || Boolean(document) || Boolean(error);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const query = value.trim();
     if (!query || loading) return;
 
-    if (documentUrl) {
-      window.open(documentUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
     setLoading(true);
     setError(null);
-    setSubmittedQuery(query);
+    setSubmittedQuery(documentUrl ? '' : query);
+    setDocument(null);
+    setResults([]);
     try {
-      const response = await fetch('/api/feishu/documents/search', {
+      const endpoint = documentUrl
+        ? '/api/feishu/documents/read'
+        : '/api/feishu/documents/search';
+      const response = await fetch(endpoint, {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ query, pageSize: 12 }),
+        body: JSON.stringify(documentUrl
+          ? { url: documentUrl }
+          : { query, pageSize: 12 }),
       });
       const body = await response.json() as (
-        FeishuDocumentSearchResponse | FeishuDocumentSearchErrorResponse
+        | FeishuDocumentReadResponse
+        | FeishuDocumentReadErrorResponse
+        | FeishuDocumentSearchResponse
+        | FeishuDocumentSearchErrorResponse
       );
       if (!response.ok) {
         throw body;
       }
       if (requestId !== requestIdRef.current) return;
-      setResults((body as FeishuDocumentSearchResponse).results);
+      if (documentUrl) {
+        setDocument(body as FeishuDocumentReadResponse);
+      } else {
+        setResults((body as FeishuDocumentSearchResponse).results);
+      }
     } catch (cause) {
       if (requestId !== requestIdRef.current) return;
-      const candidate = cause as Partial<FeishuDocumentSearchErrorResponse>;
+      const candidate = cause as Partial<
+        FeishuDocumentReadErrorResponse | FeishuDocumentSearchErrorResponse
+      >;
       setResults([]);
+      setDocument(null);
       setError({
-        code: candidate.code ?? 'FEISHU_SEARCH_FAILED',
-        error: candidate.error ?? 'Could not search Feishu. Please try again.',
+        code: candidate.code ?? (documentUrl ? 'FEISHU_READ_FAILED' : 'FEISHU_SEARCH_FAILED'),
+        error: candidate.error ?? (documentUrl
+          ? 'Could not read this Feishu document. Please try again.'
+          : 'Could not search Feishu. Please try again.'),
         ...(candidate.reconnectUrl ? { reconnectUrl: candidate.reconnectUrl } : {}),
       });
     } finally {
@@ -130,7 +149,7 @@ export function DocumentSearch() {
 
   return (
     <section
-      className={`document-search${hasSearched ? ' has-results' : ''}`}
+      className={`document-search${hasOutput ? ' has-results' : ''}`}
       aria-label="Feishu document search"
     >
       <div className="document-search__hero">
@@ -150,7 +169,7 @@ export function DocumentSearch() {
           />
           <button
             type="submit"
-            aria-label={documentUrl ? 'Open Feishu document' : 'Search documents'}
+            aria-label={documentUrl ? 'Read Feishu document' : 'Search documents'}
             disabled={!value.trim() || loading}
           >
             {loading ? <Icon name="spinner" size={19} /> : <Icon name="arrow-up" size={20} />}
@@ -158,17 +177,17 @@ export function DocumentSearch() {
         </form>
         <p className="document-search__hint">
           {documentUrl
-            ? 'Feishu link detected · Open the document directly'
+            ? 'Feishu link detected · Read with view-only access'
             : 'Search only shows documents you already have permission to view'}
         </p>
       </div>
 
-      {hasSearched ? (
+      {hasOutput ? (
         <div className="document-search__results" aria-live="polite">
           {loading ? (
             <div className="document-search__empty">
               <Icon name="spinner" size={22} />
-              <strong>Searching Feishu…</strong>
+              <strong>{documentUrl ? 'Reading Feishu document…' : 'Searching Feishu…'}</strong>
             </div>
           ) : error ? (
             <div className="document-search__empty is-error">
@@ -178,6 +197,26 @@ export function DocumentSearch() {
                 <a href={error.reconnectUrl}>Reconnect Feishu</a>
               ) : null}
             </div>
+          ) : document ? (
+            <article className="document-search__document">
+              <header>
+                <span className="document-search__result-icon" aria-hidden="true">
+                  <Icon name="file" size={19} />
+                </span>
+                <span>
+                  <strong>{document.title}</strong>
+                  <small>{document.sourceType === 'wiki' ? 'Feishu Wiki document' : 'Feishu document'}</small>
+                </span>
+                <a href={document.url} target="_blank" rel="noreferrer">
+                  Open in Feishu
+                  <Icon name="external-link" size={16} />
+                </a>
+              </header>
+              <pre>{document.content || 'This document is empty.'}</pre>
+              {document.truncated ? (
+                <p>Preview shortened because this document is very long.</p>
+              ) : null}
+            </article>
           ) : results.length > 0 ? (
             <>
               <header>
