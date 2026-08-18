@@ -25,6 +25,11 @@ describe('DocumentSearch', () => {
     expect(parseFeishuDocumentUrl('https://acme.feishu.cn/wiki/AbCdEf123')).toBe(
       'https://acme.feishu.cn/wiki/AbCdEf123',
     );
+    expect(parseFeishuDocumentUrl(
+      'https://biu-tech.feishu.cn/docx/JEQKdwxl3oeWARxEl9mcj5F1nPh 总结下',
+    )).toBe(
+      'https://biu-tech.feishu.cn/docx/JEQKdwxl3oeWARxEl9mcj5F1nPh',
+    );
     expect(parseFeishuDocumentUrl('https://feishu.cn.evil.test/docx/AbCdEf123')).toBeNull();
   });
 
@@ -76,7 +81,7 @@ describe('DocumentSearch', () => {
       name: 'Search Feishu documents or paste a link',
     });
     fireEvent.change(input, {
-      target: { value: 'https://acme.feishu.cn/docx/DirectDoc123' },
+      target: { value: 'https://acme.feishu.cn/docx/DirectDoc123 summarize this' },
     });
     fireEvent.submit(input.closest('form') as HTMLFormElement);
 
