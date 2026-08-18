@@ -139,11 +139,11 @@ describe('Niki Feishu authentication routes', () => {
 
   it('requests document and search permissions only for the selected capability', async () => {
     const expectations = [
-      ['read', ['auth:user.id:read', 'offline_access', 'docs:document.content:read']],
+      ['read', ['auth:user.id:read', 'offline_access', 'docx:document:readonly']],
       ['read-wiki', [
         'auth:user.id:read',
         'offline_access',
-        'docs:document.content:read',
+        'docx:document:readonly',
         'wiki:node:read',
       ]],
       ['search', ['auth:user.id:read', 'offline_access', 'search:docs:read']],

@@ -53,8 +53,8 @@ const OAUTH_STATE_COOKIE = 'niki_oauth_state';
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const BASE_FEISHU_OAUTH_SCOPES = ['auth:user.id:read', 'offline_access'] as const;
 const FEISHU_CAPABILITY_SCOPES = {
-  read: ['docs:document.content:read'],
-  'read-wiki': ['docs:document.content:read', 'wiki:node:read'],
+  read: ['docx:document:readonly'],
+  'read-wiki': ['docx:document:readonly', 'wiki:node:read'],
   search: ['search:docs:read'],
 } as const;
 

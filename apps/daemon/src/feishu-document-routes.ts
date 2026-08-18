@@ -180,6 +180,12 @@ function apiSucceeded(result: Awaited<ReturnType<typeof getFeishuJson>>): boolea
   return result.response.ok && result.payload.code === 0;
 }
 
+function requiresOAuthPermission(
+  result: Awaited<ReturnType<typeof getFeishuJson>>,
+): boolean {
+  return result.payload.code === 99991679;
+}
+
 function nestedRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
@@ -314,8 +320,8 @@ export function registerFeishuDocumentRoutes(
       ? 'read-wiki'
       : 'read';
     const requiredScopes = parsed.sourceType === 'wiki'
-      ? ['docs:document.content:read', 'wiki:node:read']
-      : ['docs:document.content:read'];
+      ? ['docx:document:readonly', 'wiki:node:read']
+      : ['docx:document:readonly'];
 
     try {
       const accessToken = await userAccessToken(options, requiredScopes);
@@ -340,8 +346,9 @@ export function registerFeishuDocumentRoutes(
           accessToken,
         );
         if (!apiSucceeded(wiki)) {
-          const permissionDenied = wiki.response.status === 403;
-          const authExpired = wiki.response.status === 401;
+          const authExpired = wiki.response.status === 401
+            || requiresOAuthPermission(wiki);
+          const permissionDenied = wiki.response.status === 403 && !authExpired;
           return res.status(permissionDenied ? 403 : authExpired ? 409 : 502).json(
             readErrorBody(
               permissionDenied
@@ -386,11 +393,13 @@ export function registerFeishuDocumentRoutes(
         documentInfoPromise,
       ]);
       if (!apiSucceeded(rawContent) || (documentInfo && !apiSucceeded(documentInfo))) {
-        const status = !apiSucceeded(rawContent)
-          ? rawContent.response.status
-          : documentInfo?.response.status ?? 502;
-        const permissionDenied = status === 403;
-        const authExpired = status === 401;
+        const failedResult = !apiSucceeded(rawContent)
+          ? rawContent
+          : documentInfo;
+        const status = failedResult?.response.status ?? 502;
+        const authExpired = status === 401
+          || (failedResult ? requiresOAuthPermission(failedResult) : false);
+        const permissionDenied = status === 403 && !authExpired;
         return res.status(permissionDenied ? 403 : authExpired ? 409 : 502).json(
           readErrorBody(
             permissionDenied
