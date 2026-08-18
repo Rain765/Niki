@@ -28,6 +28,7 @@ import {
   type AutoPosterBrand,
 } from '../components/home-hero/zambia-posters';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
+import { DocumentSearch } from './DocumentSearch';
 import {
   canSharePreparedImageFile,
   copyOrSharePreparedImageFile,
@@ -40,9 +41,23 @@ import type { Project, ProjectFile } from '../types';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
-type CreationMode = 'poster' | 'video';
+type CreationMode = 'poster' | 'video' | 'documents';
 
 const STATUS_AUTO_DISMISS_MS = 10_000;
+
+function initialCreationMode(): CreationMode {
+  if (typeof window === 'undefined') return 'poster';
+  const mode = new URLSearchParams(window.location.search).get('mode');
+  return mode === 'documents' ? mode : 'poster';
+}
+
+function updateCreationModeUrl(mode: CreationMode): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (mode === 'documents') url.searchParams.set('mode', mode);
+  else url.searchParams.delete('mode');
+  window.history.replaceState(window.history.state, '', url);
+}
 
 function rawUrl(projectId: string, name: string, version?: number): string {
   const safeName = name.split('/').map(encodeURIComponent).join('/');
@@ -185,7 +200,7 @@ function useVideoElapsed(running: boolean, requestedAt: number | null): string {
 
 export function PosterApp() {
   const { user, logout } = useNikiAuth();
-  const [creationMode, setCreationMode] = useState<CreationMode>('poster');
+  const [creationMode, setCreationMode] = useState<CreationMode>(initialCreationMode);
   const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video');
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -667,7 +682,13 @@ export function PosterApp() {
     <main className="poster-app">
       <header className="poster-app__header">
         <div className="poster-app__mode-select" ref={modeMenuRef}>
-          <span className="poster-app__eyebrow">{creationMode === 'poster' ? 'NIKI POSTER' : 'NIKI VIDEO'}</span>
+          <span className="poster-app__eyebrow">
+            {creationMode === 'poster'
+              ? 'NIKI POSTER'
+              : creationMode === 'video'
+                ? 'NIKI VIDEO'
+                : 'NIKI DOCS'}
+          </span>
           <button
             type="button"
             className="poster-app__mode-trigger"
@@ -676,7 +697,11 @@ export function PosterApp() {
             onClick={() => setModeMenuOpen((current) => !current)}
           >
             <span className="poster-app__mode-title" role="heading" aria-level={1}>
-              {creationMode === 'poster' ? 'Generate Loan Posters' : 'Generate Tutorial Videos'}
+              {creationMode === 'poster'
+                ? 'Generate Loan Posters'
+                : creationMode === 'video'
+                  ? 'Generate Tutorial Videos'
+                  : 'Document Search'}
               <Icon name="chevron-down" size={24} />
             </span>
           </button>
@@ -689,6 +714,7 @@ export function PosterApp() {
             {([
               { value: 'poster', title: 'Generate Loan Posters', description: 'Create ready-to-use loan campaign images', icon: 'image' },
               { value: 'video', title: 'Generate Tutorial Videos', description: 'Turn app screenshots into guided videos', icon: 'play' },
+              { value: 'documents', title: 'Document Search', description: 'Search Feishu or open a document link', icon: 'search' },
             ] as const).map((option) => (
               <button
                 key={option.value}
@@ -698,6 +724,7 @@ export function PosterApp() {
                 tabIndex={modeMenuOpen ? 0 : -1}
                 onClick={() => {
                   setCreationMode(option.value);
+                  updateCreationModeUrl(option.value);
                   setModeMenuOpen(false);
                 }}
               >
@@ -1030,7 +1057,7 @@ export function PosterApp() {
         </div>
       ) : null}
         </>
-      ) : (
+      ) : creationMode === 'video' ? (
         <section className="poster-app__video" aria-label="Tutorial video generator">
           <LoanVideoComposer onSubmit={generateVideo} disabled={videoGeneration.active} />
 
@@ -1184,6 +1211,8 @@ export function PosterApp() {
             </section>
           ) : null}
         </section>
+      ) : (
+        <DocumentSearch />
       )}
     </main>
   );

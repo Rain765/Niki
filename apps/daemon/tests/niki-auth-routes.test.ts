@@ -98,6 +98,14 @@ describe('Niki Feishu authentication routes', () => {
     expect(stateCookie).toContain('niki_oauth_state=');
     expect(stateCookie).toContain('HttpOnly');
     expect(state).toBeTruthy();
+    expect(new Set(
+      new URL(start.headers.get('location') ?? '').searchParams.get('scope')?.split(' '),
+    )).toEqual(new Set([
+      'auth:user.id:read',
+      'search:docs:read',
+      'docs:document.content:read',
+      'offline_access',
+    ]));
 
     const callback = await fetch(
       `${baseUrl}/api/auth/feishu/callback?code=oauth-code&state=${encodeURIComponent(state ?? '')}`,

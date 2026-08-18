@@ -133,6 +133,7 @@ const project = {
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
+  window.history.replaceState({}, '', '/');
   resolveDirectLoanPosterProjectMock.mockResolvedValue(project);
   createProjectMock.mockResolvedValue({
     project: {
@@ -639,6 +640,22 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Biumoney' }).classList.contains('is-active')).toBe(true);
     expect(screen.getByRole('button', { name: '3' }).classList.contains('is-active')).toBe(true);
+  });
+
+  it('opens Document Search from the title menu', () => {
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
+    fireEvent.click(screen.getByRole('option', { name: /Document Search/ }));
+
+    expect(screen.getByRole('heading', { name: 'Document Search' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What do you want to find?' })).toBeTruthy();
+    expect(screen.getByRole('textbox', {
+      name: 'Search Feishu documents or paste a link',
+    })).toBeTruthy();
+    expect(window.location.search).toBe('?mode=documents');
+    expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Tutorial video generator' })).toBeNull();
   });
 
   it('keeps the mode chevron in the title flow', () => {

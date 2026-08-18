@@ -360,6 +360,7 @@ import { registerConnectorRoutes } from './connectors/routes.js';
 import { registerActiveContextRoutes } from './active-context-routes.js';
 import { registerMcpRoutes } from './mcp-routes.js';
 import { registerXaiRoutes } from './xai-routes.js';
+import { registerFeishuDocumentRoutes } from './feishu-document-routes.js';
 import { registerLiveArtifactRoutes } from './live-artifact-routes.js';
 import { registerCanvasRoutes } from './canvas-routes.js';
 import { registerDesignSystemToolRoutes } from './design-system-tool-routes.js';
@@ -3407,6 +3408,7 @@ export async function startServer({
     isLocalOperatorRequest: (req) => validateLocalDaemonRequest(req).ok,
     resolveRunProjectId: (runId) => resolveNikiRunProjectId(runId),
   });
+  registerFeishuDocumentRoutes(app, { db });
 
   if (fs.existsSync(STATIC_DIR)) {
     app.use(express.static(STATIC_DIR));
