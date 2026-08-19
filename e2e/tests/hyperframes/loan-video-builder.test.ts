@@ -433,10 +433,21 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toContain('data-loan-video-background-image');
     expect(html.match(/<img class="tutorial-background__image" data-loan-video-background-image/g))
       .toHaveLength(1);
-    expect(html).toContain('data-loan-video-focus-layer');
+    expect(html).toContain('data-loan-video-shell');
+    expect(html).toContain('data-loan-video-field-layer');
+    expect(html).toContain('tutorial__field-fill-image');
+    expect(html).not.toContain('data-loan-video-focus-layer');
+    expect(html).not.toContain('tutorial__focus-target');
     expect(html).not.toContain('data-loan-video-press');
     expect(html).toContain('const deviceContentClipTop = targetImageRect.top + targetImageRect.height * 0.106;');
+    expect(html).toContain('const deviceContentInsetX = 0.046;');
+    expect(html).not.toContain('targetAsset.style.clipPath = `inset(10.6%');
     expect(html).toContain('targetAsset.style.transform = `translate(calc(-50% + ${offsetX.toFixed(2)}px), -50%)`;');
+    expect(html).toContain('currentAsset.style.transform = `translate(calc(-50% - ${currentOffsetX.toFixed(2)}px), -50%)`;');
+    expect(html).toContain('const renderFieldInputs = (scene, time, imageRect, options = {}) =>');
+    expect(html).toContain('const targets = scene?.presentation === "device" && !scene.interaction');
+    expect(html).toContain('fieldLayer.style.clipPath = targetSlot.style.clipPath;');
+    expect(html).toContain('forceBlank: true');
     expect(html).toContain('camera.style.transform = "none";');
     expect(html).toContain('const fingertipX = handWidth * 0.145;');
     expect(html).toContain('hand.style.transformOrigin = "0 0";');
@@ -518,10 +529,17 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toContain('data-loan-video-interaction-layer');
     expect(html).toContain('tutorial__typed-text');
     expect(html).toContain('tutorial__otp-box');
+    expect(html).toContain('const keyboardTapPoint = (digit) =>');
+    expect(html).toContain('"2": { x: 0.376, y: 0.742 }');
+    expect(html).toContain('"4": { x: 0.132, y: 0.804 }');
+    expect(html).toContain('"7": { x: 0.132, y: 0.869 }');
+    expect(html).toContain('"9": { x: 0.622, y: 0.869 }');
     expect(html).toContain('const modalTransition = action.type === "open-modal"');
     expect(html).toContain('if (action.type === "open-modal")');
-    expect(html).toContain('currentSlot.style.opacity = "1";');
-    expect(html).toContain('targetSlot.style.clipPath = `inset(${clipTop.toFixed(2)}px 0 0 0)`;');
+    expect(html).toContain('setSource(shellAsset, targetScene.asset);');
+    expect(html).toContain('currentSlot.style.zIndex = "2";');
+    expect(html).toContain('const movingClipTop = clipTop + offsetY;');
+    expect(html).toContain('targetSlot.style.clipPath = `inset(${movingClipTop.toFixed(2)}px ${clipRight.toFixed(2)}px ${clipBottom.toFixed(2)}px ${targetImageRect.left.toFixed(2)}px)`;');
   });
 
   it('copies v2 screenshots by assetRef when upload timestamps and lexical order collide', async () => {
