@@ -688,9 +688,11 @@ __AUDIO__
             const offsetX = (1 - transitionProgress) * targetContentWidth;
             shellSlot.style.opacity = "1";
             currentSlot.style.opacity = "1";
-            targetSlot.style.opacity = "1";
+            targetSlot.style.opacity = transitionProgress > 0 ? "1" : "0";
             currentSlot.style.clipPath = `inset(${currentContentClipTop.toFixed(2)}px ${currentContentRight.toFixed(2)}px ${currentClipBottom.toFixed(2)}px ${currentContentLeft.toFixed(2)}px)`;
             targetSlot.style.clipPath = `inset(${deviceContentClipTop.toFixed(2)}px ${deviceContentRight.toFixed(2)}px ${deviceClipBottom.toFixed(2)}px ${deviceContentLeft.toFixed(2)}px)`;
+            currentAsset.style.clipPath = `inset(10.6% ${deviceContentInsetX * 100}% ${deviceContentInsetBottom * 100}% ${deviceContentInsetX * 100}%)`;
+            targetAsset.style.clipPath = `inset(10.6% ${deviceContentInsetX * 100}% ${deviceContentInsetBottom * 100}% ${deviceContentInsetX * 100}%)`;
             currentAsset.style.transform = `translate(calc(-50% - ${currentOffsetX.toFixed(2)}px), -50%)`;
             targetAsset.style.transform = `translate(calc(-50% + ${offsetX.toFixed(2)}px), -50%)`;
             if (time >= action.start && targetScene?.focusTargets?.length) {
