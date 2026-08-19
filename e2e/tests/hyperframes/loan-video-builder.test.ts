@@ -441,7 +441,8 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).not.toContain('data-loan-video-press');
     expect(html).toContain('const deviceContentClipTop = targetImageRect.top + targetImageRect.height * 0.106;');
     expect(html).toContain('const deviceContentInsetX = 0.046;');
-    expect(html).not.toContain('targetAsset.style.clipPath = `inset(10.6%');
+    expect(html).toContain('targetAsset.style.clipPath = `inset(10.6% ${deviceContentInsetX * 100}%');
+    expect(html).toContain('targetSlot.style.opacity = transitionProgress > 0 ? "1" : "0";');
     expect(html).toContain('targetAsset.style.transform = `translate(calc(-50% + ${offsetX.toFixed(2)}px), -50%)`;');
     expect(html).toContain('currentAsset.style.transform = `translate(calc(-50% - ${currentOffsetX.toFixed(2)}px), -50%)`;');
     expect(html).toContain('const renderFieldInputs = (scene, time, imageRect, options = {}) =>');
