@@ -317,7 +317,11 @@ function normalizeStoryboard(raw) {
       if (!rawInteraction || typeof rawInteraction !== 'object' || Array.isArray(rawInteraction)) {
         fail(`storyboard.scenes[${index}].interaction must be an object`);
       }
-      if (rawInteraction.type !== 'type' && rawInteraction.type !== 'otp') {
+      if (
+        rawInteraction.type !== 'type'
+        && rawInteraction.type !== 'keypad'
+        && rawInteraction.type !== 'otp'
+      ) {
         fail(`storyboard.scenes[${index}].interaction has unsupported type`);
       }
       const target = rawInteraction.target;
@@ -349,6 +353,11 @@ function normalizeStoryboard(raw) {
       }
       if (rawInteraction.type === 'otp' && !/^\d{1,8}$/.test(interactionText)) {
         fail(`storyboard.scenes[${index}].interaction.text must contain 1 to 8 digits for otp`);
+      }
+      if (rawInteraction.type === 'keypad' && !/^\d{1,15}$/.test(interactionText)) {
+        fail(
+          `storyboard.scenes[${index}].interaction.text must contain 1 to 15 digits for keypad`,
+        );
       }
       interaction = {
         type: rawInteraction.type,
@@ -1133,7 +1142,13 @@ async function build() {
       ...(backgroundAssetName ? [backgroundAssetName] : []),
     ]),
     SUBTITLE: storyboard.subtitles
-      ? '      <div class="tutorial__subtitle" data-loan-video-subtitle></div>'
+      ? [
+          '      <div class="tutorial__subtitle" data-loan-video-subtitle>',
+          '        <span class="tutorial__subtitle-step" data-loan-video-subtitle-step></span>',
+          '        <strong class="tutorial__subtitle-title" data-loan-video-subtitle-title></strong>',
+          '        <span class="tutorial__subtitle-body" data-loan-video-subtitle-body></span>',
+          '      </div>',
+        ].join('\n')
       : '',
     WIDTH: storyboard.aspect.width,
   });

@@ -126,10 +126,10 @@ __PRELOADS__
 
       .tutorial__asset-slot[data-presentation="device"] .tutorial__asset {
         top: 52%;
-        left: 50%;
+        left: 71%;
         width: auto;
-        max-width: 78%;
-        height: 88%;
+        max-width: 56%;
+        height: 82%;
         object-fit: contain;
         transform: translate(-50%, -50%);
       }
@@ -258,7 +258,7 @@ __PRELOADS__
         left: 50%;
         top: 50%;
         display: block;
-        width: 46%;
+        width: 56%;
         height: auto;
         opacity: 0;
         pointer-events: none;
@@ -269,23 +269,52 @@ __PRELOADS__
       .tutorial__subtitle {
         position: absolute;
         z-index: 5;
-        right: clamp(44px, 7vmin, 132px);
-        bottom: clamp(30px, 4.6vmin, 82px);
-        left: clamp(44px, 7vmin, 132px);
-        overflow: hidden;
-        padding: clamp(17px, 1.8vmin, 30px) clamp(28px, 3vmin, 54px);
-        border: 1px solid rgba(255, 255, 255, 0.13);
-        border-radius: 999px;
-        background: rgba(8, 10, 15, 0.78);
-        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3);
+        top: 50%;
+        left: 6%;
+        display: flex;
+        width: 31%;
+        flex-direction: column;
+        align-items: flex-start;
+        padding-left: clamp(18px, 1.8vmin, 34px);
+        border-left: clamp(4px, 0.42vmin, 8px) solid var(--accent);
+        background: none;
         color: #fff;
-        font-size: clamp(24px, 2.25vmin, 44px);
-        font-weight: 650;
-        line-height: 1.25;
-        text-align: center;
-        text-overflow: ellipsis;
-        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
-        white-space: nowrap;
+        text-align: left;
+        text-shadow: 0 2px 16px rgba(0, 0, 0, 0.48);
+        transform: translateY(-50%);
+        will-change: opacity, transform;
+      }
+
+      .tutorial__subtitle-step {
+        margin-bottom: clamp(16px, 1.8vmin, 30px);
+        color: var(--accent);
+        font-size: clamp(17px, 1.25vmin, 25px);
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .tutorial__subtitle-title {
+        color: #fff;
+        font-size: clamp(42px, 3.8vmin, 72px);
+        font-weight: 900;
+        letter-spacing: -0.045em;
+        line-height: 0.98;
+      }
+
+      .tutorial__subtitle-body {
+        margin-top: clamp(18px, 2.1vmin, 36px);
+        color: #c7ced8;
+        font-size: clamp(23px, 1.9vmin, 38px);
+        font-weight: 350;
+        line-height: 1.42;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .tutorial__subtitle {
+          transform: translateY(-50%) !important;
+        }
       }
 
     </style>
@@ -355,7 +384,14 @@ __AUDIO__
         const tap = root.querySelector(".tutorial__tap");
         const hand = root.querySelector(".tutorial__hand");
         const subtitle = root.querySelector(".tutorial__subtitle");
-        const handWidthRatio = 0.46;
+        const subtitleStep = root.querySelector("[data-loan-video-subtitle-step]");
+        const subtitleTitle = root.querySelector("[data-loan-video-subtitle-title]");
+        const subtitleBody = root.querySelector("[data-loan-video-subtitle-body]");
+        const handWidthRatio = 0.56;
+        const deviceCenterXRatio = 0.71;
+        const deviceCenterYRatio = 0.52;
+        const deviceMaxWidthRatio = 0.56;
+        const deviceMaxHeightRatio = 0.82;
         const deviceContentInsetX = 0.046;
         const deviceContentInsetBottom = 0.026;
         const otpPool = Array.from({ length: 8 }, () => {
@@ -390,12 +426,15 @@ __AUDIO__
           if (presentation !== "device") return { left: 0, top: 0, width, height };
           const naturalWidth = image.naturalWidth || width;
           const naturalHeight = image.naturalHeight || height;
-          const scale = Math.min((width * 0.78) / naturalWidth, (height * 0.88) / naturalHeight);
+          const scale = Math.min(
+            (width * deviceMaxWidthRatio) / naturalWidth,
+            (height * deviceMaxHeightRatio) / naturalHeight,
+          );
           const displayedWidth = naturalWidth * scale;
           const displayedHeight = naturalHeight * scale;
           return {
-            left: (width - displayedWidth) / 2,
-            top: height * 0.52 - displayedHeight / 2,
+            left: width * deviceCenterXRatio - displayedWidth / 2,
+            top: height * deviceCenterYRatio - displayedHeight / 2,
             width: displayedWidth,
             height: displayedHeight,
           };
@@ -414,7 +453,11 @@ __AUDIO__
           "0": { x: 0.376, y: 0.934 },
         }[digit] || null);
 
-        const otpTiming = (scene, interaction) => {
+        const formatMobileNumber = (digits) => (
+          String(digits || "").replace(/\D/g, "").match(/.{1,3}/g)?.join(" ") || ""
+        );
+
+        const keypadTiming = (scene, interaction) => {
           const count = Math.max(1, interaction.text.length);
           const duration = Math.max(interaction.duration, count * 0.38);
           return {
@@ -469,8 +512,8 @@ __AUDIO__
           interactionLayer.style.opacity = "1";
           if (!interaction || scene.presentation !== "device") return;
 
-          const timing = interaction.type === "otp"
-            ? otpTiming(scene, interaction)
+          const timing = interaction.type === "otp" || interaction.type === "keypad"
+            ? keypadTiming(scene, interaction)
             : {
                 duration: interaction.duration,
                 start: scene.start + interaction.start,
@@ -489,11 +532,17 @@ __AUDIO__
           const fade = 1 - ease((time - transitionFadeStart) / 0.08);
           interactionLayer.style.opacity = String(clamp(fade, 0, 1).toFixed(4));
 
-          if (interaction.type === "type") {
-            const characters = Math.min(
-              interaction.text.length,
-              Math.floor(progress * (interaction.text.length + 0.999)),
-            );
+          if (interaction.type === "type" || interaction.type === "keypad") {
+            const characters = interaction.type === "keypad"
+              ? interaction.text.split("").reduce((count, _character, index) => (
+                  time >= timing.start + timing.step * index + timing.step * 0.42
+                    ? count + 1
+                    : count
+                ), 0)
+              : Math.min(
+                  interaction.text.length,
+                  Math.floor(progress * (interaction.text.length + 0.999)),
+                );
             typeField.style.left = `${left.toFixed(2)}px`;
             typeField.style.top = `${top.toFixed(2)}px`;
             typeField.style.width = `${width.toFixed(2)}px`;
@@ -501,7 +550,9 @@ __AUDIO__
             typeField.style.padding = `0 ${(height * 0.08).toFixed(2)}px`;
             typeField.style.fontSize = `${(height * 0.62).toFixed(2)}px`;
             typeField.style.opacity = "1";
-            typedText.textContent = interaction.text.slice(0, characters);
+            typedText.textContent = interaction.type === "keypad"
+              ? formatMobileNumber(interaction.text.slice(0, characters))
+              : interaction.text.slice(0, characters);
             caret.style.opacity = time >= start && time <= end + 0.18
               ? String((Math.floor((time - start) * 6) % 2 === 0 ? 1 : 0.28).toFixed(2))
               : "0";
@@ -732,8 +783,8 @@ __AUDIO__
           renderInteraction(scene, time, imageRect);
           let gesture = null;
           if (scene.interaction) {
-            if (scene.interaction.type === "otp") {
-              const timing = otpTiming(scene, scene.interaction);
+            if (scene.interaction.type === "otp" || scene.interaction.type === "keypad") {
+              const timing = keypadTiming(scene, scene.interaction);
               const digitIndex = Math.floor((time - timing.start) / timing.step);
               const point = digitIndex >= 0 && digitIndex < scene.interaction.text.length
                 ? keyboardTapPoint(scene.interaction.text[digitIndex])
@@ -787,8 +838,20 @@ __AUDIO__
           renderGesture(gesture, time, imageRect);
 
           if (subtitle) {
-            subtitle.textContent = scene.caption || "";
-            subtitle.style.opacity = scene.caption ? "1" : "0";
+            const caption = scene.caption || "";
+            const [title, ...bodyParts] = caption.split("\n");
+            const body = bodyParts.join("\n");
+            const subtitleProgress = ease((time - scene.start - 0.14) / 0.42);
+            const tutorialStep = scenes
+              .slice(0, sceneIndex + 1)
+              .filter((item) => Boolean(item.caption))
+              .length;
+            subtitleStep.textContent = `Step ${String(tutorialStep).padStart(2, "0")}`;
+            subtitleTitle.textContent = title || "";
+            subtitleBody.textContent = body;
+            subtitleBody.style.display = body ? "block" : "none";
+            subtitle.style.opacity = caption ? String(subtitleProgress.toFixed(4)) : "0";
+            subtitle.style.transform = `translate(${(-26 * (1 - subtitleProgress)).toFixed(2)}px, -50%)`;
           }
           root.style.setProperty("--ambient-x", `${(72 + Math.sin(time * 0.31) * 10).toFixed(2)}%`);
           root.style.setProperty("--ambient-y", `${(16 + Math.cos(time * 0.27) * 8).toFixed(2)}%`);
