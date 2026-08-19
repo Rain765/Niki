@@ -164,7 +164,7 @@ type LoanVideoManifest = {
         y: number;
       };
       text: string;
-      type: 'otp' | 'type';
+      type: 'keypad' | 'otp' | 'type';
     } | null;
     focusTargets?: Array<{
       height: number;
@@ -283,7 +283,8 @@ describe('loan-video fixed HyperFrames builder', () => {
         y: 0.75,
       },
     });
-    expect(html.match(/data-loan-video-subtitle/g)).toHaveLength(1);
+    expect(html.match(/<div class="tutorial__subtitle" data-loan-video-subtitle>/g))
+      .toHaveLength(1);
     expect(html).not.toContain('<audio');
     expect(html).not.toMatch(/__[A-Z][A-Z0-9_]*__/);
   });
@@ -358,7 +359,7 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toContain('data-loan-video-tap');
     expect(html).toContain('data-loan-video-hand');
     expect(html).toContain('assets/tutorial-dark-hand.png');
-    expect(html).toContain('const handWidthRatio = 0.46;');
+    expect(html).toContain('const handWidthRatio = 0.56;');
     expect(hand).toMatchObject({ width: 1254, height: 1254 });
     expect(hand.data[3]).toBe(0);
     expect(html).not.toContain('<section id="scene-');
@@ -470,10 +471,10 @@ describe('loan-video fixed HyperFrames builder', () => {
     };
     storyboard.scenes[0]!.presentation = 'device';
     storyboard.scenes[0]!.interaction = {
-      type: 'type',
+      type: 'keypad',
       start: 0.42,
-      duration: 0.96,
-      text: '971 234 567',
+      duration: 3.42,
+      text: '971234567',
       target: { x: 0.25, y: 0.268, width: 0.34, height: 0.052 },
     };
     storyboard.scenes[1]!.presentation = 'device';
@@ -512,10 +513,10 @@ describe('loan-video fixed HyperFrames builder', () => {
     const manifest = readManifest(html);
 
     expect(manifest.scenes[0]?.interaction).toEqual({
-      type: 'type',
+      type: 'keypad',
       start: 0.42,
-      duration: 0.96,
-      text: '971 234 567',
+      duration: 3.42,
+      text: '971234567',
       target: { x: 0.25, y: 0.268, width: 0.34, height: 0.052 },
     });
     expect(manifest.scenes[1]?.interaction?.type).toBe('otp');
@@ -531,6 +532,14 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toContain('tutorial__typed-text');
     expect(html).toContain('tutorial__otp-box');
     expect(html).toContain('const keyboardTapPoint = (digit) =>');
+    expect(html).toContain('const formatMobileNumber = (digits) =>');
+    expect(html).toContain('interaction.type === "keypad"');
+    expect(html).toContain('left: 71%;');
+    expect(html).toContain('max-width: 56%;');
+    expect(html).toContain('height: 82%;');
+    expect(html).toContain('data-loan-video-subtitle-step');
+    expect(html).toContain('data-loan-video-subtitle-title');
+    expect(html).toContain('data-loan-video-subtitle-body');
     expect(html).toContain('"2": { x: 0.376, y: 0.742 }');
     expect(html).toContain('"4": { x: 0.132, y: 0.804 }');
     expect(html).toContain('"7": { x: 0.132, y: 0.869 }');
@@ -852,7 +861,7 @@ describe('loan-video fixed HyperFrames builder', () => {
     );
 
     expect(readManifest(html).subtitles).toBe(false);
-    expect(html).not.toContain('data-loan-video-subtitle');
+    expect(html).not.toContain('<div class="tutorial__subtitle" data-loan-video-subtitle>');
   });
 
   it('embeds the one real daemon TTS result and removes its transient root file', async () => {
