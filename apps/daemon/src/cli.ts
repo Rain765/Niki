@@ -244,6 +244,7 @@ const SUBCOMMAND_MAP = {
   mcp: runMcp,
   research: runResearch,
   documents: runDocuments,
+  english: runEnglish,
   plugin: runPlugin,
   ui: runUi,
   marketplace: runMarketplace,
@@ -267,6 +268,93 @@ const SUBCOMMAND_MAP = {
   doctor: runDoctor,
   config: runConfig,
 };
+
+async function runEnglish(args) {
+  const sub = args.find((arg) => !arg.startsWith('-'));
+  if (!sub || sub === 'help' || args.includes('--help') || args.includes('-h')) {
+    printEnglishHelp();
+    process.exit(sub === 'help' || args.includes('--help') || args.includes('-h') ? 0 : 2);
+  }
+  if (!['lessons', 'lesson', 'progress', 'vocabulary'].includes(sub)) {
+    console.error(`unknown subcommand: od english ${sub}`);
+    printEnglishHelp();
+    process.exit(2);
+  }
+  const flags = parseFlags(args.slice(1), {
+    string: new Set(['daemon-url']),
+    boolean: new Set(['json', 'help', 'h']),
+  });
+  const base = (await cliDaemonUrl(flags)).replace(/\/$/, '');
+  const positional = args.filter((arg, index) => (
+    index > 0
+    && !arg.startsWith('-')
+    && arg !== flags['daemon-url']
+  ));
+  const lessonId = positional[0];
+  if (sub === 'lesson' && !lessonId) {
+    console.error('Usage: od english lesson <lesson-id> [--json]');
+    process.exit(2);
+  }
+  const path = sub === 'lessons'
+    ? '/api/english-practice/catalog'
+    : sub === 'lesson'
+      ? `/api/english-practice/lessons/${encodeURIComponent(lessonId)}`
+      : '/api/english-practice/progress';
+  let response;
+  try {
+    response = await fetch(`${base}${path}`);
+  } catch (error) {
+    surfaceFetchError(error, base);
+    process.exit(3);
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error(`daemon ${response.status}: ${JSON.stringify(body)}`);
+    process.exit(4);
+  }
+  const output = sub === 'vocabulary'
+    ? { favorites: body.progress?.favorites ?? [] }
+    : body;
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+  if (sub === 'lessons') {
+    for (const lesson of output.scenarios ?? []) {
+      console.log(`${lesson.id}\t${lesson.level}\t${lesson.available ? 'available' : 'coming-soon'}\t${lesson.title}\t${lesson.englishTitle}`);
+    }
+    return;
+  }
+  if (sub === 'lesson') {
+    console.log(`${output.lesson.title} · ${output.lesson.englishTitle}`);
+    for (const line of output.lesson.dialogue ?? []) {
+      console.log(`${line.speaker}\t${line.english}\t${line.chinese}`);
+    }
+    return;
+  }
+  if (sub === 'vocabulary') {
+    for (const word of output.favorites) console.log(word);
+    return;
+  }
+  const progress = output.progress;
+  console.log(`listened\t${progress.listenedLineIds?.length ?? 0}`);
+  console.log(`favorites\t${progress.favorites?.length ?? 0}`);
+  console.log(`shadowing\t${progress.shadowingCompleted ? 'complete' : 'pending'}`);
+  console.log(`role-play\t${progress.rolePlayCompleted ? 'complete' : 'pending'}`);
+  console.log(`sentence-order\t${progress.sentenceOrderCompleted ? 'complete' : 'pending'}`);
+}
+
+function printEnglishHelp() {
+  console.log(`Usage:
+  od english lessons [--json] [--daemon-url <url>]
+  od english lesson <lesson-id> [--json] [--daemon-url <url>]
+  od english progress [--json] [--daemon-url <url>]
+  od english vocabulary [--json] [--daemon-url <url>]
+
+Reads the same stable lesson catalog, bilingual dialogue, progress, and saved
+vocabulary used by Daily English Practice in the Niki web UI. Set
+OD_NIKI_SESSION_TOKEN when calling an authenticated remote daemon.`);
+}
 
 async function runDocuments(args) {
   const sub = args.find((arg) => !arg.startsWith('-'));
@@ -619,6 +707,9 @@ function printRootHelp() {
 
   od research search --query <text> [--max-sources 5] [--daemon-url <url>]
       Run agent-callable Tavily research through the local daemon.
+
+  od english <lessons|lesson|progress|vocabulary> [args]
+      Read the same Daily English lessons, progress, and vocabulary as the web UI.
 
   od plugin <list|info|install|uninstall|apply|doctor|replay|trust> [args]
       Discover, install, and apply plugins through the local daemon.

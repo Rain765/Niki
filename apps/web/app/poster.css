@@ -2249,6 +2249,995 @@ button {
   opacity: 0.55;
 }
 
+/* Daily English practice -------------------------------------------------- */
+
+.poster-app.is-english {
+  width: min(100%, 1240px);
+  padding-right: clamp(20px, 4vw, 56px);
+  padding-left: clamp(20px, 4vw, 56px);
+}
+
+.poster-app.is-english .poster-app__header {
+  margin-bottom: 18px;
+}
+
+.english-practice {
+  padding: 28px 0 70px;
+  color: var(--poster-text);
+}
+
+.english-practice button {
+  color: inherit;
+}
+
+.english-practice__hero,
+.english-practice__today,
+.english-lesson__intro,
+.english-lesson__topbar,
+.english-lesson__controls,
+.english-lesson__playback,
+.english-lesson__toggles,
+.english-lesson__roleplay,
+.english-line,
+.english-practice__section-heading,
+.english-practice__scenario,
+.english-word-sheet__word-row,
+.english-exercise__actions,
+.english-exercise__role-buttons {
+  display: flex;
+  align-items: center;
+}
+
+.english-practice__hero {
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 34px 38px 40px;
+  overflow: hidden;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 89% 12%, color-mix(in srgb, var(--poster-accent) 18%, transparent), transparent 28%),
+    linear-gradient(145deg, var(--poster-panel-muted), var(--poster-fill-0));
+}
+
+.english-practice__kicker,
+.english-lesson__intro > div:nth-child(2) > span {
+  color: var(--poster-accent);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.english-practice__hero h2,
+.english-practice__subhead h2,
+.english-lesson__intro h2 {
+  margin: 8px 0 10px;
+  font-size: clamp(30px, 5vw, 52px);
+  line-height: 1.06;
+  letter-spacing: -0.045em;
+}
+
+.english-practice__hero p,
+.english-practice__subhead p,
+.english-lesson__intro p,
+.english-practice__section-heading p,
+.english-exercise > div > p {
+  margin: 0;
+  color: var(--poster-muted);
+  line-height: 1.55;
+}
+
+.english-practice__vocab-link,
+.english-practice__back,
+.english-practice__primary,
+.english-lesson__toggles button,
+.english-lesson__roleplay button,
+.english-exercise__actions button,
+.english-exercise__role-buttons button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--poster-panel-raised);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  transition:
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.english-practice__vocab-link:hover,
+.english-practice__back:hover,
+.english-lesson__toggles button:hover,
+.english-lesson__roleplay button:hover,
+.english-exercise__actions button:hover,
+.english-exercise__role-buttons button:hover {
+  background: var(--poster-control-hover);
+}
+
+.english-practice__vocab-link span {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--poster-fill-0);
+  color: var(--poster-accent);
+  font-size: 11px;
+}
+
+.english-practice__primary {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 0 20px;
+  background: var(--poster-accent);
+  color: var(--poster-text-inverse) !important;
+}
+
+.english-practice__primary:hover {
+  background: var(--poster-accent-hover);
+}
+
+.english-practice__today {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) 170px auto;
+  gap: 20px;
+  margin: 22px 0 44px;
+  padding: 20px 22px;
+  border: 1px solid var(--poster-line-divide);
+  border-radius: 20px;
+  background: var(--poster-fill-0);
+  box-shadow: 0 14px 42px color-mix(in srgb, var(--poster-mask-dark) 6%, transparent);
+}
+
+.english-practice__today-icon,
+.english-lesson__intro-icon {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--poster-accent) 10%, var(--poster-panel-muted));
+  font-size: 29px;
+}
+
+.english-practice__today > div:nth-child(2) > span {
+  color: var(--poster-accent);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.english-practice__today h3 {
+  margin: 4px 0 2px;
+  font-size: 20px;
+}
+
+.english-practice__today p {
+  margin: 0;
+  color: var(--poster-muted);
+  font-size: 13px;
+}
+
+.english-practice__today-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.english-practice__today-progress strong {
+  justify-self: end;
+  font-size: 13px;
+}
+
+.english-practice__today-progress > span,
+.english-lesson__progress > span {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--poster-panel-muted);
+}
+
+.english-practice__today-progress i,
+.english-lesson__progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--poster-accent);
+  transition: width 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.english-practice__section-heading {
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.english-practice__section-heading h3 {
+  margin: 0 0 3px;
+  font-size: 20px;
+}
+
+.english-practice__section-heading p,
+.english-practice__section-heading > span {
+  font-size: 12px;
+}
+
+.english-practice__section-heading > span {
+  color: var(--poster-muted);
+}
+
+.english-practice__scenarios {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.english-practice__scenario {
+  position: relative;
+  min-height: 112px;
+  gap: 14px;
+  padding: 17px 18px;
+  border: 1px solid var(--poster-line-divide);
+  border-radius: 17px;
+  background: var(--poster-fill-0);
+  text-align: left;
+}
+
+.english-practice__scenario.is-available {
+  cursor: pointer;
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--poster-mask-dark) 5%, transparent);
+}
+
+.english-practice__scenario.is-available:hover {
+  border-color: color-mix(in srgb, var(--poster-accent) 34%, var(--poster-line-divide));
+  background: color-mix(in srgb, var(--poster-accent) 3%, var(--poster-fill-0));
+  transform: translateY(-2px);
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.english-practice__scenario:disabled {
+  color: inherit;
+  opacity: 0.66;
+}
+
+.english-practice__scenario-number {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  color: var(--poster-placeholder);
+  font: 700 10px/1 ui-monospace, monospace;
+}
+
+.english-practice__scenario-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--poster-panel-muted);
+  font-size: 22px;
+}
+
+.english-practice__scenario-copy {
+  min-width: 0;
+}
+
+.english-practice__scenario-copy strong,
+.english-practice__scenario-copy small,
+.english-practice__scenario-copy em,
+.english-practice__scenario-meta {
+  display: block;
+}
+
+.english-practice__scenario-copy strong {
+  margin-bottom: 2px;
+  font-size: 15px;
+}
+
+.english-practice__scenario-copy small {
+  color: var(--poster-text-secondary);
+  font-size: 12px;
+}
+
+.english-practice__scenario-copy em {
+  margin-top: 7px;
+  overflow: hidden;
+  color: var(--poster-muted);
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.english-practice__scenario-meta {
+  min-width: 56px;
+  align-self: flex-end;
+  color: var(--poster-muted);
+  font-size: 10px;
+  text-align: right;
+}
+
+.english-practice__scenario-meta b {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--poster-panel-muted);
+  color: var(--poster-text-secondary);
+}
+
+.english-practice--subpage,
+.english-practice--lesson {
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+.english-practice__back {
+  min-height: 38px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--poster-text-secondary) !important;
+}
+
+.english-practice__subhead {
+  padding: 42px 0 24px;
+}
+
+.english-practice__vocab-grid,
+.english-lesson__phrase-grid,
+.english-practice__exercises {
+  display: grid;
+  gap: 14px;
+}
+
+.english-practice__vocab-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.english-practice__vocab-grid article,
+.english-lesson__phrase-grid article,
+.english-exercise {
+  position: relative;
+  padding: 20px;
+  border: 1px solid var(--poster-line-divide);
+  border-radius: 17px;
+  background: var(--poster-fill-0);
+}
+
+.english-practice__vocab-grid article > strong,
+.english-practice__vocab-grid article > span,
+.english-practice__vocab-grid article > small {
+  display: block;
+}
+
+.english-practice__vocab-grid article > strong {
+  font-size: 22px;
+}
+
+.english-practice__vocab-grid article > span {
+  margin: 3px 0 12px;
+  color: var(--poster-accent);
+}
+
+.english-practice__vocab-grid article p {
+  margin: 0 0 8px;
+}
+
+.english-practice__vocab-grid article small {
+  min-height: 54px;
+  color: var(--poster-muted);
+  line-height: 1.55;
+}
+
+.english-practice__vocab-grid article > button:last-child {
+  margin-top: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--poster-danger);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.english-practice__vocab-speak {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--poster-panel-muted);
+  cursor: pointer;
+}
+
+.english-practice__empty {
+  display: grid;
+  min-height: 340px;
+  place-items: center;
+  align-content: center;
+  padding: 40px;
+  border: 1px dashed var(--poster-line-divide);
+  border-radius: 22px;
+  color: var(--poster-muted);
+  text-align: center;
+}
+
+.english-practice__empty h3 {
+  margin: 14px 0 4px;
+  color: var(--poster-text);
+}
+
+.english-practice__empty p {
+  margin: 0 0 20px;
+}
+
+.english-lesson__topbar {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.english-lesson__progress {
+  display: grid;
+  width: 180px;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.english-lesson__progress b {
+  font-size: 11px;
+}
+
+.english-lesson__intro {
+  gap: 18px;
+  padding: 26px 28px;
+  border-radius: 22px;
+  background: var(--poster-panel-muted);
+}
+
+.english-lesson__intro h2 {
+  margin: 2px 0;
+  font-size: 30px;
+}
+
+.english-lesson__intro-icon {
+  width: 72px;
+  height: 72px;
+}
+
+.english-lesson__roles {
+  display: grid;
+  gap: 8px;
+  margin-left: auto;
+  color: var(--poster-text-secondary);
+  font-size: 12px;
+}
+
+.english-lesson__roles i {
+  display: inline-grid;
+  width: 25px;
+  height: 25px;
+  margin-right: 7px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--poster-fill-0);
+  color: var(--poster-accent);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.english-lesson__tabs {
+  display: flex;
+  gap: 4px;
+  margin: 22px 0 14px;
+  border-bottom: 1px solid var(--poster-line-divide);
+}
+
+.english-lesson__tabs button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--poster-muted);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.english-lesson__tabs button[aria-selected='true'] {
+  border-bottom-color: var(--poster-accent);
+  color: var(--poster-text);
+}
+
+.english-lesson__controls {
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid var(--poster-line-divide);
+  border-radius: 15px;
+}
+
+.english-lesson__playback,
+.english-lesson__toggles {
+  gap: 8px;
+}
+
+.english-lesson__rate {
+  display: flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--poster-panel-muted);
+}
+
+.english-lesson__rate button {
+  min-width: 52px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--poster-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.english-lesson__rate button.is-active {
+  background: var(--poster-fill-0);
+  color: var(--poster-text);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--poster-mask-dark) 7%, transparent);
+}
+
+.english-lesson__toggles button.is-active,
+.english-lesson__roleplay button.is-active {
+  background: color-mix(in srgb, var(--poster-accent) 12%, var(--poster-panel-muted));
+  color: var(--poster-accent);
+}
+
+.english-lesson__roleplay {
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  color: var(--poster-text-secondary);
+  font-size: 12px;
+}
+
+.english-lesson__roleplay > span {
+  margin-right: 2px;
+  font-weight: 700;
+}
+
+.english-lesson__roleplay button {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.english-lesson__roleplay small {
+  margin-left: auto;
+  color: var(--poster-muted);
+}
+
+.english-lesson__dialogue {
+  display: grid;
+  gap: 12px;
+}
+
+.english-line {
+  position: relative;
+  max-width: 82%;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.english-line.is-a {
+  margin-left: auto;
+  flex-direction: row-reverse;
+}
+
+.english-line__avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--poster-panel-muted);
+  color: var(--poster-text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.english-line.is-a .english-line__avatar {
+  background: color-mix(in srgb, var(--poster-accent) 13%, var(--poster-panel-muted));
+  color: var(--poster-accent);
+}
+
+.english-line__body {
+  min-width: 0;
+}
+
+.english-line__speaker {
+  display: block;
+  margin: 0 4px 5px;
+  color: var(--poster-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.english-line.is-a .english-line__speaker {
+  text-align: right;
+}
+
+.english-line__speaker b {
+  margin-left: 5px;
+  color: var(--poster-placeholder);
+  font-weight: 500;
+}
+
+.english-line__bubble {
+  padding: 14px 16px;
+  border: 1px solid var(--poster-line-divide);
+  border-radius: 6px 17px 17px;
+  background: var(--poster-fill-0);
+}
+
+.english-line.is-a .english-line__bubble {
+  border-color: transparent;
+  border-radius: 17px 6px 17px 17px;
+  background: color-mix(in srgb, var(--poster-accent) 9%, var(--poster-fill-0));
+}
+
+.english-line.is-speaking .english-line__bubble,
+.english-line.is-speaking .english-line__listen-card {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--poster-accent) 34%, transparent);
+}
+
+.english-line__english,
+.english-line__chinese {
+  margin: 0;
+}
+
+.english-line__english {
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.english-line__english button {
+  padding: 0 1px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.english-line__english button:hover,
+.english-line__english button:focus-visible {
+  background: color-mix(in srgb, var(--poster-accent) 16%, transparent);
+  color: var(--poster-accent);
+  outline: none;
+}
+
+.english-line__chinese {
+  margin-top: 5px;
+  color: var(--poster-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.english-line__play {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  margin-top: 21px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--poster-panel-muted);
+  color: var(--poster-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.english-line:hover .english-line__play,
+.english-line__play:focus-visible,
+.english-line.is-speaking .english-line__play {
+  opacity: 1;
+}
+
+.english-line__listen-card,
+.english-line__your-turn {
+  display: flex;
+  min-width: 250px;
+  min-height: 74px;
+  align-items: center;
+  gap: 11px;
+  padding: 14px 17px;
+  border: 1px dashed var(--poster-line-divide);
+  border-radius: 15px;
+  background: var(--poster-panel-muted);
+  color: var(--poster-text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.english-line__your-turn {
+  border-color: color-mix(in srgb, var(--poster-accent) 32%, var(--poster-line-divide));
+}
+
+.english-line__your-turn span,
+.english-line__your-turn strong,
+.english-line__your-turn small {
+  display: block;
+}
+
+.english-line__your-turn small {
+  margin-top: 3px;
+  color: var(--poster-muted);
+}
+
+.english-lesson__phrases {
+  margin-top: 42px;
+}
+
+.english-lesson__phrase-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.english-lesson__phrase-grid article {
+  padding-left: 52px;
+}
+
+.english-lesson__phrase-grid article > button {
+  position: absolute;
+  top: 18px;
+  left: 16px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--poster-panel-muted);
+  cursor: pointer;
+}
+
+.english-lesson__phrase-grid article p {
+  margin: 5px 0;
+  color: var(--poster-text-secondary);
+  font-size: 12px;
+}
+
+.english-lesson__phrase-grid article small {
+  color: var(--poster-muted);
+  line-height: 1.5;
+}
+
+.english-practice__exercises {
+  margin-top: 20px;
+}
+
+.english-exercise {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 14px;
+  padding: 24px;
+}
+
+.english-exercise__number {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--poster-panel-muted);
+  color: var(--poster-accent);
+  font: 800 11px/1 ui-monospace, monospace;
+}
+
+.english-exercise h3 {
+  margin: 1px 0 4px;
+}
+
+.english-exercise blockquote,
+.english-exercise__answer,
+.english-exercise__word-bank,
+.english-exercise__actions,
+.english-exercise__role-buttons,
+.english-exercise > p {
+  grid-column: 2;
+}
+
+.english-exercise blockquote {
+  margin: 10px 0 0;
+  padding: 18px;
+  border-radius: 13px;
+  background: var(--poster-panel-muted);
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.english-exercise__actions,
+.english-exercise__role-buttons {
+  justify-content: flex-start;
+  gap: 9px;
+  margin-top: 4px;
+}
+
+.english-exercise__actions button:last-child,
+.english-exercise__actions button.is-complete,
+.english-exercise__role-buttons button {
+  background: var(--poster-accent);
+  color: var(--poster-text-inverse);
+}
+
+.english-exercise__answer,
+.english-exercise__word-bank {
+  display: flex;
+  min-height: 54px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 10px;
+  border-radius: 13px;
+  background: var(--poster-panel-muted);
+}
+
+.english-exercise__answer span {
+  color: var(--poster-placeholder);
+  font-size: 12px;
+}
+
+.english-exercise__answer button,
+.english-exercise__word-bank button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--poster-line-divide);
+  border-radius: 9px;
+  background: var(--poster-fill-0);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.english-exercise__word-bank button:disabled {
+  opacity: 0.25;
+}
+
+.english-exercise > p.is-correct {
+  color: var(--poster-success);
+}
+
+.english-exercise > p.is-error {
+  color: var(--poster-danger);
+}
+
+.english-word-sheet {
+  position: fixed;
+  z-index: 130;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.english-word-sheet__scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--poster-mask-dark) 28%, transparent);
+}
+
+.english-word-sheet > article {
+  position: relative;
+  z-index: 1;
+  width: min(600px, 100%);
+  padding: 24px 28px max(30px, env(safe-area-inset-bottom));
+  border-radius: 24px 24px 0 0;
+  background: var(--poster-fill-0);
+  box-shadow: 0 -20px 60px color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
+  animation: english-sheet-in 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.english-word-sheet__handle {
+  width: 42px;
+  height: 4px;
+  margin: -10px auto 20px;
+  border-radius: 999px;
+  background: var(--poster-line-divide);
+}
+
+.english-word-sheet__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--poster-panel-muted);
+  cursor: pointer;
+}
+
+.english-word-sheet__word-row {
+  gap: 10px;
+  padding-right: 40px;
+}
+
+.english-word-sheet__word-row > div {
+  margin-right: auto;
+}
+
+.english-word-sheet__word-row strong,
+.english-word-sheet__word-row span {
+  display: block;
+}
+
+.english-word-sheet__word-row strong {
+  font-size: 32px;
+}
+
+.english-word-sheet__word-row span {
+  margin-top: 3px;
+  color: var(--poster-accent);
+}
+
+.english-word-sheet__word-row > button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--poster-panel-muted);
+  cursor: pointer;
+}
+
+.english-word-sheet__word-row > button.is-active {
+  background: color-mix(in srgb, var(--poster-accent) 14%, var(--poster-panel-muted));
+  color: var(--poster-accent);
+}
+
+.english-word-sheet__meaning,
+.english-word-sheet__context {
+  margin-top: 20px;
+  padding-top: 17px;
+  border-top: 1px solid var(--poster-line-divide);
+}
+
+.english-word-sheet__meaning span,
+.english-word-sheet__context span {
+  color: var(--poster-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.english-word-sheet__meaning p,
+.english-word-sheet__context p {
+  margin: 6px 0 0;
+  line-height: 1.65;
+}
+
+@keyframes english-sheet-in {
+  from { opacity: 0; transform: translateY(28px); }
+}
+
 @keyframes poster-spin {
   to { transform: rotate(360deg); }
 }
@@ -2365,6 +3354,151 @@ button {
   .poster-app {
     padding-right: var(--poster-space-4);
     padding-left: var(--poster-space-4);
+  }
+
+  .poster-app.is-english {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .english-practice {
+    padding-top: 12px;
+  }
+
+  .english-practice__hero {
+    align-items: flex-start;
+    padding: 25px 22px;
+    flex-direction: column;
+  }
+
+  .english-practice__hero h2 {
+    font-size: 34px;
+  }
+
+  .english-practice__today {
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 34px;
+    padding: 17px;
+  }
+
+  .english-practice__today-icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .english-practice__today-progress,
+  .english-practice__today .english-practice__primary {
+    grid-column: 2;
+  }
+
+  .english-practice__today-progress {
+    width: 100%;
+  }
+
+  .english-practice__today .english-practice__primary {
+    justify-self: stretch;
+  }
+
+  .english-practice__scenarios,
+  .english-practice__vocab-grid,
+  .english-lesson__phrase-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .english-practice__scenario {
+    min-height: 106px;
+    padding: 15px;
+  }
+
+  .english-practice__scenario-copy em {
+    max-width: 190px;
+  }
+
+  .english-lesson__intro {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    padding: 20px;
+  }
+
+  .english-lesson__intro-icon {
+    width: 58px;
+    height: 58px;
+  }
+
+  .english-lesson__roles {
+    grid-column: 1 / -1;
+    margin: 4px 0 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .english-lesson__controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .english-lesson__playback,
+  .english-lesson__toggles {
+    justify-content: space-between;
+  }
+
+  .english-lesson__playback .english-practice__primary {
+    flex: 1;
+  }
+
+  .english-lesson__rate button {
+    min-width: 46px;
+  }
+
+  .english-lesson__toggles button {
+    flex: 1;
+  }
+
+  .english-lesson__roleplay {
+    flex-wrap: wrap;
+  }
+
+  .english-lesson__roleplay small {
+    width: 100%;
+    margin: 2px 0 0;
+  }
+
+  .english-line {
+    max-width: 96%;
+  }
+
+  .english-line__play {
+    opacity: 1;
+  }
+
+  .english-line__listen-card,
+  .english-line__your-turn {
+    min-width: 0;
+  }
+
+  .english-exercise {
+    grid-template-columns: 36px minmax(0, 1fr);
+    padding: 18px;
+  }
+
+  .english-exercise blockquote,
+  .english-exercise__answer,
+  .english-exercise__word-bank,
+  .english-exercise__actions,
+  .english-exercise__role-buttons,
+  .english-exercise > p {
+    grid-column: 1 / -1;
+  }
+
+  .english-exercise__actions,
+  .english-exercise__role-buttons {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .english-word-sheet > article {
+    padding-right: 20px;
+    padding-left: 20px;
   }
 
   .poster-app__generator {
@@ -2491,6 +3625,10 @@ button {
   .niki-auth__spinner,
   .niki-auth__button-spinner,
   .document-search .icon-spin {
+    animation: none !important;
+  }
+
+  .english-word-sheet > article {
     animation: none !important;
   }
 
