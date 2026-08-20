@@ -29,6 +29,7 @@ import {
 } from '../components/home-hero/zambia-posters';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import { DocumentSearch } from './DocumentSearch';
+import { EnglishPractice } from './EnglishPractice';
 import {
   canSharePreparedImageFile,
   copyOrSharePreparedImageFile,
@@ -41,20 +42,20 @@ import type { Project, ProjectFile } from '../types';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
-type CreationMode = 'poster' | 'video' | 'documents';
+type CreationMode = 'poster' | 'video' | 'documents' | 'english';
 
 const STATUS_AUTO_DISMISS_MS = 10_000;
 
 function initialCreationMode(): CreationMode {
   if (typeof window === 'undefined') return 'poster';
   const mode = new URLSearchParams(window.location.search).get('mode');
-  return mode === 'documents' ? mode : 'poster';
+  return mode === 'documents' || mode === 'english' ? mode : 'poster';
 }
 
 function updateCreationModeUrl(mode: CreationMode): void {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
-  if (mode === 'documents') url.searchParams.set('mode', mode);
+  if (mode === 'documents' || mode === 'english') url.searchParams.set('mode', mode);
   else url.searchParams.delete('mode');
   window.history.replaceState(window.history.state, '', url);
 }
@@ -679,7 +680,7 @@ export function PosterApp() {
   };
 
   return (
-    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}`}>
+    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}`}>
       <header className="poster-app__header">
         <div className="poster-app__mode-select" ref={modeMenuRef}>
           <span className="poster-app__eyebrow">
@@ -687,7 +688,9 @@ export function PosterApp() {
               ? 'NIKI POSTER'
               : creationMode === 'video'
                 ? 'NIKI VIDEO'
-                : 'NIKI DOCS'}
+                : creationMode === 'documents'
+                  ? 'NIKI DOCS'
+                  : 'NIKI ENGLISH'}
           </span>
           <button
             type="button"
@@ -701,7 +704,9 @@ export function PosterApp() {
                 ? 'Generate Loan Posters'
                 : creationMode === 'video'
                   ? 'Generate Tutorial Videos'
-                  : 'Document Search'}
+                  : creationMode === 'documents'
+                    ? 'Document Search'
+                    : 'Daily English Practice'}
               <Icon name="chevron-down" size={24} />
             </span>
           </button>
@@ -715,6 +720,7 @@ export function PosterApp() {
               { value: 'poster', title: 'Generate Loan Posters', description: 'Create ready-to-use loan campaign images', icon: 'image' },
               { value: 'video', title: 'Generate Tutorial Videos', description: 'Turn app screenshots into guided videos', icon: 'play' },
               { value: 'documents', title: 'Document Search', description: 'Search Feishu or open a document link', icon: 'search' },
+              { value: 'english', title: 'Daily English Practice', description: 'Practice real-life English conversations', icon: 'languages' },
             ] as const).map((option) => (
               <button
                 key={option.value}
@@ -1211,8 +1217,10 @@ export function PosterApp() {
             </section>
           ) : null}
         </section>
-      ) : (
+      ) : creationMode === 'documents' ? (
         <DocumentSearch />
+      ) : (
+        <EnglishPractice />
       )}
     </main>
   );

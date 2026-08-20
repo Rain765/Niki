@@ -146,6 +146,16 @@ function migrate(db: SqliteDb): void {
     CREATE INDEX IF NOT EXISTS idx_niki_security_events_user
       ON niki_security_events(user_id, created_at DESC);
 
+    CREATE TABLE IF NOT EXISTS english_practice_progress (
+      user_id TEXT PRIMARY KEY,
+      listened_line_ids_json TEXT NOT NULL DEFAULT '[]',
+      favorites_json TEXT NOT NULL DEFAULT '[]',
+      sentence_order_completed INTEGER NOT NULL DEFAULT 0,
+      shadowing_completed INTEGER NOT NULL DEFAULT 0,
+      role_play_completed INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS templates (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,

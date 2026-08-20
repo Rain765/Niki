@@ -10,6 +10,7 @@ export * from './api/chat.js';
 export * from './api/context.js';
 export * from './api/connectors.js';
 export * from './api/device-bridge.js';
+export * from './api/english-practice.js';
 export * from './api/comments.js';
 export * from './api/connectionTest.js';
 export * from './api/files.js';

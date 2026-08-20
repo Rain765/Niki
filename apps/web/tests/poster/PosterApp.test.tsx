@@ -658,6 +658,20 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByRole('region', { name: 'Tutorial video generator' })).toBeNull();
   });
 
+  it('places Daily English Practice last in the title menu and opens it', () => {
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
+    const options = screen.getAllByRole('option');
+    expect(options.at(-1)?.textContent).toContain('Daily English Practice');
+    expect(options.at(-1)?.textContent).toContain('Practice real-life English conversations');
+
+    fireEvent.click(options.at(-1)!);
+    expect(screen.getByRole('heading', { name: 'Daily English Practice' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '10 个经典生活场景' })).toBeTruthy();
+    expect(window.location.search).toBe('?mode=english');
+  });
+
   it('keeps the mode chevron in the title flow', () => {
     render(<PosterApp />);
 
