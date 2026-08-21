@@ -1,17 +1,23 @@
-import { useCallback, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type {
   LogoArchitecture,
   LogoBriefRequest,
   LogoBriefResponse,
 } from '@open-design/contracts';
 import { useI18n } from '../i18n';
-import { createProject } from '../state/projects';
+import { streamViaDaemon } from '../providers/daemon';
+import { fetchAgents } from '../providers/registry';
+import { loadConfig } from '../state/config';
+import { createProject, saveMessage } from '../state/projects';
+import type { AgentEvent, ChatMessage } from '../types';
+import { randomUUID } from '../utils/uuid';
 import { Icon } from './Icon';
 import { LogoColorPicker } from './LogoColorPicker';
 
 const PERSONALITIES = ['precise', 'warm', 'bold', 'playful', 'premium', 'organic'] as const;
 const APPLICATIONS = ['web', 'favicon', 'social', 'app-icon', 'print'] as const;
 const ARCHITECTURES: LogoArchitecture[] = ['combination', 'symbol', 'wordmark', 'monogram'];
+const PREPARE_TIMEOUT_MS = 30_000;
 
 const COPY = {
   en: {
@@ -36,6 +42,8 @@ const COPY = {
     previewHint: 'A structural preview — the agent will explore four distinct ideas.',
     required: 'Add a brand name and industry to continue.',
     failed: 'Could not prepare the logo brief. Please try again.',
+    noAgent: 'No local generation agent is available. Configure one in Settings and try again.',
+    timeout: 'Starting the generation timed out. Please try again.',
     started: 'Generation started. Four directions are being prepared in the background.',
     architectureLabels: {
       combination: 'Symbol + name',
@@ -66,6 +74,8 @@ const COPY = {
     previewHint: '这里只预览结构；生成后会探索四种真正不同的创意。',
     required: '请先填写品牌名称和行业。',
     failed: 'Logo 简报创建失败，请重试。',
+    noAgent: '当前没有可用的本地生成代理，请先在设置中完成配置。',
+    timeout: '启动生成任务超时，请重试。',
     started: '生成任务已启动，系统正在后台准备四个方向。',
     architectureLabels: {
       combination: '图形 + 字标',
@@ -125,7 +135,22 @@ export function LogoStudioView() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const paletteButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const prepareTimeoutRef = useRef<number | null>(null);
   const closeColorPicker = useCallback(() => setOpenPaletteIndex(null), []);
+
+  const clearPrepareTimeout = useCallback(() => {
+    if (prepareTimeoutRef.current !== null) {
+      window.clearTimeout(prepareTimeoutRef.current);
+      prepareTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => {
+    clearPrepareTimeout();
+    runAbortRef.current?.abort();
+    runAbortRef.current = null;
+  }, [clearPrepareTimeout]);
 
   const brandParts = brandName.trim().split(/\s+/u).filter(Boolean);
   const initials = brandParts.length === 0
@@ -144,6 +169,18 @@ export function LogoStudioView() {
     setSubmitting(true);
     setError('');
     setSuccess('');
+    runAbortRef.current?.abort();
+    clearPrepareTimeout();
+    const controller = new AbortController();
+    runAbortRef.current = controller;
+    prepareTimeoutRef.current = window.setTimeout(() => {
+      if (runAbortRef.current !== controller) return;
+      controller.abort();
+      runAbortRef.current = null;
+      prepareTimeoutRef.current = null;
+      setSubmitting(false);
+      setError(copy.timeout);
+    }, PREPARE_TIMEOUT_MS);
     const request: LogoBriefRequest = {
       brandName,
       industry,
@@ -156,38 +193,142 @@ export function LogoStudioView() {
       notes,
     };
     try {
+      const config = loadConfig();
+      const agents = await fetchAgents({ throwOnError: true, signal: controller.signal });
+      const configuredAgent = config.agentId
+        ? agents.find((agent) => agent.id === config.agentId && agent.available)
+        : null;
+      const agent = configuredAgent ?? agents.find((candidate) => candidate.available);
+      if (!agent) throw new Error(copy.noAgent);
+
       const response = await fetch('/api/logo/brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
+        signal: controller.signal,
       });
       if (!response.ok) throw new Error(`logo brief failed: ${response.status}`);
       const { project } = await response.json() as LogoBriefResponse;
+      const runPrompt = project.pendingPrompt?.trim();
+      if (!runPrompt) throw new Error('logo brief did not include a generation prompt');
       const created = await createProject({
         name: project.name,
         skillId: project.skillId ?? 'logo-generator',
         designSystemId: project.designSystemId ?? null,
         metadata: project.metadata ?? { kind: 'image', imageAspect: '1:1' },
-        pendingPrompt: project.pendingPrompt,
+        pendingPrompt: runPrompt,
         ...(project.pluginId ? { pluginId: project.pluginId } : {}),
         ...(project.pluginInputs ? { pluginInputs: project.pluginInputs } : {}),
-      });
+      }, { signal: controller.signal });
       if (!created) throw new Error('logo project creation failed');
-      const runResponse = await fetch('/api/runs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: created.project.id,
-          conversationId: created.conversationId,
-          message: project.pendingPrompt,
-          appliedPluginSnapshotId: created.appliedPluginSnapshotId,
-        }),
+
+      const startedAt = Date.now();
+      const userMessage: ChatMessage = {
+        id: randomUUID(),
+        role: 'user',
+        content: runPrompt,
+        createdAt: startedAt,
+      };
+      let assistantMessage: ChatMessage = {
+        id: randomUUID(),
+        role: 'assistant',
+        content: '',
+        agentId: agent.id,
+        agentName: agent.name,
+        events: [],
+        createdAt: startedAt,
+        startedAt,
+        runStatus: 'queued',
+      };
+      const modelChoice = config.agentModels?.[agent.id];
+      void saveMessage(created.project.id, created.conversationId, userMessage);
+
+      void streamViaDaemon({
+        agentId: agent.id,
+        history: [userMessage],
+        signal: controller.signal,
+        projectId: created.project.id,
+        conversationId: created.conversationId,
+        assistantMessageId: assistantMessage.id,
+        clientRequestId: randomUUID(),
+        skillId: project.skillId ?? 'logo-generator',
+        designSystemId: project.designSystemId ?? null,
+        model: modelChoice?.model ?? null,
+        reasoning: modelChoice?.reasoning ?? null,
+        handlers: {
+          onDelta: (delta) => {
+            assistantMessage = {
+              ...assistantMessage,
+              content: assistantMessage.content + delta,
+              events: [...(assistantMessage.events ?? []), { kind: 'text', text: delta }],
+            };
+          },
+          onAgentEvent: (agentEvent: AgentEvent) => {
+            if (agentEvent.kind === 'text') return;
+            assistantMessage = {
+              ...assistantMessage,
+              events: [...(assistantMessage.events ?? []), agentEvent],
+            };
+          },
+          onDone: (fullText) => {
+            if (runAbortRef.current !== controller) return;
+            assistantMessage = {
+              ...assistantMessage,
+              content: assistantMessage.content || fullText,
+              endedAt: Date.now(),
+              runStatus: 'succeeded',
+            };
+            void saveMessage(
+              created.project.id,
+              created.conversationId,
+              assistantMessage,
+              { telemetryFinalized: true },
+            );
+            runAbortRef.current = null;
+          },
+          onError: (runError) => {
+            if (runAbortRef.current !== controller) return;
+            clearPrepareTimeout();
+            assistantMessage = {
+              ...assistantMessage,
+              endedAt: Date.now(),
+              runStatus: 'failed',
+            };
+            void saveMessage(
+              created.project.id,
+              created.conversationId,
+              assistantMessage,
+              { telemetryFinalized: true },
+            );
+            setSubmitting(false);
+            setSuccess('');
+            setError(runError.message || copy.failed);
+            runAbortRef.current = null;
+          },
+        },
+        onRunCreated: (runId) => {
+          if (runAbortRef.current !== controller) return;
+          clearPrepareTimeout();
+          assistantMessage = { ...assistantMessage, runId, runStatus: 'queued' };
+          void saveMessage(created.project.id, created.conversationId, assistantMessage);
+          setSuccess(copy.started);
+          setSubmitting(false);
+        },
+        onRunStatus: (runStatus) => {
+          assistantMessage = {
+            ...assistantMessage,
+            runStatus,
+            endedAt: runStatus === 'succeeded' || runStatus === 'failed' || runStatus === 'canceled'
+              ? assistantMessage.endedAt ?? Date.now()
+              : assistantMessage.endedAt,
+          };
+        },
       });
-      if (!runResponse.ok) throw new Error(`logo run failed: ${runResponse.status}`);
-      setSuccess(copy.started);
-      setSubmitting(false);
-    } catch {
-      setError(copy.failed);
+    } catch (submitError) {
+      if (runAbortRef.current !== controller) return;
+      clearPrepareTimeout();
+      runAbortRef.current = null;
+      setError(submitError instanceof Error ? submitError.message : copy.failed);
       setSubmitting(false);
     }
   }
