@@ -20,6 +20,7 @@ export type EntryView =
   | 'projects'
   | 'tasks'
   | 'plugins'
+  | 'logo'
   | 'design-systems'
   | 'integrations';
 

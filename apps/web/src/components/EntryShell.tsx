@@ -97,6 +97,11 @@ const IntegrationsView = lazy(() =>
     default: module.IntegrationsView,
   })),
 );
+const LogoStudioView = lazy(() =>
+  import('./LogoStudioView').then((module) => ({
+    default: module.LogoStudioView,
+  })),
+);
 const NewProjectModal = lazy(() =>
   import('./NewProjectModal').then((module) => ({
     default: module.NewProjectModal,
@@ -824,6 +829,9 @@ export function EntryShell({
                   composioConfigLoading={composioConfigLoading}
                   onPersistComposioKey={onPersistComposioKey}
                 />
+              ) : null}
+              {view === 'logo' ? (
+                <LogoStudioView onCreate={onCreateProject} />
               ) : null}
             </Suspense>
           </div>

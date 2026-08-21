@@ -361,6 +361,7 @@ import { registerMcpRoutes } from './mcp-routes.js';
 import { registerXaiRoutes } from './xai-routes.js';
 import { registerLiveArtifactRoutes } from './live-artifact-routes.js';
 import { registerCanvasRoutes } from './canvas-routes.js';
+import { registerLogoRoutes } from './logo-routes.js';
 import { registerDesignSystemToolRoutes } from './design-system-tool-routes.js';
 import { registerDeployRoutes, registerDeploymentCheckRoutes } from './deploy-routes.js';
 import { registerMediaRoutes } from './media-routes.js';
@@ -4497,6 +4498,7 @@ export async function startServer({
   });
   registerDeviceBridgeRoutes(app, deviceBridge);
   registerCanvasRoutes(app, { db, http: httpDeps });
+  registerLogoRoutes(app, { http: httpDeps });
   registerImportRoutes(app, {
     db,
     http: httpDeps,

@@ -77,6 +77,23 @@ const CANVAS_STRING_FLAGS = new Set([
 ]);
 const CANVAS_BOOLEAN_FLAGS = new Set(['json', 'help', 'h']);
 
+const LOGO_STRING_FLAGS = new Set([
+  'daemon-url',
+  'brand',
+  'industry',
+  'audience',
+  'personality',
+  'architecture',
+  'palette',
+  'applications',
+  'avoid',
+  'notes',
+  'prompt-file',
+  'agent',
+  'model',
+]);
+const LOGO_BOOLEAN_FLAGS = new Set(['json', 'help', 'h', 'run', 'follow']);
+
 const MCP_STRING_FLAGS = new Set([
   'daemon-url',
 ]);
@@ -225,6 +242,7 @@ const SUBCOMMAND_MAP = {
   artifacts: runArtifacts,
   media: runMedia,
   canvas: runCanvas,
+  logo: runLogo,
   mcp: runMcp,
   research: runResearch,
   plugin: runPlugin,
@@ -559,6 +577,10 @@ function printRootHelp() {
       Drive the project's Lovart-style design canvas headlessly. Images
       and text nodes share one infinite space the web tldraw editor also
       renders, so an external agent can compose a canvas without the UI.
+
+  od logo create --brand <name> --industry <category> [options]
+      Create a structured Logo Studio project through the same brief and
+      project APIs used by the web UI. Supports --json and --prompt-file.
 
   od mcp [--daemon-url <url>]
       Run a stdio MCP server that proxies project tool calls to a
@@ -963,6 +985,133 @@ async function runCanvas(args) {
     else console.error(`removed ${nodeId}`);
     return;
   }
+}
+
+// ---------- od logo … ----------
+
+async function runLogo(args) {
+  const sub = args.find((value) => !value.startsWith('-')) || '';
+  if (!sub || sub === 'help' || args.includes('--help') || args.includes('-h')) {
+    printLogoHelp();
+    return;
+  }
+  if (sub !== 'create') {
+    console.error(`unknown subcommand: od logo ${sub}`);
+    printLogoHelp();
+    process.exit(2);
+  }
+
+  const index = args.indexOf(sub);
+  const rawArgs = [...args.slice(0, index), ...args.slice(index + 1)];
+  let flags;
+  try {
+    flags = parseFlags(rawArgs, { string: LOGO_STRING_FLAGS, boolean: LOGO_BOOLEAN_FLAGS });
+  } catch (error) {
+    console.error(error.message);
+    printLogoHelp();
+    process.exit(2);
+  }
+
+  if (!flags.brand || !flags.industry) {
+    console.error('--brand <name> and --industry <category> are required');
+    process.exit(2);
+  }
+
+  const notes = await readPromptFromFlags({
+    prompt: flags.notes,
+    'prompt-file': flags['prompt-file'],
+  });
+  const list = (value) => typeof value === 'string'
+    ? value.split(',').map((item) => item.trim()).filter(Boolean)
+    : [];
+  const base = await cliDaemonBaseUrl(flags);
+  const briefResponse = await fetch(`${base}/api/logo/brief`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      brandName: flags.brand,
+      industry: flags.industry,
+      audience: flags.audience,
+      personality: list(flags.personality),
+      architecture: flags.architecture,
+      palette: list(flags.palette),
+      applications: list(flags.applications),
+      avoid: list(flags.avoid),
+      notes: notes || '',
+    }),
+  });
+  const briefData = await briefResponse.json().catch(() => ({}));
+  if (!briefResponse.ok) {
+    console.error(`POST /api/logo/brief failed: ${briefResponse.status} ${JSON.stringify(briefData)}`);
+    process.exit(1);
+  }
+
+  const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+  const projectResponse = await fetch(`${base}/api/projects`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, ...briefData.project }),
+  });
+  const projectData = await projectResponse.json().catch(() => ({}));
+  if (!projectResponse.ok) {
+    console.error(`POST /api/projects failed: ${projectResponse.status} ${JSON.stringify(projectData)}`);
+    process.exit(1);
+  }
+
+  let runData = null;
+  if (flags.run || flags.follow) {
+    const runResponse = await fetch(`${base}/api/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        projectId: projectData.project?.id ?? id,
+        conversationId: projectData.conversationId,
+        message: briefData.project?.pendingPrompt,
+        appliedPluginSnapshotId: projectData.appliedPluginSnapshotId,
+        ...(flags.agent ? { agentId: flags.agent } : {}),
+        ...(flags.model ? { model: flags.model } : {}),
+      }),
+    });
+    runData = await runResponse.json().catch(() => ({}));
+    if (!runResponse.ok) {
+      console.error(`POST /api/runs failed: ${runResponse.status} ${JSON.stringify(runData)}`);
+      process.exit(1);
+    }
+  }
+
+  const output = {
+    ...projectData,
+    brief: briefData.brief,
+    ...(runData ? { run: runData } : {}),
+  };
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    if (flags.follow && runData?.runId) await streamRunEvents(base, runData.runId);
+    return;
+  }
+  console.log(`[logo] created ${projectData.project?.name ?? flags.brand} (${projectData.project?.id ?? id})`);
+  if (runData?.runId) {
+    console.log(`[logo] generation started ${runData.runId}`);
+    if (flags.follow) await streamRunEvents(base, runData.runId);
+  } else {
+    console.log(`[logo] four directions are ready to run in conversation ${projectData.conversationId ?? '-'}`);
+  }
+}
+
+function printLogoHelp() {
+  console.log(`Usage:
+  od logo create --brand <name> --industry <category>
+                 [--audience <text>]
+                 [--personality precise,warm,bold]
+                 [--architecture symbol|wordmark|combination|monogram]
+                 [--palette '#FF5A1F,#151719,#F4F1EA']
+                 [--applications web,favicon,social,app-icon,print]
+                 [--avoid <comma-separated-list>]
+                 [--notes <text> | --prompt-file <path|->]
+                 [--run] [--agent <id>] [--model <id>] [--follow]
+                 [--daemon-url <url>] [--json]`);
 }
 
 function numOr(value, fallback) {

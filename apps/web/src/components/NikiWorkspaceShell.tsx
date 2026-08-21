@@ -25,11 +25,12 @@ import { useNikiAuth } from '../auth/NikiAuth';
 interface Props {
   projects: Project[];
   activeProjectId: string | null;
-  activeView?: 'home' | 'project' | 'design-files';
+  activeView?: 'home' | 'project' | 'design-files' | 'logo';
   projectsLoading?: boolean;
   onOpenProject: (id: string) => void;
   onNewProject: () => void;
   onOpenDesignFiles: () => void;
+  onOpenLogoStudio: () => void;
   onRenameProject: (id: string, name: string) => void;
   onDeleteProject: (id: string) => void;
   config: AppConfig;
@@ -94,6 +95,7 @@ export function NikiWorkspaceShell({
   onOpenProject,
   onNewProject,
   onOpenDesignFiles,
+  onOpenLogoStudio,
   onRenameProject,
   onDeleteProject,
   config,
@@ -112,8 +114,10 @@ export function NikiWorkspaceShell({
   const nikiAuth = useNikiAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuProjectId, setMenuProjectId] = useState<string | null>(null);
+  const [titleMenuOpen, setTitleMenuOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(readSidebarWidth);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const titleMenuRef = useRef<HTMLDivElement | null>(null);
   const stopSidebarResizeRef = useRef<(() => void) | null>(null);
   const sortedProjects = useMemo(
     () => [...projects].sort((a, b) => b.updatedAt - a.updatedAt),
@@ -200,6 +204,22 @@ export function NikiWorkspaceShell({
     return () => window.removeEventListener('pointerdown', onPointerDown);
   }, [menuProjectId]);
 
+  useEffect(() => {
+    if (!titleMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!titleMenuRef.current?.contains(event.target as Node)) setTitleMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setTitleMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [titleMenuOpen]);
+
   function openProject(id: string) {
     setDrawerOpen(false);
     setMenuProjectId(null);
@@ -209,13 +229,22 @@ export function NikiWorkspaceShell({
   function startNewProject() {
     setDrawerOpen(false);
     setMenuProjectId(null);
+    setTitleMenuOpen(false);
     onNewProject();
   }
 
   function openDesignFiles() {
     setDrawerOpen(false);
     setMenuProjectId(null);
+    setTitleMenuOpen(false);
     onOpenDesignFiles();
+  }
+
+  function openLogoStudio() {
+    setDrawerOpen(false);
+    setMenuProjectId(null);
+    setTitleMenuOpen(false);
+    onOpenLogoStudio();
   }
 
   function renameProject(project: Project) {
@@ -240,20 +269,50 @@ export function NikiWorkspaceShell({
       data-testid="niki-project-sidebar"
     >
       <div className="niki-workspace__sidebar-head">
-        <button
-          type="button"
-          className="niki-workspace__brand"
-          onClick={startNewProject}
-          aria-label={t('app.brand')}
-        >
-          <img
-            src="/app-icon.svg?v=20260527"
-            alt=""
-            className="niki-workspace__brand-icon"
-            draggable={false}
-          />
-          <span>Niki</span>
-        </button>
+        <div className="niki-workspace__title-menu" ref={titleMenuRef}>
+          <button
+            type="button"
+            className="niki-workspace__brand"
+            onClick={() => setTitleMenuOpen((open) => !open)}
+            aria-label={t('app.brand')}
+            aria-haspopup="menu"
+            aria-expanded={titleMenuOpen}
+            data-testid="niki-title-menu-trigger"
+          >
+            <img
+              src="/app-icon.svg?v=20260527"
+              alt=""
+              className="niki-workspace__brand-icon"
+              draggable={false}
+            />
+            <span>Niki</span>
+            <Icon name="chevron-down" size={14} />
+          </button>
+          {titleMenuOpen ? (
+            <div className="niki-workspace__title-popover" role="menu" data-testid="niki-title-menu">
+              <button type="button" role="menuitem" onClick={startNewProject}>
+                <Icon name="plus" size={16} />
+                <span>{t('chat.newConversation')}</span>
+              </button>
+              <button type="button" role="menuitem" onClick={openDesignFiles}>
+                <Icon name="image" size={16} />
+                <span>{t('workspace.designFiles')}</span>
+              </button>
+              <div className="niki-workspace__title-divider" role="separator" />
+              <button
+                type="button"
+                role="menuitem"
+                className={activeView === 'logo' ? 'is-active' : ''}
+                onClick={openLogoStudio}
+                data-testid="niki-title-logo-studio"
+              >
+                <Icon name="sparkles" size={16} />
+                <span>Logo Studio</span>
+                <span className="niki-workspace__title-new">New</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
         <button
           type="button"
           className="niki-workspace__drawer-close"
