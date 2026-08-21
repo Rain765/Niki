@@ -126,6 +126,10 @@ export async function finalizeLogoDirection(
   const prepared = await preparedResponse.json() as LogoFinalizeResponse;
   options.onStatus?.('prepared');
   options.onProgress?.(prepared.finalization);
+  if (prepared.finalization.status === 'complete') return prepared.finalization;
+  if (prepared.finalization.mode === 'faithful') {
+    throw new Error('Faithful vectorization did not return a completed validated SVG.');
+  }
 
   const agent = preferredLogoAgent(await fetchAgents({ throwOnError: true, signal: options.signal }));
   if (!agent) {

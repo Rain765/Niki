@@ -304,11 +304,13 @@ describe('LogoStudioView', () => {
       projectId: 'logo-project-1',
       conversationId: 'conversation-123',
       direction: 2,
+      mode: 'faithful',
       sourceFile: 'logo-direction-02.png',
       outputRoot: 'logo/final/final-123',
       expectedOutputs: ['logo.svg'],
       outputFiles: ['logo/final/final-123/logo.svg'],
       status: 'complete',
+      similarityScore: 0.982,
       requestedAt: 300,
       notes: 'Keep the diagonal cut.',
       archiveUrl: '/api/projects/logo-project-1/archive?root=logo%2Ffinal%2Ffinal-123',
@@ -322,21 +324,21 @@ describe('LogoStudioView', () => {
 
     await screen.findByRole('region', { name: 'Generation history' });
     fireEvent.click(screen.getByRole('button', { name: 'Select Northstar Logo direction 2' }));
-    fireEvent.change(screen.getByLabelText('Refinement notes'), {
-      target: { value: 'Keep the diagonal cut.' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Refine and build brand kit' }));
+    expect(screen.getByRole('button', { name: 'Faithful vectorization' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Vectorize and build brand kit' }));
 
     await waitFor(() => expect(finalizeLogoDirectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: 'logo-project-1',
         direction: 2,
-        notes: 'Keep the diagonal cut.',
+        mode: 'faithful',
+        notes: '',
       }),
       expect.any(Object),
     ));
     const download = await screen.findByRole('link', { name: 'Download brand kit' });
     expect(download.getAttribute('href')).toContain('logo%2Ffinal%2Ffinal-123');
+    expect(screen.getByText(/Faithful vectorization · 98\.20%/u)).toBeTruthy();
   });
 
   it('shows brand-kit skeletons immediately and fills them as refinement files arrive', async () => {
@@ -403,6 +405,8 @@ describe('LogoStudioView', () => {
 
     await screen.findByRole('region', { name: 'Generation history' });
     fireEvent.click(screen.getByRole('button', { name: 'Select Northstar Logo direction 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Design refinement' }));
+    expect(screen.getByRole('button', { name: 'Design refinement' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Refine and build brand kit' }));
 
     const skeleton = await screen.findByTestId('logo-refinement-skeleton');

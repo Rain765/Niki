@@ -59,6 +59,7 @@ describe('logo finalization builder', () => {
     const result = buildLogoFinalization({
       projectId: 'logo-project-1',
       direction: 2,
+      mode: 'refine',
       notes: 'Keep the diagonal cut, but make the wordmark calmer.',
     }, {
       finalizationId: 'final-123',
@@ -72,6 +73,7 @@ describe('logo finalization builder', () => {
       projectId: 'logo-project-1',
       conversationId: 'conversation-123',
       direction: 2,
+      mode: 'refine',
       sourceFile: 'logo-direction-02.png',
       outputRoot: 'logo/final/final-123',
       status: 'prepared',
@@ -93,6 +95,22 @@ describe('logo finalization builder', () => {
     expect(result.prompt).toContain('Keep the diagonal cut');
   });
 
+  it('defaults to deterministic faithful vectorization', () => {
+    const result = buildLogoFinalization({
+      projectId: 'logo-project-1',
+      direction: 2,
+    }, {
+      finalizationId: 'final-123',
+      conversationId: 'conversation-123',
+      requestedAt: 1_700_000_000_000,
+      projectPrompt: 'Use $logo-generator for Northstar.',
+    });
+
+    expect(result.finalization.mode).toBe('faithful');
+    expect(result.prompt).toContain('deterministic vector tracing');
+    expect(result.prompt).toContain('must not redesign');
+  });
+
   it('rejects directions outside the generated four-up set', () => {
     expect(() => buildLogoFinalization({
       projectId: 'logo-project-1',
@@ -103,5 +121,18 @@ describe('logo finalization builder', () => {
       requestedAt: 1,
       projectPrompt: '',
     })).toThrow('direction must be an integer from 1 to 4');
+  });
+
+  it('rejects an unknown finalization mode instead of silently choosing a workflow', () => {
+    expect(() => buildLogoFinalization({
+      projectId: 'logo-project-1',
+      direction: 2,
+      mode: 'approximate' as never,
+    }, {
+      finalizationId: 'final-123',
+      conversationId: 'conversation-123',
+      requestedAt: 1,
+      projectPrompt: '',
+    })).toThrow('mode must be faithful or refine');
   });
 });

@@ -32,6 +32,7 @@ export interface LogoBriefResponse {
 }
 
 export type LogoDirection = 1 | 2 | 3 | 4;
+export type LogoFinalizationMode = 'faithful' | 'refine';
 
 export type LogoFinalizationStatus =
   | 'prepared'
@@ -43,6 +44,7 @@ export type LogoFinalizationStatus =
 export interface LogoFinalizeRequest {
   projectId: string;
   direction: LogoDirection;
+  mode?: LogoFinalizationMode;
   notes?: string;
 }
 
@@ -56,6 +58,8 @@ export interface LogoFinalization {
   conversationId: string;
   clientRequestId: string;
   direction: LogoDirection;
+  /** Missing only on records created before faithful vectorization shipped. */
+  mode?: LogoFinalizationMode;
   sourceFile: string;
   outputRoot: string;
   expectedOutputs: string[];
@@ -65,6 +69,7 @@ export interface LogoFinalization {
   notes: string;
   prompt: string;
   archiveUrl?: string;
+  similarityScore?: number;
   error?: string;
 }
 

@@ -5,6 +5,7 @@ import type {
   LogoBriefResponse,
   LogoDirection,
   LogoFinalization,
+  LogoFinalizationMode,
   LogoFinalizationStatus,
   MediaTaskSnapshot,
   Project,
@@ -100,7 +101,12 @@ const COPY = {
     refinementNotes: 'Refinement notes',
     refinementPlaceholder: 'What should be preserved, simplified, or adjusted?',
     refine: 'Refine and build brand kit',
+    vectorize: 'Vectorize and build brand kit',
     refining: 'Building brand kit…',
+    faithfulMode: 'Faithful vectorization',
+    faithfulHint: 'Preserves the source canvas, geometry, placement, and sampled colors. The result must pass render-back validation.',
+    designRefinementMode: 'Design refinement',
+    designRefinementHint: 'Allows the design agent to simplify, rebalance, or reinterpret the selected direction.',
     refinementPrepared: 'Refinement saved',
     refinementQueued: 'Queued',
     refinementRunning: 'Refining',
@@ -164,7 +170,12 @@ const COPY = {
     refinementNotes: '精修要求',
     refinementPlaceholder: '哪些特征需要保留、简化或调整？',
     refine: '精修并生成品牌包',
+    vectorize: '忠实矢量化并生成品牌包',
     refining: '正在生成品牌包…',
+    faithfulMode: '忠实矢量化',
+    faithfulHint: '保留原图画布、轮廓、位置和采样颜色，并通过回渲相似度校验。',
+    designRefinementMode: '设计精修',
+    designRefinementHint: '允许设计 Agent 简化、调整比例或重新诠释所选方向。',
     refinementPrepared: '精修任务已保存',
     refinementQueued: '等待执行',
     refinementRunning: '正在精修',
@@ -349,6 +360,7 @@ export function LogoStudioView() {
     direction: LogoDirection;
   } | null>(null);
   const [refinementNotes, setRefinementNotes] = useState('');
+  const [refinementMode, setRefinementMode] = useState<LogoFinalizationMode>('faithful');
   const [refinementStatus, setRefinementStatus] = useState<LogoFinalizationStatus | null>(null);
   const [activeFinalization, setActiveFinalization] = useState<LogoFinalization | null>(null);
   const [refinementError, setRefinementError] = useState('');
@@ -646,6 +658,7 @@ export function LogoStudioView() {
       const finalization = await finalizeLogoDirection({
         projectId,
         direction,
+        mode: refinementMode,
         notes: refinementNotes,
       }, {
         signal: controller.signal,
@@ -927,6 +940,7 @@ export function LogoStudioView() {
                 refinementNotes={selectedDirection?.projectId === entry.projectId
                   ? refinementNotes
                   : ''}
+                refinementMode={refinementMode}
                 refinementStatus={selectedDirection?.projectId === entry.projectId
                   ? refinementStatus
                   : null}
@@ -940,11 +954,19 @@ export function LogoStudioView() {
                 onSelectDirection={(direction) => {
                   setSelectedDirection({ projectId: entry.projectId, direction });
                   setRefinementNotes('');
+                  setRefinementMode('faithful');
                   setRefinementStatus(null);
                   setActiveFinalization(null);
                   setRefinementError('');
                 }}
                 onRefinementNotesChange={setRefinementNotes}
+                onRefinementModeChange={(mode) => {
+                  setRefinementMode(mode);
+                  setRefinementNotes('');
+                  setRefinementStatus(null);
+                  setActiveFinalization(null);
+                  setRefinementError('');
+                }}
                 onRefine={() => void refineSelectedDirection()}
                 key={entry.projectId}
               />
@@ -962,12 +984,14 @@ function LogoHistoryBatch({
   language,
   selectedDirection,
   refinementNotes,
+  refinementMode,
   refinementStatus,
   activeFinalization,
   refinementError,
   refining,
   onSelectDirection,
   onRefinementNotesChange,
+  onRefinementModeChange,
   onRefine,
 }: {
   copy: (typeof COPY)[keyof typeof COPY];
@@ -975,12 +999,14 @@ function LogoHistoryBatch({
   language: keyof typeof COPY;
   selectedDirection: LogoDirection | null;
   refinementNotes: string;
+  refinementMode: LogoFinalizationMode;
   refinementStatus: LogoFinalizationStatus | null;
   activeFinalization: LogoFinalization | null;
   refinementError: string;
   refining: boolean;
   onSelectDirection: (direction: LogoDirection) => void;
   onRefinementNotesChange: (value: string) => void;
+  onRefinementModeChange: (mode: LogoFinalizationMode) => void;
   onRefine: () => void;
 }) {
   const statusLabel = {
@@ -1053,20 +1079,45 @@ function LogoHistoryBatch({
               {copy.openSource}
             </a>
           </div>
-          <label>
-            <span>{copy.refinementNotes}</span>
-            <textarea
-              aria-label={copy.refinementNotes}
-              value={refinementNotes}
-              onChange={(event) => onRefinementNotesChange(event.target.value)}
-              placeholder={copy.refinementPlaceholder}
-              rows={2}
+          <div className="logo-studio__refinement-mode" role="group" aria-label={copy.refinementNotes}>
+            <button
+              type="button"
+              aria-pressed={refinementMode === 'faithful'}
+              className={refinementMode === 'faithful' ? 'is-selected' : ''}
+              onClick={() => onRefinementModeChange('faithful')}
               disabled={refining}
-            />
-          </label>
+            >
+              {copy.faithfulMode}
+            </button>
+            <button
+              type="button"
+              aria-pressed={refinementMode === 'refine'}
+              className={refinementMode === 'refine' ? 'is-selected' : ''}
+              onClick={() => onRefinementModeChange('refine')}
+              disabled={refining}
+            >
+              {copy.designRefinementMode}
+            </button>
+          </div>
+          <p className="logo-studio__refinement-mode-hint">
+            {refinementMode === 'faithful' ? copy.faithfulHint : copy.designRefinementHint}
+          </p>
+          {refinementMode === 'refine' ? (
+            <label>
+              <span>{copy.refinementNotes}</span>
+              <textarea
+                aria-label={copy.refinementNotes}
+                value={refinementNotes}
+                onChange={(event) => onRefinementNotesChange(event.target.value)}
+                placeholder={copy.refinementPlaceholder}
+                rows={2}
+                disabled={refining}
+              />
+            </label>
+          ) : null}
           <div className="logo-studio__refinement-actions">
             <button type="button" onClick={onRefine} disabled={refining}>
-              {refining ? copy.refining : copy.refine}
+              {refining ? copy.refining : refinementMode === 'faithful' ? copy.vectorize : copy.refine}
             </button>
             {refinementStatusLabel ? (
               <span className={`is-${refinementStatus}`}>{refinementStatusLabel}</span>
@@ -1095,7 +1146,11 @@ function LogoHistoryBatch({
                   running: copy.refinementRunning,
                   complete: copy.refinementComplete,
                   failed: copy.refinementFailed,
-                }[finalization.status]}</small>
+                }[finalization.status]}{finalization.mode ? ` · ${finalization.mode === 'faithful'
+                  ? copy.faithfulMode
+                  : copy.designRefinementMode}` : ''}{typeof finalization.similarityScore === 'number'
+                  ? ` · ${(finalization.similarityScore * 100).toFixed(2)}%`
+                  : ''}</small>
                 {finalization.archiveUrl ? (
                   <a href={finalization.archiveUrl}>{copy.downloadBrandKit}</a>
                 ) : null}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { LogoFinalization } from '@open-design/contracts';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { fetchAgentsMock, streamViaDaemonMock } = vi.hoisted(() => ({
   fetchAgentsMock: vi.fn(),
@@ -53,7 +53,35 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe('logo provider', () => {
+  it('does not start a coding agent when faithful vectorization completes in the daemon', async () => {
+    const complete = {
+      ...preparedFinalization,
+      mode: 'faithful' as const,
+      status: 'complete' as const,
+      outputFiles: expectedOutputs.map((name) => `${preparedFinalization.outputRoot}/${name}`),
+      archiveUrl: '/api/projects/logo-project-1/archive?root=logo%2Ffinal%2Ffinal-123',
+      similarityScore: 0.98,
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      finalization: complete,
+      prompt: 'Faithful vectorization completed.',
+    }), { status: 201, headers: { 'content-type': 'application/json' } }));
+
+    await expect(finalizeLogoDirection({
+      projectId: 'logo-project-1',
+      direction: 2,
+      mode: 'faithful',
+    })).resolves.toEqual(complete);
+
+    expect(fetchAgentsMock).not.toHaveBeenCalled();
+    expect(streamViaDaemonMock).not.toHaveBeenCalled();
+  });
+
   it('reports partial files and returns as soon as the required brand kit exists', async () => {
     vi.useFakeTimers();
     fetchAgentsMock.mockResolvedValue([{ id: 'codex', name: 'Codex', available: true }]);
@@ -88,6 +116,7 @@ describe('logo provider', () => {
     const resultPromise = finalizeLogoDirection({
       projectId: 'logo-project-1',
       direction: 2,
+      mode: 'refine',
     }, { onProgress });
 
     await vi.waitFor(() => expect(onProgress).toHaveBeenCalledWith(partial));

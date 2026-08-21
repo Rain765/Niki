@@ -395,6 +395,7 @@ describe('CLI startup boundaries', () => {
       expect(requestBody).toEqual({
         projectId: 'logo-project-1',
         direction: 2,
+        mode: 'faithful',
         notes: 'Keep the diagonal cut.',
       });
       expect(JSON.parse(result.stdout)).toMatchObject({

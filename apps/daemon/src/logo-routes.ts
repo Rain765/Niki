@@ -5,12 +5,14 @@ import type {
   LogoBriefResponse,
   LogoDirection,
   LogoFinalization,
+  LogoFinalizationMode,
   LogoFinalizeRequest,
   LogoFinalizeResponse,
   LogoFinalizationsResponse,
   NormalizedLogoBrief,
 } from '@open-design/contracts';
 import type { RouteDeps } from './server-context.js';
+import { vectorizeLogoSource } from './logo-vectorize.js';
 
 const ARCHITECTURES = new Set<LogoArchitecture>([
   'symbol',
@@ -28,6 +30,7 @@ const LOGO_FINAL_OUTPUTS = [
   'BRAND.md',
 ] as const;
 const FINALIZATION_MANIFEST = /^logo\/finalizations\/([^/]+)\/manifest\.json$/u;
+const FINALIZATION_MODES = new Set<LogoFinalizationMode>(['faithful', 'refine']);
 
 function cleanText(value: unknown, maxLength: number): string {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
@@ -133,11 +136,16 @@ export function buildLogoFinalization(
   }
 
   const safeDirection = direction as LogoDirection;
+  const requestedMode = cleanText(input.mode, 20) as LogoFinalizationMode;
+  if (requestedMode && !FINALIZATION_MODES.has(requestedMode)) {
+    throw new Error('mode must be faithful or refine');
+  }
+  const mode = requestedMode || 'faithful';
   const notes = cleanText(input.notes, 2_000);
   const sourceFile = `logo-direction-${String(safeDirection).padStart(2, '0')}.png`;
   const outputRoot = `logo/final/${context.finalizationId}`;
   const expectedPaths = LOGO_FINAL_OUTPUTS.map((name) => `${outputRoot}/${name}`);
-  const prompt = [
+  const refinementPrompt = [
     'Use $logo-generator to refine the approved logo direction into a production brand kit.',
     '',
     '# Approved source',
@@ -160,6 +168,14 @@ export function buildLogoFinalization(
     '',
     'Proceed autonomously with the approved direction and write every required output. Do not stop to ask another discovery question.',
   ].join('\n');
+  const faithfulPrompt = [
+    'Use deterministic vector tracing to export the selected PNG as faithful editable SVG geometry.',
+    'This mode must not redesign, reinterpret, simplify, rebalance, re-typeset, crop, or reposition the source artwork.',
+    `Source image: ${sourceFile}`,
+    `Output root: ${outputRoot}`,
+    'The daemon performs render-back similarity validation and rejects results below its required threshold.',
+  ].join('\n');
+  const prompt = mode === 'faithful' ? faithfulPrompt : refinementPrompt;
 
   const finalization: LogoFinalization = {
     id: context.finalizationId,
@@ -167,6 +183,7 @@ export function buildLogoFinalization(
     conversationId: context.conversationId,
     clientRequestId: `logo-finalize:${context.finalizationId}`,
     direction: safeDirection,
+    mode,
     sourceFile,
     outputRoot,
     expectedOutputs: [...LOGO_FINAL_OUTPUTS],
@@ -247,7 +264,7 @@ export function registerLogoRoutes(
         return ctx.http.sendApiError(res, 400, 'BAD_REQUEST', 'direction must be an integer from 1 to 4');
       }
       const sourceFile = `logo-direction-${String(direction).padStart(2, '0')}.png`;
-      await ctx.projectFiles.readProjectFile(
+      const source = await ctx.projectFiles.readProjectFile(
         ctx.paths.PROJECTS_DIR,
         project.id,
         sourceFile,
@@ -263,23 +280,57 @@ export function registerLogoRoutes(
         requestedAt,
         projectPrompt: project.pendingPrompt ?? '',
       });
+      const vectorized = built.finalization.mode === 'faithful'
+        ? await vectorizeLogoSource(source.buffer, {
+            brandName: project.name.replace(/\s+Logo$/iu, '') || project.name,
+          })
+        : null;
       ctx.conversations.insertConversation(ctx.db, {
         id: conversationId,
         projectId: project.id,
-        title: `Logo refinement ${String(direction)}`,
+        title: built.finalization.mode === 'faithful'
+          ? `Logo vectorization ${String(direction)}`
+          : `Logo refinement ${String(direction)}`,
         createdAt: requestedAt,
         updatedAt: requestedAt,
       });
       const manifestPath = `logo/finalizations/${finalizationId}/manifest.json`;
+      if (vectorized) {
+        for (const output of built.finalization.expectedOutputs) {
+          const body = vectorized.files.get(output);
+          if (!body) throw new Error(`faithful vectorization did not create ${output}`);
+          await ctx.projectFiles.writeProjectFile(
+            ctx.paths.PROJECTS_DIR,
+            project.id,
+            `${built.finalization.outputRoot}/${output}`,
+            body,
+            { overwrite: false },
+            project.metadata,
+          );
+        }
+      }
+      const completedFinalization: LogoFinalization = vectorized ? {
+        ...built.finalization,
+        outputFiles: built.finalization.expectedOutputs.map((output) => (
+          `${built.finalization.outputRoot}/${output}`
+        )),
+        status: 'complete',
+        similarityScore: vectorized.similarityScore,
+        archiveUrl: `/api/projects/${encodeURIComponent(project.id)}/archive?root=${encodeURIComponent(built.finalization.outputRoot)}`,
+      } : built.finalization;
       await ctx.projectFiles.writeProjectFile(
         ctx.paths.PROJECTS_DIR,
         project.id,
         manifestPath,
-        `${JSON.stringify(built.finalization, null, 2)}\n`,
+        `${JSON.stringify(completedFinalization, null, 2)}\n`,
         { overwrite: false },
         project.metadata,
       );
-      return res.status(201).json(built satisfies LogoFinalizeResponse);
+      const response: LogoFinalizeResponse = {
+        finalization: completedFinalization,
+        prompt: built.prompt,
+      };
+      return res.status(201).json(response);
     } catch (error) {
       const code = (error as { code?: string })?.code;
       return ctx.http.sendApiError(

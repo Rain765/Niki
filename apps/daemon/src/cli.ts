@@ -772,8 +772,9 @@ function printRootHelp() {
       Create a structured Logo Studio project through the same brief and
       project APIs used by the web UI. Supports --json and --prompt-file.
 
-  od logo finalize --project <id> --direction <1|2|3|4> [options]
-      Refine one saved direction into a versioned SVG-first brand kit.
+  od logo finalize --project <id> --direction <1|2|3|4> [--mode faithful|refine] [options]
+      Faithfully vectorize one saved direction by default, or explicitly run
+      design refinement into a versioned SVG-first brand kit.
 
   od mcp [--daemon-url <url>]
       Run a stdio MCP server that proxies project tool calls to a
@@ -1345,6 +1346,11 @@ async function runLogoFinalize(flags) {
     console.error('--direction must be an integer from 1 to 4');
     process.exit(2);
   }
+  const mode = flags.mode || 'faithful';
+  if (mode !== 'faithful' && mode !== 'refine') {
+    console.error('--mode must be faithful or refine');
+    process.exit(2);
+  }
   const notes = await readPromptFromFlags({
     prompt: flags.notes,
     'prompt-file': flags['prompt-file'],
@@ -1356,6 +1362,7 @@ async function runLogoFinalize(flags) {
     body: JSON.stringify({
       projectId: flags.project,
       direction,
+      mode,
       notes: notes || '',
     }),
   });
@@ -1366,7 +1373,7 @@ async function runLogoFinalize(flags) {
   }
 
   let runData = null;
-  if (flags.run || flags.follow) {
+  if (mode === 'refine' && (flags.run || flags.follow)) {
     const agentId = await resolveLogoAgentId(base, flags.agent);
     const runResponse = await fetch(`${base}/api/runs`, {
       method: 'POST',
