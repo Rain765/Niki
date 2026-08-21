@@ -20,6 +20,7 @@ export const NIKI_POSTER_COLOR_VALUES = {
   danger: '#c9353f',
   dangerSurface: '#fdf3f4',
   success: '#3dd43f',
+  pickerBlack: '#000000',
 } as const;
 
 export const NIKI_POSTER_LEGACY_ACCENT_COLORS = [
@@ -49,6 +50,17 @@ export const NIKI_POSTER_COLOR_VARIABLES = {
   '--poster-danger': NIKI_POSTER_COLOR_VALUES.danger,
   '--poster-danger-surface': NIKI_POSTER_COLOR_VALUES.dangerSurface,
   '--poster-success': NIKI_POSTER_COLOR_VALUES.success,
+  '--poster-picker-panel': 'var(--poster-fill-7)',
+  '--poster-picker-field': 'color-mix(in srgb, var(--poster-fill-6) 46%, var(--poster-fill-7))',
+  '--poster-picker-border': 'color-mix(in srgb, var(--poster-fill-5) 22%, transparent)',
+  '--poster-picker-text': 'var(--poster-fill-0)',
+  '--poster-picker-muted': 'var(--poster-fill-5)',
+  '--poster-picker-focus': 'var(--poster-line-active)',
+  '--poster-picker-white': 'var(--poster-fill-0)',
+  '--poster-picker-black': NIKI_POSTER_COLOR_VALUES.pickerBlack,
+  '--poster-picker-checker': 'var(--poster-fill-5)',
+  '--poster-picker-hue-spectrum': 'linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+  '--poster-picker-shadow': '0 22px 60px color-mix(in srgb, var(--poster-picker-black) 42%, transparent)',
   '--poster-mask-dark': 'var(--poster-fill-7)',
   '--poster-bg': 'var(--poster-fill-0)',
   '--poster-panel': 'var(--poster-fill-0)',

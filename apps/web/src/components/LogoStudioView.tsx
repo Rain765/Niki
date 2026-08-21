@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useCallback, useRef, useState, type FormEvent } from 'react';
 import type {
   LogoArchitecture,
   LogoBriefRequest,
@@ -7,6 +7,7 @@ import type {
 import { useI18n } from '../i18n';
 import { createProject } from '../state/projects';
 import { Icon } from './Icon';
+import { LogoColorPicker } from './LogoColorPicker';
 
 const PERSONALITIES = ['precise', 'warm', 'bold', 'playful', 'premium', 'organic'] as const;
 const APPLICATIONS = ['web', 'favicon', 'social', 'app-icon', 'print'] as const;
@@ -14,9 +15,6 @@ const ARCHITECTURES: LogoArchitecture[] = ['combination', 'symbol', 'wordmark', 
 
 const COPY = {
   en: {
-    eyebrow: 'Logo Studio',
-    title: 'Build a mark worth remembering.',
-    intro: 'Shape a focused brief, compare four original directions, then refine one into a practical logo family.',
     brief: 'Brand brief',
     brand: 'Brand name',
     brandPlaceholder: 'e.g. Northstar',
@@ -47,9 +45,6 @@ const COPY = {
     },
   },
   zh: {
-    eyebrow: 'Logo Studio',
-    title: '做一个真正能被记住的标志。',
-    intro: '先把品牌简报收清楚，再并排比较 4 个原创方向，最后把选中的方案打磨成可用的 Logo 系统。',
     brief: '品牌简报',
     brand: '品牌名称',
     brandPlaceholder: '例如：北辰',
@@ -123,11 +118,14 @@ export function LogoStudioView() {
     'favicon',
   ]);
   const [palette, setPalette] = useState(['#FF5A1F', '#151719', '#F4F1EA']);
+  const [openPaletteIndex, setOpenPaletteIndex] = useState<number | null>(null);
   const [avoid, setAvoid] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const paletteButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const closeColorPicker = useCallback(() => setOpenPaletteIndex(null), []);
 
   const brandParts = brandName.trim().split(/\s+/u).filter(Boolean);
   const initials = brandParts.length === 0
@@ -195,19 +193,7 @@ export function LogoStudioView() {
   }
 
   return (
-    <section className="logo-studio" aria-labelledby="logo-studio-title">
-      <header className="logo-studio__hero">
-        <div>
-          <div className="logo-studio__eyebrow">
-            <Icon name="sparkles" size={15} />
-            <span>{copy.eyebrow}</span>
-          </div>
-          <h1 id="logo-studio-title">{copy.title}</h1>
-          <p>{copy.intro}</p>
-        </div>
-        <span className="logo-studio__step">01 / Brief</span>
-      </header>
-
+    <section className="logo-studio" aria-label={copy.brief}>
       <form className="logo-studio__layout" onSubmit={submit}>
         <div className="logo-studio__form-card">
           <div className="logo-studio__section-head">
@@ -286,17 +272,33 @@ export function LogoStudioView() {
             <legend>{copy.palette}</legend>
             <div className="logo-studio__palette">
               {palette.map((color, index) => (
-                <label key={`${index}-${color}`} title={color}>
-                  <input
-                    type="color"
-                    value={color}
+                <div className="logo-studio__palette-item" key={index}>
+                  <button
+                    ref={(node) => { paletteButtonRefs.current[index] = node; }}
+                    type="button"
+                    className={openPaletteIndex === index ? 'is-open' : ''}
                     aria-label={`${copy.palette} ${index + 1}`}
-                    onChange={(event) => setPalette((current) => current.map((item, itemIndex) => (
-                      itemIndex === index ? event.target.value.toUpperCase() : item
-                    )))}
-                  />
-                  <span>{color}</span>
-                </label>
+                    aria-haspopup="dialog"
+                    aria-expanded={openPaletteIndex === index}
+                    title={color}
+                    onClick={() => setOpenPaletteIndex((current) => current === index ? null : index)}
+                  >
+                    <span className="logo-studio__palette-swatch" style={{ backgroundColor: color }} />
+                    <span>{color}</span>
+                  </button>
+                  {openPaletteIndex === index ? (
+                    <LogoColorPicker
+                      anchor={paletteButtonRefs.current[index] ?? null}
+                      label={`${copy.palette} ${index + 1}`}
+                      language={language}
+                      value={color}
+                      onChange={(nextColor) => setPalette((current) => current.map((item, itemIndex) => (
+                        itemIndex === index ? nextColor : item
+                      )))}
+                      onClose={closeColorPicker}
+                    />
+                  ) : null}
+                </div>
               ))}
             </div>
           </fieldset>

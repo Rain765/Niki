@@ -719,8 +719,8 @@ type StylePolicyAllowlistEntry = {
 const hardcodedColorAllowlist: StylePolicyAllowlistEntry[] = [
   {
     pathPattern: /^apps\/web\/src\/poster\/color-tokens\.ts$/,
-    valuePattern: /^(?:#ffffff|#f7f8fa|#f2f3f5|#e5e6eb|#c9cdd4|#4e5969|#1d2129|#86909c|#fe5200|#ff772e|#dc3b00|#c9353f|#fdf3f4|#3dd43f|#c96442|#ff5f53)$/i,
-    reason: "Niki poster concrete colors are defined only in the governed token source",
+    valuePattern: /^(?:#ffffff|#f7f8fa|#f2f3f5|#e5e6eb|#c9cdd4|#4e5969|#1d2129|#86909c|#fe5200|#ff772e|#dc3b00|#c9353f|#fdf3f4|#3dd43f|#c96442|#ff5f53|#000000|#ff0000|#ffff00|#00ff00|#00ffff|#0000ff|#ff00ff)$/i,
+    reason: "Niki poster colors and the logo picker's functional spectrum are defined only in the governed token source",
   },
   {
     pathPattern: /^apps\/web\/src\/index\.css$/,

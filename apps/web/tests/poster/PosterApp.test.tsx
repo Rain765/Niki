@@ -688,7 +688,8 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp initialMode="logo" />);
 
     expect(screen.getByRole('heading', { name: 'Logo Studio' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Build a mark worth remembering.' })).toBeTruthy();
+    expect(screen.queryByText('Build a mark worth remembering.')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Brand brief' })).toBeTruthy();
     expect(document.querySelector('.poster-app')?.classList.contains('is-logo')).toBe(true);
   });
 

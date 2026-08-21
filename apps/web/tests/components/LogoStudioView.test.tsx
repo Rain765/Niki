@@ -83,4 +83,22 @@ describe('LogoStudioView', () => {
     expect(screen.getByRole('alert').textContent).toContain('brand name and industry');
     expect(createProjectMock).not.toHaveBeenCalled();
   });
+
+  it('opens a custom color picker and updates the selected palette color', () => {
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Starting palette 1' }));
+    expect(screen.getByRole('dialog', { name: 'Color picker for Starting palette 1' })).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Hex color'), { target: { value: '1F4E5B80' } });
+    expect(screen.getByRole('button', { name: 'Starting palette 1' }).textContent).toContain('#1F4E5B80');
+    expect((screen.getByLabelText('Opacity') as HTMLInputElement).value).toBe('50');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Color picker for Starting palette 1' })).toBeNull();
+  });
 });
