@@ -10,11 +10,13 @@ import { streamViaDaemon } from './daemon';
 import { fetchAgents } from './registry';
 import { randomUUID } from '../utils/uuid';
 
-const FINALIZATION_POLL_ATTEMPTS = 12;
+const FINALIZATION_POST_RUN_POLL_ATTEMPTS = 12;
+const FINALIZATION_POLL_INTERVAL_MS = 1_000;
 
 export interface FinalizeLogoDirectionOptions {
   signal?: AbortSignal;
   onStatus?: (status: LogoFinalizationStatus) => void;
+  onProgress?: (finalization: LogoFinalization) => void;
 }
 
 function preferredLogoAgent(agents: AgentInfo[]): AgentInfo | null {
@@ -48,30 +50,62 @@ export async function fetchLogoFinalizations(
   return await response.json() as LogoFinalizationsResponse;
 }
 
-async function waitForCompletedFinalization(
+async function waitForPoll(signal?: AbortSignal): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Logo refinement was canceled.', 'AbortError'));
+      return;
+    }
+    const handleAbort = () => {
+      window.clearTimeout(timeout);
+      reject(new DOMException('Logo refinement was canceled.', 'AbortError'));
+    };
+    const timeout = window.setTimeout(() => {
+      signal?.removeEventListener('abort', handleAbort);
+      resolve();
+    }, FINALIZATION_POLL_INTERVAL_MS);
+    signal?.addEventListener('abort', handleAbort, { once: true });
+  });
+}
+
+async function monitorFinalization(
   projectId: string,
   finalizationId: string,
+  agentRun: Promise<void>,
   options: FinalizeLogoDirectionOptions,
 ): Promise<LogoFinalization> {
-  for (let attempt = 0; attempt < FINALIZATION_POLL_ATTEMPTS; attempt += 1) {
+  let agentFinished = false;
+  let agentError: unknown;
+  let postRunPolls = 0;
+  void agentRun.then(
+    () => { agentFinished = true; },
+    (error: unknown) => {
+      agentFinished = true;
+      agentError = error;
+    },
+  );
+
+  while (!options.signal?.aborted) {
     const response = await fetchLogoFinalizations(projectId, options.signal);
     const finalization = response.finalizations.find((item) => item.id === finalizationId);
     if (finalization) {
       options.onStatus?.(finalization.status);
+      options.onProgress?.(finalization);
       if (finalization.status === 'complete') return finalization;
       if (finalization.status === 'failed') {
         throw new Error(finalization.error || 'Logo refinement did not create a complete brand kit.');
       }
     }
-    if (attempt < FINALIZATION_POLL_ATTEMPTS - 1) {
-      await new Promise<void>((resolve, reject) => {
-        const timeout = window.setTimeout(resolve, 500);
-        options.signal?.addEventListener('abort', () => {
-          window.clearTimeout(timeout);
-          reject(new DOMException('Logo refinement was canceled.', 'AbortError'));
-        }, { once: true });
-      });
+
+    if (agentError) throw agentError;
+    if (agentFinished) {
+      postRunPolls += 1;
+      if (postRunPolls >= FINALIZATION_POST_RUN_POLL_ATTEMPTS) break;
     }
+    await waitForPoll(options.signal);
+  }
+  if (options.signal?.aborted) {
+    throw new DOMException('Logo refinement was canceled.', 'AbortError');
   }
   throw new Error('Logo refinement finished without the complete brand-kit file set.');
 }
@@ -91,6 +125,7 @@ export async function finalizeLogoDirection(
   }
   const prepared = await preparedResponse.json() as LogoFinalizeResponse;
   options.onStatus?.('prepared');
+  options.onProgress?.(prepared.finalization);
 
   const agent = preferredLogoAgent(await fetchAgents({ throwOnError: true, signal: options.signal }));
   if (!agent) {
@@ -98,7 +133,7 @@ export async function finalizeLogoDirection(
   }
 
   options.onStatus?.('queued');
-  await new Promise<void>((resolve, reject) => {
+  const agentRun = new Promise<void>((resolve, reject) => {
     let settled = false;
     const settle = (action: () => void) => {
       if (settled) return;
@@ -132,9 +167,10 @@ export async function finalizeLogoDirection(
     }).catch((error) => settle(() => reject(error)));
   });
 
-  return await waitForCompletedFinalization(
+  return await monitorFinalization(
     prepared.finalization.projectId,
     prepared.finalization.id,
+    agentRun,
     options,
   );
 }

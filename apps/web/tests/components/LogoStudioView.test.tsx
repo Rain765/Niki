@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import type { LogoFinalization } from '@open-design/contracts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../../src/i18n';
 import { LogoStudioView } from '../../src/components/LogoStudioView';
@@ -336,6 +337,91 @@ describe('LogoStudioView', () => {
     ));
     const download = await screen.findByRole('link', { name: 'Download brand kit' });
     expect(download.getAttribute('href')).toContain('logo%2Ffinal%2Ffinal-123');
+  });
+
+  it('shows brand-kit skeletons immediately and fills them as refinement files arrive', async () => {
+    listProjectsMock.mockResolvedValue([{
+      id: 'logo-project-1',
+      name: 'Northstar Logo',
+      skillId: 'logo-generator',
+      designSystemId: null,
+      createdAt: 200,
+      updatedAt: 200,
+    }]);
+    fetchProjectFilesMock.mockResolvedValue(Array.from({ length: 4 }, (_, index) => ({
+      name: `logo-direction-${String(index + 1).padStart(2, '0')}.png`,
+      size: 1_024 + index,
+      mtime: index + 1,
+      kind: 'image',
+      mime: 'image/png',
+    })));
+    const expectedOutputs = [
+      'logo.svg',
+      'logo-dark.svg',
+      'logo-mono.svg',
+      'favicon.ico',
+      'apple-touch-icon.png',
+      'og-image.png',
+      'BRAND.md',
+    ];
+    const preparedFinalization: LogoFinalization = {
+      id: 'final-123',
+      projectId: 'logo-project-1',
+      conversationId: 'conversation-123',
+      clientRequestId: 'logo-finalize:final-123',
+      direction: 2,
+      sourceFile: 'logo-direction-02.png',
+      outputRoot: 'logo/final/final-123',
+      expectedOutputs,
+      outputFiles: [],
+      status: 'running',
+      requestedAt: 300,
+      notes: '',
+      prompt: 'Refine the selected direction.',
+    };
+    let refinementOptions: {
+      onProgress?: (finalization: LogoFinalization) => void;
+    } | undefined;
+    let finishRefinement: (() => void) | undefined;
+    const refinementGate = new Promise<void>((resolve) => { finishRefinement = resolve; });
+    finalizeLogoDirectionMock.mockImplementation(async (_input, options) => {
+      refinementOptions = options;
+      await refinementGate;
+      return {
+        ...preparedFinalization,
+        outputFiles: expectedOutputs.map((name) => `${preparedFinalization.outputRoot}/${name}`),
+        status: 'complete',
+        archiveUrl: '/api/projects/logo-project-1/archive?root=logo%2Ffinal%2Ffinal-123',
+      };
+    });
+
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    await screen.findByRole('region', { name: 'Generation history' });
+    fireEvent.click(screen.getByRole('button', { name: 'Select Northstar Logo direction 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Refine and build brand kit' }));
+
+    const skeleton = await screen.findByTestId('logo-refinement-skeleton');
+    expect(skeleton.textContent).toContain('0/7');
+    expect(within(skeleton).getAllByTestId('logo-refinement-asset')).toHaveLength(7);
+
+    await act(async () => {
+      refinementOptions?.onProgress?.({
+        ...preparedFinalization,
+        outputFiles: [`${preparedFinalization.outputRoot}/logo.svg`],
+      });
+    });
+
+    expect(skeleton.textContent).toContain('1/7');
+    expect(within(skeleton).getByRole('img', { name: 'logo.svg ready' })).toBeTruthy();
+
+    await act(async () => finishRefinement?.());
+    await waitFor(() => expect(screen.queryByTestId('logo-refinement-skeleton')).toBeNull());
+    expect(await screen.findByRole('link', { name: 'Download brand kit' })).toBeTruthy();
   });
 
   it('shows a four-direction skeleton until logo generation finishes', async () => {

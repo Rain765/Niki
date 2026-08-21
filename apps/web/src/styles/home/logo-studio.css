@@ -659,6 +659,82 @@
 .logo-studio__refinement-actions > span.is-failed,
 .logo-studio__refinement > p { color: var(--danger); }
 .logo-studio__refinement > p { margin: 0; font-size: 10px; }
+.logo-studio__refinement-progress {
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--bg-app);
+}
+.logo-studio__refinement-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.logo-studio__refinement-progress-head strong { color: var(--text-strong); }
+.logo-studio__refinement-progress-head span { font-variant-numeric: tabular-nums; }
+.logo-studio__refinement-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.logo-studio__refinement-asset {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+.logo-studio__refinement-asset-preview {
+  aspect-ratio: 4 / 3;
+  padding: 8px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--poster-panel-raised);
+}
+.logo-studio__refinement-asset-preview > i {
+  width: 56%;
+  height: 42%;
+  border-radius: 6px;
+  background: linear-gradient(
+    110deg,
+    var(--poster-fill-0) 20%,
+    var(--poster-control-hover) 42%,
+    var(--poster-fill-0) 64%
+  );
+  background-size: 240% 100%;
+  animation: poster-shimmer 1.3s linear infinite;
+}
+.logo-studio__refinement-asset-preview > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.logo-studio__refinement-asset-preview > span {
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 800;
+}
+.logo-studio__refinement-asset > div:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.logo-studio__refinement-asset b,
+.logo-studio__refinement-asset small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.logo-studio__refinement-asset b { color: var(--text-muted); font-size: 8px; }
+.logo-studio__refinement-asset small { color: var(--text-faint); font-size: 8px; }
+.logo-studio__refinement-asset.is-ready b { color: var(--text-strong); }
+.logo-studio__refinement-asset.is-ready small { color: var(--success); }
 .logo-studio__brand-kits {
   margin-top: 13px;
   padding-top: 13px;
@@ -694,6 +770,7 @@
   .logo-studio__history-head,
   .logo-studio__history-batch-head { align-items: flex-start; }
   .logo-studio__history-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .logo-studio__refinement-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .logo-studio__field-grid { grid-template-columns: 1fr; gap: 0; }
   .logo-studio__architecture-grid { grid-template-columns: repeat(2, 1fr); }
   .logo-color-picker {
@@ -710,6 +787,7 @@
 @media (prefers-reduced-motion: reduce) {
   .logo-studio__generation-skeleton { animation: none; }
   .logo-studio__history-placeholder.is-working { animation: none; }
+  .logo-studio__refinement-asset-preview > i { animation: none; }
   .logo-studio__history-image img { transition: none; }
   .logo-studio__history-image > small { transition: none; }
 }

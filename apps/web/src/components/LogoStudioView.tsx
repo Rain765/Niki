@@ -34,6 +34,15 @@ const LOGO_DIRECTIONS = [
 const LOGO_OUTPUTS = LOGO_DIRECTIONS.map((_, index) => (
   `logo-direction-${String(index + 1).padStart(2, '0')}.png`
 ));
+const BRAND_KIT_OUTPUTS = [
+  'logo.svg',
+  'logo-dark.svg',
+  'logo-mono.svg',
+  'favicon.ico',
+  'apple-touch-icon.png',
+  'og-image.png',
+  'BRAND.md',
+] as const;
 
 type LogoHistoryStatus = 'working' | 'complete' | 'failed' | 'incomplete';
 
@@ -97,6 +106,9 @@ const COPY = {
     refinementRunning: 'Refining',
     refinementComplete: 'Brand kit ready',
     refinementFailed: 'Refinement failed',
+    refinementProgress: 'Building production assets',
+    refinementWaiting: 'Preparing',
+    refinementReady: 'ready',
     brandKits: 'Brand kits',
     downloadBrandKit: 'Download brand kit',
     required: 'Add a brand name and industry to continue.',
@@ -158,6 +170,9 @@ const COPY = {
     refinementRunning: '正在精修',
     refinementComplete: '品牌包已完成',
     refinementFailed: '精修失败',
+    refinementProgress: '正在生成生产资产',
+    refinementWaiting: '生成中',
+    refinementReady: '已完成',
     brandKits: '品牌包',
     downloadBrandKit: '下载品牌包',
     required: '请先填写品牌名称和行业。',
@@ -335,6 +350,7 @@ export function LogoStudioView() {
   } | null>(null);
   const [refinementNotes, setRefinementNotes] = useState('');
   const [refinementStatus, setRefinementStatus] = useState<LogoFinalizationStatus | null>(null);
+  const [activeFinalization, setActiveFinalization] = useState<LogoFinalization | null>(null);
   const [refinementError, setRefinementError] = useState('');
   const [refiningProjectId, setRefiningProjectId] = useState<string | null>(null);
   const paletteButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -624,6 +640,7 @@ export function LogoStudioView() {
     refinementAbortRef.current = controller;
     setRefiningProjectId(projectId);
     setRefinementStatus('prepared');
+    setActiveFinalization(null);
     setRefinementError('');
     try {
       const finalization = await finalizeLogoDirection({
@@ -633,7 +650,20 @@ export function LogoStudioView() {
       }, {
         signal: controller.signal,
         onStatus: setRefinementStatus,
+        onProgress: (progress) => {
+          setActiveFinalization(progress);
+          setHistoryEntries((current) => current.map((entry) => entry.projectId === projectId
+            ? {
+                ...entry,
+                finalizations: [
+                  progress,
+                  ...entry.finalizations.filter((item) => item.id !== progress.id),
+                ],
+              }
+            : entry));
+        },
       });
+      setActiveFinalization(finalization);
       setHistoryEntries((current) => current.map((entry) => entry.projectId === projectId
         ? {
             ...entry,
@@ -900,6 +930,9 @@ export function LogoStudioView() {
                 refinementStatus={selectedDirection?.projectId === entry.projectId
                   ? refinementStatus
                   : null}
+                activeFinalization={selectedDirection?.projectId === entry.projectId
+                  ? activeFinalization
+                  : null}
                 refinementError={selectedDirection?.projectId === entry.projectId
                   ? refinementError
                   : ''}
@@ -908,6 +941,7 @@ export function LogoStudioView() {
                   setSelectedDirection({ projectId: entry.projectId, direction });
                   setRefinementNotes('');
                   setRefinementStatus(null);
+                  setActiveFinalization(null);
                   setRefinementError('');
                 }}
                 onRefinementNotesChange={setRefinementNotes}
@@ -929,6 +963,7 @@ function LogoHistoryBatch({
   selectedDirection,
   refinementNotes,
   refinementStatus,
+  activeFinalization,
   refinementError,
   refining,
   onSelectDirection,
@@ -941,6 +976,7 @@ function LogoHistoryBatch({
   selectedDirection: LogoDirection | null;
   refinementNotes: string;
   refinementStatus: LogoFinalizationStatus | null;
+  activeFinalization: LogoFinalization | null;
   refinementError: string;
   refining: boolean;
   onSelectDirection: (direction: LogoDirection) => void;
@@ -1036,6 +1072,13 @@ function LogoHistoryBatch({
               <span className={`is-${refinementStatus}`}>{refinementStatusLabel}</span>
             ) : null}
           </div>
+          {refining ? (
+            <LogoRefinementProgress
+              copy={copy}
+              finalization={activeFinalization}
+              projectId={entry.projectId}
+            />
+          ) : null}
           {refinementError ? <p role="alert">{refinementError}</p> : null}
         </div>
       ) : null}
@@ -1063,6 +1106,65 @@ function LogoHistoryBatch({
       ) : null}
       {entry.error ? <p className="logo-studio__history-error">{entry.error}</p> : null}
     </article>
+  );
+}
+
+function LogoRefinementProgress({
+  copy,
+  finalization,
+  projectId,
+}: {
+  copy: (typeof COPY)[keyof typeof COPY];
+  finalization: LogoFinalization | null;
+  projectId: string;
+}) {
+  const outputs = finalization?.expectedOutputs.length
+    ? finalization.expectedOutputs
+    : [...BRAND_KIT_OUTPUTS];
+  const completed = new Map((finalization?.outputFiles ?? []).map((path) => [
+    path.split('/').at(-1) ?? path,
+    path,
+  ]));
+
+  return (
+    <div
+      className="logo-studio__refinement-progress"
+      data-testid="logo-refinement-skeleton"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="logo-studio__refinement-progress-head">
+        <strong>{copy.refinementProgress}</strong>
+        <span>{completed.size}/{outputs.length}</span>
+      </div>
+      <div className="logo-studio__refinement-grid">
+        {outputs.map((output) => {
+          const path = completed.get(output);
+          const previewable = /\.(?:svg|png|ico)$/iu.test(output);
+          return (
+            <div
+              className={`logo-studio__refinement-asset${path ? ' is-ready' : ''}`}
+              data-testid="logo-refinement-asset"
+              key={output}
+            >
+              <div className="logo-studio__refinement-asset-preview">
+                {path && previewable ? (
+                  <img src={projectFileUrl(projectId, path)} alt={`${output} ${copy.refinementReady}`} />
+                ) : path ? (
+                  <span aria-label={`${output} ${copy.refinementReady}`}>Aa</span>
+                ) : (
+                  <i aria-hidden="true" />
+                )}
+              </div>
+              <div>
+                <b>{output}</b>
+                <small>{path ? copy.refinementReady : copy.refinementWaiting}</small>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
