@@ -7,25 +7,42 @@ import { LogoStudioView } from '../../src/components/LogoStudioView';
 
 const {
   createProjectMock,
-  fetchAgentsMock,
-  loadConfigMock,
-  saveMessageMock,
-  streamViaDaemonMock,
+  fetchProjectFilesMock,
+  listProjectMediaTasksMock,
+  startProjectMediaTaskMock,
+  waitForMediaTaskMock,
 } = vi.hoisted(() => ({
   createProjectMock: vi.fn(),
-  fetchAgentsMock: vi.fn(),
-  loadConfigMock: vi.fn(),
-  saveMessageMock: vi.fn(),
-  streamViaDaemonMock: vi.fn(),
+  fetchProjectFilesMock: vi.fn(),
+  listProjectMediaTasksMock: vi.fn(),
+  startProjectMediaTaskMock: vi.fn(),
+  waitForMediaTaskMock: vi.fn(),
 }));
 
 vi.mock('../../src/state/projects', () => ({
   createProject: createProjectMock,
-  saveMessage: saveMessageMock,
 }));
-vi.mock('../../src/providers/daemon', () => ({ streamViaDaemon: streamViaDaemonMock }));
-vi.mock('../../src/providers/registry', () => ({ fetchAgents: fetchAgentsMock }));
-vi.mock('../../src/state/config', () => ({ loadConfig: loadConfigMock }));
+vi.mock('../../src/providers/media', () => ({
+  listProjectMediaTasks: listProjectMediaTasksMock,
+  startProjectMediaTask: startProjectMediaTaskMock,
+  waitForMediaTask: waitForMediaTaskMock,
+}));
+vi.mock('../../src/providers/registry', () => ({
+  fetchProjectFiles: fetchProjectFilesMock,
+  projectFileUrl: (_projectId: string, name: string) => `/files/${name}`,
+}));
+
+const taskOutputs = new Map<string, string>();
+
+function generatedFiles() {
+  return [...taskOutputs.values()].map((name, index) => ({
+    name,
+    size: 1_024 + index,
+    mtime: index + 1,
+    kind: 'image',
+    mime: 'image/png',
+  }));
+}
 
 afterEach(() => {
   cleanup();
@@ -34,29 +51,33 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  fetchAgentsMock.mockResolvedValue([
-    { id: 'codex', name: 'Codex', bin: 'codex', available: true },
-  ]);
-  loadConfigMock.mockReturnValue({
-    mode: 'daemon',
-    agentId: 'codex',
-    agentModels: { codex: { model: 'gpt-5.6-sol', reasoning: 'high' } },
+  window.localStorage.clear();
+  taskOutputs.clear();
+  listProjectMediaTasksMock.mockResolvedValue({ tasks: [] });
+  startProjectMediaTaskMock.mockImplementation(async (_projectId, request) => {
+    const taskId = `task-${taskOutputs.size + 1}`;
+    taskOutputs.set(taskId, request.output);
+    return { taskId, status: 'queued', startedAt: Date.now() };
   });
-  saveMessageMock.mockResolvedValue(undefined);
-  streamViaDaemonMock.mockImplementation(async (options) => {
-    options.onRunCreated?.('run-1');
-    options.onRunStatus?.('queued');
-    options.handlers.onDone('Generated logo directions');
+  waitForMediaTaskMock.mockImplementation(async (taskId) => ({
+    taskId,
+    status: 'done',
+    startedAt: Date.now(),
+    endedAt: Date.now(),
+    progress: [],
+    nextSince: 0,
+    file: { name: taskOutputs.get(taskId) },
+  }));
+  fetchProjectFilesMock.mockImplementation(async () => generatedFiles());
+  createProjectMock.mockResolvedValue({
+    project: { id: 'logo-project-1' },
+    conversationId: 'conversation-1',
+    appliedPluginSnapshotId: 'snapshot-1',
   });
 });
 
 describe('LogoStudioView', () => {
-  it('builds the brief through the logo API and creates an auto-running project', async () => {
-    createProjectMock.mockResolvedValue({
-      project: { id: 'logo-project-1' },
-      conversationId: 'conversation-1',
-      appliedPluginSnapshotId: 'snapshot-1',
-    });
+  it('builds the brief and renders four directly generated logo files', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
       brief: {
@@ -75,7 +96,7 @@ describe('LogoStudioView', () => {
         skillId: 'logo-generator',
         designSystemId: null,
         pendingPrompt: 'Use $logo-generator',
-        metadata: { kind: 'image', imageAspect: '1:1', skipDiscoveryBrief: true },
+        metadata: { kind: 'image', imageModel: 'gpt-image-2', imageAspect: '1:1', skipDiscoveryBrief: true },
         pluginId: 'od-media-generation',
         pluginInputs: { mediaKind: 'image', aspect: '1:1' },
       },
@@ -91,33 +112,31 @@ describe('LogoStudioView', () => {
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
 
-    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Generation complete'));
+    await screen.findByTestId('logo-result-grid');
     expect(fetchMock).toHaveBeenCalledWith('/api/logo/brief', expect.objectContaining({ method: 'POST' }));
     expect(createProjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Northstar Logo',
         skillId: 'logo-generator',
         pendingPrompt: 'Use $logo-generator',
+        metadata: expect.objectContaining({ imageModel: 'gpt-image-2' }),
       }),
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    expect(fetchAgentsMock).toHaveBeenCalled();
-    expect(streamViaDaemonMock).toHaveBeenCalledWith(expect.objectContaining({
-      agentId: 'codex',
-      projectId: 'logo-project-1',
-      conversationId: 'conversation-1',
-      skillId: 'logo-generator',
-      model: 'gpt-5.6-sol',
-      reasoning: 'high',
-      assistantMessageId: expect.any(String),
-      clientRequestId: expect.any(String),
-    }));
-    expect(fetchMock).not.toHaveBeenCalledWith('/api/runs', expect.anything());
-    expect(saveMessageMock).toHaveBeenCalledTimes(3);
+    expect(startProjectMediaTaskMock).toHaveBeenCalledTimes(4);
+    expect(startProjectMediaTaskMock).toHaveBeenCalledWith(
+      'logo-project-1',
+      expect.objectContaining({ surface: 'image', model: 'gpt-image-2', aspect: '1:1' }),
+    );
+    const mediaRequests = startProjectMediaTaskMock.mock.calls.map(([, request]) => request);
+    expect(new Set(mediaRequests.map((request) => request.output)).size).toBe(4);
+    expect(new Set(mediaRequests.map((request) => request.prompt)).size).toBe(4);
+    expect(waitForMediaTaskMock).toHaveBeenCalledTimes(4);
+    expect(screen.getAllByRole('img', { name: /Logo direction/ })).toHaveLength(4);
   });
 
-  it('reports a clear failure when no local generation agent is available', async () => {
-    fetchAgentsMock.mockResolvedValue([]);
+  it('reports media generation failures instead of claiming completion', async () => {
+    startProjectMediaTaskMock.mockRejectedValueOnce(new Error('Image provider is unavailable.'));
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
       brief: {},
       project: {
@@ -125,7 +144,7 @@ describe('LogoStudioView', () => {
         skillId: 'logo-generator',
         designSystemId: null,
         pendingPrompt: 'Use $logo-generator',
-        metadata: { kind: 'image', imageAspect: '1:1', skipDiscoveryBrief: true },
+        metadata: { kind: 'image', imageModel: 'gpt-image-2', imageAspect: '1:1', skipDiscoveryBrief: true },
       },
     }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
@@ -139,17 +158,29 @@ describe('LogoStudioView', () => {
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
 
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('local generation agent'));
-    expect(createProjectMock).not.toHaveBeenCalled();
-    expect(streamViaDaemonMock).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Image provider is unavailable'));
+    expect(screen.queryByText('Generation complete. Four images are ready.')).toBeNull();
+    expect(screen.queryByTestId('logo-generation-skeleton')).toBeNull();
+  });
+
+  it('restores the last four generated images after a reload', async () => {
+    for (let index = 1; index <= 4; index += 1) {
+      taskOutputs.set(`task-${index}`, `logo-direction-${String(index).padStart(2, '0')}.png`);
+    }
+    window.localStorage.setItem('niki:logo-studio:last-project', 'logo-project-1');
+
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    await screen.findByTestId('logo-result-grid');
+    expect(screen.getAllByRole('img', { name: /Logo direction/ })).toHaveLength(4);
+    expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
   });
 
   it('shows a four-direction skeleton until logo generation finishes', async () => {
-    createProjectMock.mockResolvedValue({
-      project: { id: 'logo-project-1' },
-      conversationId: 'conversation-1',
-      appliedPluginSnapshotId: 'snapshot-1',
-    });
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
       brief: {},
       project: {
@@ -157,15 +188,23 @@ describe('LogoStudioView', () => {
         skillId: 'logo-generator',
         designSystemId: null,
         pendingPrompt: 'Use $logo-generator',
-        metadata: { kind: 'image', imageAspect: '1:1', skipDiscoveryBrief: true },
+        metadata: { kind: 'image', imageModel: 'gpt-image-2', imageAspect: '1:1', skipDiscoveryBrief: true },
       },
     }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
     let finishGeneration: (() => void) | undefined;
-    streamViaDaemonMock.mockImplementation(async (options) => {
-      options.onRunCreated?.('run-1');
-      options.onRunStatus?.('running');
-      finishGeneration = () => options.handlers.onDone('Generated logo directions');
+    const generationGate = new Promise<void>((resolve) => { finishGeneration = resolve; });
+    waitForMediaTaskMock.mockImplementation(async (taskId) => {
+      await generationGate;
+      return {
+        taskId,
+        status: 'done',
+        startedAt: Date.now(),
+        endedAt: Date.now(),
+        progress: [],
+        nextSince: 0,
+        file: { name: taskOutputs.get(taskId) },
+      };
     });
 
     render(
@@ -182,9 +221,10 @@ describe('LogoStudioView', () => {
     expect(skeleton.textContent).toContain('Generating 4 directions');
     expect((screen.getByRole('button', { name: 'Generating…' }) as HTMLButtonElement).disabled).toBe(true);
 
-    act(() => finishGeneration?.());
+    await act(async () => finishGeneration?.());
 
     await waitFor(() => expect(screen.queryByTestId('logo-generation-skeleton')).toBeNull());
+    expect(screen.getAllByRole('img', { name: /Logo direction/ })).toHaveLength(4);
     expect((screen.getByRole('button', { name: 'Generate 4 directions' }) as HTMLButtonElement).disabled).toBe(false);
   });
 

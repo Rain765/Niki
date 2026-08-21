@@ -25,12 +25,13 @@ describe('logo brief builder', () => {
       pluginId: 'od-media-generation',
       metadata: {
         kind: 'image',
+        imageModel: 'gpt-image-2',
         imageAspect: '1:1',
         skipDiscoveryBrief: true,
       },
     });
     expect(result.project.pendingPrompt).toContain('Use $logo-generator');
-    expect(result.project.pendingPrompt).toContain('four conceptually distinct directions');
+    expect(result.project.pendingPrompt).toContain('four separate square images');
     expect(result.project.pendingPrompt).toContain('16 px');
   });
 

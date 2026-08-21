@@ -3,13 +3,13 @@ import type {
   LogoArchitecture,
   LogoBriefRequest,
   LogoBriefResponse,
+  MediaTaskSnapshot,
+  ProjectFile,
 } from '@open-design/contracts';
 import { useI18n } from '../i18n';
-import { streamViaDaemon } from '../providers/daemon';
-import { fetchAgents } from '../providers/registry';
-import { loadConfig } from '../state/config';
-import { createProject, saveMessage } from '../state/projects';
-import type { AgentEvent, ChatMessage } from '../types';
+import { listProjectMediaTasks, startProjectMediaTask, waitForMediaTask } from '../providers/media';
+import { fetchProjectFiles, projectFileUrl } from '../providers/registry';
+import { createProject } from '../state/projects';
 import { randomUUID } from '../utils/uuid';
 import { Icon } from './Icon';
 import { LogoColorPicker } from './LogoColorPicker';
@@ -18,6 +18,17 @@ const PERSONALITIES = ['precise', 'warm', 'bold', 'playful', 'premium', 'organic
 const APPLICATIONS = ['web', 'favicon', 'social', 'app-icon', 'print'] as const;
 const ARCHITECTURES: LogoArchitecture[] = ['combination', 'symbol', 'wordmark', 'monogram'];
 const PREPARE_TIMEOUT_MS = 30_000;
+const IMAGE_MODEL = 'gpt-image-2';
+const LAST_LOGO_PROJECT_STORAGE_KEY = 'niki:logo-studio:last-project';
+const LOGO_DIRECTIONS = [
+  'Iconic geometry: a bold, reduced silhouette built from simple original shapes and strong negative space.',
+  'Letter-derived idea: transform a distinctive letter or word rhythm into an ownable brand signature.',
+  'Modular system: construct the mark from repeatable parts that can expand into a flexible identity language.',
+  'Expressive abstraction: use an unexpected but controlled visual metaphor with a clearly different silhouette.',
+] as const;
+const LOGO_OUTPUTS = LOGO_DIRECTIONS.map((_, index) => (
+  `logo-direction-${String(index + 1).padStart(2, '0')}.png`
+));
 
 const COPY = {
   en: {
@@ -43,12 +54,14 @@ const COPY = {
     previewHint: 'A structural reference for the brief. Generated directions replace this state.',
     generatingPreview: 'Generating 4 directions',
     generatingHint: 'Creating distinct logo concepts and production-ready files. This can take a few minutes.',
+    results: 'Generated directions',
+    resultCount: '4 images',
     required: 'Add a brand name and industry to continue.',
-    failed: 'Could not prepare the logo brief. Please try again.',
-    noAgent: 'No local generation agent is available. Configure one in Settings and try again.',
+    failed: 'Could not generate the logo directions. Please try again.',
+    incomplete: 'Generation finished without four image files. Please try again.',
     timeout: 'Starting the generation timed out. Please try again.',
     started: 'Generation started. Four directions are being prepared in the background.',
-    completed: 'Generation complete. Four directions are ready.',
+    completed: 'Generation complete. Four images are ready.',
     architectureLabels: {
       combination: 'Symbol + name',
       symbol: 'Symbol',
@@ -79,12 +92,14 @@ const COPY = {
     previewHint: '这里仅作为简报的结构参考，生成后会进入正式创意阶段。',
     generatingPreview: '正在生成 4 个方向',
     generatingHint: '正在创建不同的 Logo 概念与可交付文件，可能需要几分钟。',
+    results: '生成结果',
+    resultCount: '4 张图片',
     required: '请先填写品牌名称和行业。',
-    failed: 'Logo 简报创建失败，请重试。',
-    noAgent: '当前没有可用的本地生成代理，请先在设置中完成配置。',
+    failed: 'Logo 图片生成失败，请重试。',
+    incomplete: '生成任务没有产出完整的 4 张图片，请重试。',
     timeout: '启动生成任务超时，请重试。',
     started: '生成任务已启动，系统正在后台准备四个方向。',
-    completed: '生成完成，四个方向已经准备好。',
+    completed: '生成完成，4 张图片已经准备好。',
     architectureLabels: {
       combination: '图形 + 字标',
       symbol: '独立图形',
@@ -119,6 +134,57 @@ function splitList(value: string): string[] {
   return value.split(/[\n,，]+/u).map((item) => item.trim()).filter(Boolean);
 }
 
+function logoResultFiles(files: ProjectFile[]): ProjectFile[] {
+  const outputOrder = new Map(LOGO_OUTPUTS.map((name, index) => [name, index]));
+  return files
+    .filter((file) => outputOrder.has(file.name) && file.kind === 'image' && file.size > 0)
+    .sort((left, right) => outputOrder.get(left.name)! - outputOrder.get(right.name)!);
+}
+
+async function waitForCompletedLogoTask(
+  taskId: string,
+  signal: AbortSignal,
+): Promise<MediaTaskSnapshot> {
+  let since = 0;
+  while (!signal.aborted) {
+    const task = await waitForMediaTask(taskId, since, signal);
+    since = task.nextSince;
+    if (task.status === 'queued' || task.status === 'running') continue;
+    if (task.status === 'failed' || task.status === 'interrupted') {
+      throw new Error(task.error?.message || 'Logo image generation failed.');
+    }
+    if (!task.file?.name || task.file.size === 0) {
+      throw new Error('Logo image generation finished without a file.');
+    }
+    return task;
+  }
+  throw new DOMException('Logo image generation was canceled.', 'AbortError');
+}
+
+async function fetchCompletedLogoFiles(
+  projectId: string,
+  signal: AbortSignal,
+): Promise<ProjectFile[]> {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const files = logoResultFiles(await fetchProjectFiles(projectId));
+    if (files.length === LOGO_OUTPUTS.length) return files;
+    if (attempt < 4) {
+      await new Promise<void>((resolve, reject) => {
+        const handleAbort = () => {
+          window.clearTimeout(timeoutId);
+          reject(new DOMException('Logo image generation was canceled.', 'AbortError'));
+        };
+        const timeoutId = window.setTimeout(() => {
+          signal.removeEventListener('abort', handleAbort);
+          resolve();
+        }, 400);
+        signal.addEventListener('abort', handleAbort, { once: true });
+      });
+    }
+  }
+  return [];
+}
+
 export function LogoStudioView() {
   const { locale } = useI18n();
   const language = locale.startsWith('zh') ? 'zh' : 'en';
@@ -141,6 +207,9 @@ export function LogoStudioView() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
+  const [resultFiles, setResultFiles] = useState<ProjectFile[]>([]);
+  const [resultProjectId, setResultProjectId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const paletteButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -161,6 +230,65 @@ export function LogoStudioView() {
     runAbortRef.current = null;
   }, [clearPrepareTimeout]);
 
+  useEffect(() => {
+    const projectId = window.localStorage.getItem(LAST_LOGO_PROJECT_STORAGE_KEY);
+    if (!projectId) return undefined;
+    const controller = new AbortController();
+    runAbortRef.current = controller;
+    void (async () => {
+      try {
+        const restored = logoResultFiles(await fetchProjectFiles(projectId));
+        if (controller.signal.aborted) return;
+        if (restored.length === LOGO_OUTPUTS.length) {
+          setResultProjectId(projectId);
+          setResultFiles(restored);
+          setCompletedCount(LOGO_OUTPUTS.length);
+          setSuccess(copy.completed);
+          return;
+        }
+
+        const response = await listProjectMediaTasks(projectId);
+        const tasks = response.tasks.filter((task) => (
+          task.surface === 'image' && task.model === IMAGE_MODEL
+        ));
+        if (tasks.length === 0 || controller.signal.aborted) return;
+        const failedTask = tasks.find((task) => (
+          task.status === 'failed' || task.status === 'interrupted'
+        ));
+        if (failedTask) throw new Error(failedTask.error?.message || copy.failed);
+
+        const activeTasks = tasks.filter((task) => (
+          task.status === 'queued' || task.status === 'running'
+        ));
+        setResultProjectId(projectId);
+        setCompletedCount(tasks.filter((task) => task.status === 'done').length);
+        setGenerating(true);
+        setSuccess(copy.started);
+        await Promise.all(activeTasks.map(async (task) => {
+          await waitForCompletedLogoTask(task.taskId, controller.signal);
+          if (!controller.signal.aborted) {
+            setCompletedCount((current) => Math.min(LOGO_OUTPUTS.length, current + 1));
+          }
+        }));
+        if (controller.signal.aborted) return;
+
+        const files = await fetchCompletedLogoFiles(projectId, controller.signal);
+        if (files.length !== LOGO_OUTPUTS.length) throw new Error(copy.incomplete);
+        setResultFiles(files);
+        setCompletedCount(LOGO_OUTPUTS.length);
+        setGenerating(false);
+        setSuccess(copy.completed);
+      } catch (restoreError) {
+        if (controller.signal.aborted) return;
+        setGenerating(false);
+        setError(restoreError instanceof Error ? restoreError.message : copy.failed);
+      } finally {
+        if (runAbortRef.current === controller) runAbortRef.current = null;
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
   const brandParts = brandName.trim().split(/\s+/u).filter(Boolean);
   const initials = brandParts.length === 0
     ? 'N'
@@ -177,6 +305,9 @@ export function LogoStudioView() {
     }
     setSubmitting(true);
     setGenerating(true);
+    setCompletedCount(0);
+    setResultFiles([]);
+    setResultProjectId(null);
     setError('');
     setSuccess('');
     runAbortRef.current?.abort();
@@ -190,6 +321,7 @@ export function LogoStudioView() {
       prepareTimeoutRef.current = null;
       setSubmitting(false);
       setGenerating(false);
+      setCompletedCount(0);
       setError(copy.timeout);
     }, PREPARE_TIMEOUT_MS);
     const request: LogoBriefRequest = {
@@ -204,14 +336,6 @@ export function LogoStudioView() {
       notes,
     };
     try {
-      const config = loadConfig();
-      const agents = await fetchAgents({ throwOnError: true, signal: controller.signal });
-      const configuredAgent = config.agentId
-        ? agents.find((agent) => agent.id === config.agentId && agent.available)
-        : null;
-      const agent = configuredAgent ?? agents.find((candidate) => candidate.available);
-      if (!agent) throw new Error(copy.noAgent);
-
       const response = await fetch('/api/logo/brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -226,120 +350,57 @@ export function LogoStudioView() {
         name: project.name,
         skillId: project.skillId ?? 'logo-generator',
         designSystemId: project.designSystemId ?? null,
-        metadata: project.metadata ?? { kind: 'image', imageAspect: '1:1' },
+        metadata: {
+          ...(project.metadata ?? {}),
+          kind: 'image',
+          imageModel: IMAGE_MODEL,
+          imageAspect: '1:1',
+          skipDiscoveryBrief: true,
+        },
         pendingPrompt: runPrompt,
         ...(project.pluginId ? { pluginId: project.pluginId } : {}),
         ...(project.pluginInputs ? { pluginInputs: project.pluginInputs } : {}),
       }, { signal: controller.signal });
       if (!created) throw new Error('logo project creation failed');
+      const projectId = created.project.id;
+      window.localStorage.setItem(LAST_LOGO_PROJECT_STORAGE_KEY, projectId);
+      const batchId = randomUUID();
+      const acceptedTasks = await Promise.all(LOGO_DIRECTIONS.map((direction, index) => (
+        startProjectMediaTask(projectId, {
+          clientRequestId: `logo:${batchId}:${index + 1}`,
+          surface: 'image',
+          model: IMAGE_MODEL,
+          quality: 'medium',
+          aspect: '1:1',
+          output: LOGO_OUTPUTS[index],
+          prompt: [
+            runPrompt,
+            '',
+            `For this request, render only Direction ${index + 1} of 4: ${direction}`,
+            'The image must contain exactly one finished logo direction, centered on a plain background. Do not create a four-up board, labels, captions, watermarks, stationery, devices, or lifestyle mockups.',
+          ].join('\n'),
+        })
+      )));
 
-      const startedAt = Date.now();
-      const userMessage: ChatMessage = {
-        id: randomUUID(),
-        role: 'user',
-        content: runPrompt,
-        createdAt: startedAt,
-      };
-      let assistantMessage: ChatMessage = {
-        id: randomUUID(),
-        role: 'assistant',
-        content: '',
-        agentId: agent.id,
-        agentName: agent.name,
-        events: [],
-        createdAt: startedAt,
-        startedAt,
-        runStatus: 'queued',
-      };
-      const modelChoice = config.agentModels?.[agent.id];
-      void saveMessage(created.project.id, created.conversationId, userMessage);
+      clearPrepareTimeout();
+      setSubmitting(false);
+      setSuccess(copy.started);
+      await Promise.all(acceptedTasks.map(async (task) => {
+        await waitForCompletedLogoTask(task.taskId, controller.signal);
+        if (runAbortRef.current === controller) {
+          setCompletedCount((current) => Math.min(LOGO_OUTPUTS.length, current + 1));
+        }
+      }));
+      if (runAbortRef.current !== controller) return;
 
-      void streamViaDaemon({
-        agentId: agent.id,
-        history: [userMessage],
-        signal: controller.signal,
-        projectId: created.project.id,
-        conversationId: created.conversationId,
-        assistantMessageId: assistantMessage.id,
-        clientRequestId: randomUUID(),
-        skillId: project.skillId ?? 'logo-generator',
-        designSystemId: project.designSystemId ?? null,
-        model: modelChoice?.model ?? null,
-        reasoning: modelChoice?.reasoning ?? null,
-        handlers: {
-          onDelta: (delta) => {
-            assistantMessage = {
-              ...assistantMessage,
-              content: assistantMessage.content + delta,
-              events: [...(assistantMessage.events ?? []), { kind: 'text', text: delta }],
-            };
-          },
-          onAgentEvent: (agentEvent: AgentEvent) => {
-            if (agentEvent.kind === 'text') return;
-            assistantMessage = {
-              ...assistantMessage,
-              events: [...(assistantMessage.events ?? []), agentEvent],
-            };
-          },
-          onDone: (fullText) => {
-            if (runAbortRef.current !== controller) return;
-            clearPrepareTimeout();
-            assistantMessage = {
-              ...assistantMessage,
-              content: assistantMessage.content || fullText,
-              endedAt: Date.now(),
-              runStatus: 'succeeded',
-            };
-            void saveMessage(
-              created.project.id,
-              created.conversationId,
-              assistantMessage,
-              { telemetryFinalized: true },
-            );
-            setSubmitting(false);
-            setGenerating(false);
-            setSuccess(copy.completed);
-            runAbortRef.current = null;
-          },
-          onError: (runError) => {
-            if (runAbortRef.current !== controller) return;
-            clearPrepareTimeout();
-            assistantMessage = {
-              ...assistantMessage,
-              endedAt: Date.now(),
-              runStatus: 'failed',
-            };
-            void saveMessage(
-              created.project.id,
-              created.conversationId,
-              assistantMessage,
-              { telemetryFinalized: true },
-            );
-            setSubmitting(false);
-            setGenerating(false);
-            setSuccess('');
-            setError(runError.message || copy.failed);
-            runAbortRef.current = null;
-          },
-        },
-        onRunCreated: (runId) => {
-          if (runAbortRef.current !== controller) return;
-          clearPrepareTimeout();
-          assistantMessage = { ...assistantMessage, runId, runStatus: 'queued' };
-          void saveMessage(created.project.id, created.conversationId, assistantMessage);
-          setSuccess(copy.started);
-          setSubmitting(false);
-        },
-        onRunStatus: (runStatus) => {
-          assistantMessage = {
-            ...assistantMessage,
-            runStatus,
-            endedAt: runStatus === 'succeeded' || runStatus === 'failed' || runStatus === 'canceled'
-              ? assistantMessage.endedAt ?? Date.now()
-              : assistantMessage.endedAt,
-          };
-        },
-      });
+      const files = await fetchCompletedLogoFiles(projectId, controller.signal);
+      if (files.length !== LOGO_OUTPUTS.length) throw new Error(copy.incomplete);
+      setResultProjectId(projectId);
+      setResultFiles(files);
+      setCompletedCount(LOGO_OUTPUTS.length);
+      setGenerating(false);
+      setSuccess(copy.completed);
+      runAbortRef.current = null;
     } catch (submitError) {
       if (runAbortRef.current !== controller) return;
       clearPrepareTimeout();
@@ -347,8 +408,12 @@ export function LogoStudioView() {
       setError(submitError instanceof Error ? submitError.message : copy.failed);
       setSubmitting(false);
       setGenerating(false);
+      setCompletedCount(0);
     }
   }
+
+  const hasResults = Boolean(resultProjectId && resultFiles.length === LOGO_OUTPUTS.length);
+  const previewLabel = generating ? copy.generatingPreview : hasResults ? copy.results : copy.preview;
 
   return (
     <section className="logo-studio" aria-label={copy.brief}>
@@ -509,16 +574,16 @@ export function LogoStudioView() {
 
         <aside
           className="logo-studio__preview-card"
-          aria-label={generating ? copy.generatingPreview : copy.preview}
+          aria-label={previewLabel}
           aria-busy={generating}
         >
           <div className="logo-studio__preview-head">
-            <span>{generating ? copy.generatingPreview : copy.preview}</span>
-            <span>{generating ? '4 directions' : '1:1'}</span>
+            <span>{previewLabel}</span>
+            <span>{generating ? `${completedCount}/4` : hasResults ? copy.resultCount : '1:1'}</span>
           </div>
           <div
-            className={`logo-studio__preview-stage${generating ? ' is-generating' : ''}`}
-            style={generating ? undefined : { backgroundColor: paperColor, color: inkColor }}
+            className={`logo-studio__preview-stage${generating ? ' is-generating' : ''}${hasResults ? ' has-results' : ''}`}
+            style={generating || hasResults ? undefined : { backgroundColor: paperColor, color: inkColor }}
           >
             {generating ? (
               <div
@@ -536,9 +601,27 @@ export function LogoStudioView() {
                   ))}
                 </div>
                 <div className="logo-studio__generation-copy">
-                  <strong>{copy.generatingPreview}</strong>
+                  <strong>{copy.generatingPreview} · {completedCount}/4</strong>
                   <span>{copy.generatingHint}</span>
                 </div>
+              </div>
+            ) : hasResults ? (
+              <div className="logo-studio__result-grid" data-testid="logo-result-grid">
+                {resultFiles.map((file, index) => (
+                  <a
+                    href={projectFileUrl(resultProjectId!, file.name)}
+                    key={file.name}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`${copy.results} ${index + 1}`}
+                  >
+                    <img
+                      src={`${projectFileUrl(resultProjectId!, file.name)}?v=${Math.round(file.mtime)}`}
+                      alt={`Logo direction ${index + 1}`}
+                    />
+                    <span>{String.fromCharCode(65 + index)}</span>
+                  </a>
+                ))}
               </div>
             ) : (
               <LogoPreview
@@ -550,7 +633,7 @@ export function LogoStudioView() {
               />
             )}
           </div>
-          {generating ? null : (
+          {generating || hasResults ? null : (
             <div className="logo-studio__preview-meta">
               <div className="logo-studio__mini-marks">
                 <span style={{ backgroundColor: inkColor, color: paperColor }}>{initials}</span>

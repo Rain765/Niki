@@ -68,7 +68,7 @@ export function buildLogoBrief(input: LogoBriefRequest): LogoBriefResponse {
     line('Avoid', brief.avoid),
     line('Additional notes', brief.notes),
     '',
-    'Create four conceptually distinct directions on one clean square concept board. Include a short rationale for each, plus 16 px, monochrome, and reversed-background checks. Save the brief and concept artifacts using the skill workflow, then ask me which direction to refine. Do not claim trademark clearance.',
+    'Create four conceptually distinct directions as four separate square images. Each image must show one clean logo direction on a plain background, not a multi-logo concept board or lifestyle mockup. Keep every direction legible at 16 px and viable in monochrome and reversed-background use. Do not claim trademark clearance.',
   ].join('\n');
 
   return {
@@ -80,6 +80,7 @@ export function buildLogoBrief(input: LogoBriefRequest): LogoBriefResponse {
       pendingPrompt,
       metadata: {
         kind: 'image',
+        imageModel: 'gpt-image-2',
         imageAspect: '1:1',
         imageStyle: 'original vector logo system, clean presentation board',
         nameSource: 'generated',
@@ -88,6 +89,7 @@ export function buildLogoBrief(input: LogoBriefRequest): LogoBriefResponse {
       pluginId: 'od-media-generation',
       pluginInputs: {
         mediaKind: 'image',
+        model: 'gpt-image-2',
         subject: `${brief.brandName} logo concept board`,
         style: 'original vector logo system, flat geometry, clean presentation board',
         aspect: '1:1',
