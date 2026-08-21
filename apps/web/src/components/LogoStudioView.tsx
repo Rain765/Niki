@@ -3,12 +3,16 @@ import type {
   LogoArchitecture,
   LogoBriefRequest,
   LogoBriefResponse,
+  LogoDirection,
+  LogoFinalization,
+  LogoFinalizationStatus,
   MediaTaskSnapshot,
   Project,
   ProjectFile,
 } from '@open-design/contracts';
 import { useI18n } from '../i18n';
 import { listProjectMediaTasks, startProjectMediaTask, waitForMediaTask } from '../providers/media';
+import { fetchLogoFinalizations, finalizeLogoDirection } from '../providers/logo';
 import { fetchProjectFiles, projectFileUrl } from '../providers/registry';
 import { createProject, listProjects } from '../state/projects';
 import { randomUUID } from '../utils/uuid';
@@ -42,6 +46,7 @@ interface LogoHistoryEntry {
   completedCount: number;
   taskCount: number;
   files: ProjectFile[];
+  finalizations: LogoFinalization[];
   error?: string;
 }
 
@@ -80,6 +85,20 @@ const COPY = {
     historyFailed: 'Failed',
     historyIncomplete: 'Incomplete',
     direction: 'Direction',
+    selectDirection: 'Select',
+    selectedDirection: 'Selected direction',
+    openSource: 'Open source image',
+    refinementNotes: 'Refinement notes',
+    refinementPlaceholder: 'What should be preserved, simplified, or adjusted?',
+    refine: 'Refine and build brand kit',
+    refining: 'Building brand kit…',
+    refinementPrepared: 'Refinement saved',
+    refinementQueued: 'Queued',
+    refinementRunning: 'Refining',
+    refinementComplete: 'Brand kit ready',
+    refinementFailed: 'Refinement failed',
+    brandKits: 'Brand kits',
+    downloadBrandKit: 'Download brand kit',
     required: 'Add a brand name and industry to continue.',
     failed: 'Could not generate the logo directions. Please try again.',
     incomplete: 'Generation finished without four image files. Please try again.',
@@ -127,6 +146,20 @@ const COPY = {
     historyFailed: '生成失败',
     historyIncomplete: '结果不完整',
     direction: '方向',
+    selectDirection: '选择',
+    selectedDirection: '已选方向',
+    openSource: '打开原图',
+    refinementNotes: '精修要求',
+    refinementPlaceholder: '哪些特征需要保留、简化或调整？',
+    refine: '精修并生成品牌包',
+    refining: '正在生成品牌包…',
+    refinementPrepared: '精修任务已保存',
+    refinementQueued: '等待执行',
+    refinementRunning: '正在精修',
+    refinementComplete: '品牌包已完成',
+    refinementFailed: '精修失败',
+    brandKits: '品牌包',
+    downloadBrandKit: '下载品牌包',
     required: '请先填写品牌名称和行业。',
     failed: 'Logo 图片生成失败，请重试。',
     incomplete: '生成任务没有产出完整的 4 张图片，请重试。',
@@ -178,6 +211,7 @@ function historyEntryFromProject(
   project: Project,
   tasks: MediaTaskSnapshot[],
   files: ProjectFile[],
+  finalizations: LogoFinalization[] = [],
 ): LogoHistoryEntry | null {
   const logoTasks = tasks.filter((task) => (
     'surface' in task && 'model' in task
@@ -211,6 +245,7 @@ function historyEntryFromProject(
     )),
     taskCount: LOGO_OUTPUTS.length,
     files: resultFiles,
+    finalizations,
     ...(failedTask?.error?.message ? { error: failedTask.error.message } : {}),
   };
 }
@@ -294,8 +329,17 @@ export function LogoStudioView() {
   const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedDirection, setSelectedDirection] = useState<{
+    projectId: string;
+    direction: LogoDirection;
+  } | null>(null);
+  const [refinementNotes, setRefinementNotes] = useState('');
+  const [refinementStatus, setRefinementStatus] = useState<LogoFinalizationStatus | null>(null);
+  const [refinementError, setRefinementError] = useState('');
+  const [refiningProjectId, setRefiningProjectId] = useState<string | null>(null);
   const paletteButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const runAbortRef = useRef<AbortController | null>(null);
+  const refinementAbortRef = useRef<AbortController | null>(null);
   const prepareTimeoutRef = useRef<number | null>(null);
   const closeColorPicker = useCallback(() => setOpenPaletteIndex(null), []);
 
@@ -316,11 +360,12 @@ export function LogoStudioView() {
       .sort((left, right) => right.createdAt - left.createdAt);
     const entries = await Promise.all(projects.map(async (project) => {
       try {
-        const [files, response] = await Promise.all([
+        const [files, response, finalizationResponse] = await Promise.all([
           fetchProjectFiles(project.id),
           listProjectMediaTasks(project.id).catch(() => ({ tasks: [] })),
+          fetchLogoFinalizations(project.id, signal).catch(() => ({ finalizations: [] })),
         ]);
-        return historyEntryFromProject(project, response.tasks, files);
+        return historyEntryFromProject(project, response.tasks, files, finalizationResponse.finalizations);
       } catch {
         return null;
       }
@@ -334,6 +379,8 @@ export function LogoStudioView() {
     clearPrepareTimeout();
     runAbortRef.current?.abort();
     runAbortRef.current = null;
+    refinementAbortRef.current?.abort();
+    refinementAbortRef.current = null;
   }, [clearPrepareTimeout]);
 
   useEffect(() => {
@@ -498,6 +545,7 @@ export function LogoStudioView() {
         completedCount: 0,
         taskCount: LOGO_OUTPUTS.length,
         files: [],
+        finalizations: [],
       }));
       window.localStorage.setItem(LAST_LOGO_PROJECT_STORAGE_KEY, projectId);
       const batchId = randomUUID();
@@ -549,6 +597,7 @@ export function LogoStudioView() {
         completedCount: LOGO_OUTPUTS.length,
         taskCount: LOGO_OUTPUTS.length,
         files,
+        finalizations: historyEntries.find((entry) => entry.projectId === projectId)?.finalizations ?? [],
       }));
       setCompletedCount(LOGO_OUTPUTS.length);
       setGenerating(false);
@@ -564,6 +613,43 @@ export function LogoStudioView() {
       setSubmitting(false);
       setGenerating(false);
       setCompletedCount(0);
+    }
+  }
+
+  async function refineSelectedDirection() {
+    if (!selectedDirection || refiningProjectId) return;
+    const { projectId, direction } = selectedDirection;
+    refinementAbortRef.current?.abort();
+    const controller = new AbortController();
+    refinementAbortRef.current = controller;
+    setRefiningProjectId(projectId);
+    setRefinementStatus('prepared');
+    setRefinementError('');
+    try {
+      const finalization = await finalizeLogoDirection({
+        projectId,
+        direction,
+        notes: refinementNotes,
+      }, {
+        signal: controller.signal,
+        onStatus: setRefinementStatus,
+      });
+      setHistoryEntries((current) => current.map((entry) => entry.projectId === projectId
+        ? {
+            ...entry,
+            finalizations: [
+              finalization,
+              ...entry.finalizations.filter((item) => item.id !== finalization.id),
+            ],
+          }
+        : entry));
+      setRefinementStatus('complete');
+    } catch (refineError) {
+      setRefinementStatus('failed');
+      setRefinementError(refineError instanceof Error ? refineError.message : copy.refinementFailed);
+    } finally {
+      if (refinementAbortRef.current === controller) refinementAbortRef.current = null;
+      setRefiningProjectId(null);
     }
   }
 
@@ -805,6 +891,27 @@ export function LogoStudioView() {
                 copy={copy}
                 entry={entry}
                 language={language}
+                selectedDirection={selectedDirection?.projectId === entry.projectId
+                  ? selectedDirection.direction
+                  : null}
+                refinementNotes={selectedDirection?.projectId === entry.projectId
+                  ? refinementNotes
+                  : ''}
+                refinementStatus={selectedDirection?.projectId === entry.projectId
+                  ? refinementStatus
+                  : null}
+                refinementError={selectedDirection?.projectId === entry.projectId
+                  ? refinementError
+                  : ''}
+                refining={refiningProjectId === entry.projectId}
+                onSelectDirection={(direction) => {
+                  setSelectedDirection({ projectId: entry.projectId, direction });
+                  setRefinementNotes('');
+                  setRefinementStatus(null);
+                  setRefinementError('');
+                }}
+                onRefinementNotesChange={setRefinementNotes}
+                onRefine={() => void refineSelectedDirection()}
                 key={entry.projectId}
               />
             ))}
@@ -819,10 +926,26 @@ function LogoHistoryBatch({
   copy,
   entry,
   language,
+  selectedDirection,
+  refinementNotes,
+  refinementStatus,
+  refinementError,
+  refining,
+  onSelectDirection,
+  onRefinementNotesChange,
+  onRefine,
 }: {
   copy: (typeof COPY)[keyof typeof COPY];
   entry: LogoHistoryEntry;
   language: keyof typeof COPY;
+  selectedDirection: LogoDirection | null;
+  refinementNotes: string;
+  refinementStatus: LogoFinalizationStatus | null;
+  refinementError: string;
+  refining: boolean;
+  onSelectDirection: (direction: LogoDirection) => void;
+  onRefinementNotesChange: (value: string) => void;
+  onRefine: () => void;
 }) {
   const statusLabel = {
     complete: copy.historyComplete,
@@ -836,6 +959,13 @@ function LogoHistoryBatch({
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(entry.createdAt));
+  const refinementStatusLabel = refinementStatus ? {
+    prepared: copy.refinementPrepared,
+    queued: copy.refinementQueued,
+    running: copy.refinementRunning,
+    complete: copy.refinementComplete,
+    failed: copy.refinementFailed,
+  }[refinementStatus] : '';
 
   return (
     <article className="logo-studio__history-batch">
@@ -852,20 +982,21 @@ function LogoHistoryBatch({
         {LOGO_OUTPUTS.map((output, index) => {
           const file = entry.files.find((candidate) => candidate.name === output);
           return file ? (
-            <a
-              className="logo-studio__history-image"
-              href={projectFileUrl(entry.projectId, file.name)}
+            <button
+              className={`logo-studio__history-image${selectedDirection === index + 1 ? ' is-selected' : ''}`}
               key={output}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={`${entry.name} ${copy.direction} ${index + 1}`}
+              type="button"
+              aria-pressed={selectedDirection === index + 1}
+              aria-label={`${copy.selectDirection} ${entry.name} direction ${index + 1}`}
+              onClick={() => onSelectDirection((index + 1) as LogoDirection)}
             >
               <img
                 src={`${projectFileUrl(entry.projectId, file.name)}?v=${Math.round(file.mtime)}`}
                 alt={`${entry.name} direction ${index + 1}`}
               />
               <span>{String.fromCharCode(65 + index)}</span>
-            </a>
+              <small>{copy.selectDirection}</small>
+            </button>
           ) : (
             <div className={`logo-studio__history-placeholder is-${entry.status}`} key={output}>
               <span>{String.fromCharCode(65 + index)}</span>
@@ -874,6 +1005,62 @@ function LogoHistoryBatch({
           );
         })}
       </div>
+      {selectedDirection ? (
+        <div className="logo-studio__refinement">
+          <div className="logo-studio__refinement-head">
+            <strong>{copy.selectedDirection} {String.fromCharCode(64 + selectedDirection)}</strong>
+            <a
+              href={projectFileUrl(entry.projectId, `logo-direction-${String(selectedDirection).padStart(2, '0')}.png`)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {copy.openSource}
+            </a>
+          </div>
+          <label>
+            <span>{copy.refinementNotes}</span>
+            <textarea
+              aria-label={copy.refinementNotes}
+              value={refinementNotes}
+              onChange={(event) => onRefinementNotesChange(event.target.value)}
+              placeholder={copy.refinementPlaceholder}
+              rows={2}
+              disabled={refining}
+            />
+          </label>
+          <div className="logo-studio__refinement-actions">
+            <button type="button" onClick={onRefine} disabled={refining}>
+              {refining ? copy.refining : copy.refine}
+            </button>
+            {refinementStatusLabel ? (
+              <span className={`is-${refinementStatus}`}>{refinementStatusLabel}</span>
+            ) : null}
+          </div>
+          {refinementError ? <p role="alert">{refinementError}</p> : null}
+        </div>
+      ) : null}
+      {entry.finalizations.length > 0 ? (
+        <div className="logo-studio__brand-kits">
+          <strong>{copy.brandKits}</strong>
+          <div>
+            {entry.finalizations.map((finalization) => (
+              <span key={finalization.id}>
+                <b>{copy.direction} {String.fromCharCode(64 + finalization.direction)}</b>
+                <small>{{
+                  prepared: copy.refinementPrepared,
+                  queued: copy.refinementQueued,
+                  running: copy.refinementRunning,
+                  complete: copy.refinementComplete,
+                  failed: copy.refinementFailed,
+                }[finalization.status]}</small>
+                {finalization.archiveUrl ? (
+                  <a href={finalization.archiveUrl}>{copy.downloadBrandKit}</a>
+                ) : null}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {entry.error ? <p className="logo-studio__history-error">{entry.error}</p> : null}
     </article>
   );

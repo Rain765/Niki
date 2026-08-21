@@ -89,6 +89,8 @@ const CANVAS_BOOLEAN_FLAGS = new Set(['json', 'help', 'h']);
 
 const LOGO_STRING_FLAGS = new Set([
   'daemon-url',
+  'project',
+  'direction',
   'brand',
   'industry',
   'audience',
@@ -770,6 +772,9 @@ function printRootHelp() {
       Create a structured Logo Studio project through the same brief and
       project APIs used by the web UI. Supports --json and --prompt-file.
 
+  od logo finalize --project <id> --direction <1|2|3|4> [options]
+      Refine one saved direction into a versioned SVG-first brand kit.
+
   od mcp [--daemon-url <url>]
       Run a stdio MCP server that proxies project tool calls to a
       running Open Design daemon. Wire it into a coding agent
@@ -1203,7 +1208,7 @@ async function runLogo(args) {
     printLogoHelp();
     return;
   }
-  if (sub !== 'create') {
+  if (!['create', 'finalize'].includes(sub)) {
     console.error(`unknown subcommand: od logo ${sub}`);
     printLogoHelp();
     process.exit(2);
@@ -1218,6 +1223,11 @@ async function runLogo(args) {
     console.error(error.message);
     printLogoHelp();
     process.exit(2);
+  }
+
+  if (sub === 'finalize') {
+    await runLogoFinalize(flags);
+    return;
   }
 
   if (!flags.brand || !flags.industry) {
@@ -1270,6 +1280,7 @@ async function runLogo(args) {
 
   let runData = null;
   if (flags.run || flags.follow) {
+    const agentId = await resolveLogoAgentId(base, flags.agent);
     const runResponse = await fetch(`${base}/api/runs`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -1278,7 +1289,7 @@ async function runLogo(args) {
         conversationId: projectData.conversationId,
         message: briefData.project?.pendingPrompt,
         appliedPluginSnapshotId: projectData.appliedPluginSnapshotId,
-        ...(flags.agent ? { agentId: flags.agent } : {}),
+        agentId,
         ...(flags.model ? { model: flags.model } : {}),
       }),
     });
@@ -1308,6 +1319,90 @@ async function runLogo(args) {
   }
 }
 
+async function resolveLogoAgentId(base, requestedAgentId) {
+  if (requestedAgentId) return requestedAgentId;
+  const response = await fetch(`${base}/api/agents`);
+  const data = await response.json().catch(() => ({}));
+  const available = Array.isArray(data.agents)
+    ? data.agents.filter((agent) => agent?.available && typeof agent.id === 'string')
+    : [];
+  const agent = available.find((candidate) => candidate.id === 'codex')
+    ?? available.find((candidate) => candidate.id === 'claude')
+    ?? available[0];
+  if (!response.ok || !agent) {
+    throw new Error('no local coding agent is available; pass --agent after configuring one');
+  }
+  return agent.id;
+}
+
+async function runLogoFinalize(flags) {
+  if (!flags.project || !flags.direction) {
+    console.error('--project <id> and --direction <1|2|3|4> are required');
+    process.exit(2);
+  }
+  const direction = Number(flags.direction);
+  if (!Number.isInteger(direction) || direction < 1 || direction > 4) {
+    console.error('--direction must be an integer from 1 to 4');
+    process.exit(2);
+  }
+  const notes = await readPromptFromFlags({
+    prompt: flags.notes,
+    'prompt-file': flags['prompt-file'],
+  });
+  const base = await cliDaemonBaseUrl(flags);
+  const response = await fetch(`${base}/api/logo/finalize`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      projectId: flags.project,
+      direction,
+      notes: notes || '',
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error(`POST /api/logo/finalize failed: ${response.status} ${JSON.stringify(data)}`);
+    process.exit(1);
+  }
+
+  let runData = null;
+  if (flags.run || flags.follow) {
+    const agentId = await resolveLogoAgentId(base, flags.agent);
+    const runResponse = await fetch(`${base}/api/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        projectId: data.finalization.projectId,
+        conversationId: data.finalization.conversationId,
+        assistantMessageId: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2),
+        clientRequestId: data.finalization.clientRequestId,
+        agentId,
+        message: data.prompt,
+        skillId: 'logo-generator',
+        attachments: [data.finalization.sourceFile],
+        ...(flags.model ? { model: flags.model } : {}),
+      }),
+    });
+    runData = await runResponse.json().catch(() => ({}));
+    if (!runResponse.ok) {
+      console.error(`POST /api/runs failed: ${runResponse.status} ${JSON.stringify(runData)}`);
+      process.exit(1);
+    }
+  }
+
+  const output = { ...data, ...(runData ? { run: runData } : {}) };
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+  } else {
+    console.log(`[logo] selected direction ${direction} for ${flags.project}`);
+    if (runData?.runId) console.log(`[logo] brand-kit generation started ${runData.runId}`);
+    else console.log(`[logo] refinement saved as ${data.finalization.id}; rerun with --run to build it`);
+  }
+  if (flags.follow && runData?.runId) await streamRunEvents(base, runData.runId);
+}
+
 function printLogoHelp() {
   console.log(`Usage:
   od logo create --brand <name> --industry <category>
@@ -1319,7 +1414,12 @@ function printLogoHelp() {
                  [--avoid <comma-separated-list>]
                  [--notes <text> | --prompt-file <path|->]
                  [--run] [--agent <id>] [--model <id>] [--follow]
-                 [--daemon-url <url>] [--json]`);
+                 [--daemon-url <url>] [--json]
+
+  od logo finalize --project <id> --direction <1|2|3|4>
+                   [--notes <text> | --prompt-file <path|->]
+                   [--run] [--agent <id>] [--model <id>] [--follow]
+                   [--daemon-url <url>] [--json]`);
 }
 
 function numOr(value, fallback) {

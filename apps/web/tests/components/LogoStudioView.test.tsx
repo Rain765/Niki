@@ -12,6 +12,8 @@ const {
   listProjectMediaTasksMock,
   startProjectMediaTaskMock,
   waitForMediaTaskMock,
+  fetchLogoFinalizationsMock,
+  finalizeLogoDirectionMock,
 } = vi.hoisted(() => ({
   createProjectMock: vi.fn(),
   listProjectsMock: vi.fn(),
@@ -19,6 +21,8 @@ const {
   listProjectMediaTasksMock: vi.fn(),
   startProjectMediaTaskMock: vi.fn(),
   waitForMediaTaskMock: vi.fn(),
+  fetchLogoFinalizationsMock: vi.fn(),
+  finalizeLogoDirectionMock: vi.fn(),
 }));
 
 vi.mock('../../src/state/projects', () => ({
@@ -33,6 +37,10 @@ vi.mock('../../src/providers/media', () => ({
 vi.mock('../../src/providers/registry', () => ({
   fetchProjectFiles: fetchProjectFilesMock,
   projectFileUrl: (_projectId: string, name: string) => `/files/${name}`,
+}));
+vi.mock('../../src/providers/logo', () => ({
+  fetchLogoFinalizations: fetchLogoFinalizationsMock,
+  finalizeLogoDirection: finalizeLogoDirectionMock,
 }));
 
 const taskOutputs = new Map<string, string>();
@@ -58,6 +66,7 @@ beforeEach(() => {
   taskOutputs.clear();
   listProjectsMock.mockResolvedValue([]);
   listProjectMediaTasksMock.mockResolvedValue({ tasks: [] });
+  fetchLogoFinalizationsMock.mockResolvedValue({ finalizations: [] });
   startProjectMediaTaskMock.mockImplementation(async (_projectId, request) => {
     const taskId = `task-${taskOutputs.size + 1}`;
     taskOutputs.set(taskId, request.output);
@@ -270,6 +279,63 @@ describe('LogoStudioView', () => {
     expect(batches[0]?.textContent).toContain('AMIZ Logo actual generation');
     expect(batches[1]?.textContent).toContain('Atlas Logo');
     expect(history.textContent).not.toContain('Poster project');
+  });
+
+  it('turns a selected history direction into a persisted downloadable brand kit', async () => {
+    listProjectsMock.mockResolvedValue([{
+      id: 'logo-project-1',
+      name: 'Northstar Logo',
+      skillId: 'logo-generator',
+      designSystemId: null,
+      createdAt: 200,
+      updatedAt: 200,
+    }]);
+    fetchProjectFilesMock.mockResolvedValue(Array.from({ length: 4 }, (_, index) => ({
+      name: `logo-direction-${String(index + 1).padStart(2, '0')}.png`,
+      size: 1_024 + index,
+      mtime: index + 1,
+      kind: 'image',
+      mime: 'image/png',
+    })));
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [] });
+    finalizeLogoDirectionMock.mockResolvedValue({
+      id: 'final-123',
+      projectId: 'logo-project-1',
+      conversationId: 'conversation-123',
+      direction: 2,
+      sourceFile: 'logo-direction-02.png',
+      outputRoot: 'logo/final/final-123',
+      expectedOutputs: ['logo.svg'],
+      outputFiles: ['logo/final/final-123/logo.svg'],
+      status: 'complete',
+      requestedAt: 300,
+      notes: 'Keep the diagonal cut.',
+      archiveUrl: '/api/projects/logo-project-1/archive?root=logo%2Ffinal%2Ffinal-123',
+    });
+
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    await screen.findByRole('region', { name: 'Generation history' });
+    fireEvent.click(screen.getByRole('button', { name: 'Select Northstar Logo direction 2' }));
+    fireEvent.change(screen.getByLabelText('Refinement notes'), {
+      target: { value: 'Keep the diagonal cut.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Refine and build brand kit' }));
+
+    await waitFor(() => expect(finalizeLogoDirectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: 'logo-project-1',
+        direction: 2,
+        notes: 'Keep the diagonal cut.',
+      }),
+      expect.any(Object),
+    ));
+    const download = await screen.findByRole('link', { name: 'Download brand kit' });
+    expect(download.getAttribute('href')).toContain('logo%2Ffinal%2Ffinal-123');
   });
 
   it('shows a four-direction skeleton until logo generation finishes', async () => {

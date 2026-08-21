@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLogoBrief } from '../src/logo-routes.js';
+import { buildLogoBrief, buildLogoFinalization } from '../src/logo-routes.js';
 
 describe('logo brief builder', () => {
   it('normalizes a structured brief into a shared project blueprint', () => {
@@ -51,5 +51,57 @@ describe('logo brief builder', () => {
       architecture: 'emblem' as never,
     });
     expect(result.brief.architecture).toBe('combination');
+  });
+});
+
+describe('logo finalization builder', () => {
+  it('creates an addressable refinement record and a true-vector brand-kit prompt', () => {
+    const result = buildLogoFinalization({
+      projectId: 'logo-project-1',
+      direction: 2,
+      notes: 'Keep the diagonal cut, but make the wordmark calmer.',
+    }, {
+      finalizationId: 'final-123',
+      conversationId: 'conversation-123',
+      requestedAt: 1_700_000_000_000,
+      projectPrompt: 'Use $logo-generator for Northstar.',
+    });
+
+    expect(result.finalization).toMatchObject({
+      id: 'final-123',
+      projectId: 'logo-project-1',
+      conversationId: 'conversation-123',
+      direction: 2,
+      sourceFile: 'logo-direction-02.png',
+      outputRoot: 'logo/final/final-123',
+      status: 'prepared',
+      requestedAt: 1_700_000_000_000,
+    });
+    expect(result.finalization.expectedOutputs).toEqual([
+      'logo.svg',
+      'logo-dark.svg',
+      'logo-mono.svg',
+      'favicon.ico',
+      'apple-touch-icon.png',
+      'og-image.png',
+      'BRAND.md',
+    ]);
+    expect(result.prompt).toContain('logo-direction-02.png');
+    expect(result.prompt).toContain('logo/final/final-123/logo.svg');
+    expect(result.prompt).toContain('true editable SVG paths');
+    expect(result.prompt).toContain('Do not embed the source raster');
+    expect(result.prompt).toContain('Keep the diagonal cut');
+  });
+
+  it('rejects directions outside the generated four-up set', () => {
+    expect(() => buildLogoFinalization({
+      projectId: 'logo-project-1',
+      direction: 5 as never,
+    }, {
+      finalizationId: 'final-123',
+      conversationId: 'conversation-123',
+      requestedAt: 1,
+      projectPrompt: '',
+    })).toThrow('direction must be an integer from 1 to 4');
   });
 });

@@ -338,4 +338,70 @@ describe('CLI startup boundaries', () => {
       }
     }
   );
+
+  it('prepares a logo finalization through the shared logo API', async () => {
+    let requestBody: Record<string, unknown> | null = null;
+    const server = http.createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.url === '/api/logo/finalize' && req.method === 'POST') {
+        let body = '';
+        req.setEncoding('utf8');
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          requestBody = JSON.parse(body) as Record<string, unknown>;
+          res.statusCode = 201;
+          res.end(JSON.stringify({
+            finalization: {
+              id: 'final-123',
+              projectId: 'logo-project-1',
+              conversationId: 'conversation-123',
+              direction: 2,
+              sourceFile: 'logo-direction-02.png',
+            },
+            prompt: 'Refine direction 2',
+          }));
+        });
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: 'not found' }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('server not listening');
+
+    try {
+      const result = await execFileAsync(
+        process.execPath,
+        [
+          '--import',
+          'tsx',
+          cliEntry,
+          'logo',
+          'finalize',
+          '--project',
+          'logo-project-1',
+          '--direction',
+          '2',
+          '--notes',
+          'Keep the diagonal cut.',
+          '--json',
+          '--daemon-url',
+          `http://127.0.0.1:${address.port}`,
+        ],
+        { cwd: daemonRoot },
+      );
+
+      expect(requestBody).toEqual({
+        projectId: 'logo-project-1',
+        direction: 2,
+        notes: 'Keep the diagonal cut.',
+      });
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        finalization: { id: 'final-123', direction: 2 },
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });

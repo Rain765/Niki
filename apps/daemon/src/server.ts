@@ -4524,7 +4524,15 @@ export async function startServer({
   });
   registerDeviceBridgeRoutes(app, deviceBridge);
   registerCanvasRoutes(app, { db, http: httpDeps });
-  registerLogoRoutes(app, { http: httpDeps });
+  registerLogoRoutes(app, {
+    db,
+    http: httpDeps,
+    ids: idDeps,
+    paths: pathDeps,
+    projectStore: projectStoreDeps,
+    projectFiles: projectFileDeps,
+    conversations: conversationDeps,
+  });
   registerImportRoutes(app, {
     db,
     http: httpDeps,
