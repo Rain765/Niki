@@ -658,18 +658,38 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByRole('region', { name: 'Tutorial video generator' })).toBeNull();
   });
 
-  it('places Daily English Practice last in the title menu and opens it', () => {
+  it('opens Daily English Practice from the title menu', () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
     const options = screen.getAllByRole('option');
-    expect(options.at(-1)?.textContent).toContain('Daily English Practice');
-    expect(options.at(-1)?.textContent).toContain('Practice real-life English conversations');
+    const englishOption = options.find((option) => option.textContent?.includes('Daily English Practice'));
+    expect(englishOption?.textContent).toContain('Practice real-life English conversations');
 
-    fireEvent.click(options.at(-1)!);
+    fireEvent.click(englishOption!);
     expect(screen.getByRole('heading', { name: 'Daily English Practice' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '10 个经典生活场景' })).toBeTruthy();
     expect(window.location.search).toBe('?mode=english');
+  });
+
+  it('places Logo Studio last in the title menu and links to its page', () => {
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
+    const options = screen.getAllByRole('option');
+    const logoOption = options.at(-1);
+
+    expect(logoOption?.textContent).toContain('Logo Studio');
+    expect(logoOption?.textContent).toContain('Create a focused identity system');
+    expect(logoOption?.getAttribute('href')).toBe('/logo');
+  });
+
+  it('renders Logo Studio as a light Niki creation page', () => {
+    render(<PosterApp initialMode="logo" />);
+
+    expect(screen.getByRole('heading', { name: 'Logo Studio' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Build a mark worth remembering.' })).toBeTruthy();
+    expect(document.querySelector('.poster-app')?.classList.contains('is-logo')).toBe(true);
   });
 
   it('keeps the mode chevron in the title flow', () => {

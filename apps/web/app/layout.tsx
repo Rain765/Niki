@@ -11,6 +11,7 @@ import {
 import './poster.css';
 import './account-manager.css';
 import '../src/styles/home/loan-video.css';
+import '../src/styles/home/logo-studio.css';
 
 export const metadata: Metadata = {
   title: 'Niki',

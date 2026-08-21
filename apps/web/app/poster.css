@@ -392,7 +392,8 @@ button {
   transition-delay: 0s;
 }
 
-.poster-app__mode-menu > button {
+.poster-app__mode-menu > button,
+.poster-app__mode-menu > a {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) 20px;
   align-items: center;
@@ -404,12 +405,17 @@ button {
   background: transparent;
   color: var(--poster-text);
   cursor: pointer;
+  font: inherit;
+  text-decoration: none;
   text-align: left;
 }
 
 .poster-app__mode-menu > button:hover,
 .poster-app__mode-menu > button:focus-visible,
-.poster-app__mode-menu > button[aria-selected='true'] {
+.poster-app__mode-menu > button[aria-selected='true'],
+.poster-app__mode-menu > a:hover,
+.poster-app__mode-menu > a:focus-visible,
+.poster-app__mode-menu > a[aria-selected='true'] {
   background: var(--poster-panel-raised);
   outline: none;
 }
@@ -440,7 +446,8 @@ button {
   line-height: 1.35;
 }
 
-.poster-app__mode-menu > button > svg {
+.poster-app__mode-menu > button > svg,
+.poster-app__mode-menu > a > svg {
   color: var(--poster-accent);
 }
 

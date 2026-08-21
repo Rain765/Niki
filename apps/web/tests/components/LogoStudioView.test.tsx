@@ -1,19 +1,32 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../../src/i18n';
 import { LogoStudioView } from '../../src/components/LogoStudioView';
+
+const { createProjectMock } = vi.hoisted(() => ({ createProjectMock: vi.fn() }));
+
+vi.mock('../../src/state/projects', () => ({ createProject: createProjectMock }));
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
 
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
 describe('LogoStudioView', () => {
   it('builds the brief through the logo API and creates an auto-running project', async () => {
-    const onCreate = vi.fn();
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+    createProjectMock.mockResolvedValue({
+      project: { id: 'logo-project-1' },
+      conversationId: 'conversation-1',
+      appliedPluginSnapshotId: 'snapshot-1',
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({
       brief: {
         brandName: 'Northstar',
         industry: 'Climate analytics',
@@ -34,11 +47,15 @@ describe('LogoStudioView', () => {
         pluginId: 'od-media-generation',
         pluginInputs: { mediaKind: 'image', aspect: '1:1' },
       },
-    }), { status: 200, headers: { 'content-type': 'application/json' } }));
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ runId: 'run-1' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
 
     render(
       <I18nProvider initial="en">
-        <LogoStudioView onCreate={onCreate} />
+        <LogoStudioView />
       </I18nProvider>,
     );
 
@@ -46,25 +63,24 @@ describe('LogoStudioView', () => {
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
 
-    await waitFor(() => expect(onCreate).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Generation started'));
     expect(fetchMock).toHaveBeenCalledWith('/api/logo/brief', expect.objectContaining({ method: 'POST' }));
-    expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
+    expect(createProjectMock).toHaveBeenCalledWith(expect.objectContaining({
       name: 'Northstar Logo',
       skillId: 'logo-generator',
-      autoSendFirstMessage: true,
       pendingPrompt: 'Use $logo-generator',
     }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/runs', expect.objectContaining({ method: 'POST' }));
   });
 
   it('keeps the user on the form when required fields are empty', () => {
-    const onCreate = vi.fn();
     render(
       <I18nProvider initial="en">
-        <LogoStudioView onCreate={onCreate} />
+        <LogoStudioView />
       </I18nProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
     expect(screen.getByRole('alert').textContent).toContain('brand name and industry');
-    expect(onCreate).not.toHaveBeenCalled();
+    expect(createProjectMock).not.toHaveBeenCalled();
   });
 });

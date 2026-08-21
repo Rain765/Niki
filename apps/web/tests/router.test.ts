@@ -38,12 +38,6 @@ describe('parseRoute / buildPath (issue #1505)', () => {
     });
   });
 
-  it('round-trips the Logo Studio route', () => {
-    const route: Route = { kind: 'home', view: 'logo' };
-    expect(buildPath(route)).toBe('/workspace/logo');
-    expect(roundTrip(route)).toEqual(route);
-  });
-
   it('round-trips a bare project route', () => {
     const route: Route = {
       kind: 'project',

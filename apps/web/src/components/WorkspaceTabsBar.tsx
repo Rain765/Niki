@@ -124,7 +124,6 @@ function reviveTab(value: unknown): WorkspaceChromeTab | null {
       || view === 'projects'
       || view === 'tasks'
       || view === 'plugins'
-      || view === 'logo'
       || view === 'design-systems'
       || view === 'integrations'
     ) {
@@ -584,7 +583,6 @@ function displayTabFor(
     projects: t('entry.navProjects'),
     tasks: t('entry.navTasks'),
     plugins: t('entry.navPlugins'),
-    logo: 'Logo Studio',
     'design-systems': t('entry.navDesignSystems'),
     integrations: t('entry.navIntegrations'),
   };
@@ -594,7 +592,6 @@ function displayTabFor(
     projects: 'folder',
     tasks: 'kanban',
     plugins: 'grid',
-    logo: 'sparkles',
     'design-systems': 'palette',
     integrations: 'link',
   };

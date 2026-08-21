@@ -25,12 +25,11 @@ import { useNikiAuth } from '../auth/NikiAuth';
 interface Props {
   projects: Project[];
   activeProjectId: string | null;
-  activeView?: 'home' | 'project' | 'design-files' | 'logo';
+  activeView?: 'home' | 'project' | 'design-files';
   projectsLoading?: boolean;
   onOpenProject: (id: string) => void;
   onNewProject: () => void;
   onOpenDesignFiles: () => void;
-  onOpenLogoStudio: () => void;
   onRenameProject: (id: string, name: string) => void;
   onDeleteProject: (id: string) => void;
   config: AppConfig;
@@ -95,7 +94,6 @@ export function NikiWorkspaceShell({
   onOpenProject,
   onNewProject,
   onOpenDesignFiles,
-  onOpenLogoStudio,
   onRenameProject,
   onDeleteProject,
   config,
@@ -240,13 +238,6 @@ export function NikiWorkspaceShell({
     onOpenDesignFiles();
   }
 
-  function openLogoStudio() {
-    setDrawerOpen(false);
-    setMenuProjectId(null);
-    setTitleMenuOpen(false);
-    onOpenLogoStudio();
-  }
-
   function renameProject(project: Project) {
     setMenuProjectId(null);
     const nextName = window.prompt(t('designs.renamePrompt'), project.name);
@@ -297,18 +288,6 @@ export function NikiWorkspaceShell({
               <button type="button" role="menuitem" onClick={openDesignFiles}>
                 <Icon name="image" size={16} />
                 <span>{t('workspace.designFiles')}</span>
-              </button>
-              <div className="niki-workspace__title-divider" role="separator" />
-              <button
-                type="button"
-                role="menuitem"
-                className={activeView === 'logo' ? 'is-active' : ''}
-                onClick={openLogoStudio}
-                data-testid="niki-title-logo-studio"
-              >
-                <Icon name="sparkles" size={16} />
-                <span>Logo Studio</span>
-                <span className="niki-workspace__title-new">New</span>
               </button>
             </div>
           ) : null}

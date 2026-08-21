@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
@@ -17,6 +18,7 @@ import {
   type DirectPosterBatchView,
 } from '../components/direct-poster-batches';
 import { Icon } from '../components/Icon';
+import { LogoStudioView } from '../components/LogoStudioView';
 import {
   resolveDirectLoanPosterProject,
   startDirectLoanPosterProject,
@@ -42,12 +44,13 @@ import type { Project, ProjectFile } from '../types';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
-type CreationMode = 'poster' | 'video' | 'documents' | 'english';
+type CreationMode = 'poster' | 'video' | 'documents' | 'english' | 'logo';
 
 const STATUS_AUTO_DISMISS_MS = 10_000;
 
 function initialCreationMode(): CreationMode {
   if (typeof window === 'undefined') return 'poster';
+  if (window.location.pathname === '/logo') return 'logo';
   const mode = new URLSearchParams(window.location.search).get('mode');
   return mode === 'documents' || mode === 'english' ? mode : 'poster';
 }
@@ -55,6 +58,7 @@ function initialCreationMode(): CreationMode {
 function updateCreationModeUrl(mode: CreationMode): void {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
+  url.pathname = mode === 'logo' ? '/logo' : '/';
   if (mode === 'documents' || mode === 'english') url.searchParams.set('mode', mode);
   else url.searchParams.delete('mode');
   window.history.replaceState(window.history.state, '', url);
@@ -199,9 +203,11 @@ function useVideoElapsed(running: boolean, requestedAt: number | null): string {
   return formatVideoElapsed(requestedAt, now);
 }
 
-export function PosterApp() {
+export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) {
   const { user, logout } = useNikiAuth();
-  const [creationMode, setCreationMode] = useState<CreationMode>(initialCreationMode);
+  const [creationMode, setCreationMode] = useState<CreationMode>(
+    () => initialMode ?? initialCreationMode(),
+  );
   const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video');
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -680,7 +686,7 @@ export function PosterApp() {
   };
 
   return (
-    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}`}>
+    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}`}>
       <header className="poster-app__header">
         <div className="poster-app__mode-select" ref={modeMenuRef}>
           <span className="poster-app__eyebrow">
@@ -690,7 +696,9 @@ export function PosterApp() {
                 ? 'NIKI VIDEO'
                 : creationMode === 'documents'
                   ? 'NIKI DOCS'
-                  : 'NIKI ENGLISH'}
+                  : creationMode === 'english'
+                    ? 'NIKI ENGLISH'
+                    : 'NIKI LOGO'}
           </span>
           <button
             type="button"
@@ -706,7 +714,9 @@ export function PosterApp() {
                   ? 'Generate Tutorial Videos'
                   : creationMode === 'documents'
                     ? 'Document Search'
-                    : 'Daily English Practice'}
+                    : creationMode === 'english'
+                      ? 'Daily English Practice'
+                      : 'Logo Studio'}
               <Icon name="chevron-down" size={24} />
             </span>
           </button>
@@ -742,6 +752,21 @@ export function PosterApp() {
                 {creationMode === option.value ? <Icon name="check" size={19} /> : null}
               </button>
             ))}
+            <Link
+              href="/logo"
+              prefetch={false}
+              role="option"
+              aria-selected={creationMode === 'logo'}
+              tabIndex={modeMenuOpen ? 0 : -1}
+              onClick={() => setModeMenuOpen(false)}
+            >
+              <span className="poster-app__mode-option-icon"><Icon name="sparkles" size={18} /></span>
+              <span>
+                <strong>Logo Studio</strong>
+                <small>Create a focused identity system</small>
+              </span>
+              {creationMode === 'logo' ? <Icon name="check" size={19} /> : null}
+            </Link>
           </div>
         </div>
         <div className="poster-app__account-wrap" ref={accountMenuRef}>
@@ -1219,8 +1244,10 @@ export function PosterApp() {
         </section>
       ) : creationMode === 'documents' ? (
         <DocumentSearch />
-      ) : (
+      ) : creationMode === 'english' ? (
         <EnglishPractice />
+      ) : (
+        <LogoStudioView />
       )}
     </main>
   );

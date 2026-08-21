@@ -3,22 +3,10 @@ import type {
   LogoArchitecture,
   LogoBriefRequest,
   LogoBriefResponse,
-  ProjectMetadata,
 } from '@open-design/contracts';
 import { useI18n } from '../i18n';
-import type { CreateInput } from './NewProjectPanel';
+import { createProject } from '../state/projects';
 import { Icon } from './Icon';
-
-interface Props {
-  onCreate: (
-    input: CreateInput & {
-      pendingPrompt?: string;
-      pluginId?: string;
-      pluginInputs?: Record<string, unknown>;
-      autoSendFirstMessage?: boolean;
-    },
-  ) => void;
-}
 
 const PERSONALITIES = ['precise', 'warm', 'bold', 'playful', 'premium', 'organic'] as const;
 const APPLICATIONS = ['web', 'favicon', 'social', 'app-icon', 'print'] as const;
@@ -50,6 +38,7 @@ const COPY = {
     previewHint: 'A structural preview — the agent will explore four distinct ideas.',
     required: 'Add a brand name and industry to continue.',
     failed: 'Could not prepare the logo brief. Please try again.',
+    started: 'Generation started. Four directions are being prepared in the background.',
     architectureLabels: {
       combination: 'Symbol + name',
       symbol: 'Symbol',
@@ -82,6 +71,7 @@ const COPY = {
     previewHint: '这里只预览结构；生成后会探索四种真正不同的创意。',
     required: '请先填写品牌名称和行业。',
     failed: 'Logo 简报创建失败，请重试。',
+    started: '生成任务已启动，系统正在后台准备四个方向。',
     architectureLabels: {
       combination: '图形 + 字标',
       symbol: '独立图形',
@@ -116,7 +106,7 @@ function splitList(value: string): string[] {
   return value.split(/[\n,，]+/u).map((item) => item.trim()).filter(Boolean);
 }
 
-export function LogoStudioView({ onCreate }: Props) {
+export function LogoStudioView() {
   const { locale } = useI18n();
   const language = locale.startsWith('zh') ? 'zh' : 'en';
   const copy = COPY[language];
@@ -137,6 +127,7 @@ export function LogoStudioView({ onCreate }: Props) {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const brandParts = brandName.trim().split(/\s+/u).filter(Boolean);
   const initials = brandParts.length === 0
@@ -154,6 +145,7 @@ export function LogoStudioView({ onCreate }: Props) {
     }
     setSubmitting(true);
     setError('');
+    setSuccess('');
     const request: LogoBriefRequest = {
       brandName,
       industry,
@@ -173,20 +165,29 @@ export function LogoStudioView({ onCreate }: Props) {
       });
       if (!response.ok) throw new Error(`logo brief failed: ${response.status}`);
       const { project } = await response.json() as LogoBriefResponse;
-      const metadata: ProjectMetadata = project.metadata ?? {
-        kind: 'image',
-        imageAspect: '1:1',
-      };
-      onCreate({
+      const created = await createProject({
         name: project.name,
         skillId: project.skillId ?? 'logo-generator',
         designSystemId: project.designSystemId ?? null,
-        metadata,
+        metadata: project.metadata ?? { kind: 'image', imageAspect: '1:1' },
         pendingPrompt: project.pendingPrompt,
-        pluginId: project.pluginId,
-        pluginInputs: project.pluginInputs,
-        autoSendFirstMessage: true,
+        ...(project.pluginId ? { pluginId: project.pluginId } : {}),
+        ...(project.pluginInputs ? { pluginInputs: project.pluginInputs } : {}),
       });
+      if (!created) throw new Error('logo project creation failed');
+      const runResponse = await fetch('/api/runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: created.project.id,
+          conversationId: created.conversationId,
+          message: project.pendingPrompt,
+          appliedPluginSnapshotId: created.appliedPluginSnapshotId,
+        }),
+      });
+      if (!runResponse.ok) throw new Error(`logo run failed: ${runResponse.status}`);
+      setSuccess(copy.started);
+      setSubmitting(false);
     } catch {
       setError(copy.failed);
       setSubmitting(false);
@@ -339,6 +340,7 @@ export function LogoStudioView({ onCreate }: Props) {
           </div>
 
           {error ? <p className="logo-studio__error" role="alert">{error}</p> : null}
+          {success ? <p className="logo-studio__success" role="status">{success}</p> : null}
           <button className="logo-studio__submit" type="submit" disabled={submitting}>
             <span>{submitting ? copy.submitting : copy.submit}</span>
             <Icon name="chevron-right" size={17} />

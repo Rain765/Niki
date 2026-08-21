@@ -227,6 +227,7 @@
 .logo-studio__palette input::-webkit-color-swatch { border: 0; border-radius: 6px; }
 
 .logo-studio__error { margin: 0 0 12px; color: var(--danger, #d4543b); font-size: 12px; }
+.logo-studio__success { margin: 0 0 12px; color: var(--success); font-size: 12px; }
 .logo-studio__submit {
   width: 100%;
   min-height: 48px;
