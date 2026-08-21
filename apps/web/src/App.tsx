@@ -1447,6 +1447,8 @@ export function App() {
           ? 'project'
           : route.kind === 'design-files'
             ? 'design-files'
+            : route.kind === 'home' && route.view === 'logo'
+              ? 'logo'
             : 'home'
       }
       projectsLoading={projectsLoading}
@@ -1456,6 +1458,7 @@ export function App() {
         navigate({ kind: 'home', view: 'home' });
       }}
       onOpenDesignFiles={() => navigate({ kind: 'design-files' })}
+      onOpenLogoStudio={() => navigate({ kind: 'home', view: 'logo' })}
       onRenameProject={handleRenameProject}
       onDeleteProject={handleDeleteProject}
       config={config}

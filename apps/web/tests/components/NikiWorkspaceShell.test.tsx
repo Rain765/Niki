@@ -39,6 +39,7 @@ function renderShell(overrides: Partial<Parameters<typeof NikiWorkspaceShell>[0]
     onOpenProject: vi.fn(),
     onNewProject: vi.fn(),
     onOpenDesignFiles: vi.fn(),
+    onOpenLogoStudio: vi.fn(),
     onRenameProject: vi.fn(),
     onDeleteProject: vi.fn(),
     config: DEFAULT_CONFIG,
@@ -109,6 +110,18 @@ describe('NikiWorkspaceShell', () => {
     const props = renderShell();
     fireEvent.click(screen.getByTestId('niki-new-project'));
     expect(props.onNewProject).toHaveBeenCalledTimes(1);
+  });
+
+  it('places Logo Studio last in the title dropdown and opens it', () => {
+    const props = renderShell({ activeView: 'logo' });
+    fireEvent.click(screen.getByTestId('niki-title-menu-trigger'));
+
+    const menu = screen.getByTestId('niki-title-menu');
+    const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+    expect(items.at(-1)?.textContent).toContain('Logo Studio');
+
+    fireEvent.click(screen.getByTestId('niki-title-logo-studio'));
+    expect(props.onOpenLogoStudio).toHaveBeenCalledTimes(1);
   });
 
   it('restores the account menu with runtime controls and full settings', () => {
