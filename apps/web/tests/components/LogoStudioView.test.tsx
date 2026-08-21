@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../../src/i18n';
 import { LogoStudioView } from '../../src/components/LogoStudioView';
@@ -91,7 +91,7 @@ describe('LogoStudioView', () => {
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
 
-    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Generation started'));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('Generation complete'));
     expect(fetchMock).toHaveBeenCalledWith('/api/logo/brief', expect.objectContaining({ method: 'POST' }));
     expect(createProjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,6 +142,50 @@ describe('LogoStudioView', () => {
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('local generation agent'));
     expect(createProjectMock).not.toHaveBeenCalled();
     expect(streamViaDaemonMock).not.toHaveBeenCalled();
+  });
+
+  it('shows a four-direction skeleton until logo generation finishes', async () => {
+    createProjectMock.mockResolvedValue({
+      project: { id: 'logo-project-1' },
+      conversationId: 'conversation-1',
+      appliedPluginSnapshotId: 'snapshot-1',
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      brief: {},
+      project: {
+        name: 'Northstar Logo',
+        skillId: 'logo-generator',
+        designSystemId: null,
+        pendingPrompt: 'Use $logo-generator',
+        metadata: { kind: 'image', imageAspect: '1:1', skipDiscoveryBrief: true },
+      },
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
+
+    let finishGeneration: (() => void) | undefined;
+    streamViaDaemonMock.mockImplementation(async (options) => {
+      options.onRunCreated?.('run-1');
+      options.onRunStatus?.('running');
+      finishGeneration = () => options.handlers.onDone('Generated logo directions');
+    });
+
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Brand name'), { target: { value: 'Northstar' } });
+    fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
+
+    const skeleton = await screen.findByTestId('logo-generation-skeleton');
+    expect(skeleton.textContent).toContain('Generating 4 directions');
+    expect((screen.getByRole('button', { name: 'Generating…' }) as HTMLButtonElement).disabled).toBe(true);
+
+    act(() => finishGeneration?.());
+
+    await waitFor(() => expect(screen.queryByTestId('logo-generation-skeleton')).toBeNull());
+    expect((screen.getByRole('button', { name: 'Generate 4 directions' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('keeps the user on the form when required fields are empty', () => {

@@ -366,6 +366,71 @@
   overflow: hidden;
   transition: background-color 180ms cubic-bezier(.23, 1, .32, 1), color 180ms cubic-bezier(.23, 1, .32, 1);
 }
+.logo-studio__preview-stage.is-generating { background: var(--poster-panel-raised); }
+.logo-studio__generation-skeleton {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(
+    100deg,
+    var(--poster-panel-raised) 15%,
+    var(--poster-fill-0) 35%,
+    var(--poster-panel-raised) 55%
+  );
+  background-size: 200% 100%;
+  animation: poster-shimmer 1.3s linear infinite;
+}
+.logo-studio__generation-grid {
+  position: absolute;
+  inset: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.logo-studio__generation-tile {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--bg-panel) 64%, transparent);
+}
+.logo-studio__generation-tile i {
+  width: 36%;
+  max-width: 46px;
+  aspect-ratio: 1;
+  border-radius: 32% 12% 32% 12%;
+  background: var(--poster-control-hover);
+  transform: rotate(45deg);
+}
+.logo-studio__generation-tile b {
+  width: 48%;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--poster-control-hover);
+}
+.logo-studio__generation-copy {
+  position: relative;
+  z-index: 1;
+  width: min(78%, 270px);
+  padding: 17px 18px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
+  color: var(--text-strong);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--poster-mask-dark) 13%, transparent);
+  text-align: center;
+  backdrop-filter: blur(10px);
+}
+.logo-studio__generation-copy strong { font-size: 13px; line-height: 1.35; }
+.logo-studio__generation-copy span { color: var(--text-muted); font-size: 10.5px; line-height: 1.5; }
 .logo-studio__logo-preview { width: 78%; display: flex; align-items: center; justify-content: center; gap: 18px; }
 .logo-studio__logo-preview svg { width: min(38%, 118px); flex: 0 0 auto; }
 .logo-studio__logo-preview strong { min-width: 0; overflow: hidden; font-size: clamp(20px, 3vw, 38px); font-weight: 790; letter-spacing: -.055em; text-overflow: ellipsis; white-space: nowrap; }
@@ -397,4 +462,8 @@
   }
   .logo-color-picker__plane { max-height: 54vh; }
   .logo-color-picker__values { grid-template-columns: 92px minmax(0, 1fr) 90px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-studio__generation-skeleton { animation: none; }
 }

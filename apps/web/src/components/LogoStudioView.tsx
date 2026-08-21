@@ -38,13 +38,17 @@ const COPY = {
     notesPlaceholder: 'Origin story, naming meaning, cultural context, hard constraints…',
     submit: 'Generate 4 directions',
     submitting: 'Preparing studio…',
-    preview: 'Live sketch',
-    previewHint: 'A structural preview — the agent will explore four distinct ideas.',
+    generatingButton: 'Generating…',
+    preview: 'Preview',
+    previewHint: 'A structural reference for the brief. Generated directions replace this state.',
+    generatingPreview: 'Generating 4 directions',
+    generatingHint: 'Creating distinct logo concepts and production-ready files. This can take a few minutes.',
     required: 'Add a brand name and industry to continue.',
     failed: 'Could not prepare the logo brief. Please try again.',
     noAgent: 'No local generation agent is available. Configure one in Settings and try again.',
     timeout: 'Starting the generation timed out. Please try again.',
     started: 'Generation started. Four directions are being prepared in the background.',
+    completed: 'Generation complete. Four directions are ready.',
     architectureLabels: {
       combination: 'Symbol + name',
       symbol: 'Symbol',
@@ -70,13 +74,17 @@ const COPY = {
     notesPlaceholder: '品牌故事、命名含义、文化语境、硬性限制……',
     submit: '生成 4 个方向',
     submitting: '正在准备工作台……',
-    preview: '实时草图',
-    previewHint: '这里只预览结构；生成后会探索四种真正不同的创意。',
+    generatingButton: '生成中…',
+    preview: '预览',
+    previewHint: '这里仅作为简报的结构参考，生成后会进入正式创意阶段。',
+    generatingPreview: '正在生成 4 个方向',
+    generatingHint: '正在创建不同的 Logo 概念与可交付文件，可能需要几分钟。',
     required: '请先填写品牌名称和行业。',
     failed: 'Logo 简报创建失败，请重试。',
     noAgent: '当前没有可用的本地生成代理，请先在设置中完成配置。',
     timeout: '启动生成任务超时，请重试。',
     started: '生成任务已启动，系统正在后台准备四个方向。',
+    completed: '生成完成，四个方向已经准备好。',
     architectureLabels: {
       combination: '图形 + 字标',
       symbol: '独立图形',
@@ -132,6 +140,7 @@ export function LogoStudioView() {
   const [avoid, setAvoid] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const paletteButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -167,6 +176,7 @@ export function LogoStudioView() {
       return;
     }
     setSubmitting(true);
+    setGenerating(true);
     setError('');
     setSuccess('');
     runAbortRef.current?.abort();
@@ -179,6 +189,7 @@ export function LogoStudioView() {
       runAbortRef.current = null;
       prepareTimeoutRef.current = null;
       setSubmitting(false);
+      setGenerating(false);
       setError(copy.timeout);
     }, PREPARE_TIMEOUT_MS);
     const request: LogoBriefRequest = {
@@ -272,6 +283,7 @@ export function LogoStudioView() {
           },
           onDone: (fullText) => {
             if (runAbortRef.current !== controller) return;
+            clearPrepareTimeout();
             assistantMessage = {
               ...assistantMessage,
               content: assistantMessage.content || fullText,
@@ -284,6 +296,9 @@ export function LogoStudioView() {
               assistantMessage,
               { telemetryFinalized: true },
             );
+            setSubmitting(false);
+            setGenerating(false);
+            setSuccess(copy.completed);
             runAbortRef.current = null;
           },
           onError: (runError) => {
@@ -301,6 +316,7 @@ export function LogoStudioView() {
               { telemetryFinalized: true },
             );
             setSubmitting(false);
+            setGenerating(false);
             setSuccess('');
             setError(runError.message || copy.failed);
             runAbortRef.current = null;
@@ -330,6 +346,7 @@ export function LogoStudioView() {
       runAbortRef.current = null;
       setError(submitError instanceof Error ? submitError.message : copy.failed);
       setSubmitting(false);
+      setGenerating(false);
     }
   }
 
@@ -484,37 +501,65 @@ export function LogoStudioView() {
 
           {error ? <p className="logo-studio__error" role="alert">{error}</p> : null}
           {success ? <p className="logo-studio__success" role="status">{success}</p> : null}
-          <button className="logo-studio__submit" type="submit" disabled={submitting}>
-            <span>{submitting ? copy.submitting : copy.submit}</span>
+          <button className="logo-studio__submit" type="submit" disabled={submitting || generating}>
+            <span>{submitting ? copy.submitting : generating ? copy.generatingButton : copy.submit}</span>
             <Icon name="chevron-right" size={17} />
           </button>
         </div>
 
-        <aside className="logo-studio__preview-card" aria-label={copy.preview}>
+        <aside
+          className="logo-studio__preview-card"
+          aria-label={generating ? copy.generatingPreview : copy.preview}
+          aria-busy={generating}
+        >
           <div className="logo-studio__preview-head">
-            <span>{copy.preview}</span>
-            <span>1:1</span>
+            <span>{generating ? copy.generatingPreview : copy.preview}</span>
+            <span>{generating ? '4 directions' : '1:1'}</span>
           </div>
           <div
-            className="logo-studio__preview-stage"
-            style={{ backgroundColor: paperColor, color: inkColor }}
+            className={`logo-studio__preview-stage${generating ? ' is-generating' : ''}`}
+            style={generating ? undefined : { backgroundColor: paperColor, color: inkColor }}
           >
-            <LogoPreview
-              architecture={architecture}
-              brandName={brandName || copy.brandPlaceholder}
-              initials={initials}
-              primary={primaryColor}
-              ink={inkColor}
-            />
+            {generating ? (
+              <div
+                className="logo-studio__generation-skeleton"
+                data-testid="logo-generation-skeleton"
+                role="status"
+                aria-live="polite"
+              >
+                <div className="logo-studio__generation-grid" aria-hidden="true">
+                  {Array.from({ length: 4 }, (_, index) => (
+                    <span className="logo-studio__generation-tile" key={index}>
+                      <i />
+                      <b />
+                    </span>
+                  ))}
+                </div>
+                <div className="logo-studio__generation-copy">
+                  <strong>{copy.generatingPreview}</strong>
+                  <span>{copy.generatingHint}</span>
+                </div>
+              </div>
+            ) : (
+              <LogoPreview
+                architecture={architecture}
+                brandName={brandName || copy.brandPlaceholder}
+                initials={initials}
+                primary={primaryColor}
+                ink={inkColor}
+              />
+            )}
           </div>
-          <div className="logo-studio__preview-meta">
-            <div className="logo-studio__mini-marks">
-              <span style={{ backgroundColor: inkColor, color: paperColor }}>{initials}</span>
-              <span style={{ backgroundColor: paperColor, color: inkColor }}>{initials}</span>
-              <span style={{ backgroundColor: primaryColor, color: paperColor }}>{initials}</span>
+          {generating ? null : (
+            <div className="logo-studio__preview-meta">
+              <div className="logo-studio__mini-marks">
+                <span style={{ backgroundColor: inkColor, color: paperColor }}>{initials}</span>
+                <span style={{ backgroundColor: paperColor, color: inkColor }}>{initials}</span>
+                <span style={{ backgroundColor: primaryColor, color: paperColor }}>{initials}</span>
+              </div>
+              <p>{copy.previewHint}</p>
             </div>
-            <p>{copy.previewHint}</p>
-          </div>
+          )}
         </aside>
       </form>
     </section>
