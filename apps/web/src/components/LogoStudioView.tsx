@@ -4,12 +4,13 @@ import type {
   LogoBriefRequest,
   LogoBriefResponse,
   MediaTaskSnapshot,
+  Project,
   ProjectFile,
 } from '@open-design/contracts';
 import { useI18n } from '../i18n';
 import { listProjectMediaTasks, startProjectMediaTask, waitForMediaTask } from '../providers/media';
 import { fetchProjectFiles, projectFileUrl } from '../providers/registry';
-import { createProject } from '../state/projects';
+import { createProject, listProjects } from '../state/projects';
 import { randomUUID } from '../utils/uuid';
 import { Icon } from './Icon';
 import { LogoColorPicker } from './LogoColorPicker';
@@ -29,6 +30,20 @@ const LOGO_DIRECTIONS = [
 const LOGO_OUTPUTS = LOGO_DIRECTIONS.map((_, index) => (
   `logo-direction-${String(index + 1).padStart(2, '0')}.png`
 ));
+
+type LogoHistoryStatus = 'working' | 'complete' | 'failed' | 'incomplete';
+
+interface LogoHistoryEntry {
+  projectId: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  status: LogoHistoryStatus;
+  completedCount: number;
+  taskCount: number;
+  files: ProjectFile[];
+  error?: string;
+}
 
 const COPY = {
   en: {
@@ -51,11 +66,20 @@ const COPY = {
     submitting: 'Preparing studio…',
     generatingButton: 'Generating…',
     preview: 'Preview',
-    previewHint: 'A structural reference for the brief. Generated directions replace this state.',
+    previewHint: 'A structural reference for the brief. Generated directions appear in history below.',
     generatingPreview: 'Generating 4 directions',
     generatingHint: 'Creating distinct logo concepts and production-ready files. This can take a few minutes.',
-    results: 'Generated directions',
-    resultCount: '4 images',
+    history: 'Generation history',
+    historyEyebrow: 'Saved work',
+    historyLoading: 'Loading saved logo generations…',
+    historyEmpty: 'Generated logo directions will appear here.',
+    historyBatches: 'batches',
+    historyImages: 'images',
+    historyComplete: 'Complete',
+    historyWorking: 'Generating',
+    historyFailed: 'Failed',
+    historyIncomplete: 'Incomplete',
+    direction: 'Direction',
     required: 'Add a brand name and industry to continue.',
     failed: 'Could not generate the logo directions. Please try again.',
     incomplete: 'Generation finished without four image files. Please try again.',
@@ -89,11 +113,20 @@ const COPY = {
     submitting: '正在准备工作台……',
     generatingButton: '生成中…',
     preview: '预览',
-    previewHint: '这里仅作为简报的结构参考，生成后会进入正式创意阶段。',
+    previewHint: '这里仅作为简报的结构参考，生成结果会保存在下方记录中。',
     generatingPreview: '正在生成 4 个方向',
     generatingHint: '正在创建不同的 Logo 概念与可交付文件，可能需要几分钟。',
-    results: '生成结果',
-    resultCount: '4 张图片',
+    history: '生成记录',
+    historyEyebrow: '已保存作品',
+    historyLoading: '正在加载历史生成记录……',
+    historyEmpty: '生成的 Logo 方向会保存在这里。',
+    historyBatches: '批',
+    historyImages: '张图片',
+    historyComplete: '已完成',
+    historyWorking: '生成中',
+    historyFailed: '生成失败',
+    historyIncomplete: '结果不完整',
+    direction: '方向',
     required: '请先填写品牌名称和行业。',
     failed: 'Logo 图片生成失败，请重试。',
     incomplete: '生成任务没有产出完整的 4 张图片，请重试。',
@@ -139,6 +172,55 @@ function logoResultFiles(files: ProjectFile[]): ProjectFile[] {
   return files
     .filter((file) => outputOrder.has(file.name) && file.kind === 'image' && file.size > 0)
     .sort((left, right) => outputOrder.get(left.name)! - outputOrder.get(right.name)!);
+}
+
+function historyEntryFromProject(
+  project: Project,
+  tasks: MediaTaskSnapshot[],
+  files: ProjectFile[],
+): LogoHistoryEntry | null {
+  const logoTasks = tasks.filter((task) => (
+    'surface' in task && 'model' in task
+      ? task.surface === 'image' && task.model === IMAGE_MODEL
+      : true
+  ));
+  const resultFiles = logoResultFiles(files);
+  if (logoTasks.length === 0 && resultFiles.length === 0) return null;
+
+  const active = logoTasks.some((task) => task.status === 'queued' || task.status === 'running');
+  const failedTask = logoTasks.find((task) => (
+    task.status === 'failed' || task.status === 'interrupted'
+  ));
+  const status: LogoHistoryStatus = resultFiles.length === LOGO_OUTPUTS.length
+    ? 'complete'
+    : active
+      ? 'working'
+      : failedTask
+        ? 'failed'
+        : 'incomplete';
+
+  return {
+    projectId: project.id,
+    name: project.name,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+    status,
+    completedCount: Math.min(LOGO_OUTPUTS.length, Math.max(
+      resultFiles.length,
+      logoTasks.filter((task) => task.status === 'done').length,
+    )),
+    taskCount: LOGO_OUTPUTS.length,
+    files: resultFiles,
+    ...(failedTask?.error?.message ? { error: failedTask.error.message } : {}),
+  };
+}
+
+function upsertHistoryEntry(
+  entries: LogoHistoryEntry[],
+  next: LogoHistoryEntry,
+): LogoHistoryEntry[] {
+  return [next, ...entries.filter((entry) => entry.projectId !== next.projectId)]
+    .sort((left, right) => right.createdAt - left.createdAt);
 }
 
 async function waitForCompletedLogoTask(
@@ -208,8 +290,8 @@ export function LogoStudioView() {
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
-  const [resultFiles, setResultFiles] = useState<ProjectFile[]>([]);
-  const [resultProjectId, setResultProjectId] = useState<string | null>(null);
+  const [historyEntries, setHistoryEntries] = useState<LogoHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const paletteButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -224,11 +306,41 @@ export function LogoStudioView() {
     }
   }, []);
 
+  const refreshHistory = useCallback(async (
+    signal?: AbortSignal,
+    showLoading = false,
+  ) => {
+    if (showLoading) setHistoryLoading(true);
+    const projects = (await listProjects())
+      .filter((project) => project.skillId === 'logo-generator')
+      .sort((left, right) => right.createdAt - left.createdAt);
+    const entries = await Promise.all(projects.map(async (project) => {
+      try {
+        const [files, response] = await Promise.all([
+          fetchProjectFiles(project.id),
+          listProjectMediaTasks(project.id).catch(() => ({ tasks: [] })),
+        ]);
+        return historyEntryFromProject(project, response.tasks, files);
+      } catch {
+        return null;
+      }
+    }));
+    if (signal?.aborted) return;
+    setHistoryEntries(entries.filter((entry): entry is LogoHistoryEntry => Boolean(entry)));
+    setHistoryLoading(false);
+  }, []);
+
   useEffect(() => () => {
     clearPrepareTimeout();
     runAbortRef.current?.abort();
     runAbortRef.current = null;
   }, [clearPrepareTimeout]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void refreshHistory(controller.signal, true);
+    return () => controller.abort();
+  }, [refreshHistory]);
 
   useEffect(() => {
     const projectId = window.localStorage.getItem(LAST_LOGO_PROJECT_STORAGE_KEY);
@@ -240,10 +352,6 @@ export function LogoStudioView() {
         const restored = logoResultFiles(await fetchProjectFiles(projectId));
         if (controller.signal.aborted) return;
         if (restored.length === LOGO_OUTPUTS.length) {
-          setResultProjectId(projectId);
-          setResultFiles(restored);
-          setCompletedCount(LOGO_OUTPUTS.length);
-          setSuccess(copy.completed);
           return;
         }
 
@@ -260,7 +368,6 @@ export function LogoStudioView() {
         const activeTasks = tasks.filter((task) => (
           task.status === 'queued' || task.status === 'running'
         ));
-        setResultProjectId(projectId);
         setCompletedCount(tasks.filter((task) => task.status === 'done').length);
         setGenerating(true);
         setSuccess(copy.started);
@@ -274,20 +381,21 @@ export function LogoStudioView() {
 
         const files = await fetchCompletedLogoFiles(projectId, controller.signal);
         if (files.length !== LOGO_OUTPUTS.length) throw new Error(copy.incomplete);
-        setResultFiles(files);
         setCompletedCount(LOGO_OUTPUTS.length);
         setGenerating(false);
         setSuccess(copy.completed);
+        await refreshHistory(controller.signal);
       } catch (restoreError) {
         if (controller.signal.aborted) return;
         setGenerating(false);
         setError(restoreError instanceof Error ? restoreError.message : copy.failed);
+        await refreshHistory(controller.signal);
       } finally {
         if (runAbortRef.current === controller) runAbortRef.current = null;
       }
     })();
     return () => controller.abort();
-  }, []);
+  }, [copy.completed, copy.failed, copy.incomplete, copy.started, refreshHistory]);
 
   const brandParts = brandName.trim().split(/\s+/u).filter(Boolean);
   const initials = brandParts.length === 0
@@ -306,13 +414,27 @@ export function LogoStudioView() {
     setSubmitting(true);
     setGenerating(true);
     setCompletedCount(0);
-    setResultFiles([]);
-    setResultProjectId(null);
     setError('');
     setSuccess('');
     runAbortRef.current?.abort();
     clearPrepareTimeout();
     const controller = new AbortController();
+    let activeProjectId: string | null = null;
+    let activeProjectName = `${brandName.trim()} Logo`;
+    let activeProjectCreatedAt = Date.now();
+    const markActiveHistoryFailed = (message: string) => {
+      if (!activeProjectId) return;
+      setHistoryEntries((current) => {
+        const existing = current.find((entry) => entry.projectId === activeProjectId);
+        if (!existing) return current;
+        return upsertHistoryEntry(current, {
+          ...existing,
+          status: 'failed',
+          updatedAt: Date.now(),
+          error: message,
+        });
+      });
+    };
     runAbortRef.current = controller;
     prepareTimeoutRef.current = window.setTimeout(() => {
       if (runAbortRef.current !== controller) return;
@@ -323,6 +445,7 @@ export function LogoStudioView() {
       setGenerating(false);
       setCompletedCount(0);
       setError(copy.timeout);
+      markActiveHistoryFailed(copy.timeout);
     }, PREPARE_TIMEOUT_MS);
     const request: LogoBriefRequest = {
       brandName,
@@ -363,6 +486,19 @@ export function LogoStudioView() {
       }, { signal: controller.signal });
       if (!created) throw new Error('logo project creation failed');
       const projectId = created.project.id;
+      activeProjectId = projectId;
+      activeProjectName = created.project.name || project.name;
+      activeProjectCreatedAt = created.project.createdAt || Date.now();
+      setHistoryEntries((current) => upsertHistoryEntry(current, {
+        projectId,
+        name: activeProjectName,
+        createdAt: activeProjectCreatedAt,
+        updatedAt: created.project.updatedAt || activeProjectCreatedAt,
+        status: 'working',
+        completedCount: 0,
+        taskCount: LOGO_OUTPUTS.length,
+        files: [],
+      }));
       window.localStorage.setItem(LAST_LOGO_PROJECT_STORAGE_KEY, projectId);
       const batchId = randomUUID();
       const acceptedTasks = await Promise.all(LOGO_DIRECTIONS.map((direction, index) => (
@@ -389,14 +525,31 @@ export function LogoStudioView() {
         await waitForCompletedLogoTask(task.taskId, controller.signal);
         if (runAbortRef.current === controller) {
           setCompletedCount((current) => Math.min(LOGO_OUTPUTS.length, current + 1));
+          setHistoryEntries((current) => current.map((entry) => (
+            entry.projectId === projectId
+              ? {
+                  ...entry,
+                  completedCount: Math.min(LOGO_OUTPUTS.length, entry.completedCount + 1),
+                  updatedAt: Date.now(),
+                }
+              : entry
+          )));
         }
       }));
       if (runAbortRef.current !== controller) return;
 
       const files = await fetchCompletedLogoFiles(projectId, controller.signal);
       if (files.length !== LOGO_OUTPUTS.length) throw new Error(copy.incomplete);
-      setResultProjectId(projectId);
-      setResultFiles(files);
+      setHistoryEntries((current) => upsertHistoryEntry(current, {
+        projectId,
+        name: activeProjectName,
+        createdAt: activeProjectCreatedAt,
+        updatedAt: Date.now(),
+        status: 'complete',
+        completedCount: LOGO_OUTPUTS.length,
+        taskCount: LOGO_OUTPUTS.length,
+        files,
+      }));
       setCompletedCount(LOGO_OUTPUTS.length);
       setGenerating(false);
       setSuccess(copy.completed);
@@ -405,15 +558,17 @@ export function LogoStudioView() {
       if (runAbortRef.current !== controller) return;
       clearPrepareTimeout();
       runAbortRef.current = null;
-      setError(submitError instanceof Error ? submitError.message : copy.failed);
+      const message = submitError instanceof Error ? submitError.message : copy.failed;
+      setError(message);
+      markActiveHistoryFailed(message);
       setSubmitting(false);
       setGenerating(false);
       setCompletedCount(0);
     }
   }
 
-  const hasResults = Boolean(resultProjectId && resultFiles.length === LOGO_OUTPUTS.length);
-  const previewLabel = generating ? copy.generatingPreview : hasResults ? copy.results : copy.preview;
+  const previewLabel = generating ? copy.generatingPreview : copy.preview;
+  const historyImageCount = historyEntries.reduce((total, entry) => total + entry.files.length, 0);
 
   return (
     <section className="logo-studio" aria-label={copy.brief}>
@@ -579,11 +734,11 @@ export function LogoStudioView() {
         >
           <div className="logo-studio__preview-head">
             <span>{previewLabel}</span>
-            <span>{generating ? `${completedCount}/4` : hasResults ? copy.resultCount : '1:1'}</span>
+            <span>{generating ? `${completedCount}/4` : '1:1'}</span>
           </div>
           <div
-            className={`logo-studio__preview-stage${generating ? ' is-generating' : ''}${hasResults ? ' has-results' : ''}`}
-            style={generating || hasResults ? undefined : { backgroundColor: paperColor, color: inkColor }}
+            className={`logo-studio__preview-stage${generating ? ' is-generating' : ''}`}
+            style={generating ? undefined : { backgroundColor: paperColor, color: inkColor }}
           >
             {generating ? (
               <div
@@ -605,24 +760,6 @@ export function LogoStudioView() {
                   <span>{copy.generatingHint}</span>
                 </div>
               </div>
-            ) : hasResults ? (
-              <div className="logo-studio__result-grid" data-testid="logo-result-grid">
-                {resultFiles.map((file, index) => (
-                  <a
-                    href={projectFileUrl(resultProjectId!, file.name)}
-                    key={file.name}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`${copy.results} ${index + 1}`}
-                  >
-                    <img
-                      src={`${projectFileUrl(resultProjectId!, file.name)}?v=${Math.round(file.mtime)}`}
-                      alt={`Logo direction ${index + 1}`}
-                    />
-                    <span>{String.fromCharCode(65 + index)}</span>
-                  </a>
-                ))}
-              </div>
             ) : (
               <LogoPreview
                 architecture={architecture}
@@ -633,7 +770,7 @@ export function LogoStudioView() {
               />
             )}
           </div>
-          {generating || hasResults ? null : (
+          {generating ? null : (
             <div className="logo-studio__preview-meta">
               <div className="logo-studio__mini-marks">
                 <span style={{ backgroundColor: inkColor, color: paperColor }}>{initials}</span>
@@ -645,7 +782,100 @@ export function LogoStudioView() {
           )}
         </aside>
       </form>
+
+      <section className="logo-studio__history" aria-label={copy.history}>
+        <header className="logo-studio__history-head">
+          <div>
+            <span>{copy.historyEyebrow}</span>
+            <strong>{copy.history}</strong>
+          </div>
+          <p>
+            {historyEntries.length} {copy.historyBatches} · {historyImageCount} {copy.historyImages}
+          </p>
+        </header>
+
+        {historyLoading ? (
+          <div className="logo-studio__history-empty" role="status">{copy.historyLoading}</div>
+        ) : historyEntries.length === 0 ? (
+          <div className="logo-studio__history-empty">{copy.historyEmpty}</div>
+        ) : (
+          <div className="logo-studio__history-list">
+            {historyEntries.map((entry) => (
+              <LogoHistoryBatch
+                copy={copy}
+                entry={entry}
+                language={language}
+                key={entry.projectId}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </section>
+  );
+}
+
+function LogoHistoryBatch({
+  copy,
+  entry,
+  language,
+}: {
+  copy: (typeof COPY)[keyof typeof COPY];
+  entry: LogoHistoryEntry;
+  language: keyof typeof COPY;
+}) {
+  const statusLabel = {
+    complete: copy.historyComplete,
+    working: copy.historyWorking,
+    failed: copy.historyFailed,
+    incomplete: copy.historyIncomplete,
+  }[entry.status];
+  const formattedDate = new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(entry.createdAt));
+
+  return (
+    <article className="logo-studio__history-batch">
+      <header className="logo-studio__history-batch-head">
+        <div>
+          <strong>{entry.name}</strong>
+          <time dateTime={new Date(entry.createdAt).toISOString()}>{formattedDate}</time>
+        </div>
+        <span className={`logo-studio__history-status is-${entry.status}`}>
+          {statusLabel} · {entry.completedCount}/{entry.taskCount}
+        </span>
+      </header>
+      <div className="logo-studio__history-grid">
+        {LOGO_OUTPUTS.map((output, index) => {
+          const file = entry.files.find((candidate) => candidate.name === output);
+          return file ? (
+            <a
+              className="logo-studio__history-image"
+              href={projectFileUrl(entry.projectId, file.name)}
+              key={output}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`${entry.name} ${copy.direction} ${index + 1}`}
+            >
+              <img
+                src={`${projectFileUrl(entry.projectId, file.name)}?v=${Math.round(file.mtime)}`}
+                alt={`${entry.name} direction ${index + 1}`}
+              />
+              <span>{String.fromCharCode(65 + index)}</span>
+            </a>
+          ) : (
+            <div className={`logo-studio__history-placeholder is-${entry.status}`} key={output}>
+              <span>{String.fromCharCode(65 + index)}</span>
+              <small>{statusLabel}</small>
+            </div>
+          );
+        })}
+      </div>
+      {entry.error ? <p className="logo-studio__history-error">{entry.error}</p> : null}
+    </article>
   );
 }
 

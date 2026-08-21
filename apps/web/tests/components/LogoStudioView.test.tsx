@@ -1,18 +1,20 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../../src/i18n';
 import { LogoStudioView } from '../../src/components/LogoStudioView';
 
 const {
   createProjectMock,
+  listProjectsMock,
   fetchProjectFilesMock,
   listProjectMediaTasksMock,
   startProjectMediaTaskMock,
   waitForMediaTaskMock,
 } = vi.hoisted(() => ({
   createProjectMock: vi.fn(),
+  listProjectsMock: vi.fn(),
   fetchProjectFilesMock: vi.fn(),
   listProjectMediaTasksMock: vi.fn(),
   startProjectMediaTaskMock: vi.fn(),
@@ -21,6 +23,7 @@ const {
 
 vi.mock('../../src/state/projects', () => ({
   createProject: createProjectMock,
+  listProjects: listProjectsMock,
 }));
 vi.mock('../../src/providers/media', () => ({
   listProjectMediaTasks: listProjectMediaTasksMock,
@@ -53,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
   taskOutputs.clear();
+  listProjectsMock.mockResolvedValue([]);
   listProjectMediaTasksMock.mockResolvedValue({ tasks: [] });
   startProjectMediaTaskMock.mockImplementation(async (_projectId, request) => {
     const taskId = `task-${taskOutputs.size + 1}`;
@@ -77,7 +81,7 @@ beforeEach(() => {
 });
 
 describe('LogoStudioView', () => {
-  it('builds the brief and renders four directly generated logo files', async () => {
+  it('builds the brief and moves four generated files into history instead of the preview', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
       brief: {
@@ -112,7 +116,7 @@ describe('LogoStudioView', () => {
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
 
-    await screen.findByTestId('logo-result-grid');
+    const history = await screen.findByRole('region', { name: 'Generation history' });
     expect(fetchMock).toHaveBeenCalledWith('/api/logo/brief', expect.objectContaining({ method: 'POST' }));
     expect(createProjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -132,7 +136,9 @@ describe('LogoStudioView', () => {
     expect(new Set(mediaRequests.map((request) => request.output)).size).toBe(4);
     expect(new Set(mediaRequests.map((request) => request.prompt)).size).toBe(4);
     expect(waitForMediaTaskMock).toHaveBeenCalledTimes(4);
-    expect(screen.getAllByRole('img', { name: /Logo direction/ })).toHaveLength(4);
+    expect(within(history).getAllByRole('img', { name: /Northstar Logo direction/ })).toHaveLength(4);
+    expect(screen.queryByTestId('logo-result-grid')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Northstar mark preview' })).toBeTruthy();
   });
 
   it('reports media generation failures instead of claiming completion', async () => {
@@ -163,11 +169,32 @@ describe('LogoStudioView', () => {
     expect(screen.queryByTestId('logo-generation-skeleton')).toBeNull();
   });
 
-  it('restores the last four generated images after a reload', async () => {
+  it('restores all persisted logo projects after a reload without relying on local storage', async () => {
     for (let index = 1; index <= 4; index += 1) {
       taskOutputs.set(`task-${index}`, `logo-direction-${String(index).padStart(2, '0')}.png`);
     }
-    window.localStorage.setItem('niki:logo-studio:last-project', 'logo-project-1');
+    listProjectsMock.mockResolvedValue([{
+      id: 'logo-project-1',
+      name: 'Northstar Logo',
+      skillId: 'logo-generator',
+      designSystemId: null,
+      createdAt: 2,
+      updatedAt: 2,
+    }]);
+    listProjectMediaTasksMock.mockResolvedValue({
+      tasks: Array.from({ length: 4 }, (_, index) => ({
+        taskId: `task-${index + 1}`,
+        status: 'done',
+        startedAt: index + 1,
+        endedAt: index + 2,
+        elapsed: 1,
+        progress: [],
+        progressCount: 0,
+        nextSince: 0,
+        surface: 'image',
+        model: 'gpt-image-2',
+      })),
+    });
 
     render(
       <I18nProvider initial="en">
@@ -175,9 +202,74 @@ describe('LogoStudioView', () => {
       </I18nProvider>,
     );
 
-    await screen.findByTestId('logo-result-grid');
-    expect(screen.getAllByRole('img', { name: /Logo direction/ })).toHaveLength(4);
+    const history = await screen.findByRole('region', { name: 'Generation history' });
+    expect(within(history).getAllByRole('img', { name: /Northstar Logo direction/ })).toHaveLength(4);
+    expect(screen.queryByTestId('logo-result-grid')).toBeNull();
     expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
+  });
+
+  it('lists multiple persisted batches newest first', async () => {
+    const projects = [
+      {
+        id: 'older-logo',
+        name: 'Atlas Logo',
+        skillId: 'logo-generator',
+        designSystemId: null,
+        createdAt: 100,
+        updatedAt: 100,
+      },
+      {
+        id: 'newer-logo',
+        name: 'AMIZ Logo actual generation',
+        skillId: 'logo-generator',
+        designSystemId: null,
+        createdAt: 200,
+        updatedAt: 200,
+      },
+      {
+        id: 'not-a-logo',
+        name: 'Poster project',
+        skillId: 'loan-poster-generator',
+        designSystemId: null,
+        createdAt: 300,
+        updatedAt: 300,
+      },
+    ];
+    listProjectsMock.mockResolvedValue(projects);
+    fetchProjectFilesMock.mockResolvedValue(Array.from({ length: 4 }, (_, index) => ({
+      name: `logo-direction-${String(index + 1).padStart(2, '0')}.png`,
+      size: 1_024 + index,
+      mtime: index + 1,
+      kind: 'image',
+      mime: 'image/png',
+    })));
+    listProjectMediaTasksMock.mockResolvedValue({
+      tasks: Array.from({ length: 4 }, (_, index) => ({
+        taskId: `task-${index + 1}`,
+        status: 'done',
+        startedAt: index + 1,
+        endedAt: index + 2,
+        elapsed: 1,
+        progress: [],
+        progressCount: 0,
+        nextSince: 0,
+        surface: 'image',
+        model: 'gpt-image-2',
+      })),
+    });
+
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    const history = await screen.findByRole('region', { name: 'Generation history' });
+    const batches = within(history).getAllByRole('article');
+    expect(batches).toHaveLength(2);
+    expect(batches[0]?.textContent).toContain('AMIZ Logo actual generation');
+    expect(batches[1]?.textContent).toContain('Atlas Logo');
+    expect(history.textContent).not.toContain('Poster project');
   });
 
   it('shows a four-direction skeleton until logo generation finishes', async () => {
@@ -224,7 +316,8 @@ describe('LogoStudioView', () => {
     await act(async () => finishGeneration?.());
 
     await waitFor(() => expect(screen.queryByTestId('logo-generation-skeleton')).toBeNull());
-    expect(screen.getAllByRole('img', { name: /Logo direction/ })).toHaveLength(4);
+    const history = screen.getByRole('region', { name: 'Generation history' });
+    expect(within(history).getAllByRole('img', { name: /Northstar Logo direction/ })).toHaveLength(4);
     expect((screen.getByRole('button', { name: 'Generate 4 directions' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
