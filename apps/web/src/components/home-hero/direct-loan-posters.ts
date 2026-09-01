@@ -422,7 +422,10 @@ export async function startDirectLoanPosterProject(
               posterHeadline: scenePlan.headline,
               posterSubtitle: scenePlan.subtitle,
               posterTextAnchor: scenePlan.textAnchor,
-              posterCopyStyle: 'anti-fraud' as const,
+              posterCopyStyle: options.brand === 'zamloan'
+                && options.purpose === 'anti-fraud'
+                ? 'anti-fraud-message' as const
+                : 'anti-fraud' as const,
             }
             : {}),
           output: batchOutputNames[index],

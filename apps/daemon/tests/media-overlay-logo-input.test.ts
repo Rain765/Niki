@@ -251,6 +251,83 @@ describe('media brand overlay inputs', () => {
     expect(greenSubtitlePixels).toBeGreaterThan(100);
   });
 
+  it('composites only a high-legibility anti-fraud message in the bottom-right', async () => {
+    const messagePlate = await sharp({
+      create: {
+        width: 800,
+        height: 1067,
+        channels: 4,
+        background: { r: 226, g: 213, b: 192, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ data: [{ b64_json: messagePlate.toString('base64') }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'poster-project',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'Unified anti-fraud poster with a clean bottom-right notification-safe area',
+      aspect: '3:4',
+      quality: 'medium',
+      posterHeadline: 'Prevent Fraud',
+      posterSubtitle: 'Trust Only Official Customer Service',
+      posterTextAnchor: 'right',
+      posterCopyStyle: 'anti-fraud-message',
+      loanPosterOutput: true,
+      output: 'anti-fraud-message-poster.png',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const output = await readFile(path.join(projectDir, result.name));
+    const { data, info } = await sharp(output)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const offsetAt = (x: number, y: number) => (y * info.width + x) * info.channels;
+    const untouchedTitleOffset = offsetAt(100, 250);
+    expect(Array.from(data.subarray(
+      untouchedTitleOffset,
+      untouchedTitleOffset + 3,
+    ))).toEqual([226, 213, 192]);
+    const messageFaceOffset = offsetAt(700, 900);
+    expect(data[messageFaceOffset]).toBeGreaterThan(225);
+    expect(data[messageFaceOffset + 1]).toBeGreaterThan(225);
+    expect(data[messageFaceOffset + 2]).toBeGreaterThan(225);
+    let redBadgePixels = 0;
+    for (let y = 977; y < 1020; y += 1) {
+      for (let x = 503; x < 546; x += 1) {
+        const offset = offsetAt(x, y);
+        if (
+          (data[offset] ?? 0) > 200
+          && (data[offset + 1] ?? 255) < 150
+          && (data[offset + 2] ?? 255) < 150
+        ) {
+          redBadgePixels += 1;
+        }
+      }
+    }
+    expect(redBadgePixels).toBeGreaterThan(300);
+    let darkTextPixels = 0;
+    for (let y = 875; y < 990; y += 1) {
+      for (let x = 525; x < 745; x += 1) {
+        const offset = offsetAt(x, y);
+        if (
+          (data[offset] ?? 255) < 80
+          && (data[offset + 1] ?? 255) < 80
+          && (data[offset + 2] ?? 255) < 80
+        ) {
+          darkTextPixels += 1;
+        }
+      }
+    }
+    expect(darkTextPixels).toBeGreaterThan(150);
+  });
+
   it('requests an opaque matte foreground and composites it above the exact Z', async () => {
     const referenceName = 'loan-poster-z-reference.png';
     const zReference = await sharp(Buffer.from(`

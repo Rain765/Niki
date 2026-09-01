@@ -1777,7 +1777,7 @@ Common options:
   --poster-subtitle <text>  Deterministic poster subtitle rendered above the model.
   --poster-text-anchor <left|right>
                             Align deterministic copy with the reserved title column.
-  --poster-copy-style <standard|anti-fraud>
+  --poster-copy-style <standard|anti-fraud|anti-fraud-message>
                             Select the deterministic poster copy treatment.
   --daemon-url <url>
 

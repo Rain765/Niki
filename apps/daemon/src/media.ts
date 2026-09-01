@@ -725,6 +725,57 @@ async function renderAntiFraudPosterCopy(
   `);
 }
 
+async function renderAntiFraudMessageOverlay(
+  width: number,
+  height: number,
+): Promise<Buffer> {
+  const aspect = width / height;
+  const widescreen = aspect >= 1.5;
+  const square = !widescreen && aspect >= 0.9;
+  const messageWidth = Math.round(width * (widescreen ? 0.24 : square ? 0.30 : 0.31));
+  const messageHeight = Math.round(height * (widescreen ? 0.23 : square ? 0.19 : 0.145));
+  const messageLeft = width - messageWidth - Math.round(width * 0.050);
+  const messageTop = height - messageHeight - Math.round(height * 0.055);
+  const messageRadius = Math.round(messageHeight * 0.12);
+  const messagePaddingX = Math.round(messageWidth * 0.052);
+  const messagePaddingY = Math.round(messageHeight * 0.095);
+  const appIconSize = Math.round(messageHeight * 0.18);
+  const messageHeaderSize = Math.round(height * (widescreen ? 0.017 : square ? 0.020 : 0.0135));
+  const senderSize = Math.round(height * (widescreen ? 0.022 : square ? 0.026 : 0.017));
+  const messageBodySize = Math.round(height * (widescreen ? 0.018 : square ? 0.021 : 0.014));
+  const headerBaseline = messagePaddingY + Math.round(appIconSize * 0.72);
+  const senderBaseline = Math.round(messageHeight * 0.49);
+  const bodyBaseline = Math.round(messageHeight * 0.69);
+  const badgeSize = Math.round(messageHeight * 0.28);
+  const badgeLeft = messageLeft - Math.round(badgeSize * 0.22);
+  const badgeTop = messageTop + messageHeight - Math.round(badgeSize * 0.72);
+  return Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <g transform="translate(${messageLeft} ${messageTop})">
+        <rect width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#f4f5f6" fill-opacity="0.96" stroke="#c9cdd1" stroke-width="${Math.max(1, Math.round(width * 0.0013))}"/>
+        <g transform="translate(${messagePaddingX} ${messagePaddingY})">
+          <rect width="${appIconSize}" height="${appIconSize}" rx="${Math.round(appIconSize * 0.25)}" fill="#24cf5f"/>
+          <ellipse cx="${appIconSize * 0.50}" cy="${appIconSize * 0.46}" rx="${appIconSize * 0.31}" ry="${appIconSize * 0.25}" fill="#ffffff"/>
+          <path d="M ${appIconSize * 0.32} ${appIconSize * 0.61} L ${appIconSize * 0.24} ${appIconSize * 0.78} L ${appIconSize * 0.46} ${appIconSize * 0.66} Z" fill="#ffffff"/>
+        </g>
+        <text x="${messagePaddingX + appIconSize + Math.round(messagePaddingX * 0.55)}" y="${headerBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="700" letter-spacing="${Math.round(messageHeaderSize * 0.018)}" fill="#30343a">MESSAGES</text>
+        <text x="${messagePaddingX}" y="${senderBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${senderSize}" font-weight="800" fill="#14171a">Unknown Sender</text>
+        <text x="${messagePaddingX}" y="${bodyBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${messageBodySize}" font-weight="500" fill="#202428">
+          <tspan x="${messagePaddingX}">Your loan is approved.</tspan>
+          <tspan x="${messagePaddingX}" dy="${Math.round(messageBodySize * 1.18)}">Pay a processing fee now.</tspan>
+        </text>
+      </g>
+      <g transform="translate(${badgeLeft} ${badgeTop})">
+        <rect width="${badgeSize}" height="${badgeSize}" rx="${Math.round(badgeSize * 0.24)}" fill="#ef5148" stroke="#ff8178" stroke-width="${Math.max(1, Math.round(badgeSize * 0.035))}"/>
+        <circle cx="${badgeSize * 0.50}" cy="${badgeSize * 0.40}" r="${badgeSize * 0.11}" fill="#ffffff"/>
+        <path d="M ${badgeSize * 0.29} ${badgeSize * 0.70} C ${badgeSize * 0.33} ${badgeSize * 0.51}, ${badgeSize * 0.67} ${badgeSize * 0.51}, ${badgeSize * 0.71} ${badgeSize * 0.70} Z" fill="#ffffff"/>
+        <path d="M ${badgeSize * 0.24} ${badgeSize * 0.24} L ${badgeSize * 0.76} ${badgeSize * 0.76}" stroke="#ef5148" stroke-width="${Math.max(4, Math.round(badgeSize * 0.13))}" stroke-linecap="round"/>
+        <path d="M ${badgeSize * 0.24} ${badgeSize * 0.24} L ${badgeSize * 0.76} ${badgeSize * 0.76}" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(badgeSize * 0.055))}" stroke-linecap="round"/>
+      </g>
+    </svg>
+  `);
+}
+
 async function renderPosterCopy(
   width: number,
   height: number,
@@ -732,9 +783,13 @@ async function renderPosterCopy(
     copyStyle?: PosterCopyStyle;
   },
 ): Promise<Buffer> {
-  return options.copyStyle === 'anti-fraud'
-    ? renderAntiFraudPosterCopy(width, height, options)
-    : renderLoanPosterCopy(width, height, options);
+  if (options.copyStyle === 'anti-fraud') {
+    return renderAntiFraudPosterCopy(width, height, options);
+  }
+  if (options.copyStyle === 'anti-fraud-message') {
+    return renderAntiFraudMessageOverlay(width, height);
+  }
+  return renderLoanPosterCopy(width, height, options);
 }
 
 export async function overlayPosterCopy(
@@ -1380,8 +1435,13 @@ export async function generateMedia(args: {
   if (overlayPhoneScreenRef && surface !== 'image') {
     throw new Error('phone screen overlay requires an image surface');
   }
-  if (posterCopyStyle && !['standard', 'anti-fraud'].includes(posterCopyStyle)) {
-    throw new Error('unsupported poster copy style. Allowed: standard | anti-fraud.');
+  if (
+    posterCopyStyle
+    && !['standard', 'anti-fraud', 'anti-fraud-message'].includes(posterCopyStyle)
+  ) {
+    throw new Error(
+      'unsupported poster copy style. Allowed: standard | anti-fraud | anti-fraud-message.',
+    );
   }
   const posterCopyValues = [
     posterHeadline,

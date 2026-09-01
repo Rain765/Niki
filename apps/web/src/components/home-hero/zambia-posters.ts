@@ -393,23 +393,34 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
       ? widescreenComposition.logoAnchor
       : 'left';
     if (purpose === 'anti-fraud' && brand === 'zamloan') {
+      const campaignComposition = aspectRatio === '16:9'
+        ? WIDESCREEN_POSTER_COMPOSITIONS[0].instruction
+        : nonWidescreenComposition.instruction;
+      const messageSafeArea = {
+        '3:4': 'the rightmost 38% of the bottom 21%',
+        '1:1': 'the rightmost 37% of the bottom 25%',
+        '16:9': 'the rightmost 30% of the bottom 29%',
+      }[aspectRatio];
       return {
-        logoAnchor,
+        logoAnchor: 'left',
+        textAnchor: 'right',
+        headline: 'Prevent Fraud',
+        subtitle: 'Trust Only Official Customer Service',
         prompt: `Create a premium ${brandLabel} Zambia public-safety anti-fraud poster in ${aspectRatio} as one unified composition, using the same campaign-quality composition system as the ${brandLabel} mobile-loan advertising posters.
 
-Use ${antiFraudPalette.copyField} and ${antiFraudPalette.sceneField} for a crisp editorial diagonal split applied only as a background surface treatment. Do not let the diagonal change, compress, or fragment the campaign layout. ${composition}. Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, subtitle, and notification pixel.
+Use ${antiFraudPalette.copyField} and ${antiFraudPalette.sceneField} for a crisp editorial diagonal split applied only as a background surface treatment. Do not let the diagonal change, compress, or fragment the campaign layout. ${campaignComposition}. Keep the top-left logo-safe row completely blank and calm for the exact Zamloan logo that will be composited later; do not render, redraw, or typeset a logo or brand name. Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, subtitle, and notification pixel.
 
-Render exactly two poster-copy text elements: “Prevent Fraud” as the very large bold primary headline and “Trust Only Official Customer Service” as the large supporting subtitle. Reproduce both phrases exactly. Match the acquisition posters' expressive heavy campaign typography, oversized scale, tight line spacing, compact headline-to-subtitle gap, and clear two-color emphasis. Keep the complete copy inside the reserved negative-space region with a visible gap from every person, hand, prop, notification, and phone.
+Render exactly two poster-copy text elements: “Prevent Fraud” as the very large bold primary headline and “Trust Only Official Customer Service” as the large supporting subtitle. Reproduce both phrases exactly. Match the acquisition posters' expressive heavy campaign typography, oversized scale, tight line spacing, and compact headline-to-subtitle gap. Make the subtitle about 20% larger than a conventional supporting line and use one solid deep-charcoal color across every subtitle word; do not color any subtitle word green, red, or another accent. Keep the complete copy inside the reserved negative-space region with a visible gap from every person, hand, prop, notification, and phone.
 
-Show ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Preserve the acquisition posters' model scale, editorial crop, premium lighting, natural skin retouching, and clear model-to-copy balance. Use ${antiFraudPlan.camera}. The person should look alert, calm, and empowered, with one open palm extended toward the camera in a firm stop gesture and the other hand presenting a smartphone at the same scale and visual prominence as the acquisition posters.
+Show ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Preserve the acquisition posters' model scale, editorial crop, premium lighting, natural skin retouching, and clear model-to-copy balance. Use ${antiFraudPlan.camera}. The person should look alert, calm, and empowered, with one open palm extended toward the camera in a firm stop gesture and the other hand presenting a smartphone at the same scale and visual prominence as the acquisition posters. Keep the model, both hands, and the complete phone above and to the left of the reserved bottom-right notification area.
 
-The smartphone must be upright, complete, perfectly front-on, unobstructed by fingers, free of glare, and large enough for its interface to read clearly. Use a clean white screen containing only a green outlined shield with a crisp checkmark above centered bold black text “zamloan.com”. The shield and domain together should occupy about two-thirds of the visible screen height with balanced spacing and no large empty region.
+The smartphone must sit near the visual intersection between the copy and model rather than at the canvas edge. It must be upright, complete, perfectly front-on, unobstructed by fingers, free of glare, and large enough for its interface to read clearly. Use a clean white screen containing only a green outlined shield with a crisp checkmark above centered bold black text “zamloan.com”. The shield and domain together should occupy about two-thirds of the visible screen height with balanced spacing and no large empty region.
 
-Add one compact semi-transparent light-gray message notification below the subtitle and beside the stop palm as a secondary evidence detail. Keep it no wider than about one-quarter of the canvas, with tight internal padding, close line spacing, a subtle isometric tilt, and no drop shadow. Render only the small interface label “MESSAGES”, bold sender “Unknown Sender”, and concise body “Your loan is approved. Pay a processing fee now.” Attach one small flat red blocked-sender badge to the notification's lower edge instead of creating a separate large tile. The notification must never cover the stop palm and must remain clearly subordinate to the headline and phone.
+Reserve ${messageSafeArea} of the canvas as a smooth, low-detail notification-safe area. Keep every person, hand, phone, prop, shelf edge, product label, and high-contrast detail out of this region. Do not generate a notification, card, message text, or blocked-sender badge there; one compact, exact, high-legibility notification will be composited into that reserved region after generation.
 
 Use realistic Zambian lifestyle commercial photography, strong text hierarchy, expressive campaign typography, clear visual storytelling, and generous safe margins. Do not depict a scammer, completed payment, money rain, panic, intimidation, or instructions that could help commit fraud.
 
-Negative prompt: Z over subject, Z over text, foreground Z, duplicate Z, extra Z, logo, watermark, brand wordmark, benefit copy, feature callout, badge unrelated to the notification, disclaimer, extra poster text, small typography, generic Arial-like typography, loose headline spacing, detached subtitle, text over model, text over face, text over body, text over hands, text over phone, phone at the canvas edge, tiny phone, hidden phone screen, phone turned away, cropped phone, blank phone screen, excessive phone-screen whitespace, screen glare, full-page website screenshot, oversized notification, notification competing with headline, notification covering hand, separate floating blocked-contact tile, drop shadow, pasted-on UI, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, mixed brands.`,
+Negative prompt: Z over subject, Z over text, foreground Z, duplicate Z, extra Z, logo, watermark, brand wordmark, benefit copy, feature callout, badge, disclaimer, extra poster text, small typography, generic Arial-like typography, loose headline spacing, detached subtitle, multicolor subtitle, green subtitle word, red subtitle word, text over model, text over face, text over body, text over hands, text over phone, phone at the canvas edge, phone in the bottom-right notification area, tiny phone, hidden phone screen, phone turned away, cropped phone, blank phone screen, excessive phone-screen whitespace, screen glare, full-page website screenshot, generated notification, generated message card, generated message text, separate floating blocked-contact tile, drop shadow, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, mixed brands.`,
       };
     }
     if (purpose === 'anti-fraud') {
@@ -491,7 +502,9 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
     ? `Use a single-pass full-poster composition. Render one low-opacity background Z inside the generated artwork and keep that background Z behind every subject and copy pixel. Do not attach the legacy Z reference and do not pass \`--overlay-z\`: a post-generation overlay would necessarily sit above the flattened model and typography.`
     : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
   const logoContract = isZamloan
-    ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
+    ? purpose === 'anti-fraud'
+      ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` with \`--overlay-logo-anchor left\` for every generation. The daemon will composite it in the reserved top-left logo-safe row after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
+      : `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
     : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
   const acquisitionBrandOverride = isZamloan
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
@@ -509,12 +522,12 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const brandOverride = purpose === 'anti-fraud'
     ? isZamloan
       ? `- Use the same single-pass composition, oversized expressive typography, phone prominence, model scale, logo-safe region, and copy-safe geometry as the Zamloan acquisition posters.
-- Keep the single background Z behind all foreground content and reserve the required logo-safe row or band for the supplied logo overlay.
-- Render \`Prevent Fraud\` as the very large primary headline and \`Trust Only Official Customer Service\` as the large supporting subtitle. Reproduce both phrases exactly with tight line spacing and a compact gap between them.
-- Depict a calm Zambian customer rejecting a compact suspicious-message notification with an open stop palm while presenting the official website on a large front-facing phone.
+- Keep the single background Z behind all foreground content and reserve the top-left logo-safe row or band for the supplied logo overlay.
+- Render \`Prevent Fraud\` as the very large primary headline and \`Trust Only Official Customer Service\` as a supporting subtitle about 20% larger than the previous treatment. Reproduce both phrases exactly with tight line spacing and a compact gap between them. Use one solid deep-charcoal color for every subtitle word.
+- Depict a calm Zambian customer rejecting a suspicious message with an open stop palm while presenting the official website on a large front-facing phone near the visual intersection between the copy and model.
 - The phone-screen exception must contain only a green outlined shield with a checkmark above centered black text \`zamloan.com\`.
-- The notification exception must remain subordinate to the headline and phone, use no drop shadow, and contain only \`MESSAGES\`, \`Unknown Sender\`, and \`Your loan is approved. Pay a processing fee now.\` plus a small attached blocked-sender badge.
-- Generate the background, Z, model, phone, headline, subtitle, and notification together in one image. Do not request deterministic poster-copy or phone-screen overlays.
+- Keep the ratio-specific bottom-right notification-safe area free of every person, hand, phone, prop, text, and high-contrast detail. Do not render a notification there; the daemon will add an exact high-legibility card containing only \`MESSAGES\`, \`Unknown Sender\`, and \`Your loan is approved. Pay a processing fee now.\` plus a small attached blocked-sender badge.
+- Generate the background, Z, model, phone, headline, and subtitle together in one image. Use the deterministic \`anti-fraud-message\` style only for the right-bottom notification; do not use it to redraw the title, subtitle, or phone screen.
 - Do not depict fraud instructions beyond the short warning example, cash transfer, panic, or intimidation.
 - These Zamloan anti-fraud copy and scene rules take precedence over conflicting skill template rules.`
       : `- Do not render a logo, wordmark, letter Z, background letter, or alphabetic motif.
@@ -525,6 +538,14 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - These anti-fraud copy and scene rules take precedence over conflicting skill template rules.`
     : acquisitionBrandOverride;
   const generationReference = ', without an `--image` reference';
+  const generationCommandExtras = isZamloan && purpose === 'anti-fraud'
+    ? `, \`--overlay-logo\` with the Zamloan logo path, \`--overlay-logo-anchor left\`, \`--poster-headline "Prevent Fraud"\`, \`--poster-subtitle "Trust Only Official Customer Service"\`, \`--poster-text-anchor right\`, and \`--poster-copy-style anti-fraud-message\``
+    : isZamloan
+      ? `, and \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', plus `--overlay-logo-anchor` matching the scene title column' : ''}`
+      : '';
+  const generationFlagRestriction = isZamloan && purpose === 'anti-fraud'
+    ? 'Do not pass `--overlay-z`, `--foreground-prompt-file`, or `--overlay-phone-screen`. The `anti-fraud-message` overlay must render only the exact notification in the reserved bottom-right area.'
+    : 'Do not pass `--overlay-z`, `--foreground-prompt-file`, `--poster-headline`, `--poster-subtitle`, or `--poster-text-anchor`.';
 
   return `Generate exactly ${count} ${brandLabel} Zambia loan poster${count === 1 ? '' : 's'} now. Do not ask the user for a prompt, scene list, copy, or confirmation.
 
@@ -547,7 +568,7 @@ ${brandOverride}
 
 Generation contract:
 - Use the image model selected in the project metadata.
-- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full-poster prompt${generationReference}${isZamloan ? `, and \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', plus `--overlay-logo-anchor` matching the scene title column' : ''}` : ''}. Do not pass \`--overlay-z\`, \`--foreground-prompt-file\`, \`--poster-headline\`, \`--poster-subtitle\`, or \`--poster-text-anchor\`.
+- Run \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exactly once per scene with \`--surface image\`, \`--aspect ${aspectRatio}\`, the resolved full-poster prompt${generationReference}${generationCommandExtras}. ${generationFlagRestriction}
 - Write outputs as \`${outputPrefix}-01.png\` through \`${outputPrefix}-${String(count).padStart(2, '0')}.png\`.
 - Complete all ${count} generation attempts. If one fails, continue with the remaining scenes and report the failed item accurately.
 - Do not create \`critique.json\`, manifests, notes, or any other auxiliary files. Only the requested poster PNG files may remain as visible project outputs.

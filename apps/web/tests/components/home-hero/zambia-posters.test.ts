@@ -86,11 +86,13 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('`Trust Only Official Customer Service`');
     expect(prompt).toContain('`zamloan.com`');
     expect(prompt).toContain('`Unknown Sender`');
-    expect(prompt).toContain('Generate the background, Z, model, phone, headline, subtitle');
-    expect(prompt).toContain('Do not request deterministic poster-copy or phone-screen overlays');
-    expect(prompt).toContain(
-      'Do not pass `--overlay-z`, `--foreground-prompt-file`, `--poster-headline`',
-    );
+    expect(prompt).toContain('one solid deep-charcoal color');
+    expect(prompt).toContain('reserved bottom-right area');
+    expect(prompt).toContain('`--overlay-logo-anchor left`');
+    expect(prompt).toContain('`--poster-text-anchor right`');
+    expect(prompt).toContain('`--poster-copy-style anti-fraud-message`');
+    expect(prompt).toContain('must render only the exact notification');
+    expect(prompt).toContain('Do not pass `--overlay-z`, `--foreground-prompt-file`');
   });
 
   it('builds a landscape BiuMoney prompt without mixing brands', () => {
@@ -273,27 +275,34 @@ describe('Zambia poster preset', () => {
 
     expect(prompts).toHaveLength(4);
     expect(new Set(prompts).size).toBe(4);
-    expect(plans.every((plan) => plan.headline === undefined)).toBe(true);
-    expect(plans.every((plan) => plan.subtitle === undefined)).toBe(true);
-    expect(plans.every((plan) => plan.textAnchor === undefined)).toBe(true);
+    expect(plans.every((plan) => plan.logoAnchor === 'left')).toBe(true);
+    expect(plans.every((plan) => plan.headline === 'Prevent Fraud')).toBe(true);
+    expect(plans.every((plan) => (
+      plan.subtitle === 'Trust Only Official Customer Service'
+    ))).toBe(true);
+    expect(plans.every((plan) => plan.textAnchor === 'right')).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('as one unified composition'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('logo-safe band'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('top-left logo-safe row'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('very large bold primary headline'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('expressive heavy campaign typography'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('about 20% larger'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('one solid deep-charcoal color'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('do not color any subtitle word'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('Prevent Fraud'))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('Trust Only Official Customer Service')
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('same scale and visual prominence'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('visual intersection'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('green outlined shield'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('“zamloan.com”'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('about two-thirds'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('no wider than about one-quarter'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('“Unknown Sender”'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('Pay a processing fee now.'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('no drop shadow'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('rightmost 38% of the bottom 21%'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('notification-safe area'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('composited into that reserved region'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('“Unknown Sender”'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('Pay a processing fee now.'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('solid saturated magenta'))).toBe(true);
-    expect(prompts.every((prompt) => !prompt.includes('composited later'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
   });
 
@@ -318,6 +327,27 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('Do not generate floating'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
   });
+
+  it.each([
+    ['1:1', 'rightmost 37% of the bottom 25%'],
+    ['16:9', 'rightmost 30% of the bottom 29%'],
+  ] as const)(
+    'keeps the %s anti-fraud logo left and reserves its ratio-specific message area',
+    (aspectRatio, safeArea) => {
+      const [plan] = buildLoanPosterScenePlans({
+        count: 1,
+        aspectRatio,
+        brand: 'zamloan',
+        purpose: 'anti-fraud',
+        variationOffset: 1,
+      });
+
+      expect(plan?.logoAnchor).toBe('left');
+      expect(plan?.textAnchor).toBe('right');
+      expect(plan?.prompt).toContain(safeArea);
+      expect(plan?.prompt).toContain('one solid deep-charcoal color');
+    },
+  );
 
   it('rotates six stable diagonal color templates for anti-fraud scenes', () => {
     const prompts = buildLoanPosterScenePlans({

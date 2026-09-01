@@ -1,7 +1,7 @@
 import type { MediaAspect } from './projects.js';
 
 export type MediaTaskStatus = 'queued' | 'running' | 'done' | 'failed' | 'interrupted';
-export type PosterCopyStyle = 'standard' | 'anti-fraud';
+export type PosterCopyStyle = 'standard' | 'anti-fraud' | 'anti-fraud-message';
 
 export interface LoanVideoTapAction {
   type: 'tap';

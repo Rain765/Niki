@@ -10,12 +10,20 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   autoPosterBrandLabel: () => 'Zamloan',
   autoPosterUsesZReference: () => false,
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
-  buildLoanPosterScenePlans: (options: { purpose?: string }) => (
-    buildLoanPosterScenePromptsMock(options).map((prompt, index) => ({
+  buildLoanPosterScenePlans: (options: { brand?: string; purpose?: string }) => {
+    const zamloanAntiFraud = options.brand === 'zamloan' && options.purpose === 'anti-fraud';
+    return buildLoanPosterScenePromptsMock(options).map((prompt, index) => ({
       prompt,
-      logoAnchor: index % 2 === 0 ? 'left' : 'right',
-    }))
-  ),
+      logoAnchor: zamloanAntiFraud || index % 2 === 0 ? 'left' : 'right',
+      ...(zamloanAntiFraud
+        ? {
+          headline: 'Prevent Fraud',
+          subtitle: 'Trust Only Official Customer Service',
+          textAnchor: 'right',
+        }
+        : {}),
+    }));
+  },
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
   loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.svg', {
     type: 'image/svg+xml',
@@ -201,10 +209,10 @@ describe('startDirectLoanPosterProject', () => {
         expect(body).not.toHaveProperty('image');
         expect(body.overlayLogoAnchor).toMatch(/^(left|right)$/);
         expect(body).not.toHaveProperty('foregroundPrompt');
-        expect(body).not.toHaveProperty('posterHeadline');
-        expect(body).not.toHaveProperty('posterSubtitle');
-        expect(body).not.toHaveProperty('posterTextAnchor');
-        expect(body).not.toHaveProperty('posterCopyStyle');
+        expect(body.posterHeadline).toBe('Prevent Fraud');
+        expect(body.posterSubtitle).toBe('Trust Only Official Customer Service');
+        expect(body.posterTextAnchor).toBe('right');
+        expect(body.posterCopyStyle).toBe('anti-fraud-message');
         expect(body.output).toMatch(
           new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
         );
@@ -303,7 +311,7 @@ describe('startDirectLoanPosterProject', () => {
       'loan-poster:project-1:0',
       'loan-poster:project-1:1',
     ]);
-    expect(mediaBodies.map((body) => body.overlayLogoAnchor)).toEqual(['left', 'right']);
+    expect(mediaBodies.map((body) => body.overlayLogoAnchor)).toEqual(['left', 'left']);
     expect(mediaBodies.every((body) => body.overlayZ === undefined)).toBe(true);
   });
 
