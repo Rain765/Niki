@@ -26,6 +26,7 @@ interface Props {
   triggerClassName?: string;
   menuClassName?: string;
   menuGap?: number;
+  menuMinWidth?: number;
   menuPlacement?: 'adaptive' | 'bottom';
   disabled?: boolean;
   placeholder?: string;
@@ -68,6 +69,7 @@ export function CustomSelect({
   triggerClassName,
   menuClassName,
   menuGap = 4,
+  menuMinWidth,
   menuPlacement = 'adaptive',
   disabled = false,
   placeholder,
@@ -116,7 +118,10 @@ export function CustomSelect({
       ? Math.min(300, availableHeight)
       : Math.max(160, Math.min(300, availableHeight));
     const openAbove = menuPlacement === 'adaptive' && below < 180 && above > below;
-    const width = Math.min(rect.width, Math.max(0, window.innerWidth - viewportPad * 2));
+    const width = Math.min(
+      Math.max(rect.width, menuMinWidth ?? 0),
+      Math.max(0, window.innerWidth - viewportPad * 2),
+    );
     setPosition({
       top: openAbove
         ? Math.max(viewportPad, rect.top - maxHeight - menuGap)
@@ -128,7 +133,7 @@ export function CustomSelect({
       width,
       maxHeight,
     });
-  }, [menuGap, menuPlacement]);
+  }, [menuGap, menuMinWidth, menuPlacement]);
 
   useEffect(() => {
     if (!portal) return;

@@ -1683,49 +1683,142 @@ button {
   font-weight: 650;
 }
 
-.poster-app__field select {
+.poster-app__select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.poster-app__select-trigger {
   width: 100%;
   min-width: 0;
   min-height: 46px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
   padding: 0 40px 0 14px;
   border: 0;
   border-radius: 12px;
   background: var(--poster-fill-0);
-  color: var(--poster-muted);
+  color: var(--poster-text);
   cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 650;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234e5969' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
+  text-align: left;
+  box-shadow: none;
+  transition:
+    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
+    color 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.poster-app__field select:hover:not(:disabled) {
-  background: var(--poster-control-hover);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231d2129' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
+.poster-app__select-trigger:hover:not(:disabled),
+.poster-app__select-trigger[aria-expanded='true'] {
+  border: 0;
+  outline: none;
+  background: var(--poster-fill-0);
   color: var(--poster-text);
+  box-shadow: none;
 }
 
-.poster-app__field select:focus-visible {
+.poster-app__select-trigger:focus-visible {
   outline: 2px solid var(--poster-line-active);
   outline-offset: 2px;
+  border: 0;
+  box-shadow: none;
 }
 
-.poster-app__field select:disabled {
+.poster-app__select-trigger[aria-expanded='true']:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
+.poster-app__select-trigger:disabled {
   cursor: not-allowed;
   color: var(--poster-text-disabled);
 }
 
-.poster-app__field select:active:not(:disabled) {
+.poster-app__select-trigger:active:not(:disabled) {
   background: var(--poster-control-pressed);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231d2129' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
   transition-duration: 80ms;
+}
+
+.poster-app__select-trigger svg {
+  color: var(--poster-muted);
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.poster-app__select-trigger[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.poster-app__select .od-select-value,
+.poster-app__select-menu .od-select-option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.poster-app__select-menu {
+  z-index: 9000;
+  padding: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  max-width: calc(100vw - 24px);
+  border: 0;
+  border-radius: 14px;
+  background: var(--poster-fill-0);
+  color: var(--poster-text);
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--poster-fill-7) 18%, transparent);
+}
+
+.poster-app__select-menu.portal {
+  position: fixed;
+}
+
+.poster-app__select-menu .od-select-option {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--poster-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.poster-app__select-menu .od-select-option:hover:not(:disabled),
+.poster-app__select-menu .od-select-option.active:not(:disabled) {
+  background: var(--poster-control-hover);
+  color: var(--poster-text);
+}
+
+.poster-app__select-menu .od-select-option.selected {
+  color: var(--poster-text);
+  font-weight: 700;
+}
+
+.poster-app__select-menu .od-select-option-check {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--poster-accent);
+  opacity: 0;
+}
+
+.poster-app__select-menu .od-select-option.selected .od-select-option-check {
+  opacity: 1;
 }
 
 .poster-app__generate {

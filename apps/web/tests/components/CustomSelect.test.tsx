@@ -140,4 +140,41 @@ describe('CustomSelect', () => {
     expect(menu.style.width).toBe('296px');
     expect(menu.style.maxHeight).toBe('120px');
   });
+
+  it('expands a portal menu to its requested minimum width and keeps it on screen', () => {
+    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(360);
+    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(300);
+    render(
+      <CustomSelect
+        ariaLabel="Product"
+        value="zamloan"
+        options={[
+          { value: 'zamloan', label: 'Zamloan' },
+          { value: 'biumoney', label: 'Biumoney' },
+        ]}
+        menuMinWidth={240}
+        menuPlacement="bottom"
+        onChange={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByRole('combobox', { name: 'Product: Zamloan' });
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      x: 150,
+      y: 40,
+      left: 150,
+      top: 40,
+      right: 250,
+      bottom: 80,
+      width: 100,
+      height: 40,
+      toJSON: () => ({}),
+    });
+    fireEvent.click(trigger);
+
+    const menu = screen.getByRole('listbox', { name: 'Product' });
+    expect(menu.style.top).toBe('84px');
+    expect(menu.style.left).toBe('108px');
+    expect(menu.style.width).toBe('240px');
+  });
 });

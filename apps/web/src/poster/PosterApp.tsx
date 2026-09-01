@@ -17,6 +17,7 @@ import {
   buildDirectPosterBatches,
   type DirectPosterBatchView,
 } from '../components/direct-poster-batches';
+import { CustomSelect } from '../components/CustomSelect';
 import { Icon } from '../components/Icon';
 import { LogoStudioView } from '../components/LogoStudioView';
 import {
@@ -25,7 +26,6 @@ import {
 } from '../components/home-hero/direct-loan-posters';
 import {
   AUTO_POSTER_DEFAULT_BRAND,
-  AUTO_POSTER_DEFAULT_PURPOSE,
   isLoanPosterOutputName,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
@@ -49,6 +49,23 @@ type PreparedPreviewImage = { file: File; key: string };
 type CreationMode = 'poster' | 'video' | 'documents' | 'english' | 'logo';
 
 const STATUS_AUTO_DISMISS_MS = 10_000;
+const POSTER_APP_DEFAULT_PURPOSE: AutoPosterPurpose = 'anti-fraud';
+const POSTER_PRODUCT_OPTIONS = [
+  { value: 'zamloan', label: 'Zamloan' },
+  { value: 'biumoney', label: 'Biumoney' },
+];
+const POSTER_TYPE_OPTIONS = [
+  { value: 'acquisition', label: '引流' },
+  { value: 'anti-fraud', label: '防欺诈' },
+];
+const POSTER_QUANTITY_OPTIONS = [1, 2, 3, 4].map((value) => ({
+  value: String(value),
+  label: String(value),
+}));
+const POSTER_RATIO_OPTIONS = ['3:4', '1:1', '16:9'].map((value) => ({
+  value,
+  label: value,
+}));
 
 function initialCreationMode(): CreationMode {
   if (typeof window === 'undefined') return 'poster';
@@ -215,7 +232,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
-  const [purpose, setPurpose] = useState<AutoPosterPurpose>(AUTO_POSTER_DEFAULT_PURPOSE);
+  const [purpose, setPurpose] = useState<AutoPosterPurpose>(POSTER_APP_DEFAULT_PURPOSE);
   const [aspectRatio, setAspectRatio] = useState<AutoPosterAspectRatio>('3:4');
   const [count, setCount] = useState(1);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -825,52 +842,70 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       {creationMode === 'poster' ? (
         <>
       <section className="poster-app__generator" aria-label="Poster generation settings">
-        <label className="poster-app__field">
+        <div className="poster-app__field">
           <span>Product</span>
-          <select
+          <CustomSelect
+            ariaLabel="Product"
+            className="poster-app__select"
             value={brand}
+            options={POSTER_PRODUCT_OPTIONS}
             disabled={generating}
-            onChange={(event) => setBrand(event.target.value as AutoPosterBrand)}
-          >
-            <option value="zamloan">Zamloan</option>
-            <option value="biumoney">Biumoney</option>
-          </select>
-        </label>
-        <label className="poster-app__field">
+            menuClassName="poster-app__select-menu"
+            menuGap={8}
+            menuMinWidth={224}
+            menuPlacement="bottom"
+            triggerClassName="poster-app__select-trigger"
+            onChange={(value) => setBrand(value as AutoPosterBrand)}
+          />
+        </div>
+        <div className="poster-app__field">
           <span>Type</span>
-          <select
+          <CustomSelect
+            ariaLabel="Type"
+            className="poster-app__select"
             value={purpose}
+            options={POSTER_TYPE_OPTIONS}
             disabled={generating}
-            onChange={(event) => setPurpose(event.target.value as AutoPosterPurpose)}
-          >
-            <option value="acquisition">引流</option>
-            <option value="anti-fraud">防欺诈</option>
-          </select>
-        </label>
-        <label className="poster-app__field">
+            menuClassName="poster-app__select-menu"
+            menuGap={8}
+            menuMinWidth={224}
+            menuPlacement="bottom"
+            triggerClassName="poster-app__select-trigger"
+            onChange={(value) => setPurpose(value as AutoPosterPurpose)}
+          />
+        </div>
+        <div className="poster-app__field">
           <span>Quantity</span>
-          <select
-            value={count}
+          <CustomSelect
+            ariaLabel="Quantity"
+            className="poster-app__select"
+            value={String(count)}
+            options={POSTER_QUANTITY_OPTIONS}
             disabled={generating}
-            onChange={(event) => setCount(Number(event.target.value))}
-          >
-            {[1, 2, 3, 4].map((value) => (
-              <option key={value} value={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label className="poster-app__field">
+            menuClassName="poster-app__select-menu"
+            menuGap={8}
+            menuMinWidth={224}
+            menuPlacement="bottom"
+            triggerClassName="poster-app__select-trigger"
+            onChange={(value) => setCount(Number(value))}
+          />
+        </div>
+        <div className="poster-app__field">
           <span>Ratio</span>
-          <select
+          <CustomSelect
+            ariaLabel="Ratio"
+            className="poster-app__select"
             value={aspectRatio}
+            options={POSTER_RATIO_OPTIONS}
             disabled={generating}
-            onChange={(event) => setAspectRatio(event.target.value as AutoPosterAspectRatio)}
-          >
-            {(['3:4', '1:1', '16:9'] as const).map((value) => (
-              <option key={value} value={value}>{value}</option>
-            ))}
-          </select>
-        </label>
+            menuClassName="poster-app__select-menu"
+            menuGap={8}
+            menuMinWidth={224}
+            menuPlacement="bottom"
+            triggerClassName="poster-app__select-trigger"
+            onChange={(value) => setAspectRatio(value as AutoPosterAspectRatio)}
+          />
+        </div>
         <button
           type="button"
           className="poster-app__generate"

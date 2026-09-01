@@ -34,9 +34,9 @@ describe('poster app image layout', () => {
     expect(trigger).toContain('max-width: 100%;');
   });
 
-  it('uses the standardized fill system with native select controls', () => {
+  it('uses the standardized fill system with custom select controls', () => {
     const root = rule(':root');
-    const select = rule('.poster-app__field select');
+    const select = rule('.poster-app__select-trigger');
 
     expect(root).toContain('color-scheme: light;');
     expect(root).not.toMatch(/#[0-9a-f]{3,8}\b/i);
@@ -62,15 +62,14 @@ describe('poster app image layout', () => {
       'var(--poster-fill-1)',
     );
     expect(select).toContain('background: var(--poster-fill-0);');
-    expect(select).toContain('color: var(--poster-muted);');
-    expect(select).toContain('appearance: none;');
-    expect(select).toContain('background-repeat: no-repeat;');
+    expect(select).toContain('color: var(--poster-text);');
+    expect(select).toContain('border: 0;');
   });
 
   it('uses borderless fill layers for the generator and account controls', () => {
     const app = rule('.poster-app');
     const generator = rule('.poster-app__generator');
-    const select = rule('.poster-app__field select');
+    const select = rule('.poster-app__select-trigger');
     const account = rule('.poster-app__account');
     const accountMenu = rule('.poster-app__account-menu');
 
@@ -100,7 +99,7 @@ describe('poster app image layout', () => {
   it('lets each card own its aspect ratio without cropping the image', () => {
     const poster = rule('.poster-app__poster');
     const posterAndSkeleton = rule('.poster-app__poster,\n.poster-app__poster-skeleton');
-    const select = rule('.poster-app__field select');
+    const select = rule('.poster-app__select-trigger');
     const square = rule('.poster-app__poster.is-square');
     const portrait = rule('.poster-app__poster.is-portrait');
     const image = rules('.poster-app__poster img');
@@ -190,7 +189,7 @@ describe('poster app image layout', () => {
   it('keeps poster history interaction lighter than filter controls', () => {
     const historyHover = rule('.poster-app__history-toggle:hover');
     const historyPressed = rule('.poster-app__history-toggle:active');
-    const filterHover = rule('.poster-app__field select:hover:not(:disabled)');
+    const filterHover = rule('.poster-app__select-menu .od-select-option:hover:not(:disabled),\n.poster-app__select-menu .od-select-option.active:not(:disabled)');
 
     expect(NIKI_POSTER_COLOR_VARIABLES['--poster-history-hover']).toBe(
       'var(--poster-fill-1)',
@@ -207,5 +206,31 @@ describe('poster app image layout', () => {
     expect(historyHover).toContain('background: var(--poster-history-hover);');
     expect(historyPressed).toContain('background: var(--poster-history-pressed);');
     expect(filterHover).toContain('background: var(--poster-control-hover);');
+  });
+
+  it('opens large white poster menus below borderless triggers', () => {
+    const triggerHover = rule('.poster-app__select-trigger:hover:not(:disabled),\n.poster-app__select-trigger[aria-expanded=\'true\']');
+    const triggerFocus = rule('.poster-app__select-trigger:focus-visible');
+    const openTriggerFocus = rule('.poster-app__select-trigger[aria-expanded=\'true\']:focus-visible');
+    const menu = rule('.poster-app__select-menu');
+    const portalMenu = rule('.poster-app__select-menu.portal');
+    const option = rule('.poster-app__select-menu .od-select-option');
+    const optionHover = rule('.poster-app__select-menu .od-select-option:hover:not(:disabled),\n.poster-app__select-menu .od-select-option.active:not(:disabled)');
+
+    expect(triggerHover).toContain('border: 0;');
+    expect(triggerHover).toContain('outline: none;');
+    expect(triggerHover).toContain('box-shadow: none;');
+    expect(triggerFocus).toContain('outline: 2px solid var(--poster-line-active);');
+    expect(openTriggerFocus).toContain('outline: none;');
+    expect(menu).toContain('padding: 8px;');
+    expect(menu).toContain('background: var(--poster-fill-0);');
+    expect(menu).toContain('color: var(--poster-text);');
+    expect(menu).toContain('z-index: 9000;');
+    expect(portalMenu).toContain('position: fixed;');
+    expect(option).toContain('min-height: 44px;');
+    expect(option).toContain('display: grid;');
+    expect(option).toContain('font-size: 14px;');
+    expect(optionHover).toContain('background: var(--poster-control-hover);');
+    expect(optionHover).toContain('color: var(--poster-text);');
   });
 });

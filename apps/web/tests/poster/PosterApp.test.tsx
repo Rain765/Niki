@@ -604,42 +604,44 @@ describe('PosterApp mobile-safe flow', () => {
     ).toBe('/api/projects/restored-video-project/raw/restored-video.mp4');
   });
 
-  it('renders the existing poster options unchanged as selects and defaults to acquisition', () => {
+  it('renders the existing poster options unchanged in custom selects and defaults to anti-fraud', () => {
     render(<PosterApp />);
 
     expect(screen.getByRole('heading', { name: 'Generate Loan Posters' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
-    const product = screen.getByRole('combobox', { name: 'Product' }) as HTMLSelectElement;
-    const type = screen.getByRole('combobox', { name: 'Type' }) as HTMLSelectElement;
-    const quantity = screen.getByRole('combobox', { name: 'Quantity' }) as HTMLSelectElement;
-    const ratio = screen.getByRole('combobox', { name: 'Ratio' }) as HTMLSelectElement;
+    const selectOptions = (label: string, selectedLabel: string) => {
+      const trigger = screen.getByRole('combobox', { name: `${label}: ${selectedLabel}` });
+      fireEvent.click(trigger);
+      const listbox = screen.getByRole('listbox', { name: label });
+      const options = within(listbox).getAllByRole('option').map((option) => option.textContent);
+      fireEvent.keyDown(trigger, { key: 'Escape' });
+      return { options, trigger };
+    };
 
-    expect(Array.from(product.options, (option) => option.textContent)).toEqual([
-      'Zamloan',
-      'Biumoney',
-    ]);
-    expect(product.value).toBe('zamloan');
-    expect(Array.from(type.options, (option) => option.textContent)).toEqual(['引流', '防欺诈']);
-    expect(type.value).toBe('acquisition');
-    expect(Array.from(quantity.options, (option) => option.textContent)).toEqual(['1', '2', '3', '4']);
-    expect(quantity.value).toBe('1');
-    expect(Array.from(ratio.options, (option) => option.textContent)).toEqual(['3:4', '1:1', '16:9']);
-    expect(ratio.value).toBe('3:4');
+    const product = selectOptions('Product', 'Zamloan');
+    expect(product.options).toEqual(['Zamloan', 'Biumoney']);
+    expect(product.trigger.getAttribute('value')).toBe('zamloan');
+    const type = selectOptions('Type', '防欺诈');
+    expect(type.options).toEqual(['引流', '防欺诈']);
+    expect(type.trigger.getAttribute('value')).toBe('anti-fraud');
+    const quantity = selectOptions('Quantity', '1');
+    expect(quantity.options).toEqual(['1', '2', '3', '4']);
+    expect(quantity.trigger.getAttribute('value')).toBe('1');
+    const ratio = selectOptions('Ratio', '3:4');
+    expect(ratio.options).toEqual(['3:4', '1:1', '16:9']);
+    expect(ratio.trigger.getAttribute('value')).toBe('3:4');
     expect(screen.queryByText(/Landscape|Square|Portrait/)).toBeNull();
   });
 
   it('switches from the title menu while preserving the poster form state', () => {
     render(<PosterApp />);
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Product' }), {
-      target: { value: 'biumoney' },
-    });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), {
-      target: { value: 'anti-fraud' },
-    });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Quantity' }), {
-      target: { value: '3' },
-    });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Product: Zamloan' }));
+    fireEvent.click(screen.getByRole('option', { name: /Biumoney/ }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Type: 防欺诈' }));
+    fireEvent.click(screen.getByRole('option', { name: /引流/ }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Quantity: 1' }));
+    fireEvent.click(screen.getByRole('option', { name: /3/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
     fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
 
@@ -651,11 +653,11 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /Generate Loan Posters/ }));
 
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
-    expect((screen.getByRole('combobox', { name: 'Product' }) as HTMLSelectElement).value)
+    expect(screen.getByRole('combobox', { name: 'Product: Biumoney' }).getAttribute('value'))
       .toBe('biumoney');
-    expect((screen.getByRole('combobox', { name: 'Type' }) as HTMLSelectElement).value)
-      .toBe('anti-fraud');
-    expect((screen.getByRole('combobox', { name: 'Quantity' }) as HTMLSelectElement).value)
+    expect(screen.getByRole('combobox', { name: 'Type: 引流' }).getAttribute('value'))
+      .toBe('acquisition');
+    expect(screen.getByRole('combobox', { name: 'Quantity: 3' }).getAttribute('value'))
       .toBe('3');
   });
 
@@ -722,13 +724,10 @@ describe('PosterApp mobile-safe flow', () => {
     expect(trigger.children).toHaveLength(1);
   });
 
-  it('submits the selected poster type with the unchanged default controls', async () => {
+  it('submits anti-fraud with the unchanged default controls', async () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), {
-      target: { value: 'anti-fraud' },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
 
     await waitFor(() => {
