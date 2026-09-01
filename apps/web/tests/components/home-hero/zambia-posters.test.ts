@@ -88,6 +88,8 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('`Unknown Sender`');
     expect(prompt).toContain('one solid deep-charcoal color');
     expect(prompt).toContain('reserved bottom-right area');
+    expect(prompt).toContain('forearm diagonally down-right');
+    expect(prompt).toContain('pushing the suspicious message down and out');
     expect(prompt).toContain('`--overlay-logo-anchor left`');
     expect(prompt).toContain('`--poster-text-anchor right`');
     expect(prompt).toContain('`--poster-copy-style anti-fraud-message`');
@@ -298,6 +300,19 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('about one-quarter'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('smaller than the phone screen'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('below the stop hand with a clear gap'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('rejecting hand directly above and slightly left')
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('forearm diagonally down-right'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('palm 25 to 40 degrees downward'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('pushing the suspicious message down and out')
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('clear air gap'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('upright stop-sign palm'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      !prompt.includes('open palm extended toward the camera in a firm stop gesture')
+    ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('“zamloan.com”'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('no more than half'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('rightmost 27% of the bottom 14%'))).toBe(true);
