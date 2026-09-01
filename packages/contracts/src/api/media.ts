@@ -1,6 +1,7 @@
 import type { MediaAspect } from './projects.js';
 
 export type MediaTaskStatus = 'queued' | 'running' | 'done' | 'failed' | 'interrupted';
+export type PosterCopyStyle = 'standard' | 'anti-fraud';
 
 export interface LoanVideoTapAction {
   type: 'tap';
@@ -87,6 +88,14 @@ export interface MediaGenerationRequest {
   audioKind?: 'music' | 'speech' | 'sfx';
   compositionDir?: string;
   image?: string;
+  overlayZ?: string;
+  overlayLogo?: string;
+  overlayLogoAnchor?: 'left' | 'right';
+  foregroundPrompt?: string;
+  posterHeadline?: string;
+  posterSubtitle?: string;
+  posterTextAnchor?: 'left' | 'right';
+  posterCopyStyle?: PosterCopyStyle;
   language?: string;
   loanVideoStoryboard?: LoanVideoStoryboard;
 }

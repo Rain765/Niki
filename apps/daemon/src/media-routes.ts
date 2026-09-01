@@ -344,6 +344,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
             posterHeadline: req.body?.posterHeadline,
             posterSubtitle: req.body?.posterSubtitle,
             posterTextAnchor: req.body?.posterTextAnchor,
+            posterCopyStyle: req.body?.posterCopyStyle,
             onProgress: (line: any) => appendTaskProgress(task, line),
           });
           if (!prepared?.warnings.length) return meta;

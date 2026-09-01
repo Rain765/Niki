@@ -152,6 +152,44 @@ describe('media brand overlay inputs', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('composites designed anti-fraud copy over a single generated scene plate', async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'poster-project',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'A text-free anti-fraud scene with a reserved left copy panel',
+      aspect: '3:4',
+      quality: 'medium',
+      posterHeadline: 'Prevent Fraud',
+      posterSubtitle: 'Trust Only Official Customer Service',
+      posterTextAnchor: 'left',
+      posterCopyStyle: 'anti-fraud',
+      loanPosterOutput: true,
+      output: 'anti-fraud-poster.png',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const output = await readFile(path.join(projectDir, result.name));
+    expect(await sharp(output).metadata()).toMatchObject({
+      width: 800,
+      height: 600,
+      format: 'png',
+    });
+    expect(
+      (await sharp(output).raw().toBuffer()).equals(
+        await sharp(generatedPoster).raw().toBuffer(),
+      ),
+    ).toBe(false);
+  });
+
   it('requests an opaque matte foreground and composites it above the exact Z', async () => {
     const referenceName = 'loan-poster-z-reference.png';
     const zReference = await sharp(Buffer.from(`

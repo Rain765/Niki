@@ -410,12 +410,20 @@ export async function startDirectLoanPosterProject(
           clientRequestId: `loan-poster:${batchId}:${index}`,
           surface: 'image',
           model: IMAGE_MODEL,
-          quality: 'low',
+          quality: options.purpose === 'anti-fraud' ? 'medium' : 'low',
           aspect: options.aspectRatio,
           ...(logoPath
             ? {
               overlayLogo: logoPath,
               overlayLogoAnchor: scenePlan.logoAnchor,
+            }
+            : {}),
+          ...(scenePlan.headline && scenePlan.subtitle && scenePlan.textAnchor
+            ? {
+              posterHeadline: scenePlan.headline,
+              posterSubtitle: scenePlan.subtitle,
+              posterTextAnchor: scenePlan.textAnchor,
+              posterCopyStyle: 'anti-fraud' as const,
             }
             : {}),
           output: batchOutputNames[index],

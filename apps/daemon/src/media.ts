@@ -47,6 +47,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { EnvHttpProxyAgent } from 'undici';
+import type { PosterCopyStyle } from '@open-design/contracts';
 import {
   AUDIO_DURATIONS_SEC,
   type AudioKind,
@@ -507,6 +508,93 @@ async function renderLoanPosterCopy(
   `);
 }
 
+async function renderAntiFraudPosterCopy(
+  width: number,
+  height: number,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'>,
+): Promise<Buffer> {
+  const widescreen = width / height >= 1.5;
+  const panelWidth = Math.round(width * (widescreen ? 0.36 : 0.42));
+  const panelLeft = Math.round(
+    options.textAnchor === 'right'
+      ? width - panelWidth - width * 0.045
+      : width * 0.045,
+  );
+  const panelTop = Math.round(height * (widescreen ? 0.21 : 0.19));
+  const panelHeight = Math.round(height * (widescreen ? 0.60 : 0.49));
+  const panelRadius = Math.round(Math.min(width, height) * 0.026);
+  const panelCenter = panelLeft + Math.round(panelWidth / 2);
+  const headlineSize = Math.round(height * (widescreen ? 0.105 : 0.068));
+  const headlineTop = panelTop + Math.round(panelHeight * 0.34);
+  const accentWidth = Math.max(5, Math.round(width * 0.006));
+  const iconSize = Math.round(height * (widescreen ? 0.10 : 0.072));
+  const iconCenterY = panelTop + Math.round(panelHeight * 0.17);
+  const pillWidth = Math.round(panelWidth * 0.80);
+  const pillHeight = Math.round(height * (widescreen ? 0.12 : 0.095));
+  const pillLeft = panelCenter - Math.round(pillWidth / 2);
+  const pillTop = panelTop + Math.round(panelHeight * 0.64);
+  const subtitleSize = Math.round(height * (widescreen ? 0.029 : 0.022));
+  const headline = escapeSvgText(options.headline);
+  const subtitle = escapeSvgText(options.subtitle);
+  const splitHeadline = options.headline === 'Prevent Fraud';
+  const headlineMarkup = splitHeadline
+    ? `<tspan x="${panelCenter}" fill="#123e31">Prevent</tspan><tspan x="${panelCenter}" dy="${Math.round(headlineSize * 0.92)}" fill="#e64b3c">Fraud</tspan>`
+    : `<tspan fill="#123e31">${headline}</tspan>`;
+  const splitSubtitle = options.subtitle === 'Trust Only Official Customer Service';
+  const subtitleMarkup = splitSubtitle
+    ? `<tspan x="${panelCenter}">Trust Only Official</tspan><tspan x="${panelCenter}" dy="${Math.round(subtitleSize * 1.15)}">Customer Service</tspan>`
+    : `<tspan>${subtitle}</tspan>`;
+  return Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <defs>
+        <filter id="panel-shadow" x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="${Math.max(3, Math.round(height * 0.008))}" stdDeviation="${Math.max(4, Math.round(height * 0.012))}" flood-color="#102c24" flood-opacity="0.20"/>
+        </filter>
+      </defs>
+      <g filter="url(#panel-shadow)">
+        <rect x="${panelLeft}" y="${panelTop}" width="${panelWidth}" height="${panelHeight}" rx="${panelRadius}" fill="#fffdf8" fill-opacity="0.94"/>
+        <rect x="${panelLeft}" y="${panelTop}" width="${accentWidth}" height="${panelHeight}" rx="${Math.round(accentWidth / 2)}" fill="#e64b3c"/>
+      </g>
+      <g transform="translate(${panelCenter - Math.round(iconSize / 2)} ${iconCenterY - Math.round(iconSize / 2)})">
+        <path d="M ${iconSize * 0.50} ${iconSize * 0.06} L ${iconSize * 0.86} ${iconSize * 0.19} V ${iconSize * 0.49} C ${iconSize * 0.86} ${iconSize * 0.73}, ${iconSize * 0.70} ${iconSize * 0.90}, ${iconSize * 0.50} ${iconSize * 0.98} C ${iconSize * 0.30} ${iconSize * 0.90}, ${iconSize * 0.14} ${iconSize * 0.73}, ${iconSize * 0.14} ${iconSize * 0.49} V ${iconSize * 0.19} Z" fill="#dff2e8" stroke="#176a4d" stroke-width="${Math.max(2, Math.round(iconSize * 0.045))}"/>
+        <path d="M ${iconSize * 0.31} ${iconSize * 0.50} L ${iconSize * 0.45} ${iconSize * 0.64} L ${iconSize * 0.71} ${iconSize * 0.36}" fill="none" stroke="#176a4d" stroke-width="${Math.max(3, Math.round(iconSize * 0.075))}" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <text x="${panelCenter}" y="${headlineTop}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${headlineSize}" font-weight="900" letter-spacing="${Math.round(headlineSize * 0.025)}">${headlineMarkup}</text>
+      <rect x="${pillLeft}" y="${pillTop}" width="${pillWidth}" height="${pillHeight}" rx="${Math.round(pillHeight / 2)}" fill="#176a4d"/>
+      <text x="${panelCenter}" y="${pillTop + Math.round(pillHeight * 0.40)}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${subtitleSize}" font-weight="700" letter-spacing="${Math.round(subtitleSize * 0.035)}" fill="#ffffff">${subtitleMarkup}</text>
+    </svg>
+  `);
+}
+
+async function renderPosterCopy(
+  width: number,
+  height: number,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'> & {
+    copyStyle?: PosterCopyStyle;
+  },
+): Promise<Buffer> {
+  return options.copyStyle === 'anti-fraud'
+    ? renderAntiFraudPosterCopy(width, height, options)
+    : renderLoanPosterCopy(width, height, options);
+}
+
+export async function overlayPosterCopy(
+  input: Buffer,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'> & {
+    copyStyle?: PosterCopyStyle;
+  },
+): Promise<Buffer> {
+  const metadata = await sharp(input).metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('poster image has no readable dimensions');
+  }
+  const copy = await renderPosterCopy(metadata.width, metadata.height, options);
+  return sharp(input)
+    .composite([{ input: copy, left: 0, top: 0 }])
+    .png()
+    .toBuffer();
+}
+
 function isChromaGreenPixel(
   data: Buffer,
   offset: number,
@@ -717,6 +805,7 @@ export async function finalizeGeneratedPng(
     posterHeadline?: string;
     posterSubtitle?: string;
     posterTextAnchor?: 'left' | 'right';
+    posterCopyStyle?: PosterCopyStyle;
     overlayLogo?: Buffer;
     overlayLogoAnchor?: 'left' | 'right';
   },
@@ -743,6 +832,14 @@ export async function finalizeGeneratedPng(
     });
   } else if (options.overlayZ) {
     bytes = await overlayZamloanZReference(bytes, options.overlayZ);
+  }
+  if (!hasLayeredPoster && options.posterHeadline && options.posterSubtitle && options.posterTextAnchor) {
+    bytes = await overlayPosterCopy(bytes, {
+      headline: options.posterHeadline,
+      subtitle: options.posterSubtitle,
+      textAnchor: options.posterTextAnchor,
+      ...(options.posterCopyStyle ? { copyStyle: options.posterCopyStyle } : {}),
+    });
   }
   if (options.overlayLogo) {
     bytes = await overlayZamloanLogo(
@@ -986,6 +1083,7 @@ export async function generateMedia(args: {
   posterHeadline?: string;
   posterSubtitle?: string;
   posterTextAnchor?: 'left' | 'right';
+  posterCopyStyle?: PosterCopyStyle;
   onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
@@ -1015,6 +1113,7 @@ export async function generateMedia(args: {
     posterHeadline,
     posterSubtitle,
     posterTextAnchor,
+    posterCopyStyle,
   } = args;
 
   if (!projectRoot) throw new Error('projectRoot required');
@@ -1109,14 +1208,26 @@ export async function generateMedia(args: {
   if (posterTextAnchor && !['left', 'right'].includes(posterTextAnchor)) {
     throw new Error('unsupported poster text anchor. Allowed: left | right.');
   }
-  const layeredPosterValues = [
-    foregroundPrompt,
+  if (posterCopyStyle && !['standard', 'anti-fraud'].includes(posterCopyStyle)) {
+    throw new Error('unsupported poster copy style. Allowed: standard | anti-fraud.');
+  }
+  const posterCopyValues = [
     posterHeadline,
     posterSubtitle,
     posterTextAnchor,
   ];
-  const layeredPosterRequested = layeredPosterValues.some(Boolean);
-  if (layeredPosterRequested && !layeredPosterValues.every(Boolean)) {
+  const posterCopyRequested = posterCopyValues.some(Boolean);
+  const completePosterCopy = posterCopyValues.every(Boolean);
+  if (posterCopyRequested && !completePosterCopy) {
+    throw new Error(
+      'poster copy requires posterHeadline, posterSubtitle, and posterTextAnchor',
+    );
+  }
+  if (posterCopyStyle && !completePosterCopy) {
+    throw new Error('poster copy style requires complete poster copy');
+  }
+  const layeredPosterRequested = Boolean(foregroundPrompt);
+  if (layeredPosterRequested && !completePosterCopy) {
     throw new Error(
       'layered poster requires foregroundPrompt, posterHeadline, posterSubtitle, and posterTextAnchor',
     );
@@ -1443,7 +1554,7 @@ export async function generateMedia(args: {
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
   }
-  if (surface === 'image' && (overlayZRef || overlayLogoRef)) {
+  if (surface === 'image' && (overlayZRef || overlayLogoRef || completePosterCopy)) {
     const dot = finalOut.lastIndexOf('.');
     const stem = dot > 0 ? finalOut.slice(0, dot) : finalOut;
     finalOut = `${stem}.png`;
@@ -1458,6 +1569,7 @@ export async function generateMedia(args: {
       ...(posterHeadline ? { posterHeadline } : {}),
       ...(posterSubtitle ? { posterSubtitle } : {}),
       ...(posterTextAnchor ? { posterTextAnchor } : {}),
+      ...(posterCopyStyle ? { posterCopyStyle } : {}),
       ...(overlayLogoRef
         ? { overlayLogo: await readFile(overlayLogoRef.abs) }
         : {}),

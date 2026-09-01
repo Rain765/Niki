@@ -56,6 +56,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'poster-headline',
   'poster-subtitle',
   'poster-text-anchor',
+  'poster-copy-style',
   'output',
   'aspect',
   'quality',
@@ -1020,6 +1021,7 @@ async function runMediaGenerate(rawArgs) {
     posterHeadline: flags['poster-headline'],
     posterSubtitle: flags['poster-subtitle'],
     posterTextAnchor: flags['poster-text-anchor'],
+    posterCopyStyle: flags['poster-copy-style'],
     language: flags.language,
     ...(loanVideoStoryboard ? { loanVideoStoryboard } : {}),
   };
@@ -1771,6 +1773,8 @@ Common options:
   --poster-subtitle <text>  Deterministic poster subtitle rendered above the model.
   --poster-text-anchor <left|right>
                             Align deterministic copy with the reserved title column.
+  --poster-copy-style <standard|anti-fraud>
+                            Select the deterministic poster copy treatment.
   --daemon-url <url>
 
 Output: a single line of JSON: {"file": { name, size, kind, mime, ... }}.

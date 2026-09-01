@@ -8484,6 +8484,7 @@ export async function startServer({
         posterHeadline: req.body?.posterHeadline,
         posterSubtitle: req.body?.posterSubtitle,
         posterTextAnchor: req.body?.posterTextAnchor,
+        posterCopyStyle: req.body?.posterCopyStyle,
         onProgress: (line) => appendTaskProgress(db, task, line),
       })
         .then((meta) => {

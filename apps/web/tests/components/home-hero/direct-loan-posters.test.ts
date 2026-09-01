@@ -10,10 +10,17 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   autoPosterBrandLabel: () => 'Zamloan',
   autoPosterUsesZReference: () => false,
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
-  buildLoanPosterScenePlans: (options: unknown) => (
+  buildLoanPosterScenePlans: (options: { purpose?: string }) => (
     buildLoanPosterScenePromptsMock(options).map((prompt, index) => ({
       prompt,
       logoAnchor: index % 2 === 0 ? 'left' : 'right',
+      ...(options.purpose === 'anti-fraud'
+        ? {
+          headline: 'Prevent Fraud',
+          subtitle: 'Trust Only Official Customer Service',
+          textAnchor: index % 2 === 0 ? 'left' : 'right',
+        }
+        : {}),
     }))
   ),
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
@@ -135,6 +142,12 @@ describe('startDirectLoanPosterProject', () => {
         });
       }
       if (url === '/api/projects/project-1/media/generate') {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        expect(body.quality).toBe('low');
+        expect(body).not.toHaveProperty('posterHeadline');
+        expect(body).not.toHaveProperty('posterSubtitle');
+        expect(body).not.toHaveProperty('posterTextAnchor');
+        expect(body).not.toHaveProperty('posterCopyStyle');
         return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
           status: 202,
           headers: { 'Content-Type': 'application/json' },
@@ -156,7 +169,7 @@ describe('startDirectLoanPosterProject', () => {
     )).toBe(false);
   });
 
-  it('creates one project and dispatches low-quality image jobs without an agent run', async () => {
+  it('creates one project and dispatches designed anti-fraud image jobs without an agent run', async () => {
     const today = new Date();
     const compactDate = [
       today.getFullYear(),
@@ -185,16 +198,17 @@ describe('startDirectLoanPosterProject', () => {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
         expect(init?.keepalive).toBe(true);
         expect(init?.signal).toBeInstanceOf(AbortSignal);
-        expect(body.quality).toBe('low');
+        expect(body.quality).toBe('medium');
         expect(body.model).toBe('gpt-image-2');
         expect(body.overlayLogo).toBe('.od-inputs/reference.png');
         expect(body).not.toHaveProperty('overlayZ');
         expect(body).not.toHaveProperty('image');
         expect(body.overlayLogoAnchor).toMatch(/^(left|right)$/);
         expect(body).not.toHaveProperty('foregroundPrompt');
-        expect(body).not.toHaveProperty('posterHeadline');
-        expect(body).not.toHaveProperty('posterSubtitle');
-        expect(body).not.toHaveProperty('posterTextAnchor');
+        expect(body.posterHeadline).toBe('Prevent Fraud');
+        expect(body.posterSubtitle).toBe('Trust Only Official Customer Service');
+        expect(body.posterTextAnchor).toMatch(/^(left|right)$/);
+        expect(body.posterCopyStyle).toBe('anti-fraud');
         expect(body.output).toMatch(
           new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
         );

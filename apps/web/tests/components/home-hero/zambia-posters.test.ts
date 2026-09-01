@@ -241,24 +241,34 @@ describe('Zambia poster preset', () => {
   });
 
   it.each(['zamloan', 'biumoney'] as const)(
-    'builds %s anti-fraud scenes with the fixed copy and official-support verification story',
+    'builds %s anti-fraud scenes as text-free narrative plates with deterministic copy metadata',
     (brand) => {
-      const prompts = buildLoanPosterScenePrompts({
+      const plans = buildLoanPosterScenePlans({
         count: 4,
         aspectRatio: '3:4',
         brand,
         purpose: 'anti-fraud',
         variationOffset: 0,
       });
+      const prompts = plans.map((plan) => plan.prompt);
 
       expect(prompts).toHaveLength(4);
       expect(new Set(prompts).size).toBe(4);
-      expect(prompts.every((prompt) => prompt.includes('“防范欺诈”'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('“仅相信官网客服”'))).toBe(true);
+      expect(plans.every((plan) => plan.headline === 'Prevent Fraud')).toBe(true);
+      expect(plans.every((plan) => (
+        plan.subtitle === 'Trust Only Official Customer Service'
+      ))).toBe(true);
+      expect(plans.every((plan) => /^(left|right)$/.test(plan.textAnchor ?? ''))).toBe(true);
+      expect(prompts.every((prompt) => !prompt.includes('Prevent Fraud'))).toBe(true);
+      expect(prompts.every((prompt) => (
+        !prompt.includes('Trust Only Official Customer Service')
+      ))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('Do not render any visible text'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('official website'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('suspicious'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('exactly two visible text elements'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('QR code'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('red warning'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('green official'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('blocked'))).toBe(true);
       expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
       expect(prompts.every((prompt) => !prompt.includes('Application Approved'))).toBe(true);
     },

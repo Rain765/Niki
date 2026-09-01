@@ -187,29 +187,99 @@ const LOAN_POSTER_SCENES = [
 const ANTI_FRAUD_POSTER_SCENES = [
   {
     model: 'a young Zambian woman',
-    scene: 'at home after receiving a suspicious customer-service message, calmly pausing before taking action and opening the brand official website to verify the genuine support channel',
+    wardrobe: 'wearing a modern coral blouse and relaxed neutral trousers',
+    environment: 'in a bright, contemporary Lusaka home with warm daylight and restrained décor',
+    riskCue: 'a floating red warning card representing a suspicious customer-service message and a clearly blocked sender symbol',
+    safeAction: 'she dismisses the suspicious message and opens a separate green official website verification card with a shield-and-check symbol',
+    camera: 'a candid waist-up portrait with the safety decision readable at a glance',
   },
   {
     model: 'a Zambian neighborhood shop owner',
-    scene: 'behind the shop counter after noticing a suspicious loan-agent message, stopping the conversation and checking the brand official website before responding',
+    wardrobe: 'wearing a patterned blouse and a practical emerald apron',
+    environment: 'behind the counter of a tidy neighborhood shop with colorful products softly out of focus',
+    riskCue: 'a floating red warning card representing a suspicious fake-agent contact and a clearly blocked contact symbol',
+    safeAction: 'she stops the conversation and presents a separate green official website verification card with a shield-and-check symbol',
+    camera: 'a confident counter-height environmental portrait',
   },
   {
     model: 'a young Zambian commuter',
-    scene: 'in a bright public transit shelter after receiving a suspicious call, ending it and using the brand official website to confirm the real customer-support route',
+    wardrobe: 'wearing smart-casual city clothing with a cobalt overshirt',
+    environment: 'at a bright public transit shelter with an energetic Lusaka streetscape in the distance',
+    riskCue: 'a floating red warning card representing a suspicious call and a clearly blocked handset symbol',
+    safeAction: 'they end the call and open a separate green official website verification card with a shield-and-check symbol',
+    camera: 'a dynamic mid-shot with clean directional movement from danger to safety',
   },
   {
     model: 'a Zambian mother and her adult daughter',
-    scene: 'in a warm family home reviewing a suspicious message together and choosing the brand official website as their only trusted support source',
+    wardrobe: 'wearing coordinated warm neutrals with one deep-green accent',
+    environment: 'in a welcoming family living room with soft afternoon light',
+    riskCue: 'a floating red warning card representing a suspicious profile and a clearly blocked identity symbol',
+    safeAction: 'the daughter points to a separate green official website verification card while the mother dismisses the suspicious contact',
+    camera: 'an intimate over-the-shoulder two-person composition',
   },
   {
     model: 'a Zambian office worker',
-    scene: 'at a tidy desk after spotting a suspicious payment request, refusing to continue and independently navigating to the brand official website for support',
+    wardrobe: 'wearing a crisp cream shirt with a burgundy accent',
+    environment: 'at a modern, uncluttered desk with graphic daylight and subtle office depth',
+    riskCue: 'a floating red warning card representing a suspicious payment request and a clearly crossed-out transfer symbol',
+    safeAction: 'they push the warning away and open a separate green official website verification card with a shield-and-check symbol',
+    camera: 'a polished desk-level editorial portrait',
   },
   {
     model: 'an older Zambian man with a younger relative',
-    scene: 'in a comfortable living room after a suspicious caller claimed to represent the lender, with the relative helping verify support through the brand official website',
+    wardrobe: 'wearing reassuring blue and sand tones with natural everyday styling',
+    environment: 'in a comfortable living room with warm practical lighting and familiar family details',
+    riskCue: 'a floating red warning card representing a suspicious caller and a clearly blocked handset symbol',
+    safeAction: 'the older man ends the call while the relative shows a separate green official website verification card with a shield-and-check symbol',
+    camera: 'a reassuring two-person portrait that emphasizes shared confidence',
   },
 ] as const;
+
+const ANTI_FRAUD_POSTER_PALETTES = [
+  { background: 'warm ivory with deep forest-green geometry', warning: 'signal coral red', safe: 'confident emerald green' },
+  { background: 'soft sand with midnight-blue structure', warning: 'vivid vermilion red', safe: 'fresh leaf green' },
+  { background: 'cool pearl with cobalt-blue depth', warning: 'clear crimson red', safe: 'rich jade green' },
+  { background: 'sunlit cream with burgundy accents', warning: 'bright warning red', safe: 'deep trustworthy green' },
+] as const;
+
+const ANTI_FRAUD_POSTER_COMPOSITIONS = {
+  '3:4': [
+    {
+      logoAnchor: 'left' as const,
+      textAnchor: 'left' as const,
+      instruction: 'Reserve the upper-left 46% as a quiet copy panel and logo-safe area. Place the people and the warning-to-safety story in the lower-right half without crossing into that panel',
+    },
+    {
+      logoAnchor: 'right' as const,
+      textAnchor: 'right' as const,
+      instruction: 'Reserve the upper-right 46% as a quiet copy panel and logo-safe area. Place the people and the warning-to-safety story in the lower-left half without crossing into that panel',
+    },
+  ],
+  '1:1': [
+    {
+      logoAnchor: 'left' as const,
+      textAnchor: 'left' as const,
+      instruction: 'Reserve the complete left 44% as a quiet copy panel and logo-safe area. Stage the people and the warning-to-safety story in the right half',
+    },
+    {
+      logoAnchor: 'right' as const,
+      textAnchor: 'right' as const,
+      instruction: 'Reserve the complete right 44% as a quiet copy panel and logo-safe area. Stage the people and the warning-to-safety story in the left half',
+    },
+  ],
+  '16:9': [
+    {
+      logoAnchor: 'left' as const,
+      textAnchor: 'left' as const,
+      instruction: 'Reserve the complete left 40% as a quiet copy panel and logo-safe area. Stage the people and the full warning-to-safety story across the right 55%',
+    },
+    {
+      logoAnchor: 'right' as const,
+      textAnchor: 'right' as const,
+      instruction: 'Reserve the complete right 40% as a quiet copy panel and logo-safe area. Stage the people and the full warning-to-safety story across the left 55%',
+    },
+  ],
+} as const;
 
 const BIUMONEY_PHONE_STATUS_COPY = [
   'Application Approved',
@@ -310,6 +380,12 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     const antiFraudPlan = ANTI_FRAUD_POSTER_SCENES[
       variationIndex % ANTI_FRAUD_POSTER_SCENES.length
     ]!;
+    const antiFraudPalette = ANTI_FRAUD_POSTER_PALETTES[
+      variationIndex % ANTI_FRAUD_POSTER_PALETTES.length
+    ]!;
+    const antiFraudComposition = ANTI_FRAUD_POSTER_COMPOSITIONS[aspectRatio][
+      variationIndex % ANTI_FRAUD_POSTER_COMPOSITIONS[aspectRatio].length
+    ]!;
     const palette = LOAN_POSTER_PALETTES[
       (variationIndex * 3) % LOAN_POSTER_PALETTES.length
     ]!;
@@ -331,19 +407,24 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
       : 'left';
     if (purpose === 'anti-fraud') {
       const brandBackground = brand === 'zamloan'
-        ? `Use a ${palette.gradient} dominant background and one ${palette.ribbon} curved ribbon along the bottom. Render one large low-opacity Z silhouette as an integrated background graphic. Keep the Z behind every person, phone, headline, and subtitle pixel, and preserve the specified logo-safe row or band for the supplied Zamloan logo overlay.`
-        : `Use a clean ${palette.gradient} dominant background with subtle abstract depth. Do not render a letter Z, alphabetic background motif, logo, wordmark, or logo-shaped watermark.`;
+        ? 'Include one subtle low-opacity Z silhouette as a background-only brand cue. Keep it behind the people, safety cards, and reserved copy panel.'
+        : 'Do not render a letter Z, alphabetic background motif, logo, wordmark, or logo-shaped watermark.';
       return {
-        logoAnchor,
-        prompt: `Create a premium ${brandLabel} Zambia anti-fraud awareness poster in ${aspectRatio}.
+        logoAnchor: antiFraudComposition.logoAnchor,
+        textAnchor: antiFraudComposition.textAnchor,
+        headline: 'Prevent Fraud',
+        subtitle: 'Trust Only Official Customer Service',
+        prompt: `Create a premium ${brandLabel} public-safety anti-fraud campaign scene in ${aspectRatio}, designed for Zambia. This is a clear fraud-prevention story, not a loan approval, cash, or generic product-endorsement advertisement.
 
-${brandBackground} Render exactly two visible text elements across the entire poster: “防范欺诈” as a very large bold headline and “仅相信官网客服” as a large supporting subtitle. Reproduce both Chinese phrases exactly. Do not translate, paraphrase, punctuate, or add any other words, letters, numbers, labels, badges, disclaimers, phone-screen copy, or brand names. ${composition}. Show ${antiFraudPlan.model} ${antiFraudPlan.scene}. The person should look alert, calm, and empowered rather than frightened.
+Use ${antiFraudPalette.background} as the art direction, ${antiFraudPalette.warning} for the red warning state, and ${antiFraudPalette.safe} for the green official verification state. ${brandBackground} ${antiFraudComposition.instruction}.
 
-Show an anatomically correct smartphone with its screen facing the camera. Communicate a trustworthy official website through a clean structured page layout, a simple shield or check symbol, and the selected brand's color direction, but keep the screen free of readable text, numbers, contact details, chat bubbles, payment requests, verification codes, and QR codes. Do not depict a scammer, cash transfer, panic, intimidation, or instructions that could help commit fraud.
+Show ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Stage ${antiFraudPlan.riskCue}. In the same frame, show the safe response: ${antiFraudPlan.safeAction}. The red warning and green official website states must be visually separate, easy to understand, and connected by the person's decisive action. The blocked symbol must remain clearly recognizable. Use ${antiFraudPlan.camera}. The people should look alert, calm, and empowered rather than frightened.
 
-Keep the complete headline and subtitle inside the reserved negative-space region. Preserve a clearly visible gap between the copy and every person, face, body, hand, item of clothing, prop, and phone. Use realistic Zambian lifestyle commercial photography, reassuring premium lighting, natural skin retouching, strong text hierarchy, oversized readable Chinese typography, and generous safe margins.
+Abstract notification, caller, and payment symbols are allowed only as non-readable visual cues. Do not render any visible text, letters, numbers, URLs, brand names, interface labels, contact details, chat copy, verification codes, account numbers, payment instructions, or QR codes anywhere in the generated scene. Exact campaign copy and branding will be composited later into the reserved copy panel.
 
-Negative prompt: extra text, translated text, English poster copy, misspelled Chinese, extra Chinese characters, brand wordmark, readable chat message, readable phone UI, phone number, contact number, payment code, verification code, QR code, URL text, scam instructions, cash transfer, panic, intimidation, text over person, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable headline, duplicated elements, mixed brands${brand === 'biumoney' ? ', letter Z, background letter, alphabetic background motif' : ', Z over subject, Z over text, foreground Z, duplicate Z'}.`,
+Use realistic Zambian lifestyle commercial photography, reassuring premium lighting, natural skin retouching, crisp editorial art direction, clear visual storytelling, and generous safe margins. Do not depict a scammer, completed payment, money rain, loan approval, panic, intimidation, or any instructions that could help commit fraud.
+
+Negative prompt: visible text, letters, numbers, logo, watermark, brand wordmark, readable chat message, readable phone UI, phone number, contact number, payment code, verification code, account number, QR code, URL text, scam instructions, completed cash transfer, loan approval, money rain, panic, intimidation, generic smiling endorsement pose, cluttered copy panel, warning and official states merged together, blurry, low quality, distorted anatomy, deformed hands, extra fingers, duplicated elements, mixed brands${brand === 'biumoney' ? ', letter Z, background letter, alphabetic background motif' : ', Z over subject, foreground Z, duplicate Z'}.`,
       };
     }
     if (brand === 'biumoney') {
@@ -423,7 +504,7 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
     ? `${isZamloan
       ? '- Keep the single background Z behind all foreground content and reserve the required logo-safe row or band for the supplied logo overlay.'
       : '- Do not render a logo, wordmark, letter Z, background letter, or alphabetic motif.'}
-- Render exactly two visible text elements across the entire poster: \`防范欺诈\` as the headline and \`仅相信官网客服\` as the subtitle. Reproduce both phrases exactly without translation, paraphrase, punctuation, or added copy.
+- Render exactly two visible text elements across the entire poster: \`Prevent Fraud\` as the headline and \`Trust Only Official Customer Service\` as the subtitle. Reproduce both phrases exactly without translation, paraphrase, punctuation, or added copy.
 - Depict a calm Zambian customer rejecting a suspicious message or call and independently verifying support through the brand official website.
 - Keep the phone screen free of readable text, numbers, contact details, chat bubbles, payment requests, verification codes, and QR codes.
 - Do not depict fraud instructions, cash transfer, panic, or intimidation.
