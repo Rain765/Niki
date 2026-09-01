@@ -5,9 +5,8 @@ export const ZAMBIA_POSTER_REFERENCE_URL = '/brand/zambia-support/z-reference.pn
 export const ZAMBIA_POSTER_REFERENCE_NAME = 'loan-poster-z-reference.png';
 export const ZAMLOAN_LOGO_URL = '/brand/zambia-support/zamloan-logo.svg';
 export const ZAMLOAN_LOGO_NAME = 'zamloan-logo.svg';
-export const ZAMLOAN_WEBSITE_REFERENCE_URL =
-  '/brand/zambia-support/zamloan-homepage-reference.png';
-export const ZAMLOAN_WEBSITE_REFERENCE_NAME = 'zamloan-homepage-reference.png';
+export const ZAMLOAN_SAFE_SCREEN_URL = '/brand/zambia-support/zamloan-safe-screen.svg';
+export const ZAMLOAN_SAFE_SCREEN_NAME = 'zamloan-safe-screen.svg';
 export const LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1-1';
 const LEGACY_LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1.1';
 const POSTER_ASSET_TIMEOUT_MS = 12_000;
@@ -400,7 +399,7 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
         ? 'Include one oversized, subtle, low-opacity Z silhouette inside the light copy field as a background-only brand cue. Keep it behind the copy and the person.'
         : 'Do not render a letter Z, alphabetic background motif, logo, wordmark, or logo-shaped watermark.';
       const phoneScreenContract = brand === 'zamloan'
-        ? 'Render the phone screen interior as one uniform solid saturated magenta rectangle with clean rounded corners, surrounded by a realistic dark phone bezel. Do not place any content, icons, reflections, or gradients inside the magenta screen. The exact official website will be composited into it later.'
+        ? 'Render the phone screen interior as one uniform solid saturated magenta rectangle with clean rounded corners, surrounded by a realistic dark phone bezel. Do not place any content, icons, reflections, or gradients inside the magenta screen. A clean official-site safety screen with a shield-and-check icon above zamloan.com will be composited into it later.'
         : 'Render a clean, text-free official website interface on the phone using a white page, the brand color direction, and one simple shield-and-check symbol. Do not render readable interface copy, numbers, or contact details.';
       return {
         logoAnchor: antiFraudComposition.logoAnchor,
@@ -562,12 +561,12 @@ export async function loadZamloanLogo(): Promise<File> {
   });
 }
 
-export async function loadZamloanWebsiteReference(): Promise<File> {
+export async function loadZamloanSafeScreen(): Promise<File> {
   return loadBundledPosterAsset({
-    url: ZAMLOAN_WEBSITE_REFERENCE_URL,
-    name: ZAMLOAN_WEBSITE_REFERENCE_NAME,
-    fallbackType: 'image/png',
-    label: 'Zamloan website reference',
+    url: ZAMLOAN_SAFE_SCREEN_URL,
+    name: ZAMLOAN_SAFE_SCREEN_NAME,
+    fallbackType: 'image/svg+xml',
+    label: 'Zamloan official-site safety screen',
     requireImageContentType: true,
   });
 }

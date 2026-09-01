@@ -282,6 +282,9 @@ describe('Zambia poster preset', () => {
       expect(prompts.every((prompt) => (
         prompt.includes('solid saturated magenta') === (brand === 'zamloan')
       ))).toBe(true);
+      expect(prompts.every((prompt) => (
+        prompt.includes('shield-and-check icon above zamloan.com') === (brand === 'zamloan')
+      ))).toBe(true);
       expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
       expect(prompts.every((prompt) => !prompt.includes('Application Approved'))).toBe(true);
     },

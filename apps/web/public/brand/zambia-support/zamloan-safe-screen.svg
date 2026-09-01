@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1516" role="img" aria-label="Zamloan official website safety screen">
+  <rect width="720" height="1516" fill="#ffffff"/>
+  <circle cx="360" cy="535" r="196" fill="#edf7f0"/>
+  <path
+    d="M360 345 520 405v138c0 135-69 236-160 286-91-50-160-151-160-286V405l160-60Z"
+    fill="#ffffff"
+    stroke="#2e9f57"
+    stroke-width="34"
+    stroke-linejoin="round"
+  />
+  <path
+    d="m278 558 56 59 116-132"
+    fill="none"
+    stroke="#2e9f57"
+    stroke-width="38"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <text
+    x="360"
+    y="955"
+    text-anchor="middle"
+    font-family="Arial Black, Helvetica Neue, Arial, sans-serif"
+    font-size="82"
+    font-weight="900"
+    letter-spacing="-2"
+    fill="#202326"
+  >zamloan.com</text>
+</svg>

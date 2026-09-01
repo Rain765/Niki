@@ -644,7 +644,7 @@ async function renderAntiFraudPosterCopy(
     const color = options.headline === 'Prevent Fraud' && index === 1
       ? '#ef5148'
       : '#202326';
-    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : headlineLineHeight}" fill="${color}" stroke="${color}">${escapeSvgText(line)}</tspan>`;
+    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : headlineLineHeight}" fill="${color}">${escapeSvgText(line)}</tspan>`;
   }).join('');
   const subtitleTop = headlineTop
     + Math.max(1, headlineLines.length) * headlineLineHeight
@@ -653,7 +653,7 @@ async function renderAntiFraudPosterCopy(
     const color = options.subtitle === 'Trust Only Official Customer Service' && index === 1
       ? '#176a4d'
       : '#34383d';
-    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : subtitleLineHeight}" fill="${color}" stroke="${color}">${escapeSvgText(line)}</tspan>`;
+    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : subtitleLineHeight}" fill="${color}">${escapeSvgText(line)}</tspan>`;
   }).join('');
   const subtitleBottom = subtitleTop
     + Math.max(1, subtitleLines.length) * subtitleLineHeight;
@@ -685,24 +685,18 @@ async function renderAntiFraudPosterCopy(
   return Buffer.from(`
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <defs>
-        <filter id="copy-shadow" x="-20%" y="-20%" width="140%" height="150%">
-          <feDropShadow dx="0" dy="${Math.max(2, Math.round(height * 0.004))}" stdDeviation="${Math.max(2, Math.round(height * 0.004))}" flood-color="#4f3e35" flood-opacity="0.18"/>
-        </filter>
-        <filter id="notification-shadow" x="-20%" y="-30%" width="140%" height="170%">
-          <feDropShadow dx="0" dy="${Math.max(3, Math.round(height * 0.007))}" stdDeviation="${Math.max(4, Math.round(height * 0.010))}" flood-color="#20252b" flood-opacity="0.24"/>
-        </filter>
         <linearGradient id="contact-face" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stop-color="#ff7868"/>
           <stop offset="100%" stop-color="#ed4039"/>
         </linearGradient>
       </defs>
-      <g font-family="Arial Black, Helvetica Neue, Arial, sans-serif" filter="url(#copy-shadow)" paint-order="stroke fill" stroke-linejoin="round">
-        <text x="${columnLeft}" y="${headlineTop}" font-size="${headlineSize}" font-weight="900" letter-spacing="${Math.round(headlineSize * -0.025)}" stroke-width="${Math.max(1, headlineSize * 0.014)}">${headlineMarkup}</text>
-        <text x="${columnLeft}" y="${subtitleTop}" font-size="${subtitleSize}" font-weight="900" letter-spacing="${Math.round(subtitleSize * -0.010)}" stroke-width="${Math.max(0.5, subtitleSize * 0.009)}">${subtitleMarkup}</text>
+      <g font-family="Arial Black, Helvetica Neue, Arial, sans-serif">
+        <text x="${columnLeft}" y="${headlineTop}" font-size="${headlineSize}" font-weight="900" letter-spacing="${Math.round(headlineSize * -0.025)}">${headlineMarkup}</text>
+        <text x="${columnLeft}" y="${subtitleTop}" font-size="${subtitleSize}" font-weight="900" letter-spacing="${Math.round(subtitleSize * -0.010)}">${subtitleMarkup}</text>
       </g>
-      <g transform="translate(${messageLeft} ${messageTop}) skewY(3)" filter="url(#notification-shadow)">
-        <rect x="${cardDepthX}" y="${cardDepthY}" width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#aeb1b4" fill-opacity="0.96"/>
-        <rect width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#e4e5e6" fill-opacity="0.92" stroke="#ffffff" stroke-opacity="0.72" stroke-width="${Math.max(1, Math.round(width * 0.0012))}"/>
+      <g transform="translate(${messageLeft} ${messageTop}) skewY(3)">
+        <rect x="${cardDepthX}" y="${cardDepthY}" width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#bfc2c5"/>
+        <rect width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#f0f1f2" stroke="#d0d3d5" stroke-width="${Math.max(1, Math.round(width * 0.0012))}"/>
         <path d="M ${messageRadius} 1 H ${messageWidth - messageRadius}" stroke="#ffffff" stroke-opacity="0.70" stroke-width="${Math.max(1, Math.round(height * 0.0015))}" stroke-linecap="round"/>
         <g transform="translate(${messagePaddingX} ${messagePaddingY})">
           <rect width="${appIconSize}" height="${appIconSize}" rx="${Math.round(appIconSize * 0.25)}" fill="#24cf5f"/>
@@ -718,8 +712,8 @@ async function renderAntiFraudPosterCopy(
           <tspan x="${messagePaddingX}" dy="${Math.round(messageBodySize * 1.10)}">to receive your money.</tspan>
         </text>
       </g>
-      <g transform="translate(${contactLeft} ${contactTop}) skewY(3)" filter="url(#notification-shadow)">
-        <rect x="${contactDepth}" y="${contactDepth}" width="${contactSize}" height="${contactSize}" rx="${Math.round(contactSize * 0.14)}" fill="#b72d29"/>
+      <g transform="translate(${contactLeft} ${contactTop}) skewY(3)">
+        <rect x="${contactDepth}" y="${contactDepth}" width="${contactSize}" height="${contactSize}" rx="${Math.round(contactSize * 0.14)}" fill="#c63c35"/>
         <rect width="${contactSize}" height="${contactSize}" rx="${Math.round(contactSize * 0.14)}" fill="url(#contact-face)" stroke="#ff9485" stroke-width="${Math.max(1, Math.round(contactSize * 0.018))}"/>
         <circle cx="${contactSize * 0.50}" cy="${contactSize * 0.50}" r="${contactSize * 0.32}" fill="#fff7ed" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(contactSize * 0.025))}"/>
         <circle cx="${contactSize * 0.50}" cy="${contactSize * 0.39}" r="${contactSize * 0.105}" fill="#ef5148"/>
@@ -1375,6 +1369,7 @@ export async function generateMedia(args: {
   });
   const overlayPhoneScreenRef = await resolveProjectImage(overlayPhoneScreen, dir, {
     argumentName: '--overlay-phone-screen',
+    allowSvg: true,
   });
   if (overlayLogoAnchor && !['left', 'right'].includes(overlayLogoAnchor)) {
     throw new Error('unsupported overlay logo anchor. Allowed: left | right.');

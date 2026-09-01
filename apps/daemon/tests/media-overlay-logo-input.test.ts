@@ -153,24 +153,15 @@ describe('media brand overlay inputs', () => {
   });
 
   it('composites designed anti-fraud copy over a single generated scene plate', async () => {
-    const phoneScreenName = 'zamloan-homepage-reference.png';
-    const phoneScreen = await sharp({
-      create: {
-        width: 240,
-        height: 504,
-        channels: 4,
-        background: { r: 245, g: 250, b: 245, alpha: 1 },
-      },
-    }).composite([{
-      input: Buffer.from(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="240" height="504">
-          <rect x="0" y="0" width="240" height="90" fill="#21a545"/>
-          <rect x="20" y="120" width="200" height="70" rx="16" fill="#ff6b65"/>
-        </svg>
-      `),
-      left: 0,
-      top: 0,
-    }]).png().toBuffer();
+    const phoneScreenName = 'zamloan-safe-screen.svg';
+    const phoneScreen = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="240" height="504">
+        <rect width="240" height="504" fill="#f5faf5"/>
+        <rect width="240" height="140" fill="#21a545"/>
+        <path d="M120 170 180 195v55c0 50-25 88-60 108-35-20-60-58-60-108v-55l60-25Z" fill="#ffffff" stroke="#21a545" stroke-width="10"/>
+        <text x="120" y="420" text-anchor="middle" font-family="Arial" font-size="28" font-weight="700">zamloan.com</text>
+      </svg>
+    `);
     await writeFile(path.join(projectDir, phoneScreenName), phoneScreen);
     generatedPoster = await sharp({
       create: {

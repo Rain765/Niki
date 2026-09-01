@@ -27,10 +27,10 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.svg', {
     type: 'image/svg+xml',
   }),
-  loadZamloanWebsiteReference: async () => new File(
-    ['website'],
-    'zamloan-homepage-reference.png',
-    { type: 'image/png' },
+  loadZamloanSafeScreen: async () => new File(
+    ['safe-screen'],
+    'zamloan-safe-screen.svg',
+    { type: 'image/svg+xml' },
   ),
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
     type: 'image/png',
@@ -209,7 +209,7 @@ describe('startDirectLoanPosterProject', () => {
         expect(body.model).toBe('gpt-image-2');
         expect(body.overlayLogo).toBe('.od-inputs/zamloan-logo.svg');
         expect(body.overlayPhoneScreen).toBe(
-          '.od-inputs/zamloan-homepage-reference.png',
+          '.od-inputs/zamloan-safe-screen.svg',
         );
         expect(body).not.toHaveProperty('overlayZ');
         expect(body).not.toHaveProperty('image');

@@ -3,7 +3,7 @@ import {
   buildLoanPosterScenePlans,
   LOAN_POSTER_SKILL_ID,
   loadZamloanLogo,
-  loadZamloanWebsiteReference,
+  loadZamloanSafeScreen,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
   type AutoPosterPurpose,
@@ -147,7 +147,7 @@ export class DirectLoanPosterRequestError extends Error {
       'create-project': '创建海报项目失败',
       'upload-z-reference': '上传 Z 参考图失败',
       'upload-logo': '上传 Zamloan Logo 失败',
-      'upload-phone-screen': '上传 Zamloan 官网截图失败',
+      'upload-phone-screen': '上传 Zamloan 官网安全页失败',
       'start-generation': '启动图片生成失败',
     }[options.stage];
     const detail = options.detail?.trim();
@@ -193,7 +193,7 @@ export async function startDirectLoanPosterProject(
   const [bundledLogo, bundledPhoneScreen] = await Promise.all([
     options.brand === 'zamloan' ? loadZamloanLogo() : null,
     options.brand === 'zamloan' && options.purpose === 'anti-fraud'
-      ? loadZamloanWebsiteReference()
+      ? loadZamloanSafeScreen()
       : null,
   ]);
   const prefix = `${options.brand}-poster`;
