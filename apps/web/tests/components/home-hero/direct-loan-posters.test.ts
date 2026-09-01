@@ -14,24 +14,12 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
     buildLoanPosterScenePromptsMock(options).map((prompt, index) => ({
       prompt,
       logoAnchor: index % 2 === 0 ? 'left' : 'right',
-      ...(options.purpose === 'anti-fraud'
-        ? {
-          headline: 'Prevent Fraud',
-          subtitle: 'Trust Only Official Customer Service',
-          textAnchor: index % 2 === 0 ? 'left' : 'right',
-        }
-        : {}),
     }))
   ),
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
   loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.svg', {
     type: 'image/svg+xml',
   }),
-  loadZamloanSafeScreen: async () => new File(
-    ['safe-screen'],
-    'zamloan-safe-screen.svg',
-    { type: 'image/svg+xml' },
-  ),
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
     type: 'image/png',
   }),
@@ -208,17 +196,15 @@ describe('startDirectLoanPosterProject', () => {
         expect(body.quality).toBe('medium');
         expect(body.model).toBe('gpt-image-2');
         expect(body.overlayLogo).toBe('.od-inputs/zamloan-logo.svg');
-        expect(body.overlayPhoneScreen).toBe(
-          '.od-inputs/zamloan-safe-screen.svg',
-        );
+        expect(body).not.toHaveProperty('overlayPhoneScreen');
         expect(body).not.toHaveProperty('overlayZ');
         expect(body).not.toHaveProperty('image');
         expect(body.overlayLogoAnchor).toMatch(/^(left|right)$/);
         expect(body).not.toHaveProperty('foregroundPrompt');
-        expect(body.posterHeadline).toBe('Prevent Fraud');
-        expect(body.posterSubtitle).toBe('Trust Only Official Customer Service');
-        expect(body.posterTextAnchor).toMatch(/^(left|right)$/);
-        expect(body.posterCopyStyle).toBe('anti-fraud');
+        expect(body).not.toHaveProperty('posterHeadline');
+        expect(body).not.toHaveProperty('posterSubtitle');
+        expect(body).not.toHaveProperty('posterTextAnchor');
+        expect(body).not.toHaveProperty('posterCopyStyle');
         expect(body.output).toMatch(
           new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
         );
@@ -255,7 +241,7 @@ describe('startDirectLoanPosterProject', () => {
       purpose: 'anti-fraud',
     })).resolves.toEqual({ projectId: 'project-1' });
 
-    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain('/api/runs');
     const createCall = fetchMock.mock.calls.find(
       ([input, init]) => String(input) === '/api/projects' && init?.method === 'POST',
@@ -811,6 +797,10 @@ describe('startDirectLoanPosterProject', () => {
     expect(mediaRequestBody?.overlayLogoAnchor).toBe('left');
     expect(mediaRequestBody?.overlayLogo).toBe('.od-inputs/logo.svg');
     expect(mediaRequestBody).not.toHaveProperty('overlayZ');
+    expect(mediaRequestBody).not.toHaveProperty('posterHeadline');
+    expect(mediaRequestBody).not.toHaveProperty('posterSubtitle');
+    expect(mediaRequestBody).not.toHaveProperty('posterCopyStyle');
+    expect(mediaRequestBody).not.toHaveProperty('overlayPhoneScreen');
   });
 
   it('retries media admission with the same idempotency key', async () => {

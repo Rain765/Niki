@@ -72,6 +72,27 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('zamloan-logo.svg');
   });
 
+  it('keeps Zamloan anti-fraud execution on the acquisition single-pass contract', () => {
+    const prompt = buildLoanPosterPrompt({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'zamloan',
+      purpose: 'anti-fraud',
+    });
+
+    expect(prompt).toContain('same single-pass composition');
+    expect(prompt).toContain('oversized expressive typography');
+    expect(prompt).toContain('`Prevent Fraud`');
+    expect(prompt).toContain('`Trust Only Official Customer Service`');
+    expect(prompt).toContain('`zamloan.com`');
+    expect(prompt).toContain('`Unknown Sender`');
+    expect(prompt).toContain('Generate the background, Z, model, phone, headline, subtitle');
+    expect(prompt).toContain('Do not request deterministic poster-copy or phone-screen overlays');
+    expect(prompt).toContain(
+      'Do not pass `--overlay-z`, `--foreground-prompt-file`, `--poster-headline`',
+    );
+  });
+
   it('builds a landscape BiuMoney prompt without mixing brands', () => {
     const prompt = buildLoanPosterPrompt({
       count: 2,
@@ -240,55 +261,63 @@ describe('Zambia poster preset', () => {
     expect(autoPosterUsesZReference('zamloan')).toBe(false);
   });
 
-  it.each(['zamloan', 'biumoney'] as const)(
-    'builds %s anti-fraud scenes as text-free narrative plates with deterministic copy metadata',
-    (brand) => {
-      const plans = buildLoanPosterScenePlans({
-        count: 4,
-        aspectRatio: '3:4',
-        brand,
-        purpose: 'anti-fraud',
-        variationOffset: 0,
-      });
-      const prompts = plans.map((plan) => plan.prompt);
+  it('builds Zamloan anti-fraud scenes with the acquisition poster composition system', () => {
+    const plans = buildLoanPosterScenePlans({
+      count: 4,
+      aspectRatio: '3:4',
+      brand: 'zamloan',
+      purpose: 'anti-fraud',
+      variationOffset: 0,
+    });
+    const prompts = plans.map((plan) => plan.prompt);
 
-      expect(prompts).toHaveLength(4);
-      expect(new Set(prompts).size).toBe(4);
-      expect(plans.every((plan) => plan.headline === 'Prevent Fraud')).toBe(true);
-      expect(plans.every((plan) => (
-        plan.subtitle === 'Trust Only Official Customer Service'
-      ))).toBe(true);
-      expect(plans.every((plan) => plan.textAnchor === 'left')).toBe(true);
-      expect(prompts.every((prompt) => !prompt.includes('Prevent Fraud'))).toBe(true);
-      expect(prompts.every((prompt) => (
-        !prompt.includes('Trust Only Official Customer Service')
-      ))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('Do not render any visible text'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('official website'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('suspicious'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('red warning'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('green official'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('blocked'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('holding a smartphone'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('screen facing the camera'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('crisp editorial diagonal split'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('open palm extended'))).toBe(true);
-      expect(prompts.every((prompt) => (
-        prompt.includes('compact light-gray isometric notification')
-      ))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('lower-left 36% clear'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('visible gap, never behind it'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('Do not generate floating'))).toBe(true);
-      expect(prompts.every((prompt) => (
-        prompt.includes('solid saturated magenta') === (brand === 'zamloan')
-      ))).toBe(true);
-      expect(prompts.every((prompt) => (
-        prompt.includes('shield-and-check icon above zamloan.com') === (brand === 'zamloan')
-      ))).toBe(true);
-      expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
-      expect(prompts.every((prompt) => !prompt.includes('Application Approved'))).toBe(true);
-    },
-  );
+    expect(prompts).toHaveLength(4);
+    expect(new Set(prompts).size).toBe(4);
+    expect(plans.every((plan) => plan.headline === undefined)).toBe(true);
+    expect(plans.every((plan) => plan.subtitle === undefined)).toBe(true);
+    expect(plans.every((plan) => plan.textAnchor === undefined)).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('as one unified composition'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('logo-safe band'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('very large bold primary headline'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('expressive heavy campaign typography'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Prevent Fraud'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('Trust Only Official Customer Service')
+    ))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('same scale and visual prominence'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('green outlined shield'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('“zamloan.com”'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('about two-thirds'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('no wider than about one-quarter'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('“Unknown Sender”'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Pay a processing fee now.'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('no drop shadow'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('solid saturated magenta'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('composited later'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
+  });
+
+  it('keeps BiuMoney anti-fraud scenes on their existing deterministic copy path', () => {
+    const plans = buildLoanPosterScenePlans({
+      count: 4,
+      aspectRatio: '3:4',
+      brand: 'biumoney',
+      purpose: 'anti-fraud',
+      variationOffset: 0,
+    });
+    const prompts = plans.map((plan) => plan.prompt);
+
+    expect(plans.every((plan) => plan.headline === 'Prevent Fraud')).toBe(true);
+    expect(plans.every((plan) => (
+      plan.subtitle === 'Trust Only Official Customer Service'
+    ))).toBe(true);
+    expect(plans.every((plan) => plan.textAnchor === 'left')).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('Prevent Fraud'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Do not render any visible text'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('compact light-gray isometric notification'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Do not generate floating'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
+  });
 
   it('rotates six stable diagonal color templates for anti-fraud scenes', () => {
     const prompts = buildLoanPosterScenePlans({
