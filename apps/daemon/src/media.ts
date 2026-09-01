@@ -292,6 +292,23 @@ export async function renderImageWithLogoSafeZoneRetry<T extends { bytes: Buffer
   return { result: bestResult, attempts, safeZone: bestSafeZone };
 }
 
+async function renderImageWithPhoneScreenRetry<T extends { bytes: Buffer }>(
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+): Promise<{ result: T; attempts: number }> {
+  const result = await render(prompt);
+  if (await detectMagentaPhoneScreen(result.bytes)) {
+    return { result, attempts: 1 };
+  }
+  const retried = await render(`${prompt}
+
+CRITICAL PHONE-SCREEN RETRY: The previous image did not provide a usable screen for compositing. Show exactly one large upright smartphone held toward the camera. The phone must be perfectly front-on with its complete bezel visible. Fill the entire interior display with one flat, uniform, fully saturated magenta rectangle (#ff00ff). Keep fingers, glare, icons, text, reflections, gradients, and other objects completely outside that magenta rectangle.`);
+  if (!await detectMagentaPhoneScreen(retried.bytes)) {
+    throw new Error('phone screen marker was not detectable after one retry');
+  }
+  return { result: retried, attempts: 2 };
+}
+
 /**
  * Add the exact Zamloan wordmark after image generation so the logo remains
  * legible and consistent instead of relying on model-rendered typography.
@@ -372,6 +389,94 @@ export async function overlayZamloanLogo(
       { input: neutralBackdropLayer, left: layerLeft, top: layerTop },
       { input: resizedLogo, left: logoLeft, top: logoTop },
     ])
+    .png()
+    .toBuffer();
+}
+
+export interface DetectedPhoneScreen {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function isMagentaPhoneScreenPixel(data: Buffer, offset: number): boolean {
+  const red = data[offset] ?? 0;
+  const green = data[offset + 1] ?? 0;
+  const blue = data[offset + 2] ?? 0;
+  return red >= 155
+    && blue >= 145
+    && green <= 135
+    && red - green >= 55
+    && blue - green >= 45;
+}
+
+export async function detectMagentaPhoneScreen(
+  input: Buffer,
+): Promise<DetectedPhoneScreen | null> {
+  const { data, info } = await sharp(input)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let left = info.width;
+  let top = info.height;
+  let right = -1;
+  let bottom = -1;
+  let markerPixels = 0;
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const offset = (y * info.width + x) * info.channels;
+      if (!isMagentaPhoneScreenPixel(data, offset)) continue;
+      markerPixels += 1;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
+    }
+  }
+  if (right < left || bottom < top) return null;
+  const width = right - left + 1;
+  const height = bottom - top + 1;
+  const canvasPixels = Math.max(1, info.width * info.height);
+  const boxPixels = Math.max(1, width * height);
+  const aspect = width / height;
+  if (
+    markerPixels / canvasPixels < 0.002
+    || markerPixels / boxPixels < 0.30
+    || width / info.width < 0.06
+    || width / info.width > 0.34
+    || height / info.height < 0.14
+    || height / info.height > 0.68
+    || aspect < 0.25
+    || aspect > 0.78
+  ) {
+    return null;
+  }
+  return { left, top, width, height };
+}
+
+export async function overlayPhoneScreenReference(
+  input: Buffer,
+  reference: Buffer,
+): Promise<Buffer> {
+  const target = await detectMagentaPhoneScreen(input);
+  if (!target) {
+    throw new Error('generated poster did not contain a detectable magenta phone screen');
+  }
+  const cornerRadius = Math.max(3, Math.round(target.width * 0.075));
+  const mask = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${target.width}" height="${target.height}">
+      <rect width="${target.width}" height="${target.height}" rx="${cornerRadius}" fill="white"/>
+    </svg>
+  `);
+  const screen = await sharp(reference)
+    .resize({ width: target.width, height: target.height, fit: 'fill' })
+    .ensureAlpha()
+    .composite([{ input: mask, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+  return sharp(input)
+    .composite([{ input: screen, left: target.left, top: target.top }])
     .png()
     .toBuffer();
 }
@@ -520,20 +625,30 @@ async function renderAntiFraudPosterCopy(
       ? width - panelWidth - width * 0.045
       : width * 0.045,
   );
-  const panelTop = Math.round(height * (widescreen ? 0.21 : 0.19));
-  const panelHeight = Math.round(height * (widescreen ? 0.60 : 0.49));
+  const panelTop = Math.round(height * (widescreen ? 0.18 : 0.17));
+  const panelHeight = Math.round(height * (widescreen ? 0.72 : 0.66));
   const panelRadius = Math.round(Math.min(width, height) * 0.026);
   const panelCenter = panelLeft + Math.round(panelWidth / 2);
-  const headlineSize = Math.round(height * (widescreen ? 0.105 : 0.068));
-  const headlineTop = panelTop + Math.round(panelHeight * 0.34);
+  const headlineSize = Math.round(height * (widescreen ? 0.085 : 0.060));
+  const headlineTop = panelTop + Math.round(panelHeight * 0.24);
   const accentWidth = Math.max(5, Math.round(width * 0.006));
-  const iconSize = Math.round(height * (widescreen ? 0.10 : 0.072));
-  const iconCenterY = panelTop + Math.round(panelHeight * 0.17);
+  const iconSize = Math.round(height * (widescreen ? 0.070 : 0.055));
+  const iconCenterY = panelTop + Math.round(panelHeight * 0.10);
   const pillWidth = Math.round(panelWidth * 0.80);
-  const pillHeight = Math.round(height * (widescreen ? 0.12 : 0.095));
+  const pillHeight = Math.round(height * (widescreen ? 0.10 : 0.075));
   const pillLeft = panelCenter - Math.round(pillWidth / 2);
-  const pillTop = panelTop + Math.round(panelHeight * 0.64);
-  const subtitleSize = Math.round(height * (widescreen ? 0.029 : 0.022));
+  const pillTop = panelTop + Math.round(panelHeight * 0.43);
+  const subtitleSize = Math.round(height * (widescreen ? 0.025 : 0.019));
+  const messageLeft = panelLeft + Math.round(panelWidth * 0.08);
+  const messageTop = panelTop + Math.round(panelHeight * 0.61);
+  const messageWidth = Math.round(panelWidth * 0.84);
+  const messageHeight = Math.round(panelHeight * 0.31);
+  const messageRadius = Math.round(messageHeight * 0.10);
+  const messagePadding = Math.round(messageWidth * 0.065);
+  const warningIconSize = Math.round(messageHeight * 0.28);
+  const messageHeaderSize = Math.round(height * (widescreen ? 0.020 : 0.016));
+  const messageBodySize = Math.round(height * (widescreen ? 0.017 : 0.014));
+  const blockedSize = Math.round(height * (widescreen ? 0.015 : 0.012));
   const headline = escapeSvgText(options.headline);
   const subtitle = escapeSvgText(options.subtitle);
   const splitHeadline = options.headline === 'Prevent Fraud';
@@ -552,7 +667,7 @@ async function renderAntiFraudPosterCopy(
         </filter>
       </defs>
       <g filter="url(#panel-shadow)">
-        <rect x="${panelLeft}" y="${panelTop}" width="${panelWidth}" height="${panelHeight}" rx="${panelRadius}" fill="#fffdf8" fill-opacity="0.94"/>
+        <rect x="${panelLeft}" y="${panelTop}" width="${panelWidth}" height="${panelHeight}" rx="${panelRadius}" fill="#fffdf8" fill-opacity="0.84"/>
         <rect x="${panelLeft}" y="${panelTop}" width="${accentWidth}" height="${panelHeight}" rx="${Math.round(accentWidth / 2)}" fill="#e64b3c"/>
       </g>
       <g transform="translate(${panelCenter - Math.round(iconSize / 2)} ${iconCenterY - Math.round(iconSize / 2)})">
@@ -562,6 +677,24 @@ async function renderAntiFraudPosterCopy(
       <text x="${panelCenter}" y="${headlineTop}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${headlineSize}" font-weight="900" letter-spacing="${Math.round(headlineSize * 0.025)}">${headlineMarkup}</text>
       <rect x="${pillLeft}" y="${pillTop}" width="${pillWidth}" height="${pillHeight}" rx="${Math.round(pillHeight / 2)}" fill="#176a4d"/>
       <text x="${panelCenter}" y="${pillTop + Math.round(pillHeight * 0.40)}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${subtitleSize}" font-weight="700" letter-spacing="${Math.round(subtitleSize * 0.035)}" fill="#ffffff">${subtitleMarkup}</text>
+      <g filter="url(#panel-shadow)">
+        <rect x="${messageLeft}" y="${messageTop}" width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#3a2429" fill-opacity="0.80" stroke="#ff756d" stroke-opacity="0.72" stroke-width="${Math.max(1, Math.round(width * 0.0015))}"/>
+      </g>
+      <g transform="translate(${messageLeft + messagePadding} ${messageTop + messagePadding})">
+        <rect width="${warningIconSize}" height="${warningIconSize}" rx="${Math.round(warningIconSize * 0.24)}" fill="#f04f48"/>
+        <circle cx="${warningIconSize * 0.50}" cy="${warningIconSize * 0.33}" r="${warningIconSize * 0.14}" fill="#ffffff"/>
+        <path d="M ${warningIconSize * 0.25} ${warningIconSize * 0.73} C ${warningIconSize * 0.29} ${warningIconSize * 0.52}, ${warningIconSize * 0.71} ${warningIconSize * 0.52}, ${warningIconSize * 0.75} ${warningIconSize * 0.73} Z" fill="#ffffff"/>
+        <circle cx="${warningIconSize * 0.78}" cy="${warningIconSize * 0.76}" r="${warningIconSize * 0.22}" fill="#f04f48" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(warningIconSize * 0.055))}"/>
+        <path d="M ${warningIconSize * 0.66} ${warningIconSize * 0.64} L ${warningIconSize * 0.90} ${warningIconSize * 0.88}" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(warningIconSize * 0.07))}" stroke-linecap="round"/>
+      </g>
+      <text x="${messageLeft + messagePadding + warningIconSize + messagePadding * 0.55}" y="${messageTop + messagePadding + messageHeaderSize}" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="800" fill="#ff8b84">Suspicious message</text>
+      <text x="${messageLeft + messagePadding}" y="${messageTop + messageHeight * 0.54}" font-family="Arial, Helvetica, sans-serif" font-size="${messageBodySize}" font-weight="600" fill="#ffffff">
+        <tspan x="${messageLeft + messagePadding}">Your loan is approved.</tspan>
+        <tspan x="${messageLeft + messagePadding}" dy="${Math.round(messageBodySize * 1.25)}">Pay a processing fee now</tspan>
+        <tspan x="${messageLeft + messagePadding}" dy="${Math.round(messageBodySize * 1.25)}">to receive your money.</tspan>
+      </text>
+      <rect x="${messageLeft + messagePadding}" y="${messageTop + messageHeight * 0.82}" width="${Math.round(messageWidth * 0.27)}" height="${Math.round(messageHeight * 0.12)}" rx="${Math.round(messageHeight * 0.06)}" fill="#f04f48"/>
+      <text x="${messageLeft + messagePadding + Math.round(messageWidth * 0.135)}" y="${messageTop + messageHeight * 0.91}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${blockedSize}" font-weight="900" letter-spacing="${Math.round(blockedSize * 0.08)}" fill="#ffffff">BLOCKED</text>
     </svg>
   `);
 }
@@ -806,6 +939,7 @@ export async function finalizeGeneratedPng(
     posterSubtitle?: string;
     posterTextAnchor?: 'left' | 'right';
     posterCopyStyle?: PosterCopyStyle;
+    phoneScreen?: Buffer;
     overlayLogo?: Buffer;
     overlayLogoAnchor?: 'left' | 'right';
   },
@@ -840,6 +974,9 @@ export async function finalizeGeneratedPng(
       textAnchor: options.posterTextAnchor,
       ...(options.posterCopyStyle ? { copyStyle: options.posterCopyStyle } : {}),
     });
+  }
+  if (options.phoneScreen) {
+    bytes = await overlayPhoneScreenReference(bytes, options.phoneScreen);
   }
   if (options.overlayLogo) {
     bytes = await overlayZamloanLogo(
@@ -959,7 +1096,7 @@ async function resolveProjectImage(
   rel: unknown,
   projectDir: string,
   options: {
-    argumentName?: '--image' | '--overlay-z' | '--overlay-logo';
+    argumentName?: '--image' | '--overlay-z' | '--overlay-logo' | '--overlay-phone-screen';
     allowSvg?: boolean;
   } = {},
 ): Promise<ImageRef | null> {
@@ -1079,6 +1216,7 @@ export async function generateMedia(args: {
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
   compositionDir?: string; image?: string; overlayZ?: string; overlayLogo?: string;
   overlayLogoAnchor?: 'left' | 'right';
+  overlayPhoneScreen?: string;
   foregroundPrompt?: string;
   posterHeadline?: string;
   posterSubtitle?: string;
@@ -1109,6 +1247,7 @@ export async function generateMedia(args: {
     overlayZ,
     overlayLogo,
     overlayLogoAnchor,
+    overlayPhoneScreen,
     foregroundPrompt,
     posterHeadline,
     posterSubtitle,
@@ -1202,11 +1341,17 @@ export async function generateMedia(args: {
     argumentName: '--overlay-logo',
     allowSvg: true,
   });
+  const overlayPhoneScreenRef = await resolveProjectImage(overlayPhoneScreen, dir, {
+    argumentName: '--overlay-phone-screen',
+  });
   if (overlayLogoAnchor && !['left', 'right'].includes(overlayLogoAnchor)) {
     throw new Error('unsupported overlay logo anchor. Allowed: left | right.');
   }
   if (posterTextAnchor && !['left', 'right'].includes(posterTextAnchor)) {
     throw new Error('unsupported poster text anchor. Allowed: left | right.');
+  }
+  if (overlayPhoneScreenRef && surface !== 'image') {
+    throw new Error('phone screen overlay requires an image surface');
   }
   if (posterCopyStyle && !['standard', 'anti-fraud'].includes(posterCopyStyle)) {
     throw new Error('unsupported poster copy style. Allowed: standard | anti-fraud.');
@@ -1305,7 +1450,16 @@ export async function generateMedia(args: {
       && customImageOverridesOpenAIModel(ctx, customImageCredentials)
     ) {
       providerId = 'custom-image';
-      const checked = loanPosterOutput && overlayLogoRef
+      const phoneChecked = overlayPhoneScreenRef
+        ? await renderImageWithPhoneScreenRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          ),
+        )
+        : null;
+      const checked = !phoneChecked && loanPosterOutput && overlayLogoRef
         ? await renderImageWithLogoSafeZoneRetry(
           ctx.prompt,
           (resolvedPrompt) => renderCustomOpenAIImage(
@@ -1318,7 +1472,7 @@ export async function generateMedia(args: {
           },
         )
         : null;
-      const result = checked?.result
+      const result = phoneChecked?.result ?? checked?.result
         ?? await renderCustomOpenAIImage(ctx, customImageCredentials!);
       bytes = result.bytes;
       if (layeredPosterRequested) {
@@ -1335,13 +1489,22 @@ export async function generateMedia(args: {
           warnings.push('Foreground matte required one retry before compositing.');
         }
       }
-      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
+      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
       if (checked?.safeZone.intrudes) {
         warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
       }
     } else if (def.provider === 'openai' && surface === 'image') {
-      const checked = loanPosterOutput && overlayLogoRef
+      const phoneChecked = overlayPhoneScreenRef
+        ? await renderImageWithPhoneScreenRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          ),
+        )
+        : null;
+      const checked = !phoneChecked && loanPosterOutput && overlayLogoRef
         ? await renderImageWithLogoSafeZoneRetry(
           ctx.prompt,
           (resolvedPrompt) => renderOpenAIImage(
@@ -1354,7 +1517,9 @@ export async function generateMedia(args: {
           },
         )
         : null;
-      const result = checked?.result ?? await renderOpenAIImage(ctx, credentials);
+      const result = phoneChecked?.result
+        ?? checked?.result
+        ?? await renderOpenAIImage(ctx, credentials);
       bytes = result.bytes;
       if (layeredPosterRequested) {
         const renderedForeground = await renderLayeredForegroundWithMatteRetry(
@@ -1370,7 +1535,7 @@ export async function generateMedia(args: {
           warnings.push('Foreground matte required one retry before compositing.');
         }
       }
-      providerNote = `${result.providerNote}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
+      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
       if (checked?.safeZone.intrudes) {
         warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
@@ -1554,7 +1719,10 @@ export async function generateMedia(args: {
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
   }
-  if (surface === 'image' && (overlayZRef || overlayLogoRef || completePosterCopy)) {
+  if (
+    surface === 'image'
+    && (overlayZRef || overlayLogoRef || overlayPhoneScreenRef || completePosterCopy)
+  ) {
     const dot = finalOut.lastIndexOf('.');
     const stem = dot > 0 ? finalOut.slice(0, dot) : finalOut;
     finalOut = `${stem}.png`;
@@ -1570,6 +1738,9 @@ export async function generateMedia(args: {
       ...(posterSubtitle ? { posterSubtitle } : {}),
       ...(posterTextAnchor ? { posterTextAnchor } : {}),
       ...(posterCopyStyle ? { posterCopyStyle } : {}),
+      ...(overlayPhoneScreenRef
+        ? { phoneScreen: await readFile(overlayPhoneScreenRef.abs) }
+        : {}),
       ...(overlayLogoRef
         ? { overlayLogo: await readFile(overlayLogoRef.abs) }
         : {}),

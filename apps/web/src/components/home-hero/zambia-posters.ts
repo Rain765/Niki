@@ -5,6 +5,9 @@ export const ZAMBIA_POSTER_REFERENCE_URL = '/brand/zambia-support/z-reference.pn
 export const ZAMBIA_POSTER_REFERENCE_NAME = 'loan-poster-z-reference.png';
 export const ZAMLOAN_LOGO_URL = '/brand/zambia-support/zamloan-logo.svg';
 export const ZAMLOAN_LOGO_NAME = 'zamloan-logo.svg';
+export const ZAMLOAN_WEBSITE_REFERENCE_URL =
+  '/brand/zambia-support/zamloan-homepage-reference.png';
+export const ZAMLOAN_WEBSITE_REFERENCE_NAME = 'zamloan-homepage-reference.png';
 export const LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1-1';
 const LEGACY_LOAN_POSTER_SKILL_ID = 'loan-poster-skill-v1.1';
 const POSTER_ASSET_TIMEOUT_MS = 12_000;
@@ -189,48 +192,48 @@ const ANTI_FRAUD_POSTER_SCENES = [
     model: 'a young Zambian woman',
     wardrobe: 'wearing a modern coral blouse and relaxed neutral trousers',
     environment: 'in a bright, contemporary Lusaka home with warm daylight and restrained décor',
-    riskCue: 'a floating red warning card representing a suspicious customer-service message and a clearly blocked sender symbol',
-    safeAction: 'she dismisses the suspicious message and opens a separate green official website verification card with a shield-and-check symbol',
+    riskCue: 'her free hand makes a decisive stop gesture toward the empty area reserved for a suspicious message overlay',
+    safeAction: 'she presents the official website on the phone in her other hand',
     camera: 'a candid waist-up portrait with the safety decision readable at a glance',
   },
   {
     model: 'a Zambian neighborhood shop owner',
     wardrobe: 'wearing a patterned blouse and a practical emerald apron',
     environment: 'behind the counter of a tidy neighborhood shop with colorful products softly out of focus',
-    riskCue: 'a floating red warning card representing a suspicious fake-agent contact and a clearly blocked contact symbol',
-    safeAction: 'she stops the conversation and presents a separate green official website verification card with a shield-and-check symbol',
+    riskCue: 'her free hand makes a decisive stop gesture toward the empty area reserved for a suspicious fake-agent message overlay',
+    safeAction: 'she presents the official website on the phone in her other hand',
     camera: 'a confident counter-height environmental portrait',
   },
   {
     model: 'a young Zambian commuter',
     wardrobe: 'wearing smart-casual city clothing with a cobalt overshirt',
     environment: 'at a bright public transit shelter with an energetic Lusaka streetscape in the distance',
-    riskCue: 'a floating red warning card representing a suspicious call and a clearly blocked handset symbol',
-    safeAction: 'they end the call and open a separate green official website verification card with a shield-and-check symbol',
+    riskCue: 'their free hand dismisses the empty area reserved for a suspicious-call overlay',
+    safeAction: 'they present the official website on the phone in the other hand',
     camera: 'a dynamic mid-shot with clean directional movement from danger to safety',
   },
   {
     model: 'a Zambian mother and her adult daughter',
     wardrobe: 'wearing coordinated warm neutrals with one deep-green accent',
     environment: 'in a welcoming family living room with soft afternoon light',
-    riskCue: 'a floating red warning card representing a suspicious profile and a clearly blocked identity symbol',
-    safeAction: 'the daughter points to a separate green official website verification card while the mother dismisses the suspicious contact',
+    riskCue: 'the mother rejects the empty area reserved for a suspicious-profile message overlay',
+    safeAction: 'the daughter presents the official website on a phone held toward the camera',
     camera: 'an intimate over-the-shoulder two-person composition',
   },
   {
     model: 'a Zambian office worker',
     wardrobe: 'wearing a crisp cream shirt with a burgundy accent',
     environment: 'at a modern, uncluttered desk with graphic daylight and subtle office depth',
-    riskCue: 'a floating red warning card representing a suspicious payment request and a clearly crossed-out transfer symbol',
-    safeAction: 'they push the warning away and open a separate green official website verification card with a shield-and-check symbol',
+    riskCue: 'their free hand pushes away the empty area reserved for a suspicious-payment message overlay',
+    safeAction: 'they present the official website on the phone in the other hand',
     camera: 'a polished desk-level editorial portrait',
   },
   {
     model: 'an older Zambian man with a younger relative',
     wardrobe: 'wearing reassuring blue and sand tones with natural everyday styling',
     environment: 'in a comfortable living room with warm practical lighting and familiar family details',
-    riskCue: 'a floating red warning card representing a suspicious caller and a clearly blocked handset symbol',
-    safeAction: 'the older man ends the call while the relative shows a separate green official website verification card with a shield-and-check symbol',
+    riskCue: 'the older man rejects the empty area reserved for a suspicious-caller message overlay',
+    safeAction: 'the relative presents the official website on a phone held toward the camera',
     camera: 'a reassuring two-person portrait that emphasizes shared confidence',
   },
 ] as const;
@@ -409,6 +412,9 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
       const brandBackground = brand === 'zamloan'
         ? 'Include one subtle low-opacity Z silhouette as a background-only brand cue. Keep it behind the people, safety cards, and reserved copy panel.'
         : 'Do not render a letter Z, alphabetic background motif, logo, wordmark, or logo-shaped watermark.';
+      const phoneScreenContract = brand === 'zamloan'
+        ? 'Render the phone screen interior as one uniform solid saturated magenta rectangle with clean rounded corners, surrounded by a realistic dark phone bezel. Do not place any content, icons, reflections, or gradients inside the magenta screen. The exact official website will be composited into it later.'
+        : 'Render a clean, text-free official website interface on the phone using a white page, the brand color direction, and one simple shield-and-check symbol. Do not render readable interface copy, numbers, or contact details.';
       return {
         logoAnchor: antiFraudComposition.logoAnchor,
         textAnchor: antiFraudComposition.textAnchor,
@@ -418,7 +424,9 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
 
 Use ${antiFraudPalette.background} as the art direction, ${antiFraudPalette.warning} for the red warning state, and ${antiFraudPalette.safe} for the green official verification state. ${brandBackground} ${antiFraudComposition.instruction}.
 
-Show ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Stage ${antiFraudPlan.riskCue}. In the same frame, show the safe response: ${antiFraudPlan.safeAction}. The red warning and green official website states must be visually separate, easy to understand, and connected by the person's decisive action. The blocked symbol must remain clearly recognizable. Use ${antiFraudPlan.camera}. The people should look alert, calm, and empowered rather than frightened.
+Show ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Stage ${antiFraudPlan.riskCue}. In the same frame, show the safe response: ${antiFraudPlan.safeAction}. The person must be holding a smartphone upright with its complete screen facing the camera, perfectly front-on, large, unobstructed by fingers, and free of glare. ${phoneScreenContract}
+
+Keep the reserved red warning message area and the green official website phone visually separate and connected by the person's decisive stop gesture. Do not generate the warning card itself; it will be composited later with the blocked symbol and exact suspicious-message copy. Use ${antiFraudPlan.camera}. The people should look alert, calm, and empowered rather than frightened.
 
 Abstract notification, caller, and payment symbols are allowed only as non-readable visual cues. Do not render any visible text, letters, numbers, URLs, brand names, interface labels, contact details, chat copy, verification codes, account numbers, payment instructions, or QR codes anywhere in the generated scene. Exact campaign copy and branding will be composited later into the reserved copy panel.
 
@@ -563,6 +571,16 @@ export async function loadZamloanLogo(): Promise<File> {
     name: ZAMLOAN_LOGO_NAME,
     fallbackType: 'image/svg+xml',
     label: 'Zamloan logo',
+    requireImageContentType: true,
+  });
+}
+
+export async function loadZamloanWebsiteReference(): Promise<File> {
+  return loadBundledPosterAsset({
+    url: ZAMLOAN_WEBSITE_REFERENCE_URL,
+    name: ZAMLOAN_WEBSITE_REFERENCE_NAME,
+    fallbackType: 'image/png',
+    label: 'Zamloan website reference',
     requireImageContentType: true,
   });
 }

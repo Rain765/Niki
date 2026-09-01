@@ -91,6 +91,7 @@ export interface MediaGenerationRequest {
   overlayZ?: string;
   overlayLogo?: string;
   overlayLogoAnchor?: 'left' | 'right';
+  overlayPhoneScreen?: string;
   foregroundPrompt?: string;
   posterHeadline?: string;
   posterSubtitle?: string;

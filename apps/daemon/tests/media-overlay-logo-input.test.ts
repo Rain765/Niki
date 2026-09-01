@@ -153,6 +153,34 @@ describe('media brand overlay inputs', () => {
   });
 
   it('composites designed anti-fraud copy over a single generated scene plate', async () => {
+    const phoneScreenName = 'zamloan-homepage-reference.png';
+    const phoneScreen = await sharp({
+      create: {
+        width: 240,
+        height: 504,
+        channels: 4,
+        background: { r: 245, g: 250, b: 245, alpha: 1 },
+      },
+    }).composite([{
+      input: Buffer.from(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="240" height="504">
+          <rect x="0" y="0" width="240" height="90" fill="#21a545"/>
+          <rect x="20" y="120" width="200" height="70" rx="16" fill="#ff6b65"/>
+        </svg>
+      `),
+      left: 0,
+      top: 0,
+    }]).png().toBuffer();
+    await writeFile(path.join(projectDir, phoneScreenName), phoneScreen);
+    generatedPoster = await sharp(generatedPoster).composite([{
+      input: Buffer.from(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="120" height="252">
+          <rect width="120" height="252" rx="12" fill="#ff00ff"/>
+        </svg>
+      `),
+      left: 560,
+      top: 180,
+    }]).png().toBuffer();
     const fetchMock = vi.fn(async () => new Response(
       JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }),
       { status: 200, headers: { 'content-type': 'application/json' } },
@@ -172,6 +200,7 @@ describe('media brand overlay inputs', () => {
       posterSubtitle: 'Trust Only Official Customer Service',
       posterTextAnchor: 'left',
       posterCopyStyle: 'anti-fraud',
+      overlayPhoneScreen: phoneScreenName,
       loanPosterOutput: true,
       output: 'anti-fraud-poster.png',
     });
@@ -188,6 +217,13 @@ describe('media brand overlay inputs', () => {
         await sharp(generatedPoster).raw().toBuffer(),
       ),
     ).toBe(false);
+    const { data, info } = await sharp(output)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const screenOffset = (210 * info.width + 600) * info.channels;
+    expect(data[screenOffset]).toBeLessThan(100);
+    expect(data[screenOffset + 1]).toBeGreaterThan(140);
+    expect(data[screenOffset + 2]).toBeLessThan(130);
   });
 
   it('requests an opaque matte foreground and composites it above the exact Z', async () => {

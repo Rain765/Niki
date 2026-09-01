@@ -71,6 +71,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'overlay-z',
   'overlay-logo',
   'overlay-logo-anchor',
+  'overlay-phone-screen',
   'daemon-url',
   'language',
 ]);
@@ -1017,6 +1018,7 @@ async function runMediaGenerate(rawArgs) {
     overlayZ: flags['overlay-z'],
     overlayLogo: flags['overlay-logo'],
     overlayLogoAnchor: flags['overlay-logo-anchor'],
+    overlayPhoneScreen: flags['overlay-phone-screen'],
     foregroundPrompt,
     posterHeadline: flags['poster-headline'],
     posterSubtitle: flags['poster-subtitle'],
@@ -1764,6 +1766,8 @@ Common options:
                             exactly after provider rendering.
   --overlay-logo-anchor <left|right>
                             Align the logo with the matching title column.
+  --overlay-phone-screen <path>
+                            Composite a project image into a magenta phone screen.
   --foreground-prompt <text>
                             Model-only foreground prompt for a layered poster;
                             the daemon removes a local chroma matte.

@@ -340,6 +340,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
             overlayZ: req.body?.overlayZ,
             overlayLogo: req.body?.overlayLogo,
             overlayLogoAnchor: req.body?.overlayLogoAnchor,
+            overlayPhoneScreen: req.body?.overlayPhoneScreen,
             foregroundPrompt: req.body?.foregroundPrompt,
             posterHeadline: req.body?.posterHeadline,
             posterSubtitle: req.body?.posterSubtitle,

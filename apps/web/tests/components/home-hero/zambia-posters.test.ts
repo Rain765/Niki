@@ -269,6 +269,11 @@ describe('Zambia poster preset', () => {
       expect(prompts.every((prompt) => prompt.includes('red warning'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('green official'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('blocked'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('holding a smartphone'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('screen facing the camera'))).toBe(true);
+      expect(prompts.every((prompt) => (
+        prompt.includes('solid saturated magenta') === (brand === 'zamloan')
+      ))).toBe(true);
       expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
       expect(prompts.every((prompt) => !prompt.includes('Application Approved'))).toBe(true);
     },

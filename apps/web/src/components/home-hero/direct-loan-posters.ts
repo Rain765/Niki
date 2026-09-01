@@ -3,6 +3,7 @@ import {
   buildLoanPosterScenePlans,
   LOAN_POSTER_SKILL_ID,
   loadZamloanLogo,
+  loadZamloanWebsiteReference,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
   type AutoPosterPurpose,
@@ -34,6 +35,7 @@ type DirectLoanPosterStage =
   | 'create-project'
   | 'upload-z-reference'
   | 'upload-logo'
+  | 'upload-phone-screen'
   | 'start-generation';
 
 const NEW_CHAT_SESSION = '__new__';
@@ -145,6 +147,7 @@ export class DirectLoanPosterRequestError extends Error {
       'create-project': '创建海报项目失败',
       'upload-z-reference': '上传 Z 参考图失败',
       'upload-logo': '上传 Zamloan Logo 失败',
+      'upload-phone-screen': '上传 Zamloan 官网截图失败',
       'start-generation': '启动图片生成失败',
     }[options.stage];
     const detail = options.detail?.trim();
@@ -187,9 +190,12 @@ export async function startDirectLoanPosterProject(
   const dateKey = localDateKey();
   const storageKey = lastProjectStorageKey(options.sessionScope);
   let reusableProject = await resolveDirectLoanPosterProject(options.sessionScope);
-  const bundledLogo = options.brand === 'zamloan'
-    ? await loadZamloanLogo()
-    : null;
+  const [bundledLogo, bundledPhoneScreen] = await Promise.all([
+    options.brand === 'zamloan' ? loadZamloanLogo() : null,
+    options.brand === 'zamloan' && options.purpose === 'anti-fraud'
+      ? loadZamloanWebsiteReference()
+      : null,
+  ]);
   const prefix = `${options.brand}-poster`;
   let project: Project | null = null;
   let existingFiles: Awaited<ReturnType<typeof fetchProjectFiles>> = [];
@@ -347,6 +353,15 @@ export async function startDirectLoanPosterProject(
       logoPath = await uploadPosterAsset(project.id, bundledLogo, 'upload-logo');
       logStage('logo-uploaded', project.id);
     }
+    let phoneScreenPath: string | undefined;
+    if (bundledPhoneScreen) {
+      phoneScreenPath = await uploadPosterAsset(
+        project.id,
+        bundledPhoneScreen,
+        'upload-phone-screen',
+      );
+      logStage('phone-screen-uploaded', project.id);
+    }
 
     const datedOutputPrefix = `${prefix}-${compactDateKey(dateKey)}`;
     const highestExistingOutputNumber = existingFiles.reduce((maximum, file) => {
@@ -426,6 +441,7 @@ export async function startDirectLoanPosterProject(
               posterCopyStyle: 'anti-fraud' as const,
             }
             : {}),
+          ...(phoneScreenPath ? { overlayPhoneScreen: phoneScreenPath } : {}),
           output: batchOutputNames[index],
           prompt: scenePlan.prompt,
         },
@@ -482,7 +498,7 @@ export async function startDirectLoanPosterProject(
 async function uploadPosterAsset(
   projectId: string,
   file: File,
-  stage: 'upload-z-reference' | 'upload-logo',
+  stage: 'upload-z-reference' | 'upload-logo' | 'upload-phone-screen',
 ): Promise<string> {
   const url = `/api/projects/${encodeURIComponent(projectId)}/upload?visibility=internal`;
 

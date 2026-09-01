@@ -27,6 +27,11 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.svg', {
     type: 'image/svg+xml',
   }),
+  loadZamloanWebsiteReference: async () => new File(
+    ['website'],
+    'zamloan-homepage-reference.png',
+    { type: 'image/png' },
+  ),
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
     type: 'image/png',
   }),
@@ -148,6 +153,7 @@ describe('startDirectLoanPosterProject', () => {
         expect(body).not.toHaveProperty('posterSubtitle');
         expect(body).not.toHaveProperty('posterTextAnchor');
         expect(body).not.toHaveProperty('posterCopyStyle');
+        expect(body).not.toHaveProperty('overlayPhoneScreen');
         return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
           status: 202,
           headers: { 'Content-Type': 'application/json' },
@@ -189,7 +195,8 @@ describe('startDirectLoanPosterProject', () => {
       if (url.includes('/upload?visibility=internal')) {
         expect(init?.keepalive).toBe(true);
         expect(init?.signal).toBeInstanceOf(AbortSignal);
-        return new Response(JSON.stringify({ files: [{ path: '.od-inputs/reference.png' }] }), {
+        const file = (init?.body as FormData).get('files') as File;
+        return new Response(JSON.stringify({ files: [{ path: `.od-inputs/${file.name}` }] }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
@@ -200,7 +207,10 @@ describe('startDirectLoanPosterProject', () => {
         expect(init?.signal).toBeInstanceOf(AbortSignal);
         expect(body.quality).toBe('medium');
         expect(body.model).toBe('gpt-image-2');
-        expect(body.overlayLogo).toBe('.od-inputs/reference.png');
+        expect(body.overlayLogo).toBe('.od-inputs/zamloan-logo.svg');
+        expect(body.overlayPhoneScreen).toBe(
+          '.od-inputs/zamloan-homepage-reference.png',
+        );
         expect(body).not.toHaveProperty('overlayZ');
         expect(body).not.toHaveProperty('image');
         expect(body.overlayLogoAnchor).toMatch(/^(left|right)$/);
@@ -245,7 +255,7 @@ describe('startDirectLoanPosterProject', () => {
       purpose: 'anti-fraud',
     })).resolves.toEqual({ projectId: 'project-1' });
 
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(fetchMock.mock.calls.map(([input]) => String(input))).not.toContain('/api/runs');
     const createCall = fetchMock.mock.calls.find(
       ([input, init]) => String(input) === '/api/projects' && init?.method === 'POST',
