@@ -5,6 +5,7 @@ import {
   loadZamloanLogo,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
+  type AutoPosterPurpose,
 } from './zambia-posters';
 import type { DirectLoanPosterBatch } from '@open-design/contracts';
 import type { Project, ProjectMetadata } from '../../types';
@@ -17,6 +18,7 @@ interface DirectLoanPosterOptions {
   count: number;
   aspectRatio: AutoPosterAspectRatio;
   brand: AutoPosterBrand;
+  purpose?: AutoPosterPurpose;
   sessionScope?: string;
 }
 
@@ -213,6 +215,7 @@ export async function startDirectLoanPosterProject(
     outputNames: [],
     brand: options.brand,
     aspectRatio: options.aspectRatio,
+    purpose: options.purpose ?? 'acquisition',
   };
   const previousBatches = previousDirect?.batches ?? [];
   let preparingMetadata: ProjectMetadata = {

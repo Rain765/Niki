@@ -108,6 +108,7 @@ export interface DirectLoanPosterBatch {
   expectedOutputs: number;
   outputNames: string[];
   brand?: 'zamloan' | 'biumoney';
+  purpose?: 'acquisition' | 'anti-fraud';
   aspectRatio?: MediaAspect;
   lastError?: string;
 }

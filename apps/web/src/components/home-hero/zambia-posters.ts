@@ -18,6 +18,10 @@ export const AUTO_POSTER_BRANDS = ['zamloan', 'biumoney'] as const;
 export type AutoPosterBrand = (typeof AUTO_POSTER_BRANDS)[number];
 export const AUTO_POSTER_DEFAULT_BRAND: AutoPosterBrand = 'zamloan';
 
+export const AUTO_POSTER_PURPOSES = ['acquisition', 'anti-fraud'] as const;
+export type AutoPosterPurpose = (typeof AUTO_POSTER_PURPOSES)[number];
+export const AUTO_POSTER_DEFAULT_PURPOSE: AutoPosterPurpose = 'acquisition';
+
 export function isDirectLoanPosterProject(
   skillId: string | null | undefined,
   metadata: {
@@ -48,6 +52,7 @@ export interface AutoPosterOptions {
   count: number;
   aspectRatio: AutoPosterAspectRatio;
   brand: AutoPosterBrand;
+  purpose?: AutoPosterPurpose;
   /**
    * Advances the creative sequence for outputs that already exist in the
    * current project. One-click batches pass the next output number here so a
@@ -77,6 +82,11 @@ const BRAND_LABELS: Record<AutoPosterBrand, string> = {
   biumoney: 'BiuMoney',
 };
 
+const PURPOSE_LABELS: Record<AutoPosterPurpose, string> = {
+  acquisition: '引流',
+  'anti-fraud': '防欺诈',
+};
+
 export function normalizeZambiaPosterCount(value: number): number {
   if (!Number.isFinite(value)) return ZAMBIA_POSTER_DEFAULT_COUNT;
   return Math.min(
@@ -87,6 +97,10 @@ export function normalizeZambiaPosterCount(value: number): number {
 
 export function autoPosterBrandLabel(brand: AutoPosterBrand): string {
   return BRAND_LABELS[brand];
+}
+
+export function autoPosterPurposeLabel(purpose: AutoPosterPurpose): string {
+  return PURPOSE_LABELS[purpose];
 }
 
 export function autoPosterUsesZReference(_brand: AutoPosterBrand): boolean {
@@ -167,6 +181,33 @@ const LOAN_POSTER_SCENES = [
     model: 'a Zambian healthcare worker',
     scene: 'leaving a neighborhood clinic at the end of a shift',
     benefits: ['Receive money quickly', 'Apply 100% via mobile'],
+  },
+] as const;
+
+const ANTI_FRAUD_POSTER_SCENES = [
+  {
+    model: 'a young Zambian woman',
+    scene: 'at home after receiving a suspicious customer-service message, calmly pausing before taking action and opening the brand official website to verify the genuine support channel',
+  },
+  {
+    model: 'a Zambian neighborhood shop owner',
+    scene: 'behind the shop counter after noticing a suspicious loan-agent message, stopping the conversation and checking the brand official website before responding',
+  },
+  {
+    model: 'a young Zambian commuter',
+    scene: 'in a bright public transit shelter after receiving a suspicious call, ending it and using the brand official website to confirm the real customer-support route',
+  },
+  {
+    model: 'a Zambian mother and her adult daughter',
+    scene: 'in a warm family home reviewing a suspicious message together and choosing the brand official website as their only trusted support source',
+  },
+  {
+    model: 'a Zambian office worker',
+    scene: 'at a tidy desk after spotting a suspicious payment request, refusing to continue and independently navigating to the brand official website for support',
+  },
+  {
+    model: 'an older Zambian man with a younger relative',
+    scene: 'in a comfortable living room after a suspicious caller claimed to represent the lender, with the relative helping verify support through the brand official website',
   },
 ] as const;
 
@@ -254,6 +295,9 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
   const aspectRatio = AUTO_POSTER_ASPECT_RATIOS.includes(options.aspectRatio)
     ? options.aspectRatio
     : AUTO_POSTER_DEFAULT_ASPECT_RATIO;
+  const purpose = options.purpose && AUTO_POSTER_PURPOSES.includes(options.purpose)
+    ? options.purpose
+    : AUTO_POSTER_DEFAULT_PURPOSE;
   const brandLabel = autoPosterBrandLabel(brand);
   const seedOffset = options.variationSeed
     ? stableStringHash(options.variationSeed)
@@ -263,6 +307,9 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
   return Array.from({ length: count }, (_, index) => {
     const variationIndex = variationOffset + index;
     const plan = LOAN_POSTER_SCENES[variationIndex % LOAN_POSTER_SCENES.length]!;
+    const antiFraudPlan = ANTI_FRAUD_POSTER_SCENES[
+      variationIndex % ANTI_FRAUD_POSTER_SCENES.length
+    ]!;
     const palette = LOAN_POSTER_PALETTES[
       (variationIndex * 3) % LOAN_POSTER_PALETTES.length
     ]!;
@@ -282,6 +329,23 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     const logoAnchor: LoanPosterLogoAnchor = aspectRatio === '16:9'
       ? widescreenComposition.logoAnchor
       : 'left';
+    if (purpose === 'anti-fraud') {
+      const brandBackground = brand === 'zamloan'
+        ? `Use a ${palette.gradient} dominant background and one ${palette.ribbon} curved ribbon along the bottom. Render one large low-opacity Z silhouette as an integrated background graphic. Keep the Z behind every person, phone, headline, and subtitle pixel, and preserve the specified logo-safe row or band for the supplied Zamloan logo overlay.`
+        : `Use a clean ${palette.gradient} dominant background with subtle abstract depth. Do not render a letter Z, alphabetic background motif, logo, wordmark, or logo-shaped watermark.`;
+      return {
+        logoAnchor,
+        prompt: `Create a premium ${brandLabel} Zambia anti-fraud awareness poster in ${aspectRatio}.
+
+${brandBackground} Render exactly two visible text elements across the entire poster: “防范欺诈” as a very large bold headline and “仅相信官网客服” as a large supporting subtitle. Reproduce both Chinese phrases exactly. Do not translate, paraphrase, punctuate, or add any other words, letters, numbers, labels, badges, disclaimers, phone-screen copy, or brand names. ${composition}. Show ${antiFraudPlan.model} ${antiFraudPlan.scene}. The person should look alert, calm, and empowered rather than frightened.
+
+Show an anatomically correct smartphone with its screen facing the camera. Communicate a trustworthy official website through a clean structured page layout, a simple shield or check symbol, and the selected brand's color direction, but keep the screen free of readable text, numbers, contact details, chat bubbles, payment requests, verification codes, and QR codes. Do not depict a scammer, cash transfer, panic, intimidation, or instructions that could help commit fraud.
+
+Keep the complete headline and subtitle inside the reserved negative-space region. Preserve a clearly visible gap between the copy and every person, face, body, hand, item of clothing, prop, and phone. Use realistic Zambian lifestyle commercial photography, reassuring premium lighting, natural skin retouching, strong text hierarchy, oversized readable Chinese typography, and generous safe margins.
+
+Negative prompt: extra text, translated text, English poster copy, misspelled Chinese, extra Chinese characters, brand wordmark, readable chat message, readable phone UI, phone number, contact number, payment code, verification code, QR code, URL text, scam instructions, cash transfer, panic, intimidation, text over person, text over face, text over body, text over hands, text over phone, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable headline, duplicated elements, mixed brands${brand === 'biumoney' ? ', letter Z, background letter, alphabetic background motif' : ', Z over subject, Z over text, foreground Z, duplicate Z'}.`,
+      };
+    }
     if (brand === 'biumoney') {
       const phoneStatus = BIUMONEY_PHONE_STATUS_COPY[
         variationIndex % BIUMONEY_PHONE_STATUS_COPY.length
@@ -325,6 +389,9 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const aspectRatio = AUTO_POSTER_ASPECT_RATIOS.includes(options.aspectRatio)
     ? options.aspectRatio
     : AUTO_POSTER_DEFAULT_ASPECT_RATIO;
+  const purpose = options.purpose && AUTO_POSTER_PURPOSES.includes(options.purpose)
+    ? options.purpose
+    : AUTO_POSTER_DEFAULT_PURPOSE;
   const brandLabel = autoPosterBrandLabel(brand);
   const aspectDescription = {
     '1:1': '1:1 square',
@@ -339,7 +406,7 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   const logoContract = isZamloan
     ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
     : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
-  const brandOverride = isZamloan
+  const acquisitionBrandOverride = isZamloan
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
 - Generate the background, Z, model, phone, headline, and subtitle together in one image so the model can coordinate the complete composition.
 - Render one large low-opacity Z as part of the background and keep it behind every model, phone, headline, and subtitle pixel.
@@ -352,6 +419,16 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - The phone-screen exception is the only additional visible wording: clearly present the phone with its screen facing the camera, fully visible and large enough to read. Use a compact solid green circle containing a white checkmark, keep the circle no larger than about one-sixth of the screen height, leave at least one full circle diameter before the copy below it, and use the scene-specific short status copy instead of repeating one status across every scene.
 - Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
 - This BiuMoney override takes precedence over conflicting skill template rules.`;
+  const brandOverride = purpose === 'anti-fraud'
+    ? `${isZamloan
+      ? '- Keep the single background Z behind all foreground content and reserve the required logo-safe row or band for the supplied logo overlay.'
+      : '- Do not render a logo, wordmark, letter Z, background letter, or alphabetic motif.'}
+- Render exactly two visible text elements across the entire poster: \`防范欺诈\` as the headline and \`仅相信官网客服\` as the subtitle. Reproduce both phrases exactly without translation, paraphrase, punctuation, or added copy.
+- Depict a calm Zambian customer rejecting a suspicious message or call and independently verifying support through the brand official website.
+- Keep the phone screen free of readable text, numbers, contact details, chat bubbles, payment requests, verification codes, and QR codes.
+- Do not depict fraud instructions, cash transfer, panic, or intimidation.
+- These anti-fraud copy and scene rules take precedence over conflicting skill template rules.`
+    : acquisitionBrandOverride;
   const generationReference = ', without an `--image` reference';
 
   return `Generate exactly ${count} ${brandLabel} Zambia loan poster${count === 1 ? '' : 's'} now. Do not ask the user for a prompt, scene list, copy, or confirmation.
@@ -360,6 +437,7 @@ The active functional skill is \`${LOAN_POSTER_SKILL_ID}\`. Follow its workflow,
 
 Runtime inputs:
 - brand: \`${brand}\` (${brandLabel}); use it for art direction and filenames, but do not mix in the other brand
+- type: \`${purpose}\` (${autoPosterPurposeLabel(purpose)})
 - format: \`${aspectRatio}\` (${aspectDescription})
 - quantity: \`${count}\`
 - output prefix: \`${outputPrefix}\`

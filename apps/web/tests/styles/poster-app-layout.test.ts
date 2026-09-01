@@ -34,9 +34,9 @@ describe('poster app image layout', () => {
     expect(trigger).toContain('max-width: 100%;');
   });
 
-  it('uses the standardized fill system with dark selected controls', () => {
+  it('uses the standardized fill system with native select controls', () => {
     const root = rule(':root');
-    const selected = rule('.poster-app__segmented button.is-active');
+    const select = rule('.poster-app__field select');
 
     expect(root).toContain('color-scheme: light;');
     expect(root).not.toMatch(/#[0-9a-f]{3,8}\b/i);
@@ -61,14 +61,16 @@ describe('poster app image layout', () => {
     expect(NIKI_POSTER_COLOR_VARIABLES['--poster-panel-muted']).toBe(
       'var(--poster-fill-1)',
     );
-    expect(selected).toContain('background: var(--poster-text-primary);');
-    expect(selected).toContain('color: var(--poster-text-inverse);');
+    expect(select).toContain('background: var(--poster-fill-0);');
+    expect(select).toContain('color: var(--poster-muted);');
+    expect(select).toContain('appearance: none;');
+    expect(select).toContain('background-repeat: no-repeat;');
   });
 
   it('uses borderless fill layers for the generator and account controls', () => {
     const app = rule('.poster-app');
     const generator = rule('.poster-app__generator');
-    const segmented = rule('.poster-app__segmented');
+    const select = rule('.poster-app__field select');
     const account = rule('.poster-app__account');
     const accountMenu = rule('.poster-app__account-menu');
 
@@ -76,8 +78,9 @@ describe('poster app image layout', () => {
     expect(generator).toContain('border: 0;');
     expect(generator).toContain('border-radius: 16px;');
     expect(generator).toContain('background: var(--poster-panel-muted);');
-    expect(segmented).toContain('border-radius: 12px;');
-    expect(segmented).toContain('background: var(--poster-fill-0);');
+    expect(select).toContain('border: 0;');
+    expect(select).toContain('border-radius: 12px;');
+    expect(select).toContain('background: var(--poster-fill-0);');
     expect(account).toContain('border: 0;');
     expect(account).toContain('border-radius: 8px;');
     expect(account).toContain('background: var(--poster-fill-0);');
@@ -97,7 +100,7 @@ describe('poster app image layout', () => {
   it('lets each card own its aspect ratio without cropping the image', () => {
     const poster = rule('.poster-app__poster');
     const posterAndSkeleton = rule('.poster-app__poster,\n.poster-app__poster-skeleton');
-    const segmentedButton = rule('.poster-app__segmented button');
+    const select = rule('.poster-app__field select');
     const square = rule('.poster-app__poster.is-square');
     const portrait = rule('.poster-app__poster.is-portrait');
     const image = rules('.poster-app__poster img');
@@ -106,7 +109,7 @@ describe('poster app image layout', () => {
     expect(poster).toContain('cursor: pointer;');
     expect(posterAndSkeleton).toContain('border: 0;');
     expect(posterAndSkeleton).toContain('border-radius: 0;');
-    expect(segmentedButton).toContain('border-radius: 12px;');
+    expect(select).toContain('border-radius: 12px;');
     expect(square).toContain('aspect-ratio: 1;');
     expect(portrait).toContain('aspect-ratio: 3 / 4;');
     expect(image).toContain('object-fit: contain;');
@@ -187,7 +190,7 @@ describe('poster app image layout', () => {
   it('keeps poster history interaction lighter than filter controls', () => {
     const historyHover = rule('.poster-app__history-toggle:hover');
     const historyPressed = rule('.poster-app__history-toggle:active');
-    const filterHover = rule('.poster-app__segmented button:not(.is-active):hover');
+    const filterHover = rule('.poster-app__field select:hover:not(:disabled)');
 
     expect(NIKI_POSTER_COLOR_VARIABLES['--poster-history-hover']).toBe(
       'var(--poster-fill-1)',

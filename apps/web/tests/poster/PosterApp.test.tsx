@@ -604,29 +604,42 @@ describe('PosterApp mobile-safe flow', () => {
     ).toBe('/api/projects/restored-video-project/raw/restored-video.mp4');
   });
 
-  it('defaults to one portrait poster and renders the ratio options in order', () => {
+  it('renders the existing poster options unchanged as selects and defaults to acquisition', () => {
     render(<PosterApp />);
 
     expect(screen.getByRole('heading', { name: 'Generate Loan Posters' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
-    expect(screen.getByText('Quantity')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '1' }).classList.contains('is-active')).toBe(true);
-    expect(screen.queryByText(/\u5f20/)).toBeNull();
-    const ratioField = screen.getByText('Ratio').closest('.poster-app__field');
-    expect(ratioField).toBeTruthy();
-    const ratioButtons = within(ratioField as HTMLElement).getAllByRole('button');
-    expect(ratioButtons.map((button) => button.textContent)).toEqual(['3:4', '1:1', '16:9']);
-    expect(
-      within(ratioField as HTMLElement).getByRole('button', { name: '3:4' }).classList.contains('is-active'),
-    ).toBe(true);
+    const product = screen.getByRole('combobox', { name: 'Product' }) as HTMLSelectElement;
+    const type = screen.getByRole('combobox', { name: 'Type' }) as HTMLSelectElement;
+    const quantity = screen.getByRole('combobox', { name: 'Quantity' }) as HTMLSelectElement;
+    const ratio = screen.getByRole('combobox', { name: 'Ratio' }) as HTMLSelectElement;
+
+    expect(Array.from(product.options, (option) => option.textContent)).toEqual([
+      'Zamloan',
+      'Biumoney',
+    ]);
+    expect(product.value).toBe('zamloan');
+    expect(Array.from(type.options, (option) => option.textContent)).toEqual(['引流', '防欺诈']);
+    expect(type.value).toBe('acquisition');
+    expect(Array.from(quantity.options, (option) => option.textContent)).toEqual(['1', '2', '3', '4']);
+    expect(quantity.value).toBe('1');
+    expect(Array.from(ratio.options, (option) => option.textContent)).toEqual(['3:4', '1:1', '16:9']);
+    expect(ratio.value).toBe('3:4');
     expect(screen.queryByText(/Landscape|Square|Portrait/)).toBeNull();
   });
 
   it('switches from the title menu while preserving the poster form state', () => {
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Biumoney' }));
-    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Product' }), {
+      target: { value: 'biumoney' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), {
+      target: { value: 'anti-fraud' },
+    });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Quantity' }), {
+      target: { value: '3' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
     fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
 
@@ -638,8 +651,12 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /Generate Loan Posters/ }));
 
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Biumoney' }).classList.contains('is-active')).toBe(true);
-    expect(screen.getByRole('button', { name: '3' }).classList.contains('is-active')).toBe(true);
+    expect((screen.getByRole('combobox', { name: 'Product' }) as HTMLSelectElement).value)
+      .toBe('biumoney');
+    expect((screen.getByRole('combobox', { name: 'Type' }) as HTMLSelectElement).value)
+      .toBe('anti-fraud');
+    expect((screen.getByRole('combobox', { name: 'Quantity' }) as HTMLSelectElement).value)
+      .toBe('3');
   });
 
   it('opens Document Search from the title menu', () => {
@@ -662,7 +679,8 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    const options = screen.getAllByRole('option');
+    const options = within(screen.getByRole('listbox', { name: 'Creation mode' }))
+      .getAllByRole('option');
     const englishOption = options.find((option) => option.textContent?.includes('Daily English Practice'));
     expect(englishOption?.textContent).toContain('Practice real-life English conversations');
 
@@ -676,7 +694,8 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    const options = screen.getAllByRole('option');
+    const options = within(screen.getByRole('listbox', { name: 'Creation mode' }))
+      .getAllByRole('option');
     const logoOption = options.at(-1);
 
     expect(logoOption?.textContent).toContain('Logo Studio');
@@ -703,15 +722,23 @@ describe('PosterApp mobile-safe flow', () => {
     expect(trigger.children).toHaveLength(1);
   });
 
-  it('submits the default portrait ratio as 3:4', async () => {
+  it('submits the selected poster type with the unchanged default controls', async () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);
 
+    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), {
+      target: { value: 'anti-fraud' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
 
     await waitFor(() => {
       expect(startDirectLoanPosterProjectMock).toHaveBeenCalledWith(
-        expect.objectContaining({ aspectRatio: '3:4' }),
+        expect.objectContaining({
+          aspectRatio: '3:4',
+          brand: 'zamloan',
+          count: 1,
+          purpose: 'anti-fraud',
+        }),
         expect.any(Function),
       );
     });

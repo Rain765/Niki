@@ -240,6 +240,30 @@ describe('Zambia poster preset', () => {
     expect(autoPosterUsesZReference('zamloan')).toBe(false);
   });
 
+  it.each(['zamloan', 'biumoney'] as const)(
+    'builds %s anti-fraud scenes with the fixed copy and official-support verification story',
+    (brand) => {
+      const prompts = buildLoanPosterScenePrompts({
+        count: 4,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'anti-fraud',
+        variationOffset: 0,
+      });
+
+      expect(prompts).toHaveLength(4);
+      expect(new Set(prompts).size).toBe(4);
+      expect(prompts.every((prompt) => prompt.includes('“防范欺诈”'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('“仅相信官网客服”'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('official website'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('suspicious'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('exactly two visible text elements'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('QR code'))).toBe(true);
+      expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
+      expect(prompts.every((prompt) => !prompt.includes('Application Approved'))).toBe(true);
+    },
+  );
+
   it('rotates every creative dimension instead of restarting at scene one', () => {
     const firstBatch = buildLoanPosterScenePlans({
       count: 1,

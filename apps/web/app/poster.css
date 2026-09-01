@@ -1664,7 +1664,7 @@ button {
 
 .poster-app__generator {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(170px, 0.75fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(170px, 0.75fr);
   gap: var(--poster-space-4);
   padding: var(--poster-space-4);
   border: 0;
@@ -1683,45 +1683,49 @@ button {
   font-weight: 650;
 }
 
-.poster-app__segmented {
-  display: flex;
-  gap: var(--poster-space-1);
+.poster-app__field select {
+  width: 100%;
   min-width: 0;
-  padding: var(--poster-space-1);
-  border-radius: 12px;
-  background: var(--poster-fill-0);
-}
-
-.poster-app__segmented button {
-  flex: 1;
-  min-width: 0;
-  min-height: 38px;
-  padding: 7px 9px;
+  min-height: 46px;
+  padding: 0 40px 0 14px;
   border: 0;
   border-radius: 12px;
-  background: transparent;
+  background: var(--poster-fill-0);
   color: var(--poster-muted);
   cursor: pointer;
   font-size: 13px;
-  transition:
-    background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
-    color 140ms cubic-bezier(0.23, 1, 0.32, 1);
-  white-space: nowrap;
+  font-weight: 650;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234e5969' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  transition: background-color 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.poster-app__segmented button:not(.is-active):hover {
+.poster-app__field select:hover:not(:disabled) {
   background: var(--poster-control-hover);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231d2129' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
   color: var(--poster-text);
 }
 
-.poster-app__segmented button:not(.is-active):active {
-  background: var(--poster-control-pressed);
-  transition-duration: 80ms;
+.poster-app__field select:focus-visible {
+  outline: 2px solid var(--poster-line-active);
+  outline-offset: 2px;
 }
 
-.poster-app__segmented button.is-active {
-  background: var(--poster-text-primary);
-  color: var(--poster-text-inverse);
+.poster-app__field select:disabled {
+  cursor: not-allowed;
+  color: var(--poster-text-disabled);
+}
+
+.poster-app__field select:active:not(:disabled) {
+  background: var(--poster-control-pressed);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231d2129' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  transition-duration: 80ms;
 }
 
 .poster-app__generate {

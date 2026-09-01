@@ -25,9 +25,11 @@ import {
 } from '../components/home-hero/direct-loan-posters';
 import {
   AUTO_POSTER_DEFAULT_BRAND,
+  AUTO_POSTER_DEFAULT_PURPOSE,
   isLoanPosterOutputName,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
+  type AutoPosterPurpose,
 } from '../components/home-hero/zambia-posters';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import { DocumentSearch } from './DocumentSearch';
@@ -213,6 +215,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
+  const [purpose, setPurpose] = useState<AutoPosterPurpose>(AUTO_POSTER_DEFAULT_PURPOSE);
   const [aspectRatio, setAspectRatio] = useState<AutoPosterAspectRatio>('3:4');
   const [count, setCount] = useState(1);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -509,6 +512,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     try {
       const result = await startDirectLoanPosterProject({
         brand,
+        purpose,
         aspectRatio,
         count,
         sessionScope: user.id,
@@ -821,51 +825,52 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       {creationMode === 'poster' ? (
         <>
       <section className="poster-app__generator" aria-label="Poster generation settings">
-        <div className="poster-app__field">
+        <label className="poster-app__field">
           <span>Product</span>
-          <div className="poster-app__segmented">
-            {(['zamloan', 'biumoney'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={brand === value ? 'is-active' : ''}
-                onClick={() => setBrand(value)}
-              >
-                {value === 'zamloan' ? 'Zamloan' : 'Biumoney'}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="poster-app__field">
+          <select
+            value={brand}
+            disabled={generating}
+            onChange={(event) => setBrand(event.target.value as AutoPosterBrand)}
+          >
+            <option value="zamloan">Zamloan</option>
+            <option value="biumoney">Biumoney</option>
+          </select>
+        </label>
+        <label className="poster-app__field">
+          <span>Type</span>
+          <select
+            value={purpose}
+            disabled={generating}
+            onChange={(event) => setPurpose(event.target.value as AutoPosterPurpose)}
+          >
+            <option value="acquisition">引流</option>
+            <option value="anti-fraud">防欺诈</option>
+          </select>
+        </label>
+        <label className="poster-app__field">
           <span>Quantity</span>
-          <div className="poster-app__segmented">
+          <select
+            value={count}
+            disabled={generating}
+            onChange={(event) => setCount(Number(event.target.value))}
+          >
             {[1, 2, 3, 4].map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={count === value ? 'is-active' : ''}
-                onClick={() => setCount(value)}
-              >
-                {value}
-              </button>
+              <option key={value} value={value}>{value}</option>
             ))}
-          </div>
-        </div>
-        <div className="poster-app__field">
+          </select>
+        </label>
+        <label className="poster-app__field">
           <span>Ratio</span>
-          <div className="poster-app__segmented">
+          <select
+            value={aspectRatio}
+            disabled={generating}
+            onChange={(event) => setAspectRatio(event.target.value as AutoPosterAspectRatio)}
+          >
             {(['3:4', '1:1', '16:9'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={aspectRatio === value ? 'is-active' : ''}
-                onClick={() => setAspectRatio(value)}
-              >
-                {value}
-              </button>
+              <option key={value} value={value}>{value}</option>
             ))}
-          </div>
-        </div>
+          </select>
+        </label>
         <button
           type="button"
           className="poster-app__generate"

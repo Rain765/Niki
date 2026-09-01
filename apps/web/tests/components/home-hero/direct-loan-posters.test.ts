@@ -228,6 +228,7 @@ describe('startDirectLoanPosterProject', () => {
       count: 2,
       aspectRatio: '16:9',
       brand: 'zamloan',
+      purpose: 'anti-fraud',
     })).resolves.toEqual({ projectId: 'project-1' });
 
     expect(fetchMock).toHaveBeenCalledTimes(6);
@@ -253,6 +254,7 @@ describe('startDirectLoanPosterProject', () => {
           outputNames: [],
           brand: 'zamloan',
           aspectRatio: '16:9',
+          purpose: 'anti-fraud',
         }],
       },
     });
@@ -276,6 +278,7 @@ describe('startDirectLoanPosterProject', () => {
       }),
     ]);
     expect(buildLoanPosterScenePromptsMock).toHaveBeenCalledWith(expect.objectContaining({
+      purpose: 'anti-fraud',
       variationSeed: 'project-1',
       variationOffset: 0,
     }));
