@@ -22,7 +22,25 @@ function rules(selector: string): string {
     .join('\n');
 }
 
+function mediaRules(query: string): string {
+  const start = css.indexOf(`@media ${query} {`);
+  if (start === -1) return '';
+
+  return css.slice(start);
+}
+
 describe('poster app image layout', () => {
+  it('keeps mobile filters in two columns with a full-width generate action', () => {
+    const mobile = mediaRules('(max-width: 760px)');
+
+    expect(mobile).toMatch(
+      /\.poster-app__generator\s*{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
+    );
+    expect(mobile).toMatch(
+      /\.poster-app__generate\s*{[^}]*grid-column:\s*1 \/ -1;/s,
+    );
+  });
+
   it('stacks the eyebrow above the naturally wrapping mode title', () => {
     const eyebrow = rule('.poster-app__eyebrow');
     const modeSelect = rule('.poster-app__mode-select');
