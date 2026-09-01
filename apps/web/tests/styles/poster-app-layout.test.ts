@@ -233,4 +233,14 @@ describe('poster app image layout', () => {
     expect(optionHover).toContain('background: var(--poster-control-hover);');
     expect(optionHover).toContain('color: var(--poster-text);');
   });
+
+  it('keeps generation feedback on one readable line', () => {
+    const status = rule('.poster-app__status');
+    const message = rule('.poster-app__status-message');
+
+    expect(status).toContain('align-items: center;');
+    expect(message).toContain('white-space: nowrap;');
+    expect(message).toContain('overflow: hidden;');
+    expect(message).toContain('text-overflow: ellipsis;');
+  });
 });

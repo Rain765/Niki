@@ -759,17 +759,53 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByText('Loading recent posters…')).toBeTruthy();
   });
 
-  it('automatically dismisses the current generation status after 10 seconds', async () => {
+  it('does not show a generation status while restoring an existing project', async () => {
+    render(<PosterApp />);
+    await screen.findByRole('img', { name: 'biumoney-poster-20260804-001.png' });
+
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    expect(screen.queryByText('Ready to generate')).toBeNull();
+    expect(screen.queryByText('Loading posters…')).toBeNull();
+  });
+
+  it('keeps an initial project restore failure silent', async () => {
+    resolveDirectLoanPosterProjectMock.mockRejectedValue(new Error('Restore unavailable'));
+    render(<PosterApp />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading recent posters…')).toBeNull();
+    });
+    expect(screen.queryByText('Restore unavailable')).toBeNull();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    expect(document.querySelector('.poster-app__notice')).toBeNull();
+  });
+
+  it('shows a one-line generation status only after clicking generate', async () => {
+    startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
+    render(<PosterApp />);
+
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+
+    const generationStatus = await screen.findByTestId('poster-app-generation-status');
+    expect(within(generationStatus).getByText('Generating posters…')).toBeTruthy();
+    expect(generationStatus.querySelector('.poster-app__status-message')).toBeTruthy();
+    expect(generationStatus.querySelector('strong')).toBeNull();
+    expect(generationStatus.querySelector('p')).toBeNull();
+  });
+
+  it('automatically dismisses a generation failure after 10 seconds', async () => {
+    startDirectLoanPosterProjectMock.mockRejectedValue(new Error('Provider unavailable'));
     const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     render(<PosterApp />);
-    await screen.findByText('1 poster generated in this batch');
 
-    const generationStatus = screen.getByTestId('poster-app-generation-status');
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    const generationStatus = await screen.findByTestId('poster-app-generation-status');
+    expect(within(generationStatus).getByText('Generation failed: Provider unavailable')).toBeTruthy();
     const autoDismissCall = setTimeoutSpy.mock.calls
       .filter(([, delay]) => delay === 10_000)
       .at(-1);
     expect(autoDismissCall).toBeTruthy();
-    expect(generationStatus.className).not.toContain('is-dismissed');
 
     act(() => {
       if (typeof autoDismissCall?.[0] === 'function') autoDismissCall[0]();
@@ -779,7 +815,53 @@ describe('PosterApp mobile-safe flow', () => {
     expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('keeps an asynchronous generation failure visible until the user dismisses it', async () => {
+  it('shows and automatically dismisses a successful generation after 10 seconds', async () => {
+    const completedProject = {
+      ...project,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: {
+          kind: 'loan-poster' as const,
+          expectedOutputs: 1,
+          status: 'complete' as const,
+          activeBatchId: 'batch-current',
+          batches: [{
+            id: 'batch-current',
+            status: 'complete' as const,
+            requestedAt: 10,
+            completedAt: 20,
+            expectedOutputs: 1,
+            outputNames: ['biumoney-poster-20260804-001.png'],
+            brand: 'biumoney' as const,
+            aspectRatio: '3:4' as const,
+          }],
+        },
+      },
+    };
+    startDirectLoanPosterProjectMock.mockImplementation(async (_options, onProjectCreated) => {
+      onProjectCreated?.(completedProject);
+      return { projectId: 'project-1' };
+    });
+    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
+    render(<PosterApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    const generationStatus = await screen.findByTestId('poster-app-generation-status');
+    await within(generationStatus).findByText('1 poster generated');
+    const autoDismissCall = setTimeoutSpy.mock.calls
+      .filter(([, delay]) => delay === 10_000)
+      .at(-1);
+    expect(autoDismissCall).toBeTruthy();
+
+    act(() => {
+      if (typeof autoDismissCall?.[0] === 'function') autoDismissCall[0]();
+    });
+
+    expect(generationStatus.className).toContain('is-dismissed');
+    expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('does not restore an old asynchronous generation failure as a status', async () => {
     const failedProject = {
       ...project,
       metadata: {
@@ -820,19 +902,11 @@ describe('PosterApp mobile-safe flow', () => {
       }
       throw new Error(`Unexpected request: ${url}`);
     }));
-    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
-
     render(<PosterApp />);
-    await screen.findByText('Provider rejected the foreground request.');
+    await screen.findByText('3:4 × 0');
 
-    const generationStatus = screen.getByTestId('poster-app-generation-status');
-    const lastAutoDismissCall = setTimeoutSpy.mock.calls
-      .filter(([, delay]) => delay === 10_000)
-      .at(-1);
-    act(() => {
-      if (typeof lastAutoDismissCall?.[0] === 'function') lastAutoDismissCall[0]();
-    });
-    expect(generationStatus.className).not.toContain('is-dismissed');
+    expect(screen.queryByText('Provider rejected the foreground request.')).toBeNull();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
   });
 
   it('restores the server image and shows copy confirmation above the preview', async () => {
@@ -992,15 +1066,10 @@ describe('PosterApp mobile-safe flow', () => {
     expect(newestImage.getAttribute('loading')).toBe('eager');
     expect(newestImage.closest('button')?.className).toContain('is-square');
     expect(within(latestRegion).getByText('1:1 × 1').className).toBe('poster-app__section-meta');
-    expect(screen.getByText('1 poster generated in this batch')).toBeTruthy();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
     expect(screen.queryByRole('img', {
       name: 'biumoney-poster-20260804-001.png',
     })).toBeNull();
-
-    const generationStatus = screen.getByTestId('poster-app-generation-status');
-    fireEvent.click(within(generationStatus).getByRole('button', { name: 'Close status' }));
-    expect(generationStatus.className).toContain('is-dismissed');
-    expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
 
     const historyToggle = screen.getByRole('button', { name: 'Expand poster history' });
     expect(historyToggle.querySelector('svg')).toBeTruthy();

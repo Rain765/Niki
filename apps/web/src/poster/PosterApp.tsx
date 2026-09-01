@@ -47,6 +47,12 @@ import type { Project, ProjectFile } from '../types';
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
 type CreationMode = 'poster' | 'video' | 'documents' | 'english' | 'logo';
+type GenerationFeedback = {
+  id: number;
+  batchId: string | null;
+  message: string;
+  state: 'working' | 'complete' | 'failed';
+};
 
 const STATUS_AUTO_DISMISS_MS = 10_000;
 const POSTER_APP_DEFAULT_PURPOSE: AutoPosterPurpose = 'anti-fraud';
@@ -247,6 +253,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
   const [showHistory, setShowHistory] = useState(false);
   const [showVideoHistory, setShowVideoHistory] = useState(false);
+  const [generationFeedback, setGenerationFeedback] = useState<GenerationFeedback | null>(null);
   const [dismissedStatusKey, setDismissedStatusKey] = useState<string | null>(null);
   const [dismissedVideoStatusKey, setDismissedVideoStatusKey] = useState<string | null>(null);
   const [preparedPreviewImage, setPreparedPreviewImage] = useState<PreparedPreviewImage | null>(null);
@@ -255,6 +262,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [deletingVideoName, setDeletingVideoName] = useState<string | null>(null);
   const latestBatchRef = useRef<HTMLElement | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
+  const generationFeedbackIdRef = useRef(0);
   const modeMenuRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -342,15 +350,11 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     && failedPreviewKey !== previewFileKey;
   const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
   const status = generationCopy(latestBatch);
-  const statusTitle = loadingProject ? 'Loading posters…' : status.title;
-  const statusKey = [
-    loadingProject ? 'loading' : status.state,
-    latestBatch?.id ?? 'none',
-    latestBatch?.files.length ?? 0,
-    statusTitle,
-    status.detail,
-  ].join(':');
-  const statusDismissed = dismissedStatusKey === statusKey;
+  const generationFeedbackKey = generationFeedback
+    ? `${generationFeedback.id}:${generationFeedback.state}:${generationFeedback.message}`
+    : null;
+  const statusDismissed = generationFeedbackKey !== null
+    && dismissedStatusKey === generationFeedbackKey;
   const videoStatus = videoGenerationCopy(
     videoGeneration.state.phase,
     videoGeneration.latestVideo !== null,
@@ -374,12 +378,43 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const videoHistory = videoGeneration.videos.slice(1);
 
   useEffect(() => {
-    if (status.state === 'working' || status.state === 'failed') return undefined;
+    if (!generationFeedback || generationFeedback.state === 'working' || !generationFeedbackKey) {
+      return undefined;
+    }
     const timeout = window.setTimeout(() => {
-      setDismissedStatusKey(statusKey);
+      setDismissedStatusKey(generationFeedbackKey);
     }, STATUS_AUTO_DISMISS_MS);
     return () => window.clearTimeout(timeout);
-  }, [status.state, statusKey]);
+  }, [generationFeedback, generationFeedbackKey]);
+
+  useEffect(() => {
+    if (
+      !generationFeedback
+      || generationFeedback.state !== 'working'
+      || !generationFeedback.batchId
+      || latestBatch?.id !== generationFeedback.batchId
+    ) {
+      return;
+    }
+    if (latestBatch.status === 'complete') {
+      const fileCount = latestBatch.files.length;
+      const generatedCount = Math.max(fileCount, latestBatch.expectedCount ?? 0);
+      setGenerationFeedback({
+        ...generationFeedback,
+        state: 'complete',
+        message: `${generatedCount} ${generatedCount === 1 ? 'poster' : 'posters'} generated`,
+      });
+      return;
+    }
+    if (latestBatch.status === 'failed' || latestBatch.status === 'interrupted') {
+      const failureDetail = latestBatch.lastError?.trim();
+      setGenerationFeedback({
+        ...generationFeedback,
+        state: 'failed',
+        message: `Generation failed${failureDetail ? `: ${failureDetail}` : ''}`,
+      });
+    }
+  }, [generationFeedback, latestBatch]);
 
   useEffect(() => {
     if (videoStatus.state === 'working' || videoStatus.state === 'failed') return undefined;
@@ -485,10 +520,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           window.location.reload();
           return;
         }
-        setNotice({
-          message: error instanceof Error ? error.message : 'Could not load recent posters',
-          tone: 'error',
-        });
       } finally {
         if (!cancelled) setLoadingProject(false);
       }
@@ -524,8 +555,17 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
 
   const generate = async () => {
     if (generating) return;
+    const feedbackId = generationFeedbackIdRef.current + 1;
+    generationFeedbackIdRef.current = feedbackId;
     setGenerating(true);
     setNotice(null);
+    setDismissedStatusKey(null);
+    setGenerationFeedback({
+      id: feedbackId,
+      batchId: null,
+      message: 'Generating posters…',
+      state: 'working',
+    });
     try {
       const result = await startDirectLoanPosterProject({
         brand,
@@ -536,14 +576,28 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       }, (createdProject) => {
         setProjectId(createdProject.id);
         setProject(createdProject);
+        const batchId = createdProject.metadata?.directGeneration?.activeBatchId ?? null;
+        setGenerationFeedback((current) => (
+          current?.id === feedbackId
+            ? { ...current, batchId: batchId ?? current.batchId }
+            : current
+        ));
       });
       setProjectId(result.projectId);
       await refreshProject(result.projectId, true);
     } catch (error) {
-      setNotice({
-        message: error instanceof Error ? error.message : 'Could not submit the generation task',
-        tone: 'error',
-      });
+      const failureDetail = error instanceof Error
+        ? error.message
+        : 'Could not submit the generation task';
+      setGenerationFeedback((current) => (
+        current?.id === feedbackId
+          ? {
+            ...current,
+            state: 'failed',
+            message: `Generation failed: ${failureDetail}`,
+          }
+          : current
+      ));
     } finally {
       setGenerating(false);
     }
@@ -916,29 +970,28 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         </button>
       </section>
 
-      <section
-        className={`poster-app__status is-${status.state}${statusDismissed ? ' is-dismissed' : ''}`}
-        role="status"
-        aria-live="polite"
-        aria-hidden={statusDismissed || undefined}
-        data-testid="poster-app-generation-status"
-      >
-        <span className="poster-app__status-mark" aria-hidden="true" />
-        <div className="poster-app__status-copy">
-          <strong>{statusTitle}</strong>
-          <p>{status.detail}</p>
-        </div>
-        <button
-          type="button"
-          className="poster-app__status-close"
-          aria-label="Close status"
-          title="Close status"
-          tabIndex={statusDismissed ? -1 : 0}
-          onClick={() => setDismissedStatusKey(statusKey)}
+      {generationFeedback && generationFeedbackKey ? (
+        <section
+          className={`poster-app__status is-${generationFeedback.state}${statusDismissed ? ' is-dismissed' : ''}`}
+          role="status"
+          aria-live="polite"
+          aria-hidden={statusDismissed || undefined}
+          data-testid="poster-app-generation-status"
         >
-          <Icon name="close" size={16} />
-        </button>
-      </section>
+          <span className="poster-app__status-mark" aria-hidden="true" />
+          <span className="poster-app__status-message">{generationFeedback.message}</span>
+          <button
+            type="button"
+            className="poster-app__status-close"
+            aria-label="Close status"
+            title="Close status"
+            tabIndex={statusDismissed ? -1 : 0}
+            onClick={() => setDismissedStatusKey(generationFeedbackKey)}
+          >
+            <Icon name="close" size={16} />
+          </button>
+        </section>
+      ) : null}
 
       {notice ? (
         <button

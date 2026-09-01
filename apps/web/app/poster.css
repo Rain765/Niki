@@ -1856,7 +1856,7 @@ button {
   left: 50%;
   z-index: 70;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--poster-space-3);
   width: min(720px, calc(100% - 32px));
   margin: 0;
@@ -1906,21 +1906,14 @@ button {
   background: var(--poster-danger);
 }
 
-.poster-app__status-copy {
+.poster-app__status-message {
   min-width: 0;
   flex: 1;
-}
-
-.poster-app__status strong {
-  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 14px;
-}
-
-.poster-app__status p {
-  margin: var(--poster-space-1) 0 0;
-  color: var(--poster-muted);
-  font-size: 13px;
-  line-height: 1.5;
+  font-weight: 650;
 }
 
 .poster-app__status-close {

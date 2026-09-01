@@ -330,6 +330,19 @@ describe('Zambia poster preset', () => {
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('notification-safe area'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('composited into that reserved region'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('both arms visibly and anatomically connected to that same person')
+    ))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('background must continue seamlessly through the notification-safe area')
+    ))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('no solid rectangle, color block, panel, placeholder, frame, or backing plate')
+    ))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('mother and her adult daughter'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('with a younger relative'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('“Unknown Sender”'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('Pay a processing fee now.'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('solid saturated magenta'))).toBe(true);
@@ -355,6 +368,10 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('Do not render any visible text'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('compact light-gray isometric notification'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('Do not generate floating'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('mother and her adult daughter'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('with a younger relative'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
   });
 
