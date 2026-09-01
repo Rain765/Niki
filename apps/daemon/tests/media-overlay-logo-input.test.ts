@@ -251,7 +251,7 @@ describe('media brand overlay inputs', () => {
     expect(greenSubtitlePixels).toBeGreaterThan(100);
   });
 
-  it('composites only a high-legibility anti-fraud message in the bottom-right', async () => {
+  it('composites only a high-legibility anti-fraud message beneath the rejecting hand', async () => {
     const messagePlate = await sharp({
       create: {
         width: 800,
@@ -272,7 +272,7 @@ describe('media brand overlay inputs', () => {
       projectId: 'poster-project',
       surface: 'image',
       model: 'gpt-image-2',
-      prompt: 'Unified anti-fraud poster with a clean bottom-right notification-safe area',
+      prompt: 'Unified anti-fraud poster with a clean notification-safe area beneath the rejecting hand',
       aspect: '3:4',
       quality: 'medium',
       posterHeadline: 'Prevent Fraud',
@@ -294,17 +294,17 @@ describe('media brand overlay inputs', () => {
       untouchedTitleOffset,
       untouchedTitleOffset + 3,
     ))).toEqual([226, 213, 192]);
-    const previousMessageAreaOffset = offsetAt(550, 900);
+    const previousMessageAreaOffset = offsetAt(700, 1020);
     expect(Array.from(data.subarray(
       previousMessageAreaOffset,
       previousMessageAreaOffset + 3,
     ))).toEqual([226, 213, 192]);
-    const messageFaceOffset = offsetAt(700, 960);
+    const messageFaceOffset = offsetAt(700, 830);
     expect(data[messageFaceOffset]).toBeGreaterThan(225);
     expect(data[messageFaceOffset + 1]).toBeGreaterThan(225);
     expect(data[messageFaceOffset + 2]).toBeGreaterThan(225);
     let redBadgePixels = 0;
-    for (let y = 1015; y < 1058; y += 1) {
+    for (let y = 880; y < 930; y += 1) {
       for (let x = 585; x < 630; x += 1) {
         const offset = offsetAt(x, y);
         if (
@@ -318,7 +318,7 @@ describe('media brand overlay inputs', () => {
     }
     expect(redBadgePixels).toBeGreaterThan(300);
     let darkTextPixels = 0;
-    for (let y = 938; y < 1035; y += 1) {
+    for (let y = 810; y < 910; y += 1) {
       for (let x = 600; x < 765; x += 1) {
         const offset = offsetAt(x, y);
         if (

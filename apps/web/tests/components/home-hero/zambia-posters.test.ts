@@ -87,7 +87,7 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('`zamloan.com`');
     expect(prompt).toContain('`Unknown Sender`');
     expect(prompt).toContain('one solid deep-charcoal color');
-    expect(prompt).toContain('reserved bottom-right area');
+    expect(prompt).toContain('reserved right-side area directly beneath the stop hand');
     expect(prompt).toContain('forearm diagonally down-right');
     expect(prompt).toContain('pushing the suspicious message down and out');
     expect(prompt).toContain('`--overlay-logo-anchor left`');
@@ -299,23 +299,35 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('compact solid green shield'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('about one-quarter'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('smaller than the phone screen'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('below the stop hand with a clear gap'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('directly beneath the stop hand within 2 to 4% of the canvas height')
+    ))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('rejecting hand directly above and slightly left')
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('forearm diagonally down-right'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('away from the phone'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('motion vector from wrist through fingertips directly at the center')
+    ))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('must never point inward toward the phone')
+    ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('palm 25 to 40 degrees downward'))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('pushing the suspicious message down and out')
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('clear air gap'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('upright stop-sign palm'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('rejecting palm aimed toward the phone'))).toBe(true);
     expect(prompts.every((prompt) => (
       !prompt.includes('open palm extended toward the camera in a firm stop gesture')
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('“zamloan.com”'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('no more than half'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('rightmost 27% of the bottom 14%'))).toBe(true);
+    expect(prompts.every((prompt) => (
+      prompt.includes('rightmost 27% of the vertical band from 72% to 90%')
+    ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('notification-safe area'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('composited into that reserved region'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('“Unknown Sender”'))).toBe(true);
@@ -347,8 +359,8 @@ describe('Zambia poster preset', () => {
   });
 
   it.each([
-    ['1:1', 'rightmost 29% of the bottom 19%'],
-    ['16:9', 'rightmost 22% of the bottom 23%'],
+    ['1:1', 'rightmost 29% of the vertical band from 69% to 94%'],
+    ['16:9', 'rightmost 22% of the vertical band from 66% to 94%'],
   ] as const)(
     'keeps the %s anti-fraud logo left and reserves its ratio-specific message area',
     (aspectRatio, safeArea) => {
@@ -367,28 +379,42 @@ describe('Zambia poster preset', () => {
     },
   );
 
-  it('rotates six stable diagonal color templates for anti-fraud scenes', () => {
+  it('rotates ten stable color templates without defaulting every scene to green', () => {
     const prompts = buildLoanPosterScenePlans({
-      count: 6,
+      count: 10,
       aspectRatio: '3:4',
       brand: 'zamloan',
       purpose: 'anti-fraud',
       variationOffset: 0,
     }).map((plan) => plan.prompt);
 
-    expect(prompts).toHaveLength(6);
+    expect(prompts).toHaveLength(10);
     expect(prompts[0]).toContain('warm ivory (#f7ecd9)');
     expect(prompts[0]).toContain('deep forest green (#153f2e)');
-    expect(prompts[1]).toContain('soft mint (#e2f1e8)');
-    expect(prompts[1]).toContain('deep teal (#0c514e)');
-    expect(prompts[2]).toContain('mist blue-gray (#e5edf3)');
-    expect(prompts[2]).toContain('deep cobalt blue (#174a82)');
-    expect(prompts[3]).toContain('warm sand (#f1dfc3)');
-    expect(prompts[3]).toContain('rich burgundy (#6f2937)');
-    expect(prompts[4]).toContain('pale peach (#f7dfd2)');
-    expect(prompts[4]).toContain('deep navy blue (#173554)');
-    expect(prompts[5]).toContain('pale lavender (#ece5f2)');
-    expect(prompts[5]).toContain('charcoal plum (#49374f)');
+    expect(prompts[1]).toContain('mist blue-gray (#e5edf3)');
+    expect(prompts[1]).toContain('deep cobalt blue (#174a82)');
+    expect(prompts[2]).toContain('warm sand (#f1dfc3)');
+    expect(prompts[2]).toContain('rich burgundy (#6f2937)');
+    expect(prompts[3]).toContain('pale peach (#f7dfd2)');
+    expect(prompts[3]).toContain('deep navy blue (#173554)');
+    expect(prompts[4]).toContain('pale lavender (#ece5f2)');
+    expect(prompts[4]).toContain('charcoal plum (#49374f)');
+    expect(prompts[5]).toContain('soft silver-gray');
+    expect(prompts[5]).toContain('saturated royal purple');
+    expect(prompts[6]).toContain('warm cream');
+    expect(prompts[6]).toContain('burnished terracotta');
+    expect(prompts[7]).toContain('pale sky blue');
+    expect(prompts[7]).toContain('midnight indigo');
+    expect(prompts[8]).toContain('soft rose');
+    expect(prompts[8]).toContain('charcoal blue');
+    expect(prompts[9]).toContain('soft mint (#e2f1e8)');
+    expect(prompts[9]).toContain('deep teal (#0c514e)');
+    expect(prompts.every((prompt) => (
+      prompt.includes('The selected palette is mandatory and must dominate the background')
+    ))).toBe(true);
+    expect(prompts.slice(1, 9).every((prompt) => (
+      prompt.includes('Do not replace the selected scene color with Zamloan green')
+    ))).toBe(true);
   });
 
   it('rotates every creative dimension instead of restarting at scene one', () => {

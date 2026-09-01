@@ -735,7 +735,7 @@ async function renderAntiFraudMessageOverlay(
   const messageWidth = Math.round(width * (widescreen ? 0.18 : square ? 0.24 : 0.22));
   const messageHeight = Math.round(height * (widescreen ? 0.18 : square ? 0.15 : 0.105));
   const messageLeft = width - messageWidth - Math.round(width * 0.030);
-  const messageTop = height - messageHeight - Math.round(height * (widescreen ? 0.030 : 0.022));
+  const messageTop = Math.round(height * (widescreen ? 0.70 : square ? 0.73 : 0.75));
   const messageRadius = Math.round(messageHeight * 0.12);
   const messagePaddingX = Math.round(messageWidth * 0.052);
   const messagePaddingY = Math.round(messageHeight * 0.095);
