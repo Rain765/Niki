@@ -294,13 +294,18 @@ describe('media brand overlay inputs', () => {
       untouchedTitleOffset,
       untouchedTitleOffset + 3,
     ))).toEqual([226, 213, 192]);
-    const messageFaceOffset = offsetAt(700, 900);
+    const previousMessageAreaOffset = offsetAt(550, 900);
+    expect(Array.from(data.subarray(
+      previousMessageAreaOffset,
+      previousMessageAreaOffset + 3,
+    ))).toEqual([226, 213, 192]);
+    const messageFaceOffset = offsetAt(700, 960);
     expect(data[messageFaceOffset]).toBeGreaterThan(225);
     expect(data[messageFaceOffset + 1]).toBeGreaterThan(225);
     expect(data[messageFaceOffset + 2]).toBeGreaterThan(225);
     let redBadgePixels = 0;
-    for (let y = 977; y < 1020; y += 1) {
-      for (let x = 503; x < 546; x += 1) {
+    for (let y = 1015; y < 1058; y += 1) {
+      for (let x = 585; x < 630; x += 1) {
         const offset = offsetAt(x, y);
         if (
           (data[offset] ?? 0) > 200
@@ -313,8 +318,8 @@ describe('media brand overlay inputs', () => {
     }
     expect(redBadgePixels).toBeGreaterThan(300);
     let darkTextPixels = 0;
-    for (let y = 875; y < 990; y += 1) {
-      for (let x = 525; x < 745; x += 1) {
+    for (let y = 938; y < 1035; y += 1) {
+      for (let x = 600; x < 765; x += 1) {
         const offset = offsetAt(x, y);
         if (
           (data[offset] ?? 255) < 80

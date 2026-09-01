@@ -294,10 +294,13 @@ describe('Zambia poster preset', () => {
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('same scale and visual prominence'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('visual intersection'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('green outlined shield'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('compact solid green shield'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('about one-quarter'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('smaller than the phone screen'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('below the stop hand with a clear gap'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('“zamloan.com”'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('about two-thirds'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('rightmost 38% of the bottom 21%'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('no more than half'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('rightmost 27% of the bottom 14%'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('notification-safe area'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('composited into that reserved region'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('“Unknown Sender”'))).toBe(true);
@@ -329,8 +332,8 @@ describe('Zambia poster preset', () => {
   });
 
   it.each([
-    ['1:1', 'rightmost 37% of the bottom 25%'],
-    ['16:9', 'rightmost 30% of the bottom 29%'],
+    ['1:1', 'rightmost 29% of the bottom 19%'],
+    ['16:9', 'rightmost 22% of the bottom 23%'],
   ] as const)(
     'keeps the %s anti-fraud logo left and reserves its ratio-specific message area',
     (aspectRatio, safeArea) => {
