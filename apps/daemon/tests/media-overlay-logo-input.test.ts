@@ -172,7 +172,14 @@ describe('media brand overlay inputs', () => {
       top: 0,
     }]).png().toBuffer();
     await writeFile(path.join(projectDir, phoneScreenName), phoneScreen);
-    generatedPoster = await sharp(generatedPoster).composite([{
+    generatedPoster = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 247, g: 236, b: 217, alpha: 1 },
+      },
+    }).composite([{
       input: Buffer.from(`
         <svg xmlns="http://www.w3.org/2000/svg" width="120" height="252">
           <rect width="120" height="252" rx="12" fill="#ff00ff"/>
@@ -224,10 +231,33 @@ describe('media brand overlay inputs', () => {
     expect(data[screenOffset]).toBeLessThan(100);
     expect(data[screenOffset + 1]).toBeGreaterThan(140);
     expect(data[screenOffset + 2]).toBeLessThan(130);
-    const notificationOffset = (340 * info.width + 300) * info.channels;
+    const notificationOffset = (290 * info.width + 250) * info.channels;
     expect(data[notificationOffset]).toBeGreaterThan(200);
     expect(data[notificationOffset + 1]).toBeGreaterThan(180);
     expect(data[notificationOffset + 2]).toBeGreaterThan(180);
+    const blockedContactOffset = (380 * info.width + 75) * info.channels;
+    expect(data[blockedContactOffset]).toBeGreaterThan(220);
+    expect(data[blockedContactOffset + 1]).toBeLessThan(160);
+    expect(data[blockedContactOffset + 2]).toBeLessThan(160);
+    let darkTitlePixels = 0;
+    let coralTitlePixels = 0;
+    let greenSubtitlePixels = 0;
+    for (let y = 80; y < 255; y += 1) {
+      for (let x = 35; x < 420; x += 1) {
+        const offset = (y * info.width + x) * info.channels;
+        const red = data[offset] ?? 0;
+        const green = data[offset + 1] ?? 0;
+        const blue = data[offset + 2] ?? 0;
+        if (red < 75 && green < 75 && blue < 85) darkTitlePixels += 1;
+        if (red > 200 && green < 125 && blue < 125) coralTitlePixels += 1;
+        if (red < 65 && green > 75 && green < 145 && blue < 115) {
+          greenSubtitlePixels += 1;
+        }
+      }
+    }
+    expect(darkTitlePixels).toBeGreaterThan(100);
+    expect(coralTitlePixels).toBeGreaterThan(100);
+    expect(greenSubtitlePixels).toBeGreaterThan(100);
   });
 
   it('requests an opaque matte foreground and composites it above the exact Z', async () => {

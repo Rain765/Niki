@@ -621,11 +621,11 @@ async function renderAntiFraudPosterCopy(
   const widescreen = width / height >= 1.5;
   const columnLeft = Math.round(width * (options.textAnchor === 'right' ? 0.53 : 0.055));
   const columnWidth = Math.round(width * (options.textAnchor === 'right' ? 0.41 : 0.43));
-  const headlineSize = Math.round(height * (widescreen ? 0.105 : 0.072));
+  const headlineSize = Math.round(height * (widescreen ? 0.098 : 0.068));
   const headlineLineHeight = Math.round(headlineSize * 0.94);
-  const subtitleSize = Math.round(height * (widescreen ? 0.042 : 0.034));
-  const subtitleLineHeight = Math.round(subtitleSize * 1.24);
-  const headlineTop = Math.round(height * (widescreen ? 0.27 : 0.22));
+  const subtitleSize = Math.round(height * (widescreen ? 0.034 : 0.024));
+  const subtitleLineHeight = Math.round(subtitleSize * 1.20);
+  const headlineTop = Math.round(height * (widescreen ? 0.26 : 0.20));
   const maximumHeadlineCharacters = Math.max(
     9,
     Math.floor(columnWidth / Math.max(1, headlineSize * 0.58)),
@@ -634,39 +634,54 @@ async function renderAntiFraudPosterCopy(
     16,
     Math.floor(columnWidth / Math.max(1, subtitleSize * 0.52)),
   );
-  const headlineLines = wrapPosterCopy(options.headline, maximumHeadlineCharacters);
-  const subtitleLines = wrapPosterCopy(options.subtitle, maximumSubtitleCharacters);
-  const headlineMarkup = headlineLines.map((line, index) => (
-    `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : headlineLineHeight}">${escapeSvgText(line)}</tspan>`
-  )).join('');
+  const headlineLines = options.headline === 'Prevent Fraud'
+    ? ['Prevent', 'Fraud']
+    : wrapPosterCopy(options.headline, maximumHeadlineCharacters);
+  const subtitleLines = options.subtitle === 'Trust Only Official Customer Service'
+    ? ['Trust Only', 'Official Customer Service']
+    : wrapPosterCopy(options.subtitle, maximumSubtitleCharacters);
+  const headlineMarkup = headlineLines.map((line, index) => {
+    const color = options.headline === 'Prevent Fraud' && index === 1
+      ? '#ef5148'
+      : '#202326';
+    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : headlineLineHeight}" fill="${color}" stroke="${color}">${escapeSvgText(line)}</tspan>`;
+  }).join('');
   const subtitleTop = headlineTop
     + Math.max(1, headlineLines.length) * headlineLineHeight
-    + Math.round(height * 0.035);
-  const subtitleMarkup = subtitleLines.map((line, index) => (
-    `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : subtitleLineHeight}">${escapeSvgText(line)}</tspan>`
-  )).join('');
+    + Math.round(height * 0.025);
+  const subtitleMarkup = subtitleLines.map((line, index) => {
+    const color = options.subtitle === 'Trust Only Official Customer Service' && index === 1
+      ? '#176a4d'
+      : '#34383d';
+    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : subtitleLineHeight}" fill="${color}" stroke="${color}">${escapeSvgText(line)}</tspan>`;
+  }).join('');
   const subtitleBottom = subtitleTop
     + Math.max(1, subtitleLines.length) * subtitleLineHeight;
   const messageLeft = columnLeft;
   const messageTop = Math.max(
-    subtitleBottom + Math.round(height * 0.045),
-    Math.round(height * (widescreen ? 0.60 : 0.54)),
+    subtitleBottom + Math.round(height * 0.020),
+    Math.round(height * (widescreen ? 0.54 : 0.43)),
   );
-  const messageWidth = columnWidth;
-  const messageHeight = Math.round(height * (widescreen ? 0.29 : 0.23));
+  const messageWidth = Math.round(columnWidth * (widescreen ? 0.80 : 0.76));
+  const messageHeight = Math.round(height * (widescreen ? 0.20 : 0.13));
   const messageRadius = Math.round(messageHeight * 0.12);
-  const messagePaddingX = Math.round(messageWidth * 0.055);
-  const messagePaddingY = Math.round(messageHeight * 0.12);
-  const appIconSize = Math.round(messageHeight * 0.17);
-  const messageHeaderSize = Math.round(height * (widescreen ? 0.021 : 0.015));
-  const senderSize = Math.round(height * (widescreen ? 0.024 : 0.018));
-  const messageBodySize = Math.round(height * (widescreen ? 0.020 : 0.015));
-  const blockIconSize = Math.round(messageHeight * 0.20);
+  const messagePaddingX = Math.round(messageWidth * 0.040);
+  const messagePaddingY = Math.round(messageHeight * 0.075);
+  const appIconSize = Math.round(messageHeight * 0.22);
+  const messageHeaderSize = Math.round(height * (widescreen ? 0.017 : 0.012));
+  const senderSize = Math.round(height * (widescreen ? 0.020 : 0.015));
+  const messageBodySize = Math.round(height * (widescreen ? 0.016 : 0.012));
   const headerBaseline = messageTop + messagePaddingY + Math.round(appIconSize * 0.72);
-  const senderBaseline = messageTop + Math.round(messageHeight * 0.49);
-  const bodyBaseline = messageTop + Math.round(messageHeight * 0.68);
-  const blockIconLeft = messageLeft + messageWidth - messagePaddingX - blockIconSize;
-  const blockIconTop = messageTop + Math.round(messageHeight * 0.59);
+  const senderBaseline = messageTop + Math.round(messageHeight * 0.47);
+  const bodyBaseline = messageTop + Math.round(messageHeight * 0.65);
+  const cardDepthX = Math.max(5, Math.round(messageWidth * 0.025));
+  const cardDepthY = Math.max(6, Math.round(messageHeight * 0.065));
+  const contactSize = Math.round(messageWidth * 0.32);
+  const contactLeft = messageLeft + Math.round(messageWidth * 0.07);
+  const contactTop = messageTop
+    + messageHeight
+    + Math.round(height * (widescreen ? 0.035 : 0.040));
+  const contactDepth = Math.max(7, Math.round(contactSize * 0.10));
   return Buffer.from(`
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
       <defs>
@@ -676,32 +691,41 @@ async function renderAntiFraudPosterCopy(
         <filter id="notification-shadow" x="-20%" y="-30%" width="140%" height="170%">
           <feDropShadow dx="0" dy="${Math.max(3, Math.round(height * 0.007))}" stdDeviation="${Math.max(4, Math.round(height * 0.010))}" flood-color="#20252b" flood-opacity="0.24"/>
         </filter>
+        <linearGradient id="contact-face" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ff7868"/>
+          <stop offset="100%" stop-color="#ed4039"/>
+        </linearGradient>
       </defs>
-      <g fill="#202326" font-family="Arial, Helvetica, sans-serif" filter="url(#copy-shadow)">
-        <text x="${columnLeft}" y="${headlineTop}" font-size="${headlineSize}" font-weight="800" letter-spacing="-1.2">${headlineMarkup}</text>
-        <text x="${columnLeft}" y="${subtitleTop}" font-size="${subtitleSize}" font-weight="600" letter-spacing="0.2" fill="#454a50">${subtitleMarkup}</text>
+      <g font-family="Arial Black, Helvetica Neue, Arial, sans-serif" filter="url(#copy-shadow)" paint-order="stroke fill" stroke-linejoin="round">
+        <text x="${columnLeft}" y="${headlineTop}" font-size="${headlineSize}" font-weight="900" letter-spacing="${Math.round(headlineSize * -0.025)}" stroke-width="${Math.max(1, headlineSize * 0.014)}">${headlineMarkup}</text>
+        <text x="${columnLeft}" y="${subtitleTop}" font-size="${subtitleSize}" font-weight="900" letter-spacing="${Math.round(subtitleSize * -0.010)}" stroke-width="${Math.max(0.5, subtitleSize * 0.009)}">${subtitleMarkup}</text>
       </g>
-      <g filter="url(#notification-shadow)">
-        <rect x="${messageLeft}" y="${messageTop}" width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#e4e5e6" fill-opacity="0.90" stroke="#ffffff" stroke-opacity="0.66" stroke-width="${Math.max(1, Math.round(width * 0.0014))}"/>
+      <g transform="translate(${messageLeft} ${messageTop}) skewY(3)" filter="url(#notification-shadow)">
+        <rect x="${cardDepthX}" y="${cardDepthY}" width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#aeb1b4" fill-opacity="0.96"/>
+        <rect width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#e4e5e6" fill-opacity="0.92" stroke="#ffffff" stroke-opacity="0.72" stroke-width="${Math.max(1, Math.round(width * 0.0012))}"/>
+        <path d="M ${messageRadius} 1 H ${messageWidth - messageRadius}" stroke="#ffffff" stroke-opacity="0.70" stroke-width="${Math.max(1, Math.round(height * 0.0015))}" stroke-linecap="round"/>
+        <g transform="translate(${messagePaddingX} ${messagePaddingY})">
+          <rect width="${appIconSize}" height="${appIconSize}" rx="${Math.round(appIconSize * 0.25)}" fill="#24cf5f"/>
+          <ellipse cx="${appIconSize * 0.50}" cy="${appIconSize * 0.46}" rx="${appIconSize * 0.31}" ry="${appIconSize * 0.25}" fill="#ffffff"/>
+          <path d="M ${appIconSize * 0.32} ${appIconSize * 0.61} L ${appIconSize * 0.24} ${appIconSize * 0.78} L ${appIconSize * 0.46} ${appIconSize * 0.66} Z" fill="#ffffff"/>
+        </g>
+        <text x="${messagePaddingX + appIconSize + Math.round(messagePaddingX * 0.50)}" y="${headerBaseline - messageTop}" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="600" letter-spacing="${Math.round(messageHeaderSize * 0.025)}" fill="#35383c">MESSAGES</text>
+        <text x="${messageWidth - messagePaddingX}" y="${headerBaseline - messageTop}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="500" fill="#35383c">now</text>
+        <text x="${messagePaddingX}" y="${senderBaseline - messageTop}" font-family="Arial Black, Helvetica Neue, Arial, sans-serif" font-size="${senderSize}" font-weight="900" fill="#16181a">Unknown Sender</text>
+        <text x="${messagePaddingX}" y="${bodyBaseline - messageTop}" font-family="Arial, Helvetica, sans-serif" font-size="${messageBodySize}" font-weight="500" fill="#25282b">
+          <tspan x="${messagePaddingX}">Your loan is approved.</tspan>
+          <tspan x="${messagePaddingX}" dy="${Math.round(messageBodySize * 1.10)}">Pay a processing fee now</tspan>
+          <tspan x="${messagePaddingX}" dy="${Math.round(messageBodySize * 1.10)}">to receive your money.</tspan>
+        </text>
       </g>
-      <g transform="translate(${messageLeft + messagePaddingX} ${messageTop + messagePaddingY})">
-        <rect width="${appIconSize}" height="${appIconSize}" rx="${Math.round(appIconSize * 0.25)}" fill="#24cf5f"/>
-        <ellipse cx="${appIconSize * 0.50}" cy="${appIconSize * 0.46}" rx="${appIconSize * 0.31}" ry="${appIconSize * 0.25}" fill="#ffffff"/>
-        <path d="M ${appIconSize * 0.32} ${appIconSize * 0.61} L ${appIconSize * 0.24} ${appIconSize * 0.78} L ${appIconSize * 0.46} ${appIconSize * 0.66} Z" fill="#ffffff"/>
-      </g>
-      <text x="${messageLeft + messagePaddingX + appIconSize + Math.round(messagePaddingX * 0.42)}" y="${headerBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="500" letter-spacing="${Math.round(messageHeaderSize * 0.035)}" fill="#35383c">MESSAGES</text>
-      <text x="${messageLeft + messageWidth - messagePaddingX}" y="${headerBaseline}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="400" fill="#35383c">now</text>
-      <text x="${messageLeft + messagePaddingX}" y="${senderBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${senderSize}" font-weight="800" fill="#16181a">Unknown Sender</text>
-      <text x="${messageLeft + messagePaddingX}" y="${bodyBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${messageBodySize}" font-weight="500" fill="#25282b">
-        <tspan x="${messageLeft + messagePaddingX}">Your loan is approved.</tspan>
-        <tspan x="${messageLeft + messagePaddingX}" dy="${Math.round(messageBodySize * 1.22)}">Pay a processing fee now</tspan>
-        <tspan x="${messageLeft + messagePaddingX}" dy="${Math.round(messageBodySize * 1.22)}">to receive your money.</tspan>
-      </text>
-      <g transform="translate(${blockIconLeft} ${blockIconTop})">
-        <circle cx="${blockIconSize * 0.50}" cy="${blockIconSize * 0.50}" r="${blockIconSize * 0.50}" fill="#ef5148"/>
-        <circle cx="${blockIconSize * 0.50}" cy="${blockIconSize * 0.35}" r="${blockIconSize * 0.12}" fill="#ffffff"/>
-        <path d="M ${blockIconSize * 0.28} ${blockIconSize * 0.72} C ${blockIconSize * 0.31} ${blockIconSize * 0.52}, ${blockIconSize * 0.69} ${blockIconSize * 0.52}, ${blockIconSize * 0.72} ${blockIconSize * 0.72} Z" fill="#ffffff"/>
-        <path d="M ${blockIconSize * 0.18} ${blockIconSize * 0.18} L ${blockIconSize * 0.82} ${blockIconSize * 0.82}" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(blockIconSize * 0.09))}" stroke-linecap="round"/>
+      <g transform="translate(${contactLeft} ${contactTop}) skewY(3)" filter="url(#notification-shadow)">
+        <rect x="${contactDepth}" y="${contactDepth}" width="${contactSize}" height="${contactSize}" rx="${Math.round(contactSize * 0.14)}" fill="#b72d29"/>
+        <rect width="${contactSize}" height="${contactSize}" rx="${Math.round(contactSize * 0.14)}" fill="url(#contact-face)" stroke="#ff9485" stroke-width="${Math.max(1, Math.round(contactSize * 0.018))}"/>
+        <circle cx="${contactSize * 0.50}" cy="${contactSize * 0.50}" r="${contactSize * 0.32}" fill="#fff7ed" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(contactSize * 0.025))}"/>
+        <circle cx="${contactSize * 0.50}" cy="${contactSize * 0.39}" r="${contactSize * 0.105}" fill="#ef5148"/>
+        <path d="M ${contactSize * 0.30} ${contactSize * 0.68} C ${contactSize * 0.34} ${contactSize * 0.50}, ${contactSize * 0.66} ${contactSize * 0.50}, ${contactSize * 0.70} ${contactSize * 0.68} Z" fill="#ef5148"/>
+        <path d="M ${contactSize * 0.24} ${contactSize * 0.24} L ${contactSize * 0.76} ${contactSize * 0.76}" stroke="#ef5148" stroke-width="${Math.max(4, Math.round(contactSize * 0.075))}" stroke-linecap="round"/>
+        <path d="M ${contactSize * 0.24} ${contactSize * 0.24} L ${contactSize * 0.76} ${contactSize * 0.76}" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(contactSize * 0.030))}" stroke-linecap="round"/>
       </g>
     </svg>
   `);

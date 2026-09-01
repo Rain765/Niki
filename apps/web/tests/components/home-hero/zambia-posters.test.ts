@@ -273,7 +273,11 @@ describe('Zambia poster preset', () => {
       expect(prompts.every((prompt) => prompt.includes('screen facing the camera'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('crisp editorial diagonal split'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('open palm extended'))).toBe(true);
-      expect(prompts.every((prompt) => prompt.includes('light-gray system notification'))).toBe(true);
+      expect(prompts.every((prompt) => (
+        prompt.includes('compact light-gray isometric notification')
+      ))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('lower-left 36% clear'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('visible gap, never behind it'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('Do not generate floating'))).toBe(true);
       expect(prompts.every((prompt) => (
         prompt.includes('solid saturated magenta') === (brand === 'zamloan')
