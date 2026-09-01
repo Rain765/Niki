@@ -224,6 +224,10 @@ describe('media brand overlay inputs', () => {
     expect(data[screenOffset]).toBeLessThan(100);
     expect(data[screenOffset + 1]).toBeGreaterThan(140);
     expect(data[screenOffset + 2]).toBeLessThan(130);
+    const notificationOffset = (340 * info.width + 300) * info.channels;
+    expect(data[notificationOffset]).toBeGreaterThan(200);
+    expect(data[notificationOffset + 1]).toBeGreaterThan(180);
+    expect(data[notificationOffset + 2]).toBeGreaterThan(180);
   });
 
   it('requests an opaque matte foreground and composites it above the exact Z', async () => {

@@ -258,7 +258,7 @@ describe('Zambia poster preset', () => {
       expect(plans.every((plan) => (
         plan.subtitle === 'Trust Only Official Customer Service'
       ))).toBe(true);
-      expect(plans.every((plan) => /^(left|right)$/.test(plan.textAnchor ?? ''))).toBe(true);
+      expect(plans.every((plan) => plan.textAnchor === 'left')).toBe(true);
       expect(prompts.every((prompt) => !prompt.includes('Prevent Fraud'))).toBe(true);
       expect(prompts.every((prompt) => (
         !prompt.includes('Trust Only Official Customer Service')
@@ -271,6 +271,10 @@ describe('Zambia poster preset', () => {
       expect(prompts.every((prompt) => prompt.includes('blocked'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('holding a smartphone'))).toBe(true);
       expect(prompts.every((prompt) => prompt.includes('screen facing the camera'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('crisp editorial diagonal split'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('open palm extended'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('light-gray system notification'))).toBe(true);
+      expect(prompts.every((prompt) => prompt.includes('Do not generate floating'))).toBe(true);
       expect(prompts.every((prompt) => (
         prompt.includes('solid saturated magenta') === (brand === 'zamloan')
       ))).toBe(true);
@@ -278,6 +282,30 @@ describe('Zambia poster preset', () => {
       expect(prompts.every((prompt) => !prompt.includes('Application Approved'))).toBe(true);
     },
   );
+
+  it('rotates six stable diagonal color templates for anti-fraud scenes', () => {
+    const prompts = buildLoanPosterScenePlans({
+      count: 6,
+      aspectRatio: '3:4',
+      brand: 'zamloan',
+      purpose: 'anti-fraud',
+      variationOffset: 0,
+    }).map((plan) => plan.prompt);
+
+    expect(prompts).toHaveLength(6);
+    expect(prompts[0]).toContain('warm ivory (#f7ecd9)');
+    expect(prompts[0]).toContain('deep forest green (#153f2e)');
+    expect(prompts[1]).toContain('soft mint (#e2f1e8)');
+    expect(prompts[1]).toContain('deep teal (#0c514e)');
+    expect(prompts[2]).toContain('mist blue-gray (#e5edf3)');
+    expect(prompts[2]).toContain('deep cobalt blue (#174a82)');
+    expect(prompts[3]).toContain('warm sand (#f1dfc3)');
+    expect(prompts[3]).toContain('rich burgundy (#6f2937)');
+    expect(prompts[4]).toContain('pale peach (#f7dfd2)');
+    expect(prompts[4]).toContain('deep navy blue (#173554)');
+    expect(prompts[5]).toContain('pale lavender (#ece5f2)');
+    expect(prompts[5]).toContain('charcoal plum (#49374f)');
+  });
 
   it('rotates every creative dimension instead of restarting at scene one', () => {
     const firstBatch = buildLoanPosterScenePlans({

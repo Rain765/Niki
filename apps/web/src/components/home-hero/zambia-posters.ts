@@ -239,10 +239,12 @@ const ANTI_FRAUD_POSTER_SCENES = [
 ] as const;
 
 const ANTI_FRAUD_POSTER_PALETTES = [
-  { background: 'warm ivory with deep forest-green geometry', warning: 'signal coral red', safe: 'confident emerald green' },
-  { background: 'soft sand with midnight-blue structure', warning: 'vivid vermilion red', safe: 'fresh leaf green' },
-  { background: 'cool pearl with cobalt-blue depth', warning: 'clear crimson red', safe: 'rich jade green' },
-  { background: 'sunlit cream with burgundy accents', warning: 'bright warning red', safe: 'deep trustworthy green' },
+  { copyField: 'warm ivory (#f7ecd9)', sceneField: 'deep forest green (#153f2e)' },
+  { copyField: 'soft mint (#e2f1e8)', sceneField: 'deep teal (#0c514e)' },
+  { copyField: 'mist blue-gray (#e5edf3)', sceneField: 'deep cobalt blue (#174a82)' },
+  { copyField: 'warm sand (#f1dfc3)', sceneField: 'rich burgundy (#6f2937)' },
+  { copyField: 'pale peach (#f7dfd2)', sceneField: 'deep navy blue (#173554)' },
+  { copyField: 'pale lavender (#ece5f2)', sceneField: 'charcoal plum (#49374f)' },
 ] as const;
 
 const ANTI_FRAUD_POSTER_COMPOSITIONS = {
@@ -250,36 +252,21 @@ const ANTI_FRAUD_POSTER_COMPOSITIONS = {
     {
       logoAnchor: 'left' as const,
       textAnchor: 'left' as const,
-      instruction: 'Reserve the upper-left 46% as a quiet copy panel and logo-safe area. Place the people and the warning-to-safety story in the lower-right half without crossing into that panel',
-    },
-    {
-      logoAnchor: 'right' as const,
-      textAnchor: 'right' as const,
-      instruction: 'Reserve the upper-right 46% as a quiet copy panel and logo-safe area. Place the people and the warning-to-safety story in the lower-left half without crossing into that panel',
+      instruction: 'Build a clean diagonal split with a smooth light copy field covering about 58% of the left side and the environmental scene in the right 42%. Run the dividing edge diagonally from the upper-right toward the lower-middle. Keep the model in the lower-right, but let the open stop palm extend slightly into the left field beneath the copy',
     },
   ],
   '1:1': [
     {
       logoAnchor: 'left' as const,
       textAnchor: 'left' as const,
-      instruction: 'Reserve the complete left 44% as a quiet copy panel and logo-safe area. Stage the people and the warning-to-safety story in the right half',
-    },
-    {
-      logoAnchor: 'right' as const,
-      textAnchor: 'right' as const,
-      instruction: 'Reserve the complete right 44% as a quiet copy panel and logo-safe area. Stage the people and the warning-to-safety story in the left half',
+      instruction: 'Build a clean diagonal split with a smooth light copy field covering about 54% of the left side and the environmental scene in the right 46%. Run the dividing edge diagonally from the upper-right toward the lower-middle. Keep the model on the right, but let the open stop palm extend slightly into the left field beneath the copy',
     },
   ],
   '16:9': [
     {
       logoAnchor: 'left' as const,
       textAnchor: 'left' as const,
-      instruction: 'Reserve the complete left 40% as a quiet copy panel and logo-safe area. Stage the people and the full warning-to-safety story across the right 55%',
-    },
-    {
-      logoAnchor: 'right' as const,
-      textAnchor: 'right' as const,
-      instruction: 'Reserve the complete right 40% as a quiet copy panel and logo-safe area. Stage the people and the full warning-to-safety story across the left 55%',
+      instruction: 'Build a clean diagonal split with a smooth light copy field covering about 45% of the left side and the environmental scene in the right 55%. Run the dividing edge diagonally from the upper-center toward the lower-middle. Keep the model on the right, but let the open stop palm extend slightly into the left field beneath the copy',
     },
   ],
 } as const;
@@ -410,7 +397,7 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
       : 'left';
     if (purpose === 'anti-fraud') {
       const brandBackground = brand === 'zamloan'
-        ? 'Include one subtle low-opacity Z silhouette as a background-only brand cue. Keep it behind the people, safety cards, and reserved copy panel.'
+        ? 'Include one oversized, subtle, low-opacity Z silhouette inside the light copy field as a background-only brand cue. Keep it behind the copy and the person.'
         : 'Do not render a letter Z, alphabetic background motif, logo, wordmark, or logo-shaped watermark.';
       const phoneScreenContract = brand === 'zamloan'
         ? 'Render the phone screen interior as one uniform solid saturated magenta rectangle with clean rounded corners, surrounded by a realistic dark phone bezel. Do not place any content, icons, reflections, or gradients inside the magenta screen. The exact official website will be composited into it later.'
@@ -422,11 +409,11 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
         subtitle: 'Trust Only Official Customer Service',
         prompt: `Create a premium ${brandLabel} public-safety anti-fraud campaign scene in ${aspectRatio}, designed for Zambia. This is a clear fraud-prevention story, not a loan approval, cash, or generic product-endorsement advertisement.
 
-Use ${antiFraudPalette.background} as the art direction, ${antiFraudPalette.warning} for the red warning state, and ${antiFraudPalette.safe} for the green official verification state. ${brandBackground} ${antiFraudComposition.instruction}.
+Create a crisp editorial diagonal split background. Use ${antiFraudPalette.copyField} as the smooth left copy field and ${antiFraudPalette.sceneField} behind the right-side environment. Keep the boundary graphic and intentional rather than a soft gradient. ${brandBackground} ${antiFraudComposition.instruction}.
 
-Show ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Stage ${antiFraudPlan.riskCue}. In the same frame, show the safe response: ${antiFraudPlan.safeAction}. The person must be holding a smartphone upright with its complete screen facing the camera, perfectly front-on, large, unobstructed by fingers, and free of glare. ${phoneScreenContract}
+Show ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Match the confident campaign pose: torso on the scene side, face turned toward the suspicious-message area, one open palm extended toward the camera in a firm stop gesture, and the other hand presenting the official website. Stage ${antiFraudPlan.riskCue}. In the same frame, show the safe response: ${antiFraudPlan.safeAction}. The person must be holding a smartphone upright with its complete screen facing the camera, perfectly front-on, large, unobstructed by fingers, and free of glare. ${phoneScreenContract}
 
-Keep the reserved red warning message area and the green official website phone visually separate and connected by the person's decisive stop gesture. Do not generate the warning card itself; it will be composited later with the blocked symbol and exact suspicious-message copy. Use ${antiFraudPlan.camera}. The people should look alert, calm, and empowered rather than frightened.
+Keep the reserved red warning message area in the lower-left copy field and the green official website phone on the right visually separate and connected by the person's decisive stop gesture. Do not generate the warning card itself; a light-gray system notification with the blocked symbol and exact suspicious-message copy will be composited later. Do not generate floating red or green 3D cards. Use ${antiFraudPlan.camera}. The people should look alert, calm, and empowered rather than frightened.
 
 Abstract notification, caller, and payment symbols are allowed only as non-readable visual cues. Do not render any visible text, letters, numbers, URLs, brand names, interface labels, contact details, chat copy, verification codes, account numbers, payment instructions, or QR codes anywhere in the generated scene. Exact campaign copy and branding will be composited later into the reserved copy panel.
 
