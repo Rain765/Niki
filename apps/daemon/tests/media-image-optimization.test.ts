@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 
 import {
+  analyzeAntiFraudLowerRightContinuity,
   analyzeZamloanLogoSafeZone,
   composeLayeredLoanPoster,
   finalizeGeneratedPng,
@@ -11,6 +12,7 @@ import {
   optimizeLoanPosterPng,
   optimizeLosslessPng,
   renderImageWithLogoSafeZoneRetry,
+  renderImageWithAntiFraudSafeZoneRetry,
 } from '../src/media.js';
 
 const adaptiveTaglineLogo = Buffer.from(`
@@ -393,6 +395,78 @@ describe('generated image optimization', () => {
     expect(rendered.result.bytes).toBe(clean);
     expect(prompts[1]).toContain('CRITICAL LOGO SAFE-ZONE RETRY');
     expect(prompts[1]).toContain('headline below 25% of the canvas height');
+  });
+
+  it('detects a large generated surface in the anti-fraud lower-right region', async () => {
+    const clean = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200">
+        <defs>
+          <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#9bc7ea"/>
+            <stop offset="100%" stop-color="#6d9fc8"/>
+          </linearGradient>
+        </defs>
+        <rect width="900" height="1200" fill="url(#background)"/>
+      </svg>
+    `)).png().toBuffer();
+    const blocked = await sharp(clean)
+      .composite([{
+        input: Buffer.from(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="300" height="360">
+            <rect width="300" height="360" rx="28" fill="#b8ddfa"/>
+          </svg>
+        `),
+        left: 580,
+        top: 830,
+      }])
+      .png()
+      .toBuffer();
+
+    await expect(analyzeAntiFraudLowerRightContinuity(clean)).resolves.toMatchObject({
+      intrudes: false,
+    });
+    await expect(analyzeAntiFraudLowerRightContinuity(blocked)).resolves.toMatchObject({
+      intrudes: true,
+    });
+  });
+
+  it('retries once when the anti-fraud lower-right background is discontinuous', async () => {
+    const clean = await sharp({
+      create: {
+        width: 900,
+        height: 1200,
+        channels: 4,
+        background: { r: 145, g: 190, b: 224, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const blocked = await sharp(clean)
+      .composite([{
+        input: Buffer.from(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="300" height="360">
+            <rect width="300" height="360" rx="28" fill="#d1eafa"/>
+          </svg>
+        `),
+        left: 580,
+        top: 830,
+      }])
+      .png()
+      .toBuffer();
+    const prompts: string[] = [];
+
+    const rendered = await renderImageWithAntiFraudSafeZoneRetry(
+      'original prompt',
+      async (prompt) => {
+        prompts.push(prompt);
+        return { bytes: prompts.length === 1 ? blocked : clean };
+      },
+      { anchor: 'left' },
+    );
+
+    expect(rendered.attempts).toBe(2);
+    expect(rendered.lowerRight.intrudes).toBe(false);
+    expect(rendered.result.bytes).toBe(clean);
+    expect(prompts[1]).toContain('CRITICAL LOWER-RIGHT CONTINUITY RETRY');
+    expect(prompts[1]).not.toMatch(/notification|message card|placeholder|backing plate/i);
   });
 
   it('composites the supplied Z silhouette exactly instead of asking the model to redraw it', async () => {

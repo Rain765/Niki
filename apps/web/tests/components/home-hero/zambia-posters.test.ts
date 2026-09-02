@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -85,15 +87,17 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('`Prevent Fraud`');
     expect(prompt).toContain('`Trust Only Official Customer Service`');
     expect(prompt).toContain('`zamloan.com`');
-    expect(prompt).toContain('`Unknown Sender`');
     expect(prompt).toContain('one solid deep-charcoal color');
-    expect(prompt).toContain('reserved right-side area directly beneath the stop hand');
+    expect(prompt).toContain('lower-right continuity zone');
+    expect(prompt).toContain('surrounding base background must flow through it');
     expect(prompt).toContain('forearm diagonally down-right');
-    expect(prompt).toContain('pushing the suspicious message down and out');
+    expect(prompt).toContain('pushing an unseen threat down and out');
     expect(prompt).toContain('`--overlay-logo-anchor left`');
     expect(prompt).toContain('`--poster-text-anchor right`');
     expect(prompt).toContain('`--poster-copy-style anti-fraud-message`');
-    expect(prompt).toContain('must render only the exact notification');
+    expect(prompt).toContain('keep all of its UI semantics out of the full-poster provider prompt');
+    expect(prompt).not.toContain('`Unknown Sender`');
+    expect(prompt).not.toContain('Pay a processing fee now.');
     expect(prompt).toContain('Do not pass `--overlay-z`, `--foreground-prompt-file`');
   });
 
@@ -298,9 +302,8 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('model side of the required 5%-wide'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('compact solid green shield'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('about one-quarter'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('smaller than the phone screen'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('directly beneath the stop hand within 2 to 4% of the canvas height')
+      prompt.includes('directly beneath the rejecting hand within 2 to 4% of the canvas height')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('rejecting hand directly above and slightly left')
@@ -315,7 +318,7 @@ describe('Zambia poster preset', () => {
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('palm 25 to 40 degrees downward'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('pushing the suspicious message down and out')
+      prompt.includes('pushing an unseen threat down and out')
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('clear air gap'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('upright stop-sign palm'))).toBe(true);
@@ -326,20 +329,16 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('“zamloan.com”'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('no more than half'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('rightmost 27% of the vertical band from 72% to 90%')
+      prompt.includes('x=73% to 100% and y=72% to 90% of the canvas')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('notification-safe area'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('composited into that reserved region'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('lower-right continuity zone'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('both arms visibly and anatomically connected to that same person')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('background must continue seamlessly through the notification-safe area')
-    ))).toBe(true);
-    expect(prompts.every((prompt) => (
-      prompt.includes('no solid rectangle, color block, panel, placeholder, frame, or backing plate')
+      prompt.includes('surrounding base background must flow continuously')
     ))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('mother and her adult daughter'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('with a younger relative'))).toBe(true);
@@ -347,6 +346,45 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => !prompt.includes('Pay a processing fee now.'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('solid saturated magenta'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);
+  });
+
+  it('keeps notification semantics out of the Zamloan anti-fraud provider prompt', () => {
+    const providerPrompts = AUTO_POSTER_ASPECT_RATIOS.flatMap((aspectRatio) => (
+      buildLoanPosterScenePrompts({
+        count: 3,
+        aspectRatio,
+        brand: 'zamloan',
+        purpose: 'anti-fraud',
+      })
+    ));
+
+    expect(providerPrompts).not.toHaveLength(0);
+    expect(providerPrompts.every((prompt) => (
+      !/notification|message card|placeholder|backing plate|solid rectangle|color block/i.test(prompt)
+    ))).toBe(true);
+    expect(providerPrompts.every((prompt) => (
+      prompt.includes('surrounding base background must flow continuously')
+    ))).toBe(true);
+  });
+
+  it('does not alter the existing Zamloan acquisition provider prompts', () => {
+    const expectedHashes = {
+      '3:4': 'd9200c60c7e4e9ea9bc0cab9aef7706b8b4a0c4d064a0505dc45f59442449629',
+      '16:9': 'd37e5174bf700154f04d7e8fef6e1a6c00925c80599fc79c9658042f2c7017a1',
+      '1:1': 'a1f6d717ea3b1f97c7a1704cf6af75be4dc7d74b7cd91816e343c0a7324d0528',
+    } as const;
+
+    for (const aspectRatio of AUTO_POSTER_ASPECT_RATIOS) {
+      const prompts = buildLoanPosterScenePrompts({
+        count: 3,
+        aspectRatio,
+        brand: 'zamloan',
+        purpose: 'acquisition',
+        variationOffset: 0,
+      });
+      const hash = createHash('sha256').update(prompts.join('\n---\n')).digest('hex');
+      expect(hash).toBe(expectedHashes[aspectRatio]);
+    }
   });
 
   it('keeps BiuMoney anti-fraud scenes on their existing deterministic copy path', () => {
@@ -376,10 +414,10 @@ describe('Zambia poster preset', () => {
   });
 
   it.each([
-    ['1:1', 'rightmost 29% of the vertical band from 69% to 94%'],
-    ['16:9', 'rightmost 22% of the vertical band from 66% to 94%'],
+    ['1:1', 'x=71% to 100% and y=69% to 94% of the canvas'],
+    ['16:9', 'x=78% to 100% and y=66% to 94% of the canvas'],
   ] as const)(
-    'keeps the %s anti-fraud logo left and reserves its ratio-specific message area',
+    'keeps the %s anti-fraud logo left and preserves its ratio-specific continuity zone',
     (aspectRatio, safeArea) => {
       const [plan] = buildLoanPosterScenePlans({
         count: 1,

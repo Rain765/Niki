@@ -166,7 +166,7 @@ export interface ZamloanLogoSafeZoneAnalysis {
  */
 export async function analyzeZamloanLogoSafeZone(
   input: Buffer,
-  options: { anchor?: 'left' | 'right' } = {},
+  options: { anchor?: 'left' | 'right'; bottomRatio?: number } = {},
 ): Promise<ZamloanLogoSafeZoneAnalysis> {
   const image = sharp(input);
   const metadata = await image.metadata();
@@ -178,7 +178,9 @@ export async function analyzeZamloanLogoSafeZone(
   const top = Math.max(0, Math.round(metadata.height * 0.02));
   const bottom = Math.min(
     metadata.height,
-    Math.round(metadata.height * (isWidescreen ? 0.23 : 0.18)),
+    Math.round(metadata.height * (
+      options.bottomRatio ?? (isWidescreen ? 0.23 : 0.18)
+    )),
   );
   const left = Math.max(
     0,
@@ -290,6 +292,185 @@ export async function renderImageWithLogoSafeZoneRetry<T extends { bytes: Buffer
   }
 
   return { result: bestResult, attempts, safeZone: bestSafeZone };
+}
+
+export interface AntiFraudLowerRightContinuityAnalysis {
+  intrudes: boolean;
+  score: number;
+  verticalEdgeRatio: number;
+  horizontalEdgeRatio: number;
+}
+
+export async function analyzeAntiFraudLowerRightContinuity(
+  input: Buffer,
+): Promise<AntiFraudLowerRightContinuityAnalysis> {
+  const metadata = await sharp(input).metadata();
+  if (!metadata.width || !metadata.height) {
+    return {
+      intrudes: true,
+      score: Number.POSITIVE_INFINITY,
+      verticalEdgeRatio: 1,
+      horizontalEdgeRatio: 1,
+    };
+  }
+
+  const sampleWidth = 180;
+  const sampleHeight = Math.max(120, Math.round(sampleWidth * metadata.height / metadata.width));
+  const { data, info } = await sharp(input)
+    .resize({ width: sampleWidth, height: sampleHeight, fit: 'fill' })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const channels = info.channels;
+  const colorDelta = (firstX: number, firstY: number, secondX: number, secondY: number) => {
+    const firstOffset = (firstY * info.width + firstX) * channels;
+    const secondOffset = (secondY * info.width + secondX) * channels;
+    return (
+      Math.abs((data[firstOffset] ?? 0) - (data[secondOffset] ?? 0))
+      + Math.abs((data[firstOffset + 1] ?? 0) - (data[secondOffset + 1] ?? 0))
+      + Math.abs((data[firstOffset + 2] ?? 0) - (data[secondOffset + 2] ?? 0))
+    ) / 3;
+  };
+  const edgeThreshold = 24;
+  const xStart = Math.round(info.width * 0.58);
+  const xEnd = Math.round(info.width * 0.86);
+  const yStart = Math.round(info.height * 0.63);
+  const yEnd = Math.round(info.height * 0.98);
+  const horizontalStart = Math.round(info.width * 0.60);
+  const horizontalEnd = Math.round(info.width * 0.98);
+
+  let verticalEdgeRatio = 0;
+  for (let x = xStart; x <= xEnd; x += 1) {
+    let edgePixels = 0;
+    let samples = 0;
+    for (let y = yStart; y <= yEnd; y += 1) {
+      if (x < 2 || x + 2 >= info.width) continue;
+      samples += 1;
+      if (colorDelta(x - 2, y, x + 2, y) >= edgeThreshold) edgePixels += 1;
+    }
+    verticalEdgeRatio = Math.max(verticalEdgeRatio, edgePixels / Math.max(1, samples));
+  }
+
+  let horizontalEdgeRatio = 0;
+  for (let y = yStart; y <= Math.round(info.height * 0.86); y += 1) {
+    let edgePixels = 0;
+    let samples = 0;
+    for (let x = horizontalStart; x <= horizontalEnd; x += 1) {
+      if (y < 2 || y + 2 >= info.height) continue;
+      samples += 1;
+      if (colorDelta(x, y - 2, x, y + 2) >= edgeThreshold) edgePixels += 1;
+    }
+    horizontalEdgeRatio = Math.max(horizontalEdgeRatio, edgePixels / Math.max(1, samples));
+  }
+
+  const score = verticalEdgeRatio + horizontalEdgeRatio;
+  return {
+    intrudes: verticalEdgeRatio >= 0.42 && horizontalEdgeRatio >= 0.42,
+    score,
+    verticalEdgeRatio,
+    horizontalEdgeRatio,
+  };
+}
+
+async function antiFraudLowerRightRetryInstruction(input: Buffer): Promise<string> {
+  const metadata = await sharp(input).metadata();
+  const aspect = (metadata.width ?? 1) / (metadata.height ?? 1);
+  const zone = aspect >= 1.5
+    ? 'x=78% to 100% and y=66% to 94%'
+    : aspect >= 0.9
+      ? 'x=71% to 100% and y=69% to 94%'
+      : 'x=73% to 100% and y=72% to 90%';
+  return `CRITICAL LOWER-RIGHT CONTINUITY RETRY: the previous render introduced a separate geometric foreground surface. Re-render the composition so the surrounding base background flows continuously through ${zone} of the canvas. Match the immediately adjacent color, gradient, texture, depth, and lighting with no visible boundary or separate treatment. Keep the person, hands, phone, props, and high-contrast detail outside this zone. The zone must remain ordinary, visually empty surrounding background.`;
+}
+
+async function antiFraudLogoSafeZoneRules(input: Buffer): Promise<{
+  bottomRatio: number;
+  retryInstruction: (anchor: 'left' | 'right') => string;
+}> {
+  const metadata = await sharp(input).metadata();
+  const widescreen = (metadata.width ?? 1) / (metadata.height ?? 1) >= 1.5;
+  const bottomRatio = widescreen ? 0.20 : 0.15;
+  const headlineRange = widescreen ? '22.5% to 23.5%' : '17.5% to 18.5%';
+  return {
+    bottomRatio,
+    retryInstruction: (anchor) => {
+      const horizontalRange = anchor === 'right' ? '50% to 97%' : '3% to 45%';
+      return `CRITICAL LOGO SAFE-ZONE RETRY: keep ${horizontalRange} of the canvas width and 2% to ${Math.round(bottomRatio * 100)}% of the canvas height calm and free of text, people, props, windows, shelves, and high-contrast detail. Use only smooth background color there. Preserve the established type size and place the headline top edge at ${headlineRange} of the canvas height.`;
+    },
+  };
+}
+
+export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: Buffer }>(
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+  options: {
+    anchor?: 'left' | 'right';
+    maxRetries?: number;
+  } = {},
+): Promise<{
+  result: T;
+  attempts: number;
+  logoSafeZone: ZamloanLogoSafeZoneAnalysis;
+  lowerRight: AntiFraudLowerRightContinuityAnalysis;
+}> {
+  const anchor = options.anchor ?? 'left';
+  const maxRetries = Math.max(0, options.maxRetries ?? 1);
+  let bestResult = await render(prompt);
+  const logoRules = await antiFraudLogoSafeZoneRules(bestResult.bytes);
+  let bestLogoSafeZone = await analyzeZamloanLogoSafeZone(bestResult.bytes, {
+    anchor,
+    bottomRatio: logoRules.bottomRatio,
+  });
+  let bestLowerRight = await analyzeAntiFraudLowerRightContinuity(bestResult.bytes);
+  let bestScore = bestLogoSafeZone.score + bestLowerRight.score;
+  let attempts = 1;
+
+  if (!bestLogoSafeZone.intrudes && !bestLowerRight.intrudes) {
+    return {
+      result: bestResult,
+      attempts,
+      logoSafeZone: bestLogoSafeZone,
+      lowerRight: bestLowerRight,
+    };
+  }
+
+  for (let retry = 0; retry < maxRetries; retry += 1) {
+    const retryInstructions = [
+      bestLogoSafeZone.intrudes ? logoRules.retryInstruction(anchor) : '',
+      bestLowerRight.intrudes
+        ? await antiFraudLowerRightRetryInstruction(bestResult.bytes)
+        : '',
+    ].filter(Boolean).join('\n\n');
+    const retryResult = await render(`${prompt}\n\n${retryInstructions}`);
+    const retryLogoSafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, {
+      anchor,
+      bottomRatio: logoRules.bottomRatio,
+    });
+    const retryLowerRight = await analyzeAntiFraudLowerRightContinuity(retryResult.bytes);
+    const retryScore = retryLogoSafeZone.score + retryLowerRight.score;
+    attempts += 1;
+    if (retryScore < bestScore) {
+      bestResult = retryResult;
+      bestLogoSafeZone = retryLogoSafeZone;
+      bestLowerRight = retryLowerRight;
+      bestScore = retryScore;
+    }
+    if (!retryLogoSafeZone.intrudes && !retryLowerRight.intrudes) {
+      return {
+        result: retryResult,
+        attempts,
+        logoSafeZone: retryLogoSafeZone,
+        lowerRight: retryLowerRight,
+      };
+    }
+  }
+
+  return {
+    result: bestResult,
+    attempts,
+    logoSafeZone: bestLogoSafeZone,
+    lowerRight: bestLowerRight,
+  };
 }
 
 type ZamloanTaglineTone = 'black' | 'white';
@@ -1611,7 +1792,22 @@ export async function generateMedia(args: {
           ),
         )
         : null;
-      const checked = !phoneChecked && loanPosterOutput && overlayLogoRef
+      const antiFraudChecked = !phoneChecked
+        && loanPosterOutput
+        && overlayLogoRef
+        && posterCopyStyle === 'anti-fraud-message'
+        ? await renderImageWithAntiFraudSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          ),
+          {
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const checked = !phoneChecked && !antiFraudChecked && loanPosterOutput && overlayLogoRef
         ? await renderImageWithLogoSafeZoneRetry(
           ctx.prompt,
           (resolvedPrompt) => renderCustomOpenAIImage(
@@ -1624,8 +1820,11 @@ export async function generateMedia(args: {
           },
         )
         : null;
-      const result = phoneChecked?.result ?? checked?.result
+      const result = phoneChecked?.result ?? antiFraudChecked?.result ?? checked?.result
         ?? await renderCustomOpenAIImage(ctx, customImageCredentials!);
+      if (antiFraudChecked?.lowerRight.intrudes) {
+        throw new Error('anti-fraud lower-right background remained discontinuous after retry');
+      }
       bytes = result.bytes;
       if (layeredPosterRequested) {
         const renderedForeground = await renderLayeredForegroundWithMatteRetry(
@@ -1641,9 +1840,9 @@ export async function generateMedia(args: {
           warnings.push('Foreground matte required one retry before compositing.');
         }
       }
-      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
+      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${antiFraudChecked && antiFraudChecked.attempts > 1 ? ' · anti-fraud safe-zone retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
-      if (checked?.safeZone.intrudes) {
+      if (checked?.safeZone.intrudes || antiFraudChecked?.logoSafeZone.intrudes) {
         warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
       }
     } else if (def.provider === 'openai' && surface === 'image') {
@@ -1656,7 +1855,22 @@ export async function generateMedia(args: {
           ),
         )
         : null;
-      const checked = !phoneChecked && loanPosterOutput && overlayLogoRef
+      const antiFraudChecked = !phoneChecked
+        && loanPosterOutput
+        && overlayLogoRef
+        && posterCopyStyle === 'anti-fraud-message'
+        ? await renderImageWithAntiFraudSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          ),
+          {
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const checked = !phoneChecked && !antiFraudChecked && loanPosterOutput && overlayLogoRef
         ? await renderImageWithLogoSafeZoneRetry(
           ctx.prompt,
           (resolvedPrompt) => renderOpenAIImage(
@@ -1670,8 +1884,12 @@ export async function generateMedia(args: {
         )
         : null;
       const result = phoneChecked?.result
+        ?? antiFraudChecked?.result
         ?? checked?.result
         ?? await renderOpenAIImage(ctx, credentials);
+      if (antiFraudChecked?.lowerRight.intrudes) {
+        throw new Error('anti-fraud lower-right background remained discontinuous after retry');
+      }
       bytes = result.bytes;
       if (layeredPosterRequested) {
         const renderedForeground = await renderLayeredForegroundWithMatteRetry(
@@ -1687,9 +1905,9 @@ export async function generateMedia(args: {
           warnings.push('Foreground matte required one retry before compositing.');
         }
       }
-      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
+      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${antiFraudChecked && antiFraudChecked.attempts > 1 ? ' · anti-fraud safe-zone retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
-      if (checked?.safeZone.intrudes) {
+      if (checked?.safeZone.intrudes || antiFraudChecked?.logoSafeZone.intrudes) {
         warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
       }
     } else if (
