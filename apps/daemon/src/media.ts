@@ -292,6 +292,107 @@ export async function renderImageWithLogoSafeZoneRetry<T extends { bytes: Buffer
   return { result: bestResult, attempts, safeZone: bestSafeZone };
 }
 
+type ZamloanTaglineTone = 'black' | 'white';
+
+const ZAMLOAN_TAGLINE_TOP_RATIO = 0.64;
+const NORMAL_TEXT_MINIMUM_CONTRAST = 4.5;
+
+function srgbChannelToLinear(value: number): number {
+  const channel = value / 255;
+  return channel <= 0.04045
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(red: number, green: number, blue: number): number {
+  return (
+    srgbChannelToLinear(red) * 0.2126
+    + srgbChannelToLinear(green) * 0.7152
+    + srgbChannelToLinear(blue) * 0.0722
+  );
+}
+
+function chooseZamloanTaglineTone(
+  data: Buffer,
+  channels: number,
+): ZamloanTaglineTone {
+  let blackPassingPixels = 0;
+  let whitePassingPixels = 0;
+  let blackContrastTotal = 0;
+  let whiteContrastTotal = 0;
+  let pixelCount = 0;
+
+  for (let offset = 0; offset < data.length; offset += channels) {
+    const luminance = relativeLuminance(
+      data[offset] ?? 0,
+      data[offset + 1] ?? 0,
+      data[offset + 2] ?? 0,
+    );
+    const blackContrast = (luminance + 0.05) / 0.05;
+    const whiteContrast = 1.05 / (luminance + 0.05);
+    if (blackContrast >= NORMAL_TEXT_MINIMUM_CONTRAST) blackPassingPixels += 1;
+    if (whiteContrast >= NORMAL_TEXT_MINIMUM_CONTRAST) whitePassingPixels += 1;
+    blackContrastTotal += blackContrast;
+    whiteContrastTotal += whiteContrast;
+    pixelCount += 1;
+  }
+
+  if (blackPassingPixels !== whitePassingPixels) {
+    return blackPassingPixels > whitePassingPixels ? 'black' : 'white';
+  }
+  if (pixelCount === 0) return 'white';
+  return blackContrastTotal >= whiteContrastTotal ? 'black' : 'white';
+}
+
+async function adaptZamloanTaglineToBackground(
+  resizedLogo: Buffer,
+  background: Buffer,
+  options: { left: number; top: number },
+): Promise<Buffer> {
+  const { data: logoPixels, info: logoInfo } = await sharp(resizedLogo)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const taglineTop = Math.min(
+    logoInfo.height - 1,
+    Math.max(0, Math.floor(logoInfo.height * ZAMLOAN_TAGLINE_TOP_RATIO)),
+  );
+  const taglineHeight = logoInfo.height - taglineTop;
+  const { data: backgroundPixels, info: backgroundInfo } = await sharp(background)
+    .extract({
+      left: options.left,
+      top: options.top + taglineTop,
+      width: logoInfo.width,
+      height: taglineHeight,
+    })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const tone = chooseZamloanTaglineTone(
+    backgroundPixels,
+    backgroundInfo.channels,
+  );
+  const channelValue = tone === 'black' ? 0 : 255;
+
+  for (let y = taglineTop; y < logoInfo.height; y += 1) {
+    for (let x = 0; x < logoInfo.width; x += 1) {
+      const offset = (y * logoInfo.width + x) * logoInfo.channels;
+      if ((logoPixels[offset + 3] ?? 0) === 0) continue;
+      logoPixels[offset] = channelValue;
+      logoPixels[offset + 1] = channelValue;
+      logoPixels[offset + 2] = channelValue;
+    }
+  }
+
+  return sharp(logoPixels, {
+    raw: {
+      width: logoInfo.width,
+      height: logoInfo.height,
+      channels: 4,
+    },
+  }).png().toBuffer();
+}
+
 async function renderImageWithPhoneScreenRetry<T extends { bytes: Buffer }>(
   prompt: string,
   render: (resolvedPrompt: string) => Promise<T>,
@@ -318,8 +419,7 @@ export async function overlayZamloanLogo(
   logo: Buffer,
   options: { anchor?: 'left' | 'right' } = {},
 ): Promise<Buffer> {
-  const image = sharp(input);
-  const metadata = await image.metadata();
+  const metadata = await sharp(input).metadata();
   if (!metadata.width || !metadata.height) {
     throw new Error('generated poster has no readable dimensions');
   }
@@ -383,12 +483,18 @@ export async function overlayZamloanLogo(
     .composite([{ input: backdropMaskSvg, blend: 'dest-in' }])
     .png()
     .toBuffer();
+  const backgroundWithBackdrop = await sharp(input)
+    .composite([{ input: neutralBackdropLayer, left: layerLeft, top: layerTop }])
+    .png()
+    .toBuffer();
+  const adaptiveLogo = await adaptZamloanTaglineToBackground(
+    resizedLogo,
+    backgroundWithBackdrop,
+    { left: logoLeft, top: logoTop },
+  );
 
-  return image
-    .composite([
-      { input: neutralBackdropLayer, left: layerLeft, top: layerTop },
-      { input: resizedLogo, left: logoLeft, top: logoTop },
-    ])
+  return sharp(backgroundWithBackdrop)
+    .composite([{ input: adaptiveLogo, left: logoLeft, top: logoTop }])
     .png()
     .toBuffer();
 }

@@ -13,6 +13,22 @@ import {
   renderImageWithLogoSafeZoneRetry,
 } from '../src/media.js';
 
+const adaptiveTaglineLogo = Buffer.from(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100">
+    <rect x="24" y="12" width="126" height="38" fill="#d35430"/>
+    <rect x="170" y="12" width="126" height="38" fill="#46a93c"/>
+    <rect x="64" y="72" width="192" height="16" fill="white"/>
+  </svg>
+`);
+
+async function posterPixel(input: Buffer, x: number, y: number): Promise<number[]> {
+  const { data, info } = await sharp(input)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const offset = (y * info.width + x) * info.channels;
+  return [data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0];
+}
+
 describe('generated image optimization', () => {
   it('removes edge-connected chroma green while preserving enclosed green details', async () => {
     const matteForeground = await sharp({
@@ -162,6 +178,59 @@ describe('generated image optimization', () => {
     expect(metadata.width).toBe(800);
     expect(metadata.height).toBe(600);
     expect(pixels.equals(await sharp(poster).raw().toBuffer())).toBe(false);
+  });
+
+  it('renders the Zamloan tagline black on a light logo-safe background', async () => {
+    const poster = await sharp({
+      create: {
+        width: 1_000,
+        height: 500,
+        channels: 4,
+        background: { r: 238, g: 232, b: 245, alpha: 1 },
+      },
+    }).png().toBuffer();
+
+    const composited = await overlayZamloanLogo(poster, adaptiveTaglineLogo);
+
+    expect(await posterPixel(composited, 175, 88)).toEqual([0, 0, 0]);
+    expect(await posterPixel(composited, 95, 50)).not.toEqual([0, 0, 0]);
+  });
+
+  it('keeps the Zamloan tagline white on a dark logo-safe background', async () => {
+    const poster = await sharp({
+      create: {
+        width: 1_000,
+        height: 500,
+        channels: 4,
+        background: { r: 32, g: 28, b: 44, alpha: 1 },
+      },
+    }).png().toBuffer();
+
+    const composited = await overlayZamloanLogo(poster, adaptiveTaglineLogo);
+
+    expect(await posterPixel(composited, 175, 88)).toEqual([255, 255, 255]);
+  });
+
+  it('chooses tagline contrast from the local logo area on a mixed background', async () => {
+    const poster = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="500">
+        <defs>
+          <linearGradient id="mixed" x1="0" x2="1">
+            <stop offset="0%" stop-color="#f5f0fa"/>
+            <stop offset="42%" stop-color="#f5f0fa"/>
+            <stop offset="58%" stop-color="#201c2c"/>
+            <stop offset="100%" stop-color="#201c2c"/>
+          </linearGradient>
+        </defs>
+        <rect width="1000" height="500" fill="url(#mixed)"/>
+      </svg>
+    `)).png().toBuffer();
+
+    const leftLogo = await overlayZamloanLogo(poster, adaptiveTaglineLogo);
+    const rightLogo = await overlayZamloanLogo(poster, adaptiveTaglineLogo, { anchor: 'right' });
+
+    expect(await posterPixel(leftLogo, 175, 88)).toEqual([0, 0, 0]);
+    expect(await posterPixel(rightLogo, 650, 88)).toEqual([255, 255, 255]);
   });
 
   it('uses one continuous backdrop instead of separate shadows around each glyph', async () => {
