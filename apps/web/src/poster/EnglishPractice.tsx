@@ -8,11 +8,13 @@ import type {
 } from '@open-design/contracts';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
+import { IeltsChunkCoach } from './IeltsChunkCoach';
 
 type Speaker = 'A' | 'B';
 type PracticeView = 'home' | 'lesson' | 'vocabulary';
 type LessonTab = 'dialogue' | 'practice';
 type SpeechRate = 0.75 | 1 | 1.25;
+type PracticeMode = 'scenes' | 'ielts';
 
 interface Scenario {
   id: string;
@@ -256,6 +258,7 @@ function useSpeechPlayer(rate: SpeechRate, onLineListened: (id: string) => void)
 }
 
 export function EnglishPractice() {
+  const [practiceMode, setPracticeMode] = useState<PracticeMode>('scenes');
   const [view, setView] = useState<PracticeView>('home');
   const [lessonTab, setLessonTab] = useState<LessonTab>('dialogue');
   const [showChinese, setShowChinese] = useState(true);
@@ -367,6 +370,17 @@ export function EnglishPractice() {
   if (view === 'home') {
     return (
       <section className="english-practice" aria-label="每日英语练习">
+        <div className="english-practice__mode-switch" role="tablist" aria-label="英语训练模式">
+          <button type="button" role="tab" aria-selected={practiceMode === 'scenes'} onClick={() => setPracticeMode('scenes')}>
+            <span>生活场景</span><small>听说基础训练</small>
+          </button>
+          <button type="button" role="tab" aria-selected={practiceMode === 'ielts'} onClick={() => setPracticeMode('ielts')}>
+            <span>IELTS 口语教练</span><small>语块主动调用与迁移</small>
+          </button>
+        </div>
+
+        {practiceMode === 'ielts' ? <IeltsChunkCoach /> : (
+          <>
         <div className="english-practice__hero">
           <div>
             <span className="english-practice__kicker">DAILY ENGLISH · 每日英语</span>
@@ -428,6 +442,8 @@ export function EnglishPractice() {
             </button>
           ))}
         </div>
+          </>
+        )}
       </section>
     );
   }
