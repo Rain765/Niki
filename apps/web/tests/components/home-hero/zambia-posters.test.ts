@@ -367,6 +367,27 @@ describe('Zambia poster preset', () => {
     ))).toBe(true);
   });
 
+  it.each(AUTO_POSTER_ASPECT_RATIOS)(
+    'locks the %s anti-fraud background to one corner-to-corner half split',
+    (aspectRatio) => {
+      const [plan] = buildLoanPosterScenePlans({
+        count: 1,
+        aspectRatio,
+        brand: 'zamloan',
+        purpose: 'anti-fraud',
+      });
+
+      expect(plan?.prompt).toContain(
+        'one straight dividing edge from the exact top-right canvas corner (100%, 0%) to the exact bottom-left canvas corner (0%, 100%)',
+      );
+      expect(plan?.prompt).toContain('two equal-area triangular halves');
+      expect(plan?.prompt).toContain(
+        'Do not move either endpoint, vary the angle, curve the edge, or add another wedge or split',
+      );
+      expect(plan?.prompt).not.toMatch(/58%|54%|45%|lower-middle|upper-center/);
+    },
+  );
+
   it('does not alter the existing Zamloan acquisition provider prompts', () => {
     const expectedHashes = {
       '3:4': 'd9200c60c7e4e9ea9bc0cab9aef7706b8b4a0c4d064a0505dc45f59442449629',

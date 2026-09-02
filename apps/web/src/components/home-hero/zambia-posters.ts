@@ -312,6 +312,9 @@ const ANTI_FRAUD_POSTER_COMPOSITIONS = {
   ],
 } as const;
 
+const ZAMLOAN_ANTI_FRAUD_HALF_SPLIT_INSTRUCTION =
+  'Build a clean 50/50 editorial diagonal split using one straight dividing edge from the exact top-right canvas corner (100%, 0%) to the exact bottom-left canvas corner (0%, 100%). This creates two equal-area triangular halves: the smooth light copy field is the upper-left half and the environmental scene is the lower-right half. Do not move either endpoint, vary the angle, curve the edge, or add another wedge or split. Keep the model in the lower-right half, but let the open rejecting palm extend slightly into the light field beneath the copy';
+
 const BIUMONEY_PHONE_STATUS_COPY = [
   'Application Approved',
   'Approval Confirmed',
@@ -459,7 +462,7 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
         subtitle: 'Trust Only Official Customer Service',
         prompt: `Create a premium ${brandLabel} Zambia public-safety anti-fraud poster in ${aspectRatio} as one unified composition, using the same campaign-quality composition system as the ${brandLabel} mobile-loan advertising posters.
 
-Use ${antiFraudPalette.copyField} and ${antiFraudPalette.sceneField} for a crisp editorial diagonal split applied only as a background surface treatment. The selected palette is mandatory and must dominate the background.${paletteProtection} Do not let the diagonal change, compress, or fragment the campaign layout. ${campaignComposition}. Keep the top-left logo-safe row completely blank and calm for the exact Zamloan logo that will be composited later; do not render, redraw, or typeset a logo or brand name. Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, and subtitle pixel.
+Use ${antiFraudPalette.copyField} and ${antiFraudPalette.sceneField} for a crisp editorial diagonal split applied only as a background surface treatment. The selected palette is mandatory and must dominate the background.${paletteProtection} ${ZAMLOAN_ANTI_FRAUD_HALF_SPLIT_INSTRUCTION}. ${campaignComposition}. Keep the top-left logo-safe row completely blank and calm for the exact Zamloan logo that will be composited later; do not render, redraw, or typeset a logo or brand name. Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, and subtitle pixel.
 
 Render exactly two poster-copy text elements: “Prevent Fraud” as the very large bold primary headline and “Trust Only Official Customer Service” as the large supporting subtitle. Reproduce both phrases exactly. Match the acquisition posters' expressive heavy campaign typography, oversized scale, tight line spacing, and compact headline-to-subtitle gap. Make the subtitle about 20% larger than a conventional supporting line and use one solid deep-charcoal color across every subtitle word; do not color any subtitle word green, red, or another accent. Do not reduce the established headline or subtitle font size to satisfy the new spacing; achieve separation only through the specified position, line breaks, width, and negative space. Keep the complete copy inside the reserved negative-space region with a visible gap from every person, hand, prop, and phone.
 
