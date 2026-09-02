@@ -313,7 +313,7 @@ const ANTI_FRAUD_POSTER_COMPOSITIONS = {
 } as const;
 
 const ZAMLOAN_ANTI_FRAUD_HALF_SPLIT_INSTRUCTION =
-  'Build a clean 50/50 editorial diagonal split using one straight dividing edge from the exact top-right canvas corner (100%, 0%) to the exact bottom-left canvas corner (0%, 100%). This creates two equal-area triangular halves: the smooth light copy field is the upper-left half and the environmental scene is the lower-right half. Do not move either endpoint, vary the angle, curve the edge, or add another wedge or split. Keep the model in the lower-right half, but let the open rejecting palm extend slightly into the light field beneath the copy';
+  'Build a clean editorial diagonal split using one straight dividing edge from the exact bottom-left canvas corner (0%, 100%) to the right canvas edge at (100%, 8%). This creates approximately 54% light copy field and 46% environmental scene: the smooth light copy field is above-left and the environmental scene is below-right. The left endpoint must visibly touch the exact bottom-left corner with no gap or early exit. The right endpoint must touch the right edge 8% below the top. Do not move either endpoint, vary the angle, curve the edge, or add another wedge or split. Keep the model in the lower-right scene field, but let the open rejecting palm extend slightly into the light field beneath the copy';
 
 const BIUMONEY_PHONE_STATUS_COPY = [
   'Application Approved',

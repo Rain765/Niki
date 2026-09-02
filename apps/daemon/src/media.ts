@@ -303,6 +303,8 @@ export interface AntiFraudLowerRightContinuityAnalysis {
 
 const ANTI_FRAUD_CONTINUITY_WARNING =
   'Anti-fraud lower-right background remained visually discontinuous after retry; the clearest render was used.';
+const ANTI_FRAUD_DIAGONAL_WARNING =
+  'Anti-fraud diagonal split remained outside endpoint tolerance after retry; the clearest render was used.';
 
 export async function analyzeAntiFraudLowerRightContinuity(
   input: Buffer,
@@ -375,6 +377,112 @@ export async function analyzeAntiFraudLowerRightContinuity(
   };
 }
 
+export interface AntiFraudDiagonalSplitAnalysis {
+  intrudes: boolean;
+  score: number;
+  leftEndpointRatio: number;
+  rightEndpointRatio: number;
+  leftStrength: number;
+  rightStrength: number;
+}
+
+export async function analyzeAntiFraudDiagonalSplit(
+  input: Buffer,
+): Promise<AntiFraudDiagonalSplitAnalysis> {
+  const metadata = await sharp(input).metadata();
+  if (!metadata.width || !metadata.height) {
+    return {
+      intrudes: true,
+      score: Number.POSITIVE_INFINITY,
+      leftEndpointRatio: 0,
+      rightEndpointRatio: 1,
+      leftStrength: 0,
+      rightStrength: 0,
+    };
+  }
+
+  const sampleWidth = 180;
+  const sampleHeight = Math.max(120, Math.round(sampleWidth * metadata.height / metadata.width));
+  const { data, info } = await sharp(input)
+    .resize({ width: sampleWidth, height: sampleHeight, fit: 'fill' })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const channels = info.channels;
+  const colorDelta = (x: number, firstY: number, secondY: number) => {
+    const firstOffset = (firstY * info.width + x) * channels;
+    const secondOffset = (secondY * info.width + x) * channels;
+    return (
+      Math.abs((data[firstOffset] ?? 0) - (data[secondOffset] ?? 0))
+      + Math.abs((data[firstOffset + 1] ?? 0) - (data[secondOffset + 1] ?? 0))
+      + Math.abs((data[firstOffset + 2] ?? 0) - (data[secondOffset + 2] ?? 0))
+    ) / 3;
+  };
+  const median = (values: number[]) => {
+    const sorted = [...values].sort((first, second) => first - second);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+      ? ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2
+      : (sorted[middle] ?? 0);
+  };
+  const detectEndpoint = (
+    xRatios: number[],
+    endpoint: 'left' | 'right',
+  ): { ratio: number; strength: number } => {
+    const ratios: number[] = [];
+    const strengths: number[] = [];
+    for (const xRatio of xRatios) {
+      const x = Math.min(info.width - 1, Math.max(0, Math.round(xRatio * (info.width - 1))));
+      const expectedYRatio = 1 - (0.92 * xRatio);
+      const startY = Math.max(2, Math.round((expectedYRatio - 0.14) * info.height));
+      const endY = Math.min(info.height - 3, Math.round((expectedYRatio + 0.14) * info.height));
+      let bestY = startY;
+      let bestStrength = 0;
+      for (let y = startY; y <= endY; y += 1) {
+        const strength = colorDelta(x, y - 2, y + 2);
+        if (strength > bestStrength) {
+          bestStrength = strength;
+          bestY = y;
+        }
+      }
+      const detectedYRatio = bestY / Math.max(1, info.height - 1);
+      const endpointRatio = endpoint === 'left'
+        ? detectedYRatio + (0.92 * xRatio)
+        : detectedYRatio - (0.92 * (1 - xRatio));
+      ratios.push(Math.min(1, Math.max(0, endpointRatio)));
+      strengths.push(bestStrength);
+    }
+    return {
+      ratio: median(ratios),
+      strength: median(strengths),
+    };
+  };
+
+  const left = detectEndpoint([0.025, 0.05, 0.075], 'left');
+  const right = detectEndpoint([0.925, 0.95, 0.975], 'right');
+  const minimumBoundaryStrength = 16;
+  const leftError = Math.abs(1 - left.ratio);
+  const rightError = Math.abs(0.08 - right.ratio);
+  const missingBoundaryPenalty = (
+    (left.strength < minimumBoundaryStrength ? 0.20 : 0)
+    + (right.strength < minimumBoundaryStrength ? 0.20 : 0)
+  );
+  return {
+    intrudes: (
+      left.ratio < 0.97
+      || right.ratio < 0.06
+      || right.ratio > 0.10
+      || left.strength < minimumBoundaryStrength
+      || right.strength < minimumBoundaryStrength
+    ),
+    score: leftError + rightError + missingBoundaryPenalty,
+    leftEndpointRatio: left.ratio,
+    rightEndpointRatio: right.ratio,
+    leftStrength: left.strength,
+    rightStrength: right.strength,
+  };
+}
+
 async function antiFraudLowerRightRetryInstruction(input: Buffer): Promise<string> {
   const metadata = await sharp(input).metadata();
   const aspect = (metadata.width ?? 1) / (metadata.height ?? 1);
@@ -384,6 +492,10 @@ async function antiFraudLowerRightRetryInstruction(input: Buffer): Promise<strin
       ? 'x=71% to 100% and y=69% to 94%'
       : 'x=73% to 100% and y=72% to 90%';
   return `CRITICAL LOWER-RIGHT CONTINUITY RETRY: the previous render introduced a separate geometric foreground surface. Re-render the composition so the surrounding base background flows continuously through ${zone} of the canvas. Match the immediately adjacent color, gradient, texture, depth, and lighting with no visible boundary or separate treatment. Keep the person, hands, phone, props, and high-contrast detail outside this zone. The zone must remain ordinary, visually empty surrounding background.`;
+}
+
+function antiFraudDiagonalRetryInstruction(): string {
+  return 'CRITICAL FIXED-DIAGONAL RETRY: use exactly one straight background boundary from the exact bottom-left corner (0%, 100%) to the right edge at (100%, 8%). The left endpoint must touch the final bottom-left canvas pixel, and the right endpoint must touch the right canvas edge 8% below the top. Do not terminate the boundary early, shift either endpoint, bend it, feather it, or introduce another wedge.';
 }
 
 async function antiFraudLogoSafeZoneRules(input: Buffer): Promise<{
@@ -415,6 +527,7 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   attempts: number;
   logoSafeZone: ZamloanLogoSafeZoneAnalysis;
   lowerRight: AntiFraudLowerRightContinuityAnalysis;
+  diagonal: AntiFraudDiagonalSplitAnalysis;
 }> {
   const anchor = options.anchor ?? 'left';
   const maxRetries = Math.max(0, options.maxRetries ?? 1);
@@ -425,15 +538,17 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
     bottomRatio: logoRules.bottomRatio,
   });
   let bestLowerRight = await analyzeAntiFraudLowerRightContinuity(bestResult.bytes);
-  let bestScore = bestLogoSafeZone.score + bestLowerRight.score;
+  let bestDiagonal = await analyzeAntiFraudDiagonalSplit(bestResult.bytes);
+  let bestScore = bestLogoSafeZone.score + bestLowerRight.score + bestDiagonal.score;
   let attempts = 1;
 
-  if (!bestLogoSafeZone.intrudes && !bestLowerRight.intrudes) {
+  if (!bestLogoSafeZone.intrudes && !bestLowerRight.intrudes && !bestDiagonal.intrudes) {
     return {
       result: bestResult,
       attempts,
       logoSafeZone: bestLogoSafeZone,
       lowerRight: bestLowerRight,
+      diagonal: bestDiagonal,
     };
   }
 
@@ -443,6 +558,7 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
       bestLowerRight.intrudes
         ? await antiFraudLowerRightRetryInstruction(bestResult.bytes)
         : '',
+      bestDiagonal.intrudes ? antiFraudDiagonalRetryInstruction() : '',
     ].filter(Boolean).join('\n\n');
     const retryResult = await render(`${prompt}\n\n${retryInstructions}`);
     const retryLogoSafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, {
@@ -450,20 +566,23 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
       bottomRatio: logoRules.bottomRatio,
     });
     const retryLowerRight = await analyzeAntiFraudLowerRightContinuity(retryResult.bytes);
-    const retryScore = retryLogoSafeZone.score + retryLowerRight.score;
+    const retryDiagonal = await analyzeAntiFraudDiagonalSplit(retryResult.bytes);
+    const retryScore = retryLogoSafeZone.score + retryLowerRight.score + retryDiagonal.score;
     attempts += 1;
     if (retryScore < bestScore) {
       bestResult = retryResult;
       bestLogoSafeZone = retryLogoSafeZone;
       bestLowerRight = retryLowerRight;
+      bestDiagonal = retryDiagonal;
       bestScore = retryScore;
     }
-    if (!retryLogoSafeZone.intrudes && !retryLowerRight.intrudes) {
+    if (!retryLogoSafeZone.intrudes && !retryLowerRight.intrudes && !retryDiagonal.intrudes) {
       return {
         result: retryResult,
         attempts,
         logoSafeZone: retryLogoSafeZone,
         lowerRight: retryLowerRight,
+        diagonal: retryDiagonal,
       };
     }
   }
@@ -473,6 +592,7 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
     attempts,
     logoSafeZone: bestLogoSafeZone,
     lowerRight: bestLowerRight,
+    diagonal: bestDiagonal,
   };
 }
 
@@ -1828,6 +1948,9 @@ export async function generateMedia(args: {
       if (antiFraudChecked?.lowerRight.intrudes) {
         warnings.push(ANTI_FRAUD_CONTINUITY_WARNING);
       }
+      if (antiFraudChecked?.diagonal.intrudes) {
+        warnings.push(ANTI_FRAUD_DIAGONAL_WARNING);
+      }
       bytes = result.bytes;
       if (layeredPosterRequested) {
         const renderedForeground = await renderLayeredForegroundWithMatteRetry(
@@ -1892,6 +2015,9 @@ export async function generateMedia(args: {
         ?? await renderOpenAIImage(ctx, credentials);
       if (antiFraudChecked?.lowerRight.intrudes) {
         warnings.push(ANTI_FRAUD_CONTINUITY_WARNING);
+      }
+      if (antiFraudChecked?.diagonal.intrudes) {
+        warnings.push(ANTI_FRAUD_DIAGONAL_WARNING);
       }
       bytes = result.bytes;
       if (layeredPosterRequested) {

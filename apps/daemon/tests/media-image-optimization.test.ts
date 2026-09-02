@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
 
 import {
+  analyzeAntiFraudDiagonalSplit,
   analyzeAntiFraudLowerRightContinuity,
   analyzeZamloanLogoSafeZone,
   composeLayeredLoanPoster,
@@ -428,6 +429,62 @@ describe('generated image optimization', () => {
     await expect(analyzeAntiFraudLowerRightContinuity(blocked)).resolves.toMatchObject({
       intrudes: true,
     });
+  });
+
+  it('checks both endpoints of the fixed anti-fraud diagonal split', async () => {
+    const expected = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200">
+        <rect width="900" height="1200" fill="#6f2937"/>
+        <polygon points="0,0 900,0 900,96 0,1200" fill="#f1dfc3"/>
+      </svg>
+    `)).png().toBuffer();
+    const shifted = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200">
+        <rect width="900" height="1200" fill="#6f2937"/>
+        <polygon points="0,0 900,0 900,1 0,1080" fill="#f1dfc3"/>
+      </svg>
+    `)).png().toBuffer();
+
+    await expect(analyzeAntiFraudDiagonalSplit(expected)).resolves.toMatchObject({
+      intrudes: false,
+      leftEndpointRatio: expect.closeTo(1, 1),
+      rightEndpointRatio: expect.closeTo(0.08, 1),
+    });
+    await expect(analyzeAntiFraudDiagonalSplit(shifted)).resolves.toMatchObject({
+      intrudes: true,
+    });
+  });
+
+  it('retries once when the anti-fraud diagonal misses its fixed endpoints', async () => {
+    const expected = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200">
+        <rect width="900" height="1200" fill="#174a82"/>
+        <polygon points="0,0 900,0 900,96 0,1200" fill="#e5edf3"/>
+      </svg>
+    `)).png().toBuffer();
+    const shifted = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200">
+        <rect width="900" height="1200" fill="#174a82"/>
+        <polygon points="0,0 900,0 900,1 0,1080" fill="#e5edf3"/>
+      </svg>
+    `)).png().toBuffer();
+    const prompts: string[] = [];
+
+    const rendered = await renderImageWithAntiFraudSafeZoneRetry(
+      'original prompt',
+      async (prompt) => {
+        prompts.push(prompt);
+        return { bytes: prompts.length === 1 ? shifted : expected };
+      },
+      { anchor: 'left' },
+    );
+
+    expect(rendered.attempts).toBe(2);
+    expect(rendered.diagonal.intrudes).toBe(false);
+    expect(rendered.result.bytes).toBe(expected);
+    expect(prompts[1]).toContain('CRITICAL FIXED-DIAGONAL RETRY');
+    expect(prompts[1]).toContain('bottom-left corner (0%, 100%)');
+    expect(prompts[1]).toContain('right edge at (100%, 8%)');
   });
 
   it('retries once when the anti-fraud lower-right background is discontinuous', async () => {

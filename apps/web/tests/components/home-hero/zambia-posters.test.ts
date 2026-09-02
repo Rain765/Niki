@@ -368,7 +368,7 @@ describe('Zambia poster preset', () => {
   });
 
   it.each(AUTO_POSTER_ASPECT_RATIOS)(
-    'locks the %s anti-fraud background to one corner-to-corner half split',
+    'locks the %s anti-fraud background to the lower-right fixed diagonal',
     (aspectRatio) => {
       const [plan] = buildLoanPosterScenePlans({
         count: 1,
@@ -378,13 +378,15 @@ describe('Zambia poster preset', () => {
       });
 
       expect(plan?.prompt).toContain(
-        'one straight dividing edge from the exact top-right canvas corner (100%, 0%) to the exact bottom-left canvas corner (0%, 100%)',
+        'one straight dividing edge from the exact bottom-left canvas corner (0%, 100%) to the right canvas edge at (100%, 8%)',
       );
-      expect(plan?.prompt).toContain('two equal-area triangular halves');
+      expect(plan?.prompt).toContain('approximately 54% light copy field and 46% environmental scene');
       expect(plan?.prompt).toContain(
-        'Do not move either endpoint, vary the angle, curve the edge, or add another wedge or split',
+        'The left endpoint must visibly touch the exact bottom-left corner',
       );
-      expect(plan?.prompt).not.toMatch(/58%|54%|45%|lower-middle|upper-center/);
+      expect(plan?.prompt).toContain('The right endpoint must touch the right edge 8% below the top');
+      expect(plan?.prompt).not.toContain('exact top-right canvas corner (100%, 0%)');
+      expect(plan?.prompt).not.toMatch(/58%|45%|lower-middle|upper-center/);
     },
   );
 
