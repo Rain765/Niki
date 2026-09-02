@@ -301,6 +301,9 @@ export interface AntiFraudLowerRightContinuityAnalysis {
   horizontalEdgeRatio: number;
 }
 
+const ANTI_FRAUD_CONTINUITY_WARNING =
+  'Anti-fraud lower-right background remained visually discontinuous after retry; the clearest render was used.';
+
 export async function analyzeAntiFraudLowerRightContinuity(
   input: Buffer,
 ): Promise<AntiFraudLowerRightContinuityAnalysis> {
@@ -1823,7 +1826,7 @@ export async function generateMedia(args: {
       const result = phoneChecked?.result ?? antiFraudChecked?.result ?? checked?.result
         ?? await renderCustomOpenAIImage(ctx, customImageCredentials!);
       if (antiFraudChecked?.lowerRight.intrudes) {
-        throw new Error('anti-fraud lower-right background remained discontinuous after retry');
+        warnings.push(ANTI_FRAUD_CONTINUITY_WARNING);
       }
       bytes = result.bytes;
       if (layeredPosterRequested) {
@@ -1888,7 +1891,7 @@ export async function generateMedia(args: {
         ?? checked?.result
         ?? await renderOpenAIImage(ctx, credentials);
       if (antiFraudChecked?.lowerRight.intrudes) {
-        throw new Error('anti-fraud lower-right background remained discontinuous after retry');
+        warnings.push(ANTI_FRAUD_CONTINUITY_WARNING);
       }
       bytes = result.bytes;
       if (layeredPosterRequested) {

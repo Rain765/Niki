@@ -405,6 +405,67 @@ describe('media brand overlay inputs', () => {
     expect(Array.from(pixel)).toEqual([126, 174, 211]);
   });
 
+  it('returns the clearest anti-fraud render when the lower-right check still flags the retry', async () => {
+    const logoName = 'zamloan-logo.svg';
+    await writeFile(path.join(projectDir, logoName), `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+        <rect x="20" y="18" width="125" height="36" fill="#d35430"/>
+        <rect x="170" y="18" width="125" height="36" fill="#46a93c"/>
+      </svg>
+    `);
+    const base = await sharp({
+      create: {
+        width: 800,
+        height: 1067,
+        channels: 4,
+        background: { r: 126, g: 174, b: 211, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const flagged = await sharp(base)
+      .composite([{
+        input: Buffer.from(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="270" height="330">
+            <rect width="270" height="330" rx="26" fill="#c3e3f8"/>
+          </svg>
+        `),
+        left: 510,
+        top: 720,
+      }])
+      .png()
+      .toBuffer();
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ data: [{ b64_json: flagged.toString('base64') }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'poster-project',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'One person with continuous lower-right background',
+      aspect: '3:4',
+      quality: 'medium',
+      overlayLogo: logoName,
+      overlayLogoAnchor: 'left',
+      posterHeadline: 'Prevent Fraud',
+      posterSubtitle: 'Trust Only Official Customer Service',
+      posterTextAnchor: 'right',
+      posterCopyStyle: 'anti-fraud-message',
+      loanPosterOutput: true,
+      output: 'anti-fraud-flagged-retry-poster.png',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.name).toBe('anti-fraud-flagged-retry-poster.png');
+    expect(result.warnings).toContain(
+      'Anti-fraud lower-right background remained visually discontinuous after retry; the clearest render was used.',
+    );
+    await expect(readFile(path.join(projectDir, result.name))).resolves.not.toHaveLength(0);
+  });
+
   it('requests an opaque matte foreground and composites it above the exact Z', async () => {
     const referenceName = 'loan-poster-z-reference.png';
     const zReference = await sharp(Buffer.from(`
