@@ -1679,6 +1679,40 @@ button {
   background: var(--poster-panel-muted);
 }
 
+.poster-app__video .loan-video-quick {
+  grid-template-columns:
+    minmax(150px, 0.8fr)
+    minmax(210px, 1.15fr)
+    minmax(140px, 0.7fr)
+    minmax(190px, 0.82fr);
+  align-items: end;
+}
+
+.poster-app__video .loan-video-quick__generate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .poster-app__video .loan-video-quick {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .poster-app__video .loan-video-quick__generate {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .poster-app__video .loan-video-quick {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .poster-app__field {
   display: grid;
   gap: var(--poster-space-2);

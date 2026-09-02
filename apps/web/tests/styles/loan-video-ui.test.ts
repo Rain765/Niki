@@ -92,6 +92,20 @@ describe('loan video UI', () => {
     expect.soft(videoHero).toContain('width: 100%;');
   });
 
+  it('keeps the three quick selects and generate action in one desktop toolbar', () => {
+    const toolbar = rule(posterCss, '.poster-app__video .loan-video-quick');
+    const generate = rule(posterCss, '.poster-app__video .loan-video-quick__generate');
+
+    expect.soft(toolbar).toContain('grid-template-columns:');
+    expect.soft(toolbar).toContain('minmax(210px, 1.15fr)');
+    expect.soft(toolbar).toContain('align-items: end;');
+    expect.soft(generate).toContain('display: inline-flex;');
+    expect(generate).toContain('white-space: nowrap;');
+    expect(posterCss).toMatch(
+      /@media \(max-width: 760px\)[\s\S]*?\.poster-app__video \.loan-video-quick\s*{[^}]*grid-template-columns: minmax\(0, 1fr\);/,
+    );
+  });
+
   it('uses a dark step header above a borderless transparent body', () => {
     const step = rule(posterCss, '.poster-app__video .loan-video-step');
     const toolbar = rule(posterCss, '.poster-app__video .loan-video-step__toolbar');

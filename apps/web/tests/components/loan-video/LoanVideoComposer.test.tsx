@@ -31,7 +31,7 @@ afterEach(() => {
 });
 
 describe('LoanVideoComposer', () => {
-  it('starts in one-click mode and only enables a configured product-purpose preset', () => {
+  it('uses poster-style selects and sends unconfigured presets to Edit mode', async () => {
     const onQuickGenerate = vi.fn();
     testingRender(
       <LoanVideoComposer
@@ -41,11 +41,17 @@ describe('LoanVideoComposer', () => {
       />,
     );
 
-    expect(screen.getByTestId('loan-video-quick-mode')).toBeTruthy();
+    const toolbar = screen.getByTestId('loan-video-quick-mode');
+    expect(toolbar.className).toContain('poster-app__generator');
+    expect(toolbar.querySelectorAll('.poster-app__field')).toHaveLength(3);
+    expect(toolbar.querySelectorAll('.poster-app__select-trigger')).toHaveLength(3);
+    expect(toolbar.querySelector('.loan-video-quick__readiness')).toBeNull();
     expect(screen.queryByTestId('loan-video-editor-settings')).toBeNull();
     const generate = screen.getByTestId('loan-video-quick-generate') as HTMLButtonElement;
+    expect(toolbar.lastElementChild).toBe(generate);
     expect(generate.disabled).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: '3:4' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio: 9:16' }));
+    fireEvent.click(screen.getByRole('option', { name: '3:4' }));
     fireEvent.click(generate);
     expect(onQuickGenerate).toHaveBeenCalledWith({
       brand: 'zamloan',
@@ -53,9 +59,15 @@ describe('LoanVideoComposer', () => {
       aspectRatio: '3:4',
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Customer support' }));
-    expect(generate.disabled).toBe(true);
-    expect(screen.getByText('Page plan required')).toBeTruthy();
+    fireEvent.click(screen.getByRole('combobox', { name: 'Purpose: Tutorial' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Customer support' }));
+    expect(generate.disabled).toBe(false);
+    fireEvent.click(generate);
+
+    expect(screen.getByTestId('loan-video-editor-settings')).toBeTruthy();
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'Configure and generate this product and purpose once in Edit mode.',
+    );
   });
 
   it('returns title validation to the main form and focuses the title field', async () => {

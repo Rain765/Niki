@@ -370,7 +370,8 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
     const quickGenerate = await screen.findByTestId('loan-video-quick-generate');
     await waitFor(() => expect((quickGenerate as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(screen.getByRole('button', { name: '3:4' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio: 9:16' }));
+    fireEvent.click(screen.getByRole('option', { name: '3:4' }));
     fireEvent.click(quickGenerate);
 
     await waitFor(() => expect(startProjectMediaTaskMock).toHaveBeenCalledOnce());
