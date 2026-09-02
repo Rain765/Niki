@@ -442,58 +442,17 @@ export async function overlayZamloanLogo(
     throw new Error('Zamloan logo has no readable dimensions');
   }
 
-  const backdropPaddingX = Math.max(28, Math.round(logoMetadata.width * 0.22));
-  const backdropPaddingY = Math.max(22, Math.round(logoMetadata.height * 0.75));
-  const logoInsetX = backdropPaddingX;
-  const logoInsetY = backdropPaddingY;
-  const layerWidth = logoMetadata.width + logoInsetX * 2;
-  const layerHeight = logoMetadata.height + logoInsetY * 2;
   const logoLeft = Math.round(
     metadata.width * (options.anchor === 'right' ? 0.53 : 0.055),
   );
   const logoTop = Math.max(24, Math.round(metadata.height * 0.055));
-  const layerLeft = Math.max(
-    0,
-    Math.min(metadata.width - layerWidth, logoLeft - logoInsetX),
-  );
-  const layerTop = Math.max(0, logoTop - logoInsetY);
-  const backdropMaskSvg = Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${layerWidth}" height="${layerHeight}">` +
-      '<defs><radialGradient id="backdrop" cx="50%" cy="50%" r="50%">' +
-      '<stop offset="0%" stop-color="white" stop-opacity="0.68"/>' +
-      '<stop offset="42%" stop-color="white" stop-opacity="0.42"/>' +
-      '<stop offset="74%" stop-color="white" stop-opacity="0.16"/>' +
-      '<stop offset="100%" stop-color="white" stop-opacity="0"/>' +
-      '</radialGradient></defs>' +
-      `<rect width="${layerWidth}" height="${layerHeight}" fill="url(#backdrop)"/>` +
-      '</svg>',
-  );
-  const neutralBackground = await sharp(input)
-    .extract({
-      left: layerLeft,
-      top: layerTop,
-      width: layerWidth,
-      height: layerHeight,
-    })
-    .modulate({ brightness: 0.82, saturation: 0.35 })
-    .ensureAlpha()
-    .png()
-    .toBuffer();
-  const neutralBackdropLayer = await sharp(neutralBackground)
-    .composite([{ input: backdropMaskSvg, blend: 'dest-in' }])
-    .png()
-    .toBuffer();
-  const backgroundWithBackdrop = await sharp(input)
-    .composite([{ input: neutralBackdropLayer, left: layerLeft, top: layerTop }])
-    .png()
-    .toBuffer();
   const adaptiveLogo = await adaptZamloanTaglineToBackground(
     resizedLogo,
-    backgroundWithBackdrop,
+    input,
     { left: logoLeft, top: logoTop },
   );
 
-  return sharp(backgroundWithBackdrop)
+  return sharp(input)
     .composite([{ input: adaptiveLogo, left: logoLeft, top: logoTop }])
     .png()
     .toBuffer();

@@ -233,7 +233,7 @@ describe('generated image optimization', () => {
     expect(await posterPixel(rightLogo, 650, 88)).toEqual([255, 255, 255]);
   });
 
-  it('uses one continuous backdrop instead of separate shadows around each glyph', async () => {
+  it('preserves poster pixels between separated logo glyphs', async () => {
     const poster = await sharp({
       create: {
         width: 1_000,
@@ -260,11 +260,10 @@ describe('generated image optimization', () => {
       data[centerOffset + 2] ?? 0,
     ];
 
-    expect(centerRgb).not.toEqual([220, 72, 30]);
-    expect(Math.min(...centerRgb)).toBeGreaterThan(20);
+    expect(centerRgb).toEqual([220, 72, 30]);
   });
 
-  it('mildly dims the real background beneath the logo and fades to the original edges', async () => {
+  it('does not dim transparent areas within the logo bounds', async () => {
     const poster = await sharp({
       create: {
         width: 1_000,
@@ -284,16 +283,17 @@ describe('generated image optimization', () => {
     const { data, info } = await sharp(composited)
       .raw()
       .toBuffer({ resolveWithObject: true });
-    const redAt = (x: number) => data[(55 * info.width + x) * info.channels] ?? 0;
-    const centerOffset = (55 * info.width + 175) * info.channels;
+    const rgbAt = (x: number) => {
+      const offset = (55 * info.width + x) * info.channels;
+      return [data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0];
+    };
 
-    expect(data[centerOffset]).toBeGreaterThan(175);
-    expect(data[centerOffset + 1]).toBeGreaterThan(60);
-    expect(redAt(175)).toBeLessThanOrEqual(redAt(115) - 4);
-    expect(redAt(115)).toBeLessThan(redAt(35) - 4);
+    expect(rgbAt(35)).toEqual([220, 72, 30]);
+    expect(rgbAt(115)).toEqual([220, 72, 30]);
+    expect(rgbAt(175)).toEqual([220, 72, 30]);
   });
 
-  it('neutralizes saturated background colors beneath the logo without using a solid fill', async () => {
+  it('does not desaturate the background beneath transparent logo areas', async () => {
     const poster = await sharp({
       create: {
         width: 1_000,
@@ -317,17 +317,11 @@ describe('generated image optimization', () => {
       const offset = (y * info.width + x) * info.channels;
       return [data[offset] ?? 0, data[offset + 1] ?? 0, data[offset + 2] ?? 0];
     };
-    const relativeSaturation = (rgb: number[]) => {
-      const maximum = Math.max(...rgb);
-      return maximum === 0 ? 0 : (maximum - Math.min(...rgb)) / maximum;
-    };
     const originalEdge = rgbAt(0, 55);
-    const neutralCenter = rgbAt(175, 55);
+    const transparentCenter = rgbAt(175, 55);
 
-    expect(relativeSaturation(neutralCenter))
-      .toBeLessThan(relativeSaturation(originalEdge) - 0.18);
-    expect(Math.max(...neutralCenter)).toBeLessThan(Math.max(...originalEdge) - 8);
-    expect(neutralCenter).not.toEqual([0, 0, 0]);
+    expect(originalEdge).toEqual([38, 190, 56]);
+    expect(transparentCenter).toEqual(originalEdge);
   });
 
   it('distinguishes a clean logo-safe band from title-like content', async () => {
