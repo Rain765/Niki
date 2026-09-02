@@ -805,7 +805,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               { value: 'poster', title: 'Generate Loan Posters', description: 'Create ready-to-use loan campaign images', icon: 'image' },
               { value: 'video', title: 'Generate Tutorial Videos', description: 'Turn app screenshots into guided videos', icon: 'play' },
               { value: 'documents', title: 'Document Search', description: 'Search Feishu or open a document link', icon: 'search' },
-              { value: 'english', title: 'Daily English Practice', description: 'Practice real-life English conversations', icon: 'languages' },
             ] as const).map((option) => (
               <button
                 key={option.value}
@@ -842,6 +841,24 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               </span>
               {creationMode === 'logo' ? <Icon name="check" size={19} /> : null}
             </Link>
+            <button
+              type="button"
+              role="option"
+              aria-selected={creationMode === 'english'}
+              tabIndex={modeMenuOpen ? 0 : -1}
+              onClick={() => {
+                setCreationMode('english');
+                updateCreationModeUrl('english');
+                setModeMenuOpen(false);
+              }}
+            >
+              <span className="poster-app__mode-option-icon"><Icon name="languages" size={18} /></span>
+              <span>
+                <strong>Daily English Practice</strong>
+                <small>Practice real-life English conversations</small>
+              </span>
+              {creationMode === 'english' ? <Icon name="check" size={19} /> : null}
+            </button>
           </div>
         </div>
         <div className="poster-app__account-wrap" ref={accountMenuRef}>

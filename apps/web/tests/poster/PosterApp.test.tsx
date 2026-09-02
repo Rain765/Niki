@@ -692,17 +692,19 @@ describe('PosterApp mobile-safe flow', () => {
     expect(window.location.search).toBe('?mode=english');
   });
 
-  it('places Logo Studio last in the title menu and links to its page', () => {
+  it('keeps Daily English last in the title menu and links to Logo Studio', () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
     const options = within(screen.getByRole('listbox', { name: 'Creation mode' }))
       .getAllByRole('option');
-    const logoOption = options.at(-1);
+    const logoOption = options.find((option) => option.textContent?.includes('Logo Studio'));
+    const englishOption = options.at(-1);
 
     expect(logoOption?.textContent).toContain('Logo Studio');
     expect(logoOption?.textContent).toContain('Create a focused identity system');
     expect(logoOption?.getAttribute('href')).toBe('/logo');
+    expect(englishOption?.textContent).toContain('Daily English Practice');
   });
 
   it('renders Logo Studio as a light Niki creation page', () => {

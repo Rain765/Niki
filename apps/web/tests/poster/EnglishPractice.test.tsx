@@ -86,4 +86,43 @@ describe('EnglishPractice', () => {
     expect(speechSynthesisStub.speak).toHaveBeenCalled();
     expect((speechSynthesisStub.speak.mock.calls.at(-1)?.[0] as SpeechSynthesisUtteranceStub).rate).toBe(1.25);
   });
+
+  it('opens the IELTS coach inside Daily English and starts a one-question-at-a-time diagnosis', () => {
+    render(<EnglishPractice />);
+
+    fireEvent.click(screen.getByRole('tab', { name: /IELTS 口语教练/ }));
+
+    expect(screen.getByRole('heading', { name: '把语块练成随时能用的表达' })).toBeTruthy();
+    expect(screen.getByText(/均标注为“模拟题”/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '工作与学习' }).className).toContain('is-active');
+
+    fireEvent.click(screen.getByRole('button', { name: /开始 Part 1 诊断/ }));
+
+    expect(screen.getByRole('heading', { name: 'Do you work or are you a student?' })).toBeTruthy();
+    expect(screen.getByText('1 / 3')).toBeTruthy();
+    expect(screen.queryByText('What do you enjoy most about your work or studies?')).toBeNull();
+  });
+
+  it('moves from diagnosis to replaceable chunks and reveals transfer hints progressively', () => {
+    render(<EnglishPractice />);
+    fireEvent.click(screen.getByRole('tab', { name: /IELTS 口语教练/ }));
+    fireEvent.click(screen.getByRole('button', { name: /开始 Part 1 诊断/ }));
+
+    fireEvent.click(screen.getByRole('button', { name: '完成回答，下一题' }));
+    fireEvent.click(screen.getByRole('button', { name: '完成回答，下一题' }));
+    fireEvent.click(screen.getByRole('button', { name: '完成诊断，查看目标语块' }));
+
+    expect(screen.getByRole('heading', { name: 'play a major role in [something]' })).toBeTruthy();
+    expect(screen.getByText('[something] 可替换为名词或动名词短语')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存并练下一个语块' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存并练下一个语块' }));
+    fireEvent.click(screen.getByRole('button', { name: '进入跨题迁移' }));
+
+    expect(screen.getByRole('heading', { name: 'What helps you stay productive?' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '我卡住了，给提示' }));
+    expect(screen.getByText('想一个真实的习惯、工具或环境。')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '再给一点提示' }));
+    expect(screen.getByText('… plays a major role in …')).toBeTruthy();
+  });
 });
