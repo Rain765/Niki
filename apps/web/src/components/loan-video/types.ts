@@ -1,6 +1,16 @@
 export const LOAN_VIDEO_BRANDS = ['zamloan', 'biumoney'] as const;
 export type LoanVideoBrand = (typeof LOAN_VIDEO_BRANDS)[number];
 
+export const LOAN_VIDEO_PURPOSES = [
+  'anti-fraud',
+  'acquisition',
+  'tutorial',
+  'feature',
+  'promotion',
+  'support',
+] as const;
+export type LoanVideoPurpose = (typeof LOAN_VIDEO_PURPOSES)[number];
+
 export const LOAN_VIDEO_ASPECT_RATIOS = ['3:4', '1:1', '9:16', '16:9'] as const;
 export type LoanVideoAspectRatio = (typeof LOAN_VIDEO_ASPECT_RATIOS)[number];
 
@@ -37,6 +47,7 @@ export interface LoanVideoStepDraft {
 export interface LoanVideoDraft {
   title: string;
   brand: LoanVideoBrand;
+  purpose: LoanVideoPurpose;
   language: LoanVideoLanguage;
   aspectRatio: LoanVideoAspectRatio;
   durationSeconds: LoanVideoDuration;
@@ -44,6 +55,19 @@ export interface LoanVideoDraft {
   background: File | null;
   outro: File | null;
   steps: LoanVideoStepDraft[];
+}
+
+export interface LoanVideoQuickOptions {
+  brand: LoanVideoBrand;
+  purpose: LoanVideoPurpose;
+  aspectRatio: LoanVideoAspectRatio;
+}
+
+export function loanVideoPresetKey(
+  brand: LoanVideoBrand,
+  purpose: LoanVideoPurpose,
+): string {
+  return `${brand}:${purpose}`;
 }
 
 export interface LoanVideoAssetRefs {

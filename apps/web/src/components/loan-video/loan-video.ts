@@ -3,6 +3,7 @@ import type { LoanVideoStoryboard } from '@open-design/contracts';
 import type {
   LoanVideoDraft,
   LoanVideoAssetRefs,
+  LoanVideoPurpose,
   LoanVideoStepDraft,
   LoanVideoValidationError,
 } from './types';
@@ -83,8 +84,20 @@ export function loanVideoLanguageLabel(language: LoanVideoDraft['language']): st
   return language === 'zh-CN' ? '简体中文' : 'English';
 }
 
+export function loanVideoPurposeLabel(purpose: LoanVideoPurpose): string {
+  const labels: Record<LoanVideoPurpose, string> = {
+    'anti-fraud': '防欺诈',
+    acquisition: '引流获客',
+    tutorial: '操作教学',
+    feature: '新功能发布',
+    promotion: '活动促销',
+    support: '客服答疑',
+  };
+  return labels[purpose];
+}
+
 export function loanVideoProjectName(draft: LoanVideoDraft): string {
-  return `${loanVideoBrandLabel(draft.brand)} · ${draft.title.trim()}`;
+  return `${loanVideoBrandLabel(draft.brand)} · ${loanVideoPurposeLabel(draft.purpose)} · ${draft.title.trim()}`;
 }
 
 export function loanVideoOutputName(draft: LoanVideoDraft): string {
@@ -95,6 +108,15 @@ export function loanVideoOutputName(draft: LoanVideoDraft): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
   return `${draft.brand}-${title || 'tutorial'}.mp4`;
+}
+
+export function loanVideoPresetOutputName(
+  brand: LoanVideoDraft['brand'],
+  purpose: LoanVideoPurpose,
+  requestId: string,
+): string {
+  const suffix = requestId.replace(/[^a-z0-9]/gi, '').slice(0, 8).toLowerCase();
+  return `${brand}-${purpose}-${suffix || 'video'}.mp4`;
 }
 
 export function buildLoanVideoStoryboard(

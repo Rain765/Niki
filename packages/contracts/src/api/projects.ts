@@ -115,6 +115,18 @@ export interface DirectLoanPosterBatch {
 
 export interface ProjectMetadata {
   kind: ProjectKind;
+  /** Saved deterministic page plan used by Niki's one-click business video flow. */
+  loanVideoPreset?: {
+    version: 1;
+    brand: 'zamloan' | 'biumoney';
+    purpose:
+      | 'anti-fraud'
+      | 'acquisition'
+      | 'tutorial'
+      | 'feature'
+      | 'promotion'
+      | 'support';
+  };
   /**
    * Marks a project as a Feishu document-query workspace. These projects use
    * the existing conversation/message persistence model for saved document

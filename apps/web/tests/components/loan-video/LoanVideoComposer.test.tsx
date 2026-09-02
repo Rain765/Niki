@@ -3,7 +3,7 @@
 import {
   cleanup,
   fireEvent,
-  render,
+  render as testingRender,
   screen,
   waitFor,
   within,
@@ -11,6 +11,12 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { LoanVideoComposer } from '../../../src/components/loan-video/LoanVideoComposer';
+
+function render(ui: Parameters<typeof testingRender>[0]) {
+  const result = testingRender(ui);
+  fireEvent.click(screen.getByTestId('loan-video-editor-mode'));
+  return result;
+}
 
 beforeEach(() => {
   vi.stubGlobal('URL', {
@@ -25,6 +31,33 @@ afterEach(() => {
 });
 
 describe('LoanVideoComposer', () => {
+  it('starts in one-click mode and only enables a configured product-purpose preset', () => {
+    const onQuickGenerate = vi.fn();
+    testingRender(
+      <LoanVideoComposer
+        onSubmit={vi.fn()}
+        onQuickGenerate={onQuickGenerate}
+        configuredPresetKeys={['zamloan:tutorial']}
+      />,
+    );
+
+    expect(screen.getByTestId('loan-video-quick-mode')).toBeTruthy();
+    expect(screen.queryByTestId('loan-video-editor-settings')).toBeNull();
+    const generate = screen.getByTestId('loan-video-quick-generate') as HTMLButtonElement;
+    expect(generate.disabled).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: '3:4' }));
+    fireEvent.click(generate);
+    expect(onQuickGenerate).toHaveBeenCalledWith({
+      brand: 'zamloan',
+      purpose: 'tutorial',
+      aspectRatio: '3:4',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Customer support' }));
+    expect(generate.disabled).toBe(true);
+    expect(screen.getByText('Page plan required')).toBeTruthy();
+  });
+
   it('returns title validation to the main form and focuses the title field', async () => {
     const onSubmit = vi.fn();
     render(<LoanVideoComposer onSubmit={onSubmit} />);
@@ -110,10 +143,11 @@ describe('LoanVideoComposer', () => {
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     expect(onSubmit).toHaveBeenCalledOnce();
-    expect(screen.getByTestId('loan-video-upload-drawer').getAttribute('aria-hidden')).toBe('true');
+    expect(screen.queryByTestId('loan-video-upload-drawer')).toBeNull();
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
       title: 'How to top up',
       brand: 'zamloan',
+      purpose: 'tutorial',
       aspectRatio: '9:16',
       durationSeconds: 30,
       intro: expect.objectContaining({ name: 'intro.png' }),
@@ -278,15 +312,16 @@ describe('LoanVideoComposer', () => {
     expect(Number.parseFloat(menu.style.top)).toBeLessThan(588);
   });
 
-  it('keeps all four video filters clickable and commits their selected labels', () => {
+  it('keeps all five editor filters clickable and commits their selected labels', () => {
     render(<LoanVideoComposer onSubmit={vi.fn()} />);
 
     const settings = screen.getByTestId('loan-video-title')
       .closest('.loan-video-composer__settings');
-    expect(settings?.querySelectorAll('.loan-video-select-field')).toHaveLength(4);
+    expect(settings?.querySelectorAll('.loan-video-select-field')).toHaveLength(5);
 
     const selections = [
       ['loan-video-brand', /BiuMoney/, 'Product: BiuMoney'],
+      ['loan-video-purpose', /Customer support/, 'Purpose: Customer support'],
       ['loan-video-language', /简体中文/, 'Language: 简体中文'],
       ['loan-video-aspect', /^3:4$/, 'Aspect ratio: 3:4'],
       ['loan-video-duration', /^45s$/, 'Target length: 45s'],

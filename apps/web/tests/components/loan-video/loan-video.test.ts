@@ -16,6 +16,7 @@ function completeDraft(): LoanVideoDraft {
   return {
     title: 'How to apply',
     brand: 'zamloan',
+    purpose: 'tutorial',
     language: 'en',
     aspectRatio: '9:16',
     durationSeconds: 30,
@@ -178,7 +179,7 @@ describe('loan video draft helpers', () => {
         { fromSceneId: 'step-2', toSceneId: 'outro', action: { type: 'auto' } },
       ],
     });
-    expect(loanVideoProjectName(draft)).toBe('ZamLoan · How to apply');
+    expect(loanVideoProjectName(draft)).toBe('ZamLoan · 操作教学 · How to apply');
     expect(loanVideoOutputName(draft)).toBe('zamloan-how-to-apply.mp4');
   });
 

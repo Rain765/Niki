@@ -196,7 +196,7 @@ function videoGenerationCopy(
   return {
     state: 'idle',
     title: 'Ready to generate',
-    detail: 'Complete the tutorial steps, then generate an MP4.',
+    detail: 'Choose a product, purpose, and ratio, then generate an MP4.',
   };
 }
 
@@ -786,7 +786,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               {creationMode === 'poster'
                 ? 'Generate Loan Posters'
                 : creationMode === 'video'
-                  ? 'Generate Tutorial Videos'
+                  ? 'Generate Videos'
                   : creationMode === 'documents'
                     ? 'Document Search'
                     : creationMode === 'english'
@@ -803,7 +803,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           >
             {([
               { value: 'poster', title: 'Generate Loan Posters', description: 'Create ready-to-use loan campaign images', icon: 'image' },
-              { value: 'video', title: 'Generate Tutorial Videos', description: 'Turn app screenshots into guided videos', icon: 'play' },
+              { value: 'video', title: 'Generate Videos', description: 'Create business videos from approved page plans', icon: 'play' },
               { value: 'documents', title: 'Document Search', description: 'Search Feishu or open a document link', icon: 'search' },
             ] as const).map((option) => (
               <button
@@ -1200,31 +1200,38 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         </>
       ) : creationMode === 'video' ? (
         <section className="poster-app__video" aria-label="Tutorial video generator">
-          <LoanVideoComposer onSubmit={generateVideo} disabled={videoGeneration.active} />
+          <LoanVideoComposer
+            onSubmit={generateVideo}
+            onQuickGenerate={(options) => void videoGeneration.regenerate(options)}
+            configuredPresetKeys={videoGeneration.state.configuredPresetKeys}
+            disabled={videoGeneration.active}
+          />
 
-          <section
-            className={`poster-app__status is-${videoStatus.state}${videoStatusDismissed ? ' is-dismissed' : ''}`}
-            role="status"
-            aria-live="polite"
-            aria-hidden={videoStatusDismissed || undefined}
-            data-testid="poster-app-video-generation-status"
-          >
-            <span className="poster-app__status-mark" aria-hidden="true" />
-            <div className="poster-app__status-copy">
-              <strong>{videoStatus.title}</strong>
-              <p>{videoStatus.detail}</p>
-            </div>
-            <button
-              type="button"
-              className="poster-app__status-close"
-              aria-label="Close video status"
-              title="Close video status"
-              tabIndex={videoStatusDismissed ? -1 : 0}
-              onClick={() => setDismissedVideoStatusKey(videoStatusKey)}
+          {videoStatus.state !== 'idle' ? (
+            <section
+              className={`poster-app__status is-${videoStatus.state}${videoStatusDismissed ? ' is-dismissed' : ''}`}
+              role="status"
+              aria-live="polite"
+              aria-hidden={videoStatusDismissed || undefined}
+              data-testid="poster-app-video-generation-status"
             >
-              <Icon name="close" size={16} />
-            </button>
-          </section>
+              <span className="poster-app__status-mark" aria-hidden="true" />
+              <div className="poster-app__status-copy">
+                <strong>{videoStatus.title}</strong>
+                <p>{videoStatus.detail}</p>
+              </div>
+              <button
+                type="button"
+                className="poster-app__status-close"
+                aria-label="Close video status"
+                title="Close video status"
+                tabIndex={videoStatusDismissed ? -1 : 0}
+                onClick={() => setDismissedVideoStatusKey(videoStatusKey)}
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </section>
+          ) : null}
 
           {videoWorking || videoResultAvailable ? (
             <section

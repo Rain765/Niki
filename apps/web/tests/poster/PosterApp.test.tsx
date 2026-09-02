@@ -17,6 +17,7 @@ const {
   listProjectRunsMock,
   listProjectsMock,
   logoutMock,
+  patchProjectMock,
   prepareImageFileMock,
   reattachDaemonRunMock,
   resolveDirectLoanPosterProjectMock,
@@ -41,6 +42,7 @@ const {
   listProjectRunsMock: vi.fn(),
   listProjectsMock: vi.fn(),
   logoutMock: vi.fn(),
+  patchProjectMock: vi.fn(),
   prepareImageFileMock: vi.fn(),
   reattachDaemonRunMock: vi.fn(),
   resolveDirectLoanPosterProjectMock: vi.fn(),
@@ -100,6 +102,7 @@ vi.mock('../../src/state/projects', () => ({
   getProject: getProjectMock,
   listMessages: listMessagesMock,
   listProjects: listProjectsMock,
+  patchProject: patchProjectMock,
   saveMessage: saveMessageMock,
 }));
 
@@ -168,6 +171,7 @@ beforeEach(() => {
   listProjectMediaTasksMock.mockResolvedValue({ tasks: [] });
   listProjectRunsMock.mockResolvedValue([]);
   listProjectsMock.mockResolvedValue([]);
+  patchProjectMock.mockResolvedValue(null);
   reattachDaemonRunMock.mockResolvedValue(undefined);
   saveMessageMock.mockResolvedValue(undefined);
   startProjectMediaTaskMock.mockResolvedValue({
@@ -246,7 +250,8 @@ afterEach(() => {
 
 async function fillValidVideoDraft(title = 'How to apply') {
   fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-  fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
+  fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+  fireEvent.click(screen.getByTestId('loan-video-editor-mode'));
   await waitFor(() => {
     expect((screen.getByTestId('loan-video-generate') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -275,6 +280,118 @@ async function fillValidVideoDraft(title = 'How to apply') {
 }
 
 describe('PosterApp mobile-safe flow', () => {
+  it('regenerates from an approved page plan without reopening the editor', async () => {
+    const savedProject = {
+      ...project,
+      id: 'saved-video-project',
+      name: 'ZamLoan · 操作教学 · How to apply',
+      skillId: 'hyperframes',
+      updatedAt: 30,
+      metadata: {
+        kind: 'video' as const,
+        videoModel: 'hyperframes-html',
+        videoAspect: '9:16' as const,
+        videoLength: 30,
+        loanVideoPreset: {
+          version: 1 as const,
+          brand: 'zamloan' as const,
+          purpose: 'tutorial' as const,
+        },
+      },
+    };
+    let videoReady = false;
+    listProjectsMock.mockResolvedValue([savedProject]);
+    fetchProjectFilesMock.mockImplementation(async () => [{
+      name: videoReady
+        ? String(startProjectMediaTaskMock.mock.calls.at(-1)?.[1]?.output)
+        : 'zamloan-tutorial-approved.mp4',
+      kind: 'video',
+      mime: 'video/mp4',
+      size: 2_048,
+      mtime: videoReady ? 40 : 20,
+    }]);
+    patchProjectMock.mockResolvedValue({
+      ...savedProject,
+      metadata: { ...savedProject.metadata, videoAspect: '3:4' },
+    });
+    waitForMediaTaskMock.mockImplementation(async () => {
+      videoReady = true;
+      return {
+        taskId: 'video-task-1',
+        status: 'done',
+        startedAt: 31,
+        endedAt: 40,
+        progress: [],
+        nextSince: 0,
+      };
+    });
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/raw/.hyperframes-cache/loan-video-fast/storyboard.json')) {
+        return new Response(JSON.stringify({
+          version: 2,
+          title: 'How to apply',
+          product: 'zamloan',
+          language: 'en',
+          aspectRatio: '9:16',
+          durationSeconds: 30,
+          narration: false,
+          subtitles: true,
+          backgroundRef: '.od-inputs/background.png',
+          scenes: [{
+            id: 'intro',
+            index: 1,
+            screenshotAttachmentIndex: 1,
+            screenshotOriginalName: 'intro.png',
+            assetRef: '.od-inputs/intro.png',
+            text: '',
+            captionEnabled: false,
+            voiceoverEnabled: false,
+            terminal: true,
+            presentation: 'full',
+          }],
+          transitions: [],
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === '/api/projects/project-1/files') {
+        return new Response(JSON.stringify({ files: [] }), { status: 200 });
+      }
+      if (url === '/api/projects/project-1') {
+        return new Response(JSON.stringify({ project }), { status: 200 });
+      }
+      if (url === '/api/auth/users') {
+        return new Response(JSON.stringify({ users: [] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }));
+
+    render(<PosterApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+    const quickGenerate = await screen.findByTestId('loan-video-quick-generate');
+    await waitFor(() => expect((quickGenerate as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: '3:4' }));
+    fireEvent.click(quickGenerate);
+
+    await waitFor(() => expect(startProjectMediaTaskMock).toHaveBeenCalledOnce());
+    expect(createProjectMock).not.toHaveBeenCalled();
+    expect(patchProjectMock).toHaveBeenCalledWith(
+      'saved-video-project',
+      expect.objectContaining({
+        metadata: expect.objectContaining({ videoAspect: '3:4' }),
+      }),
+    );
+    expect(startProjectMediaTaskMock).toHaveBeenCalledWith(
+      'saved-video-project',
+      expect.objectContaining({
+        surface: 'video',
+        model: 'hyperframes-html',
+        output: expect.stringMatching(/^zamloan-tutorial-[a-z0-9]{8}\.mp4$/),
+        loanVideoStoryboard: expect.objectContaining({ aspectRatio: '3:4' }),
+      }),
+    );
+  });
+
   it('starts tutorial video generation directly without an agent turn', async () => {
     fetchProjectFilesMock.mockResolvedValue([{
       name: 'zamloan-how-to-apply.mp4',
@@ -416,6 +533,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     fireEvent.click(screen.getByTestId('loan-video-generate'));
     expect(await screen.findByText('Provider rejected the video request.')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('loan-video-editor-mode'));
     expect((screen.getByTestId('loan-video-generate') as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(screen.getByTestId('loan-video-manage-steps'));
@@ -439,7 +557,7 @@ describe('PosterApp mobile-safe flow', () => {
       'The video task finished without producing a durable MP4. Submit again to retry.',
     )).toBeTruthy();
     expect(screen.getByTestId('poster-app-video-generation-status').className).toContain('is-failed');
-    expect((screen.getByTestId('loan-video-generate') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('loan-video-editor-mode') as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByTestId('poster-app-video-result')).toBeNull();
   });
 
@@ -479,7 +597,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
 
     expect(await screen.findByText(
       'The video task finished without producing a durable MP4. Submit again to retry.',
@@ -527,7 +645,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
 
     const loading = await screen.findByTestId('poster-app-video-loading');
     expect(loading.className).toContain('is-square');
@@ -594,7 +712,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
 
     await waitFor(() => expect(waitForMediaTaskMock).toHaveBeenCalledOnce());
     expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
@@ -633,7 +751,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByText(/Landscape|Square|Portrait/)).toBeNull();
   });
 
-  it('switches from the title menu while preserving the poster form state', () => {
+  it('switches from the title menu while preserving the poster form state', async () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Product: Zamloan' }));
@@ -643,13 +761,19 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('combobox', { name: 'Quantity: 1' }));
     fireEvent.click(screen.getByRole('option', { name: /3/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Tutorial Videos/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
 
-    expect(screen.getByRole('heading', { name: 'Generate Tutorial Videos' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Generate Videos' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Tutorial video generator' })).toBeTruthy();
+    expect(screen.getByTestId('loan-video-quick-mode')).toBeTruthy();
+    expect(screen.getByTestId('loan-video-editor-mode')).toBeTruthy();
+    expect(screen.queryByTestId('loan-video-editor-settings')).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByTestId('poster-app-video-generation-status')).toBeNull();
+    });
     expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Tutorial Videos' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate Videos' }));
     fireEvent.click(screen.getByRole('option', { name: /Generate Loan Posters/ }));
 
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();

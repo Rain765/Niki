@@ -1339,8 +1339,15 @@ button {
   width: 100%;
 }
 
-.poster-app__video .home-hero__backdrop,
+.poster-app__video .home-hero__backdrop {
+  display: none;
+}
+
 .poster-app__video .loan-video-composer__header {
+  justify-content: flex-end;
+}
+
+.poster-app__video .loan-video-composer__header > div {
   display: none;
 }
 

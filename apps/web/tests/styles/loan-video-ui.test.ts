@@ -75,7 +75,7 @@ describe('loan video UI', () => {
     expect(menu).not.toContain('var(--text-strong)');
   });
 
-  it('puts the title above four equal-width video filters', () => {
+  it('puts the title above five equal-width video filters', () => {
     const desktopCss = componentCss.slice(0, componentCss.indexOf('@media'));
     const settings = rule(desktopCss, '.loan-video-composer__settings');
     const title = rule(desktopCss, '.loan-video-field--wide');

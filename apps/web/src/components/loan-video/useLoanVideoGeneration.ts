@@ -1,4 +1,4 @@
-import type { MediaTaskSnapshot } from '@open-design/contracts';
+import type { LoanVideoStoryboard, MediaTaskSnapshot } from '@open-design/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Project, ProjectFile, ProjectMetadata } from '../../types';
@@ -16,6 +16,7 @@ import {
   createProject,
   getProject,
   listProjects,
+  patchProject,
 } from '../../state/projects';
 import { randomUUID } from '../../utils/uuid';
 import {
@@ -23,12 +24,17 @@ import {
   LOAN_VIDEO_PLUGIN_ID,
   LOAN_VIDEO_SKILL_ID,
   loanVideoOutputName,
+  loanVideoPresetOutputName,
   loanVideoProjectName,
 } from './loan-video';
 import {
   LOAN_VIDEO_ASPECT_RATIOS,
+  LOAN_VIDEO_BRANDS,
+  LOAN_VIDEO_PURPOSES,
+  loanVideoPresetKey,
   type LoanVideoAspectRatio,
   type LoanVideoDraft,
+  type LoanVideoQuickOptions,
 } from './types';
 
 export type LoanVideoGenerationPhase =
@@ -43,6 +49,7 @@ export type LoanVideoGenerationPhase =
 
 export interface LoanVideoGenerationState {
   aspectRatio: LoanVideoAspectRatio;
+  configuredPresetKeys: string[];
   error: string | null;
   files: ProjectFile[];
   phase: LoanVideoGenerationPhase;
@@ -53,6 +60,7 @@ export interface LoanVideoGenerationState {
 
 const INITIAL_STATE: LoanVideoGenerationState = {
   aspectRatio: '9:16',
+  configuredPresetKeys: [],
   error: null,
   files: [],
   phase: 'restoring',
@@ -70,6 +78,7 @@ interface StoredVideoTaskPointer {
 }
 
 interface RestoredVideoTask {
+  configuredPresetKeys: string[];
   files: ProjectFile[];
   project: Project;
   task: MediaTaskSnapshot | null;
@@ -117,6 +126,19 @@ function isTutorialVideoProject(project: Project): boolean {
   return project.skillId === LOAN_VIDEO_SKILL_ID
     && project.metadata?.kind === 'video'
     && project.metadata.videoModel === 'hyperframes-html';
+}
+
+function projectPresetKey(project: Project): string {
+  const preset = project.metadata?.loanVideoPreset;
+  if (
+    preset?.version === 1
+    && LOAN_VIDEO_BRANDS.includes(preset.brand)
+    && LOAN_VIDEO_PURPOSES.includes(preset.purpose)
+  ) {
+    return loanVideoPresetKey(preset.brand, preset.purpose);
+  }
+  const legacyBrand = project.name.toLowerCase().includes('biumoney') ? 'biumoney' : 'zamloan';
+  return loanVideoPresetKey(legacyBrand, 'tutorial');
 }
 
 function videoFiles(files: ProjectFile[]): ProjectFile[] {
@@ -173,10 +195,19 @@ async function restoreLatestVideoTask(sessionScope: string): Promise<RestoredVid
     if (pointer) clearStoredPointer(sessionScope);
     return null;
   }
-  const [files, taskResponse] = await Promise.all([
-    fetchProjectFiles(project.id),
+  const [projectFileEntries, taskResponse] = await Promise.all([
+    Promise.all(candidates.map(async (candidate) => ({
+      project: candidate,
+      files: await fetchProjectFiles(candidate.id),
+    }))),
     listProjectMediaTasks(project.id),
   ]);
+  const files = projectFileEntries.find((entry) => entry.project.id === project.id)?.files ?? [];
+  const configuredPresetKeys = Array.from(new Set(
+    projectFileEntries
+      .filter((entry) => videoFiles(entry.files).length > 0)
+      .map((entry) => projectPresetKey(entry.project)),
+  ));
   const videoTasks = taskResponse.tasks.filter((task) => (
     task.surface === 'video' && task.model === 'hyperframes-html'
   ));
@@ -186,7 +217,20 @@ async function restoreLatestVideoTask(sessionScope: string): Promise<RestoredVid
       : null
   ) ?? videoTasks[0] ?? null;
   if (task) writeStoredPointer(sessionScope, { projectId: project.id, taskId: task.taskId });
-  return { project, files, task };
+  return { configuredPresetKeys, project, files, task };
+}
+
+async function readSavedStoryboard(projectId: string): Promise<LoanVideoStoryboard> {
+  const path = '.hyperframes-cache/loan-video-fast/storyboard.json'
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/');
+  const response = await fetch(
+    `/api/projects/${encodeURIComponent(projectId)}/raw/${path}`,
+    { credentials: 'include', cache: 'no-store' },
+  );
+  if (!response.ok) throw new Error('The saved page plan could not be loaded. Open Edit mode and generate it again.');
+  return await response.json() as LoanVideoStoryboard;
 }
 
 export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
@@ -217,6 +261,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     taskId: string,
     signal: AbortSignal,
     initialSince = 0,
+    expectedOutputName?: string,
   ): Promise<void> => {
     let since = initialSince;
     while (!signal.aborted) {
@@ -231,7 +276,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
         return;
       }
       const files = await refreshFiles(projectId);
-      const expectedName = task.file?.name;
+      const expectedName = expectedOutputName ?? task.file?.name;
       const persisted = videoFiles(files).find((file) => !expectedName || file.name === expectedName);
       if (!persisted || persisted.size <= 0) {
         updateState({ phase: 'failed', error: RUN_FINISHED_WITHOUT_MP4 });
@@ -259,6 +304,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
       const phase = phaseFromTask(restored.task, videos.length > 0);
       updateState({
         aspectRatio: projectAspectRatio(restored.project),
+        configuredPresetKeys: restored.configuredPresetKeys,
         projectId: restored.project.id,
         requestedAt: restored.task?.startedAt ?? restored.project.createdAt,
         taskId: restored.task?.taskId ?? null,
@@ -334,6 +380,11 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     try {
       const metadata: ProjectMetadata = {
         kind: 'video',
+        loanVideoPreset: {
+          version: 1,
+          brand: draft.brand,
+          purpose: draft.purpose,
+        },
         nameSource: 'prompt',
         videoModel: 'hyperframes-html',
         videoAspect: draft.aspectRatio,
@@ -396,13 +447,112 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
         taskId: accepted.taskId,
         phase: accepted.status === 'running' ? 'running' : 'queued',
       });
-      await monitorTask(projectId, accepted.taskId, controller.signal);
+      await monitorTask(
+        projectId,
+        accepted.taskId,
+        controller.signal,
+        0,
+        loanVideoOutputName(draft),
+      );
+      if (stateRef.current.phase === 'succeeded') {
+        updateState((current) => ({
+          ...current,
+          configuredPresetKeys: Array.from(new Set([
+            ...current.configuredPresetKeys,
+            loanVideoPresetKey(draft.brand, draft.purpose),
+          ])),
+        }));
+      }
     } catch (error) {
       if (controller.signal.aborted) return;
       updateState({
         phase: 'failed',
         error: error instanceof Error ? error.message : 'Could not submit the video task.',
       });
+    } finally {
+      startGuardRef.current = false;
+    }
+  }, [monitorTask, sessionScope, updateState]);
+
+  const regenerate = useCallback(async (options: LoanVideoQuickOptions): Promise<boolean> => {
+    if (startGuardRef.current) return false;
+    startGuardRef.current = true;
+    subscriptionRef.current?.abort();
+    const controller = new AbortController();
+    subscriptionRef.current = controller;
+    const requestedAt = Date.now();
+    updateState({
+      aspectRatio: options.aspectRatio,
+      error: null,
+      phase: 'preparing',
+      requestedAt,
+      taskId: null,
+    });
+
+    try {
+      const presetKey = loanVideoPresetKey(options.brand, options.purpose);
+      const projects = (await listProjects())
+        .filter(isTutorialVideoProject)
+        .filter((project) => projectPresetKey(project) === presetKey)
+        .sort((left, right) => right.updatedAt - left.updatedAt);
+      const presetProjects = await Promise.all(projects.map(async (project) => ({
+        project,
+        files: await fetchProjectFiles(project.id),
+      })));
+      const selected = presetProjects.find((entry) => videoFiles(entry.files).length > 0) ?? null;
+      if (!selected) {
+        throw new Error('No approved page plan exists for this product and purpose. Configure it in Edit mode first.');
+      }
+
+      const storyboard = await readSavedStoryboard(selected.project.id);
+      const nextStoryboard: LoanVideoStoryboard = {
+        ...storyboard,
+        aspectRatio: options.aspectRatio,
+      };
+      const patched = await patchProject(selected.project.id, {
+        metadata: {
+          ...selected.project.metadata,
+          kind: 'video',
+          videoAspect: options.aspectRatio,
+          loanVideoPreset: {
+            version: 1,
+            brand: options.brand,
+            purpose: options.purpose,
+          },
+        },
+        updatedAt: requestedAt,
+      });
+      if (!patched) throw new Error('Could not update the saved video project.');
+
+      const requestId = randomUUID();
+      const projectId = selected.project.id;
+      writeStoredPointer(sessionScope, { projectId });
+      updateState({ projectId, files: selected.files, phase: 'queued' });
+      const outputName = loanVideoPresetOutputName(options.brand, options.purpose, requestId);
+      const accepted = await startProjectMediaTask(projectId, {
+        clientRequestId: `loan-video-quick-${requestId}`,
+        surface: 'video',
+        model: 'hyperframes-html',
+        output: outputName,
+        aspect: options.aspectRatio,
+        length: nextStoryboard.durationSeconds,
+        loanVideoStoryboard: nextStoryboard,
+      });
+      writeStoredPointer(sessionScope, { projectId, taskId: accepted.taskId });
+      updateState({
+        taskId: accepted.taskId,
+        phase: accepted.status === 'running' ? 'running' : 'queued',
+      });
+      await monitorTask(projectId, accepted.taskId, controller.signal, 0, outputName);
+      return stateRef.current.phase === 'succeeded';
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        updateState({
+          phase: 'failed',
+          error: error instanceof Error ? error.message : 'Could not submit the video task.',
+        });
+      }
+      return false;
     } finally {
       startGuardRef.current = false;
     }
@@ -429,6 +579,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
   return {
     active: activePhase(state.phase),
     latestVideo: videos[0] ?? null,
+    regenerate,
     removeVideo,
     refreshFiles,
     start,

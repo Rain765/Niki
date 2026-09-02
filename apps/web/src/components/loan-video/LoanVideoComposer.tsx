@@ -16,13 +16,18 @@ import {
   LOAN_VIDEO_BRANDS,
   LOAN_VIDEO_DURATIONS,
   LOAN_VIDEO_LANGUAGES,
+  LOAN_VIDEO_PURPOSES,
+  loanVideoPresetKey,
   type LoanVideoDraft,
+  type LoanVideoQuickOptions,
   type LoanVideoStepDraft,
   type LoanVideoValidationError,
 } from './types';
 
 interface Props {
   onSubmit: (draft: LoanVideoDraft) => void;
+  onQuickGenerate?: (options: LoanVideoQuickOptions) => void;
+  configuredPresetKeys?: readonly string[];
   disabled?: boolean;
 }
 
@@ -48,6 +53,7 @@ function initialDraft(): LoanVideoDraft {
   return {
     title: '',
     brand: 'zamloan',
+    purpose: 'tutorial',
     language: 'en',
     aspectRatio: '9:16',
     durationSeconds: 30,
@@ -60,16 +66,29 @@ function initialDraft(): LoanVideoDraft {
   };
 }
 
-export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
+export function LoanVideoComposer({
+  onSubmit,
+  onQuickGenerate,
+  configuredPresetKeys = [],
+  disabled = false,
+}: Props) {
   const t = useT();
   const [draft, setDraft] = useState<LoanVideoDraft>(initialDraft);
+  const [mode, setMode] = useState<'quick' | 'editor'>('quick');
   const [uploadDrawerOpen, setUploadDrawerOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<LoanVideoValidationError[]>([]);
+  const purposeOptions = LOAN_VIDEO_PURPOSES.map((purpose) => ({
+    label: t(`loanVideo.purpose.${purpose}`),
+    value: purpose,
+  }));
   const nextStepIdRef = useRef(INITIAL_STEP_COUNT + 1);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const completedScreenshotCount = draft.steps.filter((step) => step.screenshot).length
     + [draft.intro, draft.background, draft.outro].filter(Boolean).length;
   const totalAssetCount = draft.steps.length + 3;
+  const presetConfigured = configuredPresetKeys.includes(
+    loanVideoPresetKey(draft.brand, draft.purpose),
+  );
 
   const updateStep = (stepId: string, update: Partial<LoanVideoStepDraft>) => {
     setDraft((current) => ({
@@ -130,6 +149,7 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
     if (disabled) return;
     setUploadDrawerOpen(false);
     onSubmit(draft);
+    setMode('quick');
   };
 
   const closeUploadDrawer = useCallback(() => {
@@ -147,13 +167,112 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
         <header className="loan-video-composer__header">
           <div>
             <span className="loan-video-composer__eyebrow">{t('loanVideo.eyebrow')}</span>
-            <h1>{t('loanVideo.title')}</h1>
-            <p>{t('loanVideo.subtitle')}</p>
+            <h1>{mode === 'quick' ? t('loanVideo.quickTitle') : t('loanVideo.title')}</h1>
+            <p>{mode === 'quick' ? t('loanVideo.quickSubtitle') : t('loanVideo.subtitle')}</p>
           </div>
-          <span className="loan-video-composer__format">MP4 · HyperFrames</span>
+          <button
+            type="button"
+            className="ghost loan-video-composer__mode"
+            data-testid="loan-video-editor-mode"
+            aria-pressed={mode === 'editor'}
+            onClick={() => {
+              setValidationErrors([]);
+              setMode((current) => current === 'quick' ? 'editor' : 'quick');
+            }}
+          >
+            <Icon name={mode === 'quick' ? 'edit' : 'arrow-left'} size={16} />
+            {mode === 'quick' ? t('loanVideo.editorMode') : t('loanVideo.backToQuick')}
+          </button>
         </header>
 
-        <div className="loan-video-composer__settings">
+        {mode === 'quick' ? (
+          <div className="loan-video-quick" data-testid="loan-video-quick-mode">
+            <div className="loan-video-quick__settings">
+              <fieldset className="loan-video-quick__field">
+                <legend>{t('loanVideo.product')}</legend>
+                <div className="loan-video-quick__segments">
+                  {LOAN_VIDEO_BRANDS.map((brand) => (
+                    <button
+                      key={brand}
+                      type="button"
+                      className={draft.brand === brand ? 'is-active' : ''}
+                      aria-pressed={draft.brand === brand}
+                      onClick={() => setDraft((current) => ({ ...current, brand }))}
+                    >
+                      {loanVideoBrandLabel(brand)}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="loan-video-quick__field loan-video-quick__field--purpose">
+                <legend>{t('loanVideo.purpose')}</legend>
+                <div className="loan-video-quick__segments">
+                  {purposeOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={draft.purpose === option.value ? 'is-active' : ''}
+                      aria-pressed={draft.purpose === option.value}
+                      onClick={() => setDraft((current) => ({
+                        ...current,
+                        purpose: option.value,
+                      }))}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset className="loan-video-quick__field">
+                <legend>{t('loanVideo.aspectRatio')}</legend>
+                <div className="loan-video-quick__segments">
+                  {LOAN_VIDEO_ASPECT_RATIOS.map((aspectRatio) => (
+                    <button
+                      key={aspectRatio}
+                      type="button"
+                      className={draft.aspectRatio === aspectRatio ? 'is-active' : ''}
+                      aria-pressed={draft.aspectRatio === aspectRatio}
+                      onClick={() => setDraft((current) => ({ ...current, aspectRatio }))}
+                    >
+                      {aspectRatio}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+
+            <div className={`loan-video-quick__readiness${presetConfigured ? ' is-ready' : ''}`}>
+              <span aria-hidden="true"><Icon name={presetConfigured ? 'check' : 'info'} size={15} /></span>
+              <div>
+                <strong>{presetConfigured
+                  ? t('loanVideo.presetReady')
+                  : t('loanVideo.presetRequired')}</strong>
+                <small>{presetConfigured
+                  ? t('loanVideo.presetReadyHint')
+                  : t('loanVideo.presetRequiredHint')}</small>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="primary loan-video-quick__generate"
+              data-testid="loan-video-quick-generate"
+              disabled={disabled || !presetConfigured || !onQuickGenerate}
+              onClick={() => onQuickGenerate?.({
+                brand: draft.brand,
+                purpose: draft.purpose,
+                aspectRatio: draft.aspectRatio,
+              })}
+            >
+              <Icon name={disabled ? 'spinner' : 'play'} size={17} />
+              {disabled ? t('loanVideo.generating') : t('loanVideo.quickGenerate')}
+            </button>
+          </div>
+        ) : (
+          <>
+        <div className="loan-video-composer__settings" data-testid="loan-video-editor-settings">
           <label className="loan-video-field loan-video-field--wide">
             <span>{t('loanVideo.videoTitle')}</span>
             <input
@@ -177,6 +296,17 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
             onChange={(value) => setDraft((current) => ({
                 ...current,
                 brand: value as LoanVideoDraft['brand'],
+              }))}
+          />
+
+          <LoanVideoSelect
+            label={t('loanVideo.purpose')}
+            testId="loan-video-purpose"
+            value={draft.purpose}
+            options={purposeOptions}
+            onChange={(value) => setDraft((current) => ({
+                ...current,
+                purpose: value as LoanVideoDraft['purpose'],
               }))}
           />
 
@@ -271,6 +401,8 @@ export function LoanVideoComposer({ onSubmit, disabled = false }: Props) {
           onRemoveStep={removeStep}
           validationMessages={validationErrors.map((error) => validationMessage(error, t))}
         />
+          </>
+        )}
       </div>
     </section>
   );
