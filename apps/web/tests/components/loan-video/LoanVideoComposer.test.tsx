@@ -42,15 +42,15 @@ describe('LoanVideoComposer', () => {
     );
 
     const toolbar = screen.getByTestId('loan-video-quick-mode');
-    expect(toolbar.className).toContain('poster-app__generator');
-    expect(toolbar.querySelectorAll('.poster-app__field')).toHaveLength(3);
-    expect(toolbar.querySelectorAll('.poster-app__select-trigger')).toHaveLength(3);
+    expect(toolbar.className).toContain('od-generation-toolbar');
+    expect(toolbar.querySelectorAll('.od-field')).toHaveLength(3);
+    expect(toolbar.querySelectorAll('.od-control-select__trigger')).toHaveLength(3);
     expect(toolbar.querySelector('.loan-video-quick__readiness')).toBeNull();
     expect(screen.queryByTestId('loan-video-editor-settings')).toBeNull();
     const generate = screen.getByTestId('loan-video-quick-generate') as HTMLButtonElement;
     expect(toolbar.lastElementChild).toBe(generate);
     expect(generate.disabled).toBe(false);
-    fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio: 9:16' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio' }));
     fireEvent.click(screen.getByRole('option', { name: '3:4' }));
     fireEvent.click(generate);
     expect(onQuickGenerate).toHaveBeenCalledWith({
@@ -59,7 +59,7 @@ describe('LoanVideoComposer', () => {
       aspectRatio: '3:4',
     });
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Purpose: Tutorial' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Purpose' }));
     fireEvent.click(screen.getByRole('option', { name: 'Customer support' }));
     expect(generate.disabled).toBe(false);
     fireEvent.click(generate);

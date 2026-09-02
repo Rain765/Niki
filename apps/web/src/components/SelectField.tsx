@@ -1,0 +1,52 @@
+import { useId } from 'react';
+
+import {
+  CustomSelect,
+  type CustomSelectItem,
+} from './CustomSelect';
+
+export interface SelectFieldProps {
+  className?: string;
+  disabled?: boolean;
+  label: string;
+  menuMinWidth?: number;
+  onChange: (value: string) => void;
+  options: CustomSelectItem[];
+  testId?: string;
+  value: string;
+}
+
+export function SelectField({
+  className,
+  disabled = false,
+  label,
+  menuMinWidth = 224,
+  onChange,
+  options,
+  testId,
+  value,
+}: SelectFieldProps) {
+  const reactId = useId();
+  const labelId = `${reactId.replace(/:/g, '')}-label`;
+
+  return (
+    <div className={['od-field', className].filter(Boolean).join(' ')}>
+      <span className="od-field__label" id={labelId}>{label}</span>
+      <CustomSelect
+        ariaLabel={label}
+        className="od-control-select"
+        disabled={disabled}
+        labelledBy={labelId}
+        menuClassName="od-control-select__menu"
+        menuGap={8}
+        menuMinWidth={menuMinWidth}
+        menuPlacement="bottom"
+        onChange={onChange}
+        options={options}
+        testId={testId}
+        triggerClassName="od-control-select__trigger"
+        value={value}
+      />
+    </div>
+  );
+}

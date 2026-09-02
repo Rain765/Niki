@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { useT } from '../../i18n';
-import { CustomSelect } from '../CustomSelect';
+import { Button } from '../Button';
 import { Icon } from '../Icon';
+import { SelectField } from '../SelectField';
 import { Toast } from '../Toast';
 import { LoanVideoSelect } from './LoanVideoSelect';
 import { LoanVideoUploadDrawer } from './LoanVideoUploadDrawer';
@@ -173,9 +174,10 @@ export function LoanVideoComposer({
             <h1>{mode === 'quick' ? t('loanVideo.quickTitle') : t('loanVideo.title')}</h1>
             <p>{mode === 'quick' ? t('loanVideo.quickSubtitle') : t('loanVideo.subtitle')}</p>
           </div>
-          <button
-            type="button"
-            className="ghost loan-video-composer__mode"
+          <Button
+            variant="secondary"
+            size="compact"
+            className="loan-video-composer__mode"
             data-testid="loan-video-editor-mode"
             aria-pressed={mode === 'editor'}
             onClick={() => {
@@ -186,82 +188,59 @@ export function LoanVideoComposer({
           >
             <Icon name={mode === 'quick' ? 'edit' : 'arrow-left'} size={16} />
             {mode === 'quick' ? t('loanVideo.editorMode') : t('loanVideo.backToQuick')}
-          </button>
+          </Button>
         </header>
 
         {mode === 'quick' ? (
           <div
-            className="poster-app__generator loan-video-quick"
+            className="od-generation-toolbar loan-video-quick"
             data-testid="loan-video-quick-mode"
           >
-            <div className="poster-app__field">
-              <span>{t('loanVideo.product')}</span>
-              <CustomSelect
-                ariaLabel={t('loanVideo.product')}
-                className="poster-app__select"
-                disabled={disabled}
-                menuClassName="poster-app__select-menu"
-                menuGap={8}
-                menuMinWidth={224}
-                menuPlacement="bottom"
-                onChange={(value) => setDraft((current) => ({
-                  ...current,
-                  brand: value as LoanVideoDraft['brand'],
-                }))}
-                options={BRAND_OPTIONS}
-                testId="loan-video-quick-brand"
-                triggerClassName="poster-app__select-trigger"
-                value={draft.brand}
-              />
-            </div>
+            <SelectField
+              label={t('loanVideo.product')}
+              menuMinWidth={224}
+              onChange={(value) => setDraft((current) => ({
+                ...current,
+                brand: value as LoanVideoDraft['brand'],
+              }))}
+              options={BRAND_OPTIONS}
+              testId="loan-video-quick-brand"
+              value={draft.brand}
+              disabled={disabled}
+            />
 
-            <div className="poster-app__field">
-              <span>{t('loanVideo.purpose')}</span>
-              <CustomSelect
-                ariaLabel={t('loanVideo.purpose')}
-                className="poster-app__select"
-                disabled={disabled}
-                menuClassName="poster-app__select-menu"
-                menuGap={8}
-                menuMinWidth={240}
-                menuPlacement="bottom"
-                onChange={(value) => setDraft((current) => ({
-                  ...current,
-                  purpose: value as LoanVideoDraft['purpose'],
-                }))}
-                options={purposeOptions}
-                testId="loan-video-quick-purpose"
-                triggerClassName="poster-app__select-trigger"
-                value={draft.purpose}
-              />
-            </div>
+            <SelectField
+              label={t('loanVideo.purpose')}
+              menuMinWidth={240}
+              onChange={(value) => setDraft((current) => ({
+                ...current,
+                purpose: value as LoanVideoDraft['purpose'],
+              }))}
+              options={purposeOptions}
+              testId="loan-video-quick-purpose"
+              value={draft.purpose}
+              disabled={disabled}
+            />
 
-            <div className="poster-app__field">
-              <span>{t('loanVideo.aspectRatio')}</span>
-              <CustomSelect
-                ariaLabel={t('loanVideo.aspectRatio')}
-                className="poster-app__select"
-                disabled={disabled}
-                menuClassName="poster-app__select-menu"
-                menuGap={8}
-                menuMinWidth={224}
-                menuPlacement="bottom"
-                onChange={(value) => setDraft((current) => ({
-                  ...current,
-                  aspectRatio: value as LoanVideoDraft['aspectRatio'],
-                }))}
-                options={ASPECT_RATIO_OPTIONS}
-                testId="loan-video-quick-aspect"
-                triggerClassName="poster-app__select-trigger"
-                value={draft.aspectRatio}
-              />
-            </div>
+            <SelectField
+              label={t('loanVideo.aspectRatio')}
+              menuMinWidth={224}
+              onChange={(value) => setDraft((current) => ({
+                ...current,
+                aspectRatio: value as LoanVideoDraft['aspectRatio'],
+              }))}
+              options={ASPECT_RATIO_OPTIONS}
+              testId="loan-video-quick-aspect"
+              value={draft.aspectRatio}
+              disabled={disabled}
+            />
 
-            <button
-              type="button"
-              className="poster-app__generate loan-video-quick__generate"
+            <Button
+              variant="primary"
+              className="loan-video-quick__generate"
               data-testid="loan-video-quick-generate"
               disabled={disabled || !onQuickGenerate}
+              loading={disabled}
               onClick={() => {
                 if (!presetConfigured) {
                   setQuickNotice(t('loanVideo.presetRequiredHint'));
@@ -277,7 +256,7 @@ export function LoanVideoComposer({
             >
               <Icon name={disabled ? 'spinner' : 'play'} size={17} />
               {disabled ? t('loanVideo.generating') : t('loanVideo.quickGenerate')}
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -417,6 +396,7 @@ export function LoanVideoComposer({
             message={quickNotice}
             onDismiss={() => setQuickNotice(null)}
             role="alert"
+            dismissible
           />
         ) : null}
       </div>

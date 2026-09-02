@@ -1,5 +1,6 @@
 @import './styles/design-system-flow.css';
 @import './styles/image-lightbox.css';
+@import './styles/ui-controls.css';
 
 /* The server and the browser's first hydrated frame intentionally share this
    locale-neutral shell. It prevents the English fallback UI from flashing
@@ -26238,61 +26239,6 @@ body.desktop-pet-shell .pet-task-item {
   font-size: 11.5px;
   color: var(--text-muted);
   font-style: italic;
-}
-
-/* ----- Toast (#451) ---------------------------------------------------- */
-/* Single transient bottom-center toast for project-scoped actions. */
-.od-toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 480px;
-  padding: 10px 14px;
-  border-radius: var(--radius-sm, 4px);
-  background: var(--text-strong, #1f2328);
-  color: var(--bg, white);
-  font-size: 12.5px;
-  line-height: 1.4;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-  z-index: 1000;
-  pointer-events: auto;
-}
-.od-toast-message {
-  font-weight: 500;
-}
-.od-toast-details {
-  margin-top: 4px;
-  font-size: 11.5px;
-  opacity: 0.85;
-  font-weight: 400;
-}
-.od-toast-code {
-  margin: 8px 0 0;
-  padding: 8px 10px;
-  border-radius: var(--radius-sm, 4px);
-  background: rgba(255, 255, 255, 0.08);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 240px;
-  overflow: auto;
-  user-select: text;
-}
-.od-toast-dismiss {
-  margin-top: 8px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--bg, white);
-  font-size: 11.5px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
-}
-.od-toast-dismiss:hover {
-  background: rgba(255, 255, 255, 0.18);
 }
 
 /* ---------------- Routines (Settings → Automations) ---------------- */

@@ -1,16 +1,11 @@
-// Lightweight transient toast for the new project-actions toolbar
-// (Continue in CLI / Finalize design package — #451). Mirrors the
-// canonical state-based pattern from PromptTemplatePreviewModal:
-// transient state cleared on a setTimeout, no portal, no DOM
-// imperative work. Single-toast queue; multi-toast support is
-// deliberately deferred to a follow-up.
-//
-// Renders an optional secondary `details` line beneath the primary
-// message so daemon error envelopes that carry an upstream
-// explanation (e.g. Anthropic account-usage-cap reasons) can surface
-// the real upstream message alongside the daemon's category label.
+// Canonical transient feedback surface. Success and informational messages
+// dismiss on a short timer; errors, in-progress work, and manual-copy content
+// remain until the caller clears or dismisses them.
 
 import { useEffect } from 'react';
+import { Icon } from './Icon';
+
+export type ToastTone = 'info' | 'success' | 'error';
 
 export interface ToastProps {
   message: string;
@@ -24,17 +19,39 @@ export interface ToastProps {
   code?: string | null;
   ttlMs?: number;
   onDismiss?: () => void;
+  tone?: ToastTone;
+  persistent?: boolean;
+  dismissible?: boolean;
+  dismissLabel?: string;
+  testId?: string;
   /** ARIA role. Use "alert" for error messages (announced immediately),
    *  "status" (default) for non-urgent confirmations. */
   role?: 'status' | 'alert';
 }
 
-const DEFAULT_TTL = 4000;
+const DEFAULT_TTL: Record<ToastTone, number> = {
+  info: 4_000,
+  success: 3_000,
+  error: 0,
+};
 
-export function Toast({ message, details, code, ttlMs = DEFAULT_TTL, onDismiss, role = 'status' }: ToastProps) {
+export function Toast({
+  message,
+  details,
+  code,
+  ttlMs,
+  onDismiss,
+  tone = 'info',
+  persistent = false,
+  dismissible = false,
+  dismissLabel = 'Dismiss',
+  testId,
+  role = tone === 'error' ? 'alert' : 'status',
+}: ToastProps) {
   // When code is present the toast is a manual-action surface; never
   // auto-dismiss it out from under the user mid-copy.
-  const effectiveTtl = code ? 0 : ttlMs;
+  const effectiveTtl = code || persistent ? 0 : (ttlMs ?? DEFAULT_TTL[tone]);
+  const showDismiss = Boolean(onDismiss) && (dismissible || Boolean(code));
 
   useEffect(() => {
     if (!onDismiss || !Number.isFinite(effectiveTtl) || effectiveTtl <= 0) return;
@@ -45,20 +62,29 @@ export function Toast({ message, details, code, ttlMs = DEFAULT_TTL, onDismiss, 
   }, [message, details, code, effectiveTtl, onDismiss]);
 
   return (
-    <div className="od-toast" role={role} aria-live={role === 'alert' ? 'assertive' : 'polite'}>
-      <div className="od-toast-message">{message}</div>
-      {details ? <div className="od-toast-details">{details}</div> : null}
-      {code ? (
-        <pre className="od-toast-code">{code}</pre>
-      ) : null}
-      {code && onDismiss ? (
+    <div
+      className={`od-toast od-toast--${tone}${persistent ? ' is-persistent' : ''}`}
+      role={role}
+      aria-live={role === 'alert' ? 'assertive' : 'polite'}
+      aria-atomic="true"
+      data-testid={testId}
+    >
+      <div className="od-toast-content">
+        <div className="od-toast-message">{message}</div>
+        {details ? <div className="od-toast-details">{details}</div> : null}
+        {code ? (
+          <pre className="od-toast-code">{code}</pre>
+        ) : null}
+      </div>
+      {showDismiss ? (
         <button
           type="button"
           className="od-toast-dismiss"
           onClick={onDismiss}
-          aria-label="Dismiss"
+          aria-label={dismissLabel}
+          title={dismissLabel}
         >
-          Dismiss
+          <Icon name="close" size={16} />
         </button>
       ) : null}
     </div>

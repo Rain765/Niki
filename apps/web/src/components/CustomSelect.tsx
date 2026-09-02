@@ -291,7 +291,7 @@ export function CustomSelect({
         aria-expanded={open}
         aria-controls={`${idBase}-menu`}
         aria-activedescendant={activeOptionId}
-        aria-describedby={labelledBy}
+        aria-labelledby={labelledBy}
         aria-label={`${ariaLabel}: ${selectedLabel}`}
         data-testid={testId}
         disabled={disabled}

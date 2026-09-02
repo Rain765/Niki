@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
+import { Button } from '../components/Button';
 import { LoanVideoComposer } from '../components/loan-video/LoanVideoComposer';
 import {
   type LoanVideoGenerationPhase,
@@ -17,9 +18,10 @@ import {
   buildDirectPosterBatches,
   type DirectPosterBatchView,
 } from '../components/direct-poster-batches';
-import { CustomSelect } from '../components/CustomSelect';
 import { Icon } from '../components/Icon';
 import { LogoStudioView } from '../components/LogoStudioView';
+import { SelectField } from '../components/SelectField';
+import { Toast } from '../components/Toast';
 import {
   resolveDirectLoanPosterProject,
   startDirectLoanPosterProject,
@@ -54,7 +56,6 @@ type GenerationFeedback = {
   state: 'working' | 'complete' | 'failed';
 };
 
-const STATUS_AUTO_DISMISS_MS = 10_000;
 const POSTER_APP_DEFAULT_PURPOSE: AutoPosterPurpose = 'anti-fraud';
 const POSTER_PRODUCT_OPTIONS = [
   { value: 'zamloan', label: 'Zamloan' },
@@ -263,6 +264,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const latestBatchRef = useRef<HTMLElement | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
   const generationFeedbackIdRef = useRef(0);
+  const videoGenerationStartedRef = useRef(false);
   const modeMenuRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -378,16 +380,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const videoHistory = videoGeneration.videos.slice(1);
 
   useEffect(() => {
-    if (!generationFeedback || generationFeedback.state === 'working' || !generationFeedbackKey) {
-      return undefined;
-    }
-    const timeout = window.setTimeout(() => {
-      setDismissedStatusKey(generationFeedbackKey);
-    }, STATUS_AUTO_DISMISS_MS);
-    return () => window.clearTimeout(timeout);
-  }, [generationFeedback, generationFeedbackKey]);
-
-  useEffect(() => {
     if (
       !generationFeedback
       || generationFeedback.state !== 'working'
@@ -415,14 +407,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       });
     }
   }, [generationFeedback, latestBatch]);
-
-  useEffect(() => {
-    if (videoStatus.state === 'working' || videoStatus.state === 'failed') return undefined;
-    const timeout = window.setTimeout(() => {
-      setDismissedVideoStatusKey(videoStatusKey);
-    }, STATUS_AUTO_DISMISS_MS);
-    return () => window.clearTimeout(timeout);
-  }, [videoStatus.state, videoStatusKey]);
 
   useEffect(() => {
     if (!previewFile || !projectId || !previewFileKey) return undefined;
@@ -604,6 +588,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   };
 
   const generateVideo = (draft: LoanVideoDraft) => {
+    videoGenerationStartedRef.current = true;
+    setDismissedVideoStatusKey(null);
     void videoGeneration.start(draft);
   };
 
@@ -912,102 +898,58 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
 
       {creationMode === 'poster' ? (
         <>
-      <section className="poster-app__generator" aria-label="Poster generation settings">
-        <div className="poster-app__field">
-          <span>Product</span>
-          <CustomSelect
-            ariaLabel="Product"
-            className="poster-app__select"
-            value={brand}
-            options={POSTER_PRODUCT_OPTIONS}
-            disabled={generating}
-            menuClassName="poster-app__select-menu"
-            menuGap={8}
-            menuMinWidth={224}
-            menuPlacement="bottom"
-            triggerClassName="poster-app__select-trigger"
-            onChange={(value) => setBrand(value as AutoPosterBrand)}
-          />
-        </div>
-        <div className="poster-app__field">
-          <span>Type</span>
-          <CustomSelect
-            ariaLabel="Type"
-            className="poster-app__select"
-            value={purpose}
-            options={POSTER_TYPE_OPTIONS}
-            disabled={generating}
-            menuClassName="poster-app__select-menu"
-            menuGap={8}
-            menuMinWidth={224}
-            menuPlacement="bottom"
-            triggerClassName="poster-app__select-trigger"
-            onChange={(value) => setPurpose(value as AutoPosterPurpose)}
-          />
-        </div>
-        <div className="poster-app__field">
-          <span>Quantity</span>
-          <CustomSelect
-            ariaLabel="Quantity"
-            className="poster-app__select"
-            value={String(count)}
-            options={POSTER_QUANTITY_OPTIONS}
-            disabled={generating}
-            menuClassName="poster-app__select-menu"
-            menuGap={8}
-            menuMinWidth={224}
-            menuPlacement="bottom"
-            triggerClassName="poster-app__select-trigger"
-            onChange={(value) => setCount(Number(value))}
-          />
-        </div>
-        <div className="poster-app__field">
-          <span>Ratio</span>
-          <CustomSelect
-            ariaLabel="Ratio"
-            className="poster-app__select"
-            value={aspectRatio}
-            options={POSTER_RATIO_OPTIONS}
-            disabled={generating}
-            menuClassName="poster-app__select-menu"
-            menuGap={8}
-            menuMinWidth={224}
-            menuPlacement="bottom"
-            triggerClassName="poster-app__select-trigger"
-            onChange={(value) => setAspectRatio(value as AutoPosterAspectRatio)}
-          />
-        </div>
-        <button
-          type="button"
-          className="poster-app__generate"
+      <section className="od-generation-toolbar" aria-label="Poster generation settings">
+        <SelectField
+          label="Product"
+          value={brand}
+          options={POSTER_PRODUCT_OPTIONS}
           disabled={generating}
+          onChange={(value) => setBrand(value as AutoPosterBrand)}
+        />
+        <SelectField
+          label="Type"
+          value={purpose}
+          options={POSTER_TYPE_OPTIONS}
+          disabled={generating}
+          onChange={(value) => setPurpose(value as AutoPosterPurpose)}
+        />
+        <SelectField
+          label="Quantity"
+          value={String(count)}
+          options={POSTER_QUANTITY_OPTIONS}
+          disabled={generating}
+          onChange={(value) => setCount(Number(value))}
+        />
+        <SelectField
+          label="Ratio"
+          value={aspectRatio}
+          options={POSTER_RATIO_OPTIONS}
+          disabled={generating}
+          onChange={(value) => setAspectRatio(value as AutoPosterAspectRatio)}
+        />
+        <Button
+          variant="primary"
+          loading={generating}
           onClick={() => void generate()}
         >
           {generating ? 'Submitting…' : 'Generate posters'}
-        </button>
+        </Button>
       </section>
 
-      {generationFeedback && generationFeedbackKey ? (
-        <section
-          className={`poster-app__status is-${generationFeedback.state}${statusDismissed ? ' is-dismissed' : ''}`}
-          role="status"
-          aria-live="polite"
-          aria-hidden={statusDismissed || undefined}
-          data-testid="poster-app-generation-status"
-        >
-          <span className="poster-app__status-mark" aria-hidden="true" />
-          <span className="poster-app__status-message">{generationFeedback.message}</span>
-          <button
-            type="button"
-            className="poster-app__status-close"
-            aria-label="Close status"
-            title="Close status"
-            tabIndex={statusDismissed ? -1 : 0}
-            onClick={() => setDismissedStatusKey(generationFeedbackKey)}
-          >
-            <Icon name="close" size={16} />
-          </button>
-        </section>
+      {generationFeedback && generationFeedbackKey && !statusDismissed ? (
+        <Toast
+          testId="poster-app-generation-status"
+          message={generationFeedback.message}
+          tone={generationFeedback.state === 'complete'
+            ? 'success'
+            : generationFeedback.state === 'failed'
+              ? 'error'
+              : 'info'}
+          persistent={generationFeedback.state !== 'complete'}
+          dismissible
+          dismissLabel="Close status"
+          onDismiss={() => setDismissedStatusKey(generationFeedbackKey)}
+        />
       ) : null}
 
       {notice ? (
@@ -1202,35 +1144,32 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         <section className="poster-app__video" aria-label="Tutorial video generator">
           <LoanVideoComposer
             onSubmit={generateVideo}
-            onQuickGenerate={(options) => void videoGeneration.regenerate(options)}
+            onQuickGenerate={(options) => {
+              videoGenerationStartedRef.current = true;
+              setDismissedVideoStatusKey(null);
+              void videoGeneration.regenerate(options);
+            }}
             configuredPresetKeys={videoGeneration.state.configuredPresetKeys}
             disabled={videoGeneration.active}
           />
 
-          {videoStatus.state !== 'idle' ? (
-            <section
-              className={`poster-app__status is-${videoStatus.state}${videoStatusDismissed ? ' is-dismissed' : ''}`}
-              role="status"
-              aria-live="polite"
-              aria-hidden={videoStatusDismissed || undefined}
-              data-testid="poster-app-video-generation-status"
-            >
-              <span className="poster-app__status-mark" aria-hidden="true" />
-              <div className="poster-app__status-copy">
-                <strong>{videoStatus.title}</strong>
-                <p>{videoStatus.detail}</p>
-              </div>
-              <button
-                type="button"
-                className="poster-app__status-close"
-                aria-label="Close video status"
-                title="Close video status"
-                tabIndex={videoStatusDismissed ? -1 : 0}
-                onClick={() => setDismissedVideoStatusKey(videoStatusKey)}
-              >
-                <Icon name="close" size={16} />
-              </button>
-            </section>
+          {(videoGenerationStartedRef.current || videoStatus.state === 'failed')
+            && videoStatus.state !== 'idle'
+            && !videoStatusDismissed ? (
+            <Toast
+              testId="poster-app-video-generation-status"
+              message={videoStatus.title}
+              details={videoStatus.detail}
+              tone={videoStatus.state === 'complete'
+                ? 'success'
+                : videoStatus.state === 'failed'
+                  ? 'error'
+                  : 'info'}
+              persistent={videoStatus.state !== 'complete'}
+              dismissible
+              dismissLabel="Close video status"
+              onDismiss={() => setDismissedVideoStatusKey(videoStatusKey)}
+            />
           ) : null}
 
           {videoWorking || videoResultAvailable ? (

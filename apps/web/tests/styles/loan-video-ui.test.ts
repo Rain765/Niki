@@ -10,6 +10,10 @@ const posterCss = readFileSync(
   new URL('../../app/poster.css', import.meta.url),
   'utf8',
 );
+const controlsCss = readFileSync(
+  new URL('../../src/styles/ui-controls.css', import.meta.url),
+  'utf8',
+);
 
 function rule(css: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -93,16 +97,16 @@ describe('loan video UI', () => {
   });
 
   it('keeps the three quick selects and generate action in one desktop toolbar', () => {
-    const toolbar = rule(posterCss, '.poster-app__video .loan-video-quick');
-    const generate = rule(posterCss, '.poster-app__video .loan-video-quick__generate');
+    const toolbar = rule(componentCss, '.loan-video-quick');
+    const sharedToolbar = rule(controlsCss, '.od-generation-toolbar');
+    const generate = rule(componentCss, '.loan-video-quick__generate');
 
     expect.soft(toolbar).toContain('grid-template-columns:');
     expect.soft(toolbar).toContain('minmax(210px, 1.15fr)');
-    expect.soft(toolbar).toContain('align-items: end;');
-    expect.soft(generate).toContain('display: inline-flex;');
-    expect(generate).toContain('white-space: nowrap;');
-    expect(posterCss).toMatch(
-      /@media \(max-width: 760px\)[\s\S]*?\.poster-app__video \.loan-video-quick\s*{[^}]*grid-template-columns: minmax\(0, 1fr\);/,
+    expect.soft(sharedToolbar).toContain('align-items: end;');
+    expect.soft(generate).toContain('min-width: 0;');
+    expect(componentCss).toMatch(
+      /@media \(max-width: 760px\)[\s\S]*?\.loan-video-quick\s*{[^}]*grid-template-columns: minmax\(0, 1fr\);/,
     );
   });
 

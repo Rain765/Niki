@@ -370,7 +370,7 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
     const quickGenerate = await screen.findByTestId('loan-video-quick-generate');
     await waitFor(() => expect((quickGenerate as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio: 9:16' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio' }));
     fireEvent.click(screen.getByRole('option', { name: '3:4' }));
     fireEvent.click(quickGenerate);
 
@@ -557,7 +557,8 @@ describe('PosterApp mobile-safe flow', () => {
     expect(await screen.findByText(
       'The video task finished without producing a durable MP4. Submit again to retry.',
     )).toBeTruthy();
-    expect(screen.getByTestId('poster-app-video-generation-status').className).toContain('is-failed');
+    expect(screen.getByTestId('poster-app-video-generation-status').className)
+      .toContain('od-toast--error');
     expect((screen.getByTestId('loan-video-editor-mode') as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByTestId('poster-app-video-result')).toBeNull();
   });
@@ -605,7 +606,8 @@ describe('PosterApp mobile-safe flow', () => {
     )).toBeTruthy();
     expect(reattachDaemonRunMock).not.toHaveBeenCalled();
     expect(streamViaDaemonMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId('poster-app-video-generation-status').className).toContain('is-failed');
+    expect(screen.getByTestId('poster-app-video-generation-status').className)
+      .toContain('od-toast--error');
   });
 
   it('restores an active video shimmer with its saved ratio, phase, and elapsed time', async () => {
@@ -721,6 +723,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(
       (await screen.findByTestId('poster-app-video-result')).getAttribute('src'),
     ).toBe('/api/projects/restored-video-project/raw/restored-video.mp4');
+    expect(screen.queryByTestId('poster-app-video-generation-status')).toBeNull();
   });
 
   it('renders the existing poster options unchanged in custom selects and defaults to anti-fraud', () => {
@@ -728,8 +731,8 @@ describe('PosterApp mobile-safe flow', () => {
 
     expect(screen.getByRole('heading', { name: 'Generate Loan Posters' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
-    const selectOptions = (label: string, selectedLabel: string) => {
-      const trigger = screen.getByRole('combobox', { name: `${label}: ${selectedLabel}` });
+    const selectOptions = (label: string) => {
+      const trigger = screen.getByRole('combobox', { name: label });
       fireEvent.click(trigger);
       const listbox = screen.getByRole('listbox', { name: label });
       const options = within(listbox).getAllByRole('option').map((option) => option.textContent);
@@ -737,16 +740,16 @@ describe('PosterApp mobile-safe flow', () => {
       return { options, trigger };
     };
 
-    const product = selectOptions('Product', 'Zamloan');
+    const product = selectOptions('Product');
     expect(product.options).toEqual(['Zamloan', 'Biumoney']);
     expect(product.trigger.getAttribute('value')).toBe('zamloan');
-    const type = selectOptions('Type', '防欺诈');
+    const type = selectOptions('Type');
     expect(type.options).toEqual(['引流', '防欺诈']);
     expect(type.trigger.getAttribute('value')).toBe('anti-fraud');
-    const quantity = selectOptions('Quantity', '1');
+    const quantity = selectOptions('Quantity');
     expect(quantity.options).toEqual(['1', '2', '3', '4']);
     expect(quantity.trigger.getAttribute('value')).toBe('1');
-    const ratio = selectOptions('Ratio', '3:4');
+    const ratio = selectOptions('Ratio');
     expect(ratio.options).toEqual(['3:4', '1:1', '16:9']);
     expect(ratio.trigger.getAttribute('value')).toBe('3:4');
     expect(screen.queryByText(/Landscape|Square|Portrait/)).toBeNull();
@@ -755,11 +758,11 @@ describe('PosterApp mobile-safe flow', () => {
   it('switches from the title menu while preserving the poster form state', async () => {
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('combobox', { name: 'Product: Zamloan' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Product' }));
     fireEvent.click(screen.getByRole('option', { name: /Biumoney/ }));
-    fireEvent.click(screen.getByRole('combobox', { name: 'Type: 防欺诈' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Type' }));
     fireEvent.click(screen.getByRole('option', { name: /引流/ }));
-    fireEvent.click(screen.getByRole('combobox', { name: 'Quantity: 1' }));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Quantity' }));
     fireEvent.click(screen.getByRole('option', { name: /3/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
     fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
@@ -778,11 +781,11 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /Generate Loan Posters/ }));
 
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
-    expect(screen.getByRole('combobox', { name: 'Product: Biumoney' }).getAttribute('value'))
+    expect(screen.getByRole('combobox', { name: 'Product' }).getAttribute('value'))
       .toBe('biumoney');
-    expect(screen.getByRole('combobox', { name: 'Type: 引流' }).getAttribute('value'))
+    expect(screen.getByRole('combobox', { name: 'Type' }).getAttribute('value'))
       .toBe('acquisition');
-    expect(screen.getByRole('combobox', { name: 'Quantity: 3' }).getAttribute('value'))
+    expect(screen.getByRole('combobox', { name: 'Quantity' }).getAttribute('value'))
       .toBe('3');
   });
 
@@ -916,33 +919,24 @@ describe('PosterApp mobile-safe flow', () => {
 
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generating posters…')).toBeTruthy();
-    expect(generationStatus.querySelector('.poster-app__status-message')).toBeTruthy();
+    expect(generationStatus.querySelector('.od-toast-message')).toBeTruthy();
     expect(generationStatus.querySelector('strong')).toBeNull();
     expect(generationStatus.querySelector('p')).toBeNull();
   });
 
-  it('automatically dismisses a generation failure after 10 seconds', async () => {
+  it('keeps a generation failure visible until the user dismisses it', async () => {
     startDirectLoanPosterProjectMock.mockRejectedValue(new Error('Provider unavailable'));
-    const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generation failed: Provider unavailable')).toBeTruthy();
-    const autoDismissCall = setTimeoutSpy.mock.calls
-      .filter(([, delay]) => delay === 10_000)
-      .at(-1);
-    expect(autoDismissCall).toBeTruthy();
-
-    act(() => {
-      if (typeof autoDismissCall?.[0] === 'function') autoDismissCall[0]();
-    });
-
-    expect(generationStatus.className).toContain('is-dismissed');
-    expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
+    expect(generationStatus.className).toContain('od-toast--error');
+    fireEvent.click(within(generationStatus).getByRole('button', { name: 'Close status' }));
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
   });
 
-  it('shows and automatically dismisses a successful generation after 10 seconds', async () => {
+  it('shows and automatically dismisses a successful generation after 3 seconds', async () => {
     const completedProject = {
       ...project,
       metadata: {
@@ -976,7 +970,7 @@ describe('PosterApp mobile-safe flow', () => {
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     await within(generationStatus).findByText('1 poster generated');
     const autoDismissCall = setTimeoutSpy.mock.calls
-      .filter(([, delay]) => delay === 10_000)
+      .filter(([, delay]) => delay === 3_000)
       .at(-1);
     expect(autoDismissCall).toBeTruthy();
 
@@ -984,8 +978,7 @@ describe('PosterApp mobile-safe flow', () => {
       if (typeof autoDismissCall?.[0] === 'function') autoDismissCall[0]();
     });
 
-    expect(generationStatus.className).toContain('is-dismissed');
-    expect(generationStatus.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
   });
 
   it('does not restore an old asynchronous generation failure as a status', async () => {

@@ -1,0 +1,398 @@
+/* Shared selector, button, toast, and generation-toolbar rules.
+ * See docs/ui-control-guidelines.md before extending these primitives. */
+:root {
+  --od-control-height: 46px;
+  --od-control-height-compact: 36px;
+  --od-control-radius: 12px;
+  --od-control-menu-radius: 14px;
+  --od-control-gap: 8px;
+  --od-control-fill: var(--poster-fill-0, var(--bg-panel));
+  --od-control-hover: var(--poster-control-hover, var(--bg-subtle));
+  --od-control-pressed: var(--poster-control-pressed, var(--bg-subtle));
+  --od-control-text: var(--poster-text, var(--text));
+  --od-control-muted: var(--poster-muted, var(--text-muted));
+  --od-control-disabled: var(--poster-text-disabled, var(--text-muted));
+  --od-control-accent: var(--poster-accent, var(--accent));
+  --od-control-accent-hover: var(--poster-accent-hover, var(--accent-hover));
+  --od-control-accent-pressed: var(--poster-accent-pressed, var(--accent-hover));
+  --od-control-focus: var(--poster-line-active, var(--accent));
+  --od-control-danger: var(--poster-danger, var(--red));
+  --od-control-ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.od-field {
+  display: grid;
+  min-width: 0;
+  gap: var(--od-control-gap);
+}
+
+.od-field__label {
+  color: var(--od-control-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.od-generation-toolbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(170px, 0.75fr);
+  align-items: end;
+  gap: 16px;
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--poster-panel-muted, var(--bg-subtle));
+}
+
+.od-control-select {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.od-control-select__trigger {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--od-control-height);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--od-control-radius);
+  background: var(--od-control-fill);
+  color: var(--od-control-text);
+  box-shadow: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  transition:
+    background-color 140ms var(--od-control-ease),
+    color 140ms var(--od-control-ease),
+    transform 140ms var(--od-control-ease);
+}
+
+.od-control-select__trigger:hover:not(:disabled),
+.od-control-select__trigger[aria-expanded='true'] {
+  border: 0;
+  outline: none;
+  background: var(--od-control-fill);
+  color: var(--od-control-text);
+  box-shadow: none;
+}
+
+.od-control-select__trigger:focus-visible {
+  border: 0;
+  outline: 2px solid var(--od-control-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.od-control-select__trigger[aria-expanded='true']:focus-visible {
+  outline: none;
+  outline-offset: 0;
+}
+
+.od-control-select__trigger:active:not(:disabled) {
+  background: var(--od-control-pressed);
+  transform: scale(0.99);
+  transition-duration: 80ms;
+}
+
+.od-control-select__trigger:disabled {
+  color: var(--od-control-disabled);
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.od-control-select__trigger svg {
+  color: var(--od-control-muted);
+  transition: transform 140ms var(--od-control-ease);
+}
+
+.od-control-select__trigger[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+.od-control-select .od-select-value,
+.od-control-select__menu .od-select-option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.od-control-select__menu {
+  z-index: 9000;
+  max-width: calc(100vw - 24px);
+  padding: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 0;
+  border-radius: var(--od-control-menu-radius);
+  background: var(--od-control-fill);
+  color: var(--od-control-text);
+  box-shadow: 0 18px 44px color-mix(
+    in srgb,
+    var(--poster-fill-7, var(--text-strong)) 18%,
+    transparent
+  );
+}
+
+.od-control-select__menu.portal {
+  position: fixed;
+}
+
+.od-control-select__menu .od-select-option {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--od-control-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.od-control-select__menu .od-select-option:hover:not(:disabled),
+.od-control-select__menu .od-select-option.active:not(:disabled) {
+  background: var(--od-control-hover);
+  color: var(--od-control-text);
+}
+
+.od-control-select__menu .od-select-option.selected {
+  color: var(--od-control-text);
+  font-weight: 700;
+}
+
+.od-control-select__menu .od-select-option-check {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--od-control-accent);
+  opacity: 0;
+}
+
+.od-control-select__menu .od-select-option.selected .od-select-option-check {
+  opacity: 1;
+}
+
+.od-button {
+  min-height: var(--od-control-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 750;
+  white-space: nowrap;
+  transition:
+    background-color 140ms var(--od-control-ease),
+    border-color 140ms var(--od-control-ease),
+    color 140ms var(--od-control-ease),
+    opacity 140ms var(--od-control-ease),
+    transform 140ms var(--od-control-ease);
+}
+
+.od-button--compact {
+  min-height: var(--od-control-height-compact);
+  padding-inline: 13px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.od-button--primary {
+  background: var(--od-control-accent);
+  color: var(--poster-text-inverse, var(--bg-panel));
+}
+
+.od-button--primary:hover:not(:disabled) {
+  background: var(--od-control-accent-hover);
+}
+
+.od-button--primary:active:not(:disabled) {
+  background: var(--od-control-accent-pressed);
+}
+
+.od-button--secondary,
+.od-button--ghost {
+  color: var(--od-control-text);
+}
+
+.od-button--secondary {
+  background: var(--od-control-fill);
+}
+
+.od-button--ghost {
+  background: transparent;
+}
+
+.od-button--secondary:hover:not(:disabled),
+.od-button--ghost:hover:not(:disabled) {
+  background: var(--od-control-hover);
+}
+
+.od-button--danger {
+  background: color-mix(in srgb, var(--od-control-danger) 10%, var(--od-control-fill));
+  color: var(--od-control-danger);
+}
+
+.od-button--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--od-control-danger) 16%, var(--od-control-fill));
+}
+
+.od-button:active:not(:disabled) {
+  transform: scale(0.985);
+  transition-duration: 80ms;
+}
+
+.od-button:focus-visible {
+  border: 0;
+  outline: 2px solid var(--od-control-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.od-button:disabled,
+.od-button.is-loading {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.od-toast {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 9001;
+  width: min(560px, calc(100% - 32px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--od-control-fill);
+  color: var(--od-control-text);
+  box-shadow: 0 12px 32px color-mix(
+    in srgb,
+    var(--poster-mask-dark, var(--text-strong)) 12%,
+    transparent
+  );
+  transform: translateX(-50%);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.od-toast--success {
+  box-shadow:
+    inset 3px 0 0 var(--green),
+    0 12px 32px color-mix(
+      in srgb,
+      var(--poster-mask-dark, var(--text-strong)) 12%,
+      transparent
+    );
+}
+
+.od-toast--error {
+  box-shadow:
+    inset 3px 0 0 var(--od-control-danger),
+    0 12px 32px color-mix(
+      in srgb,
+      var(--poster-mask-dark, var(--text-strong)) 12%,
+      transparent
+    );
+}
+
+.od-toast-content {
+  min-width: 0;
+}
+
+.od-toast-message {
+  font-weight: 700;
+}
+
+.od-toast-details {
+  margin-top: 3px;
+  color: var(--od-control-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.od-toast-code {
+  max-height: 240px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 9px;
+  background: var(--od-control-hover);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.od-toast-dismiss {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--od-control-muted);
+}
+
+.od-toast-dismiss:hover:not(:disabled) {
+  border: 0;
+  background: var(--od-control-hover);
+  color: var(--od-control-text);
+}
+
+@media (max-width: 1100px) {
+  .od-generation-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .od-generation-toolbar > .od-button:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .od-generation-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .od-toast {
+    top: max(12px, env(safe-area-inset-top));
+    width: calc(100% - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .od-button,
+  .od-control-select__trigger,
+  .od-control-select__trigger svg {
+    transition: none;
+  }
+}

@@ -10,6 +10,7 @@ import {
 } from '../src/poster/color-tokens';
 import './poster.css';
 import './account-manager.css';
+import '../src/styles/ui-controls.css';
 import '../src/styles/home/loan-video.css';
 import '../src/styles/home/logo-studio.css';
 
