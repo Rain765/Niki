@@ -295,7 +295,7 @@ describe('Zambia poster preset', () => {
       prompt.includes('Trust Only Official Customer Service')
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('same scale and visual prominence'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('visual intersection'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('model side of the required 5%-wide'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('compact solid green shield'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('about one-quarter'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('smaller than the phone screen'))).toBe(true);
@@ -393,6 +393,43 @@ describe('Zambia poster preset', () => {
       expect(plan?.textAnchor).toBe('right');
       expect(plan?.prompt).toContain(safeArea);
       expect(plan?.prompt).toContain('one solid deep-charcoal color');
+    },
+  );
+
+  it.each([
+    [
+      '3:4',
+      'headline top edge between 17.5% and 18.5% of the canvas height',
+      'exactly two lines: “Trust Only Official” / “Customer Service”',
+      'no wider than 36% of the canvas',
+    ],
+    [
+      '16:9',
+      'headline top edge between 22.5% and 23.5% of the canvas height',
+      'exactly two lines: “Trust Only Official” / “Customer Service”',
+      'no wider than 35% of the canvas',
+    ],
+    [
+      '1:1',
+      'headline top edge between 17.5% and 18.5% of the canvas height',
+      'exactly three lines: “Trust Only” / “Official Customer” / “Service”',
+      'no wider than 31% of the canvas',
+    ],
+  ] as const)(
+    'keeps the %s anti-fraud copy large while separating it from the phone and model',
+    (aspectRatio, headlinePosition, subtitleLines, subtitleWidth) => {
+      const [plan] = buildLoanPosterScenePlans({
+        count: 1,
+        aspectRatio,
+        brand: 'zamloan',
+        purpose: 'anti-fraud',
+      });
+
+      expect(plan?.prompt).toContain(headlinePosition);
+      expect(plan?.prompt).toContain(subtitleLines);
+      expect(plan?.prompt).toContain(subtitleWidth);
+      expect(plan?.prompt).toContain('at least 5% of the canvas width');
+      expect(plan?.prompt).toContain('Do not reduce the established headline or subtitle font size');
     },
   );
 
