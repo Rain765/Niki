@@ -237,6 +237,7 @@ __PRELOADS__
       .tutorial__tap {
         position: absolute;
         z-index: 4;
+        display: none;
         left: 50%;
         top: 50%;
         width: clamp(42px, 4.2vmin, 76px);
@@ -440,6 +441,26 @@ __AUDIO__
           };
         };
 
+        const fullFrameMotion = (scene, time) => {
+          const target = scene?.focusTargets?.[0] || null;
+          const progress = ease((time - scene.start) / Math.max(0.000001, scene.duration));
+          const targetScale = target
+            ? clamp(Math.min(0.72 / target.width, 0.72 / target.height), 1.07, 1.22)
+            : 1.045;
+          return {
+            originX: target ? (target.x + target.width / 2) * 100 : 50,
+            originY: target ? (target.y + target.height / 2) * 100 : 50,
+            scale: 1.012 + (targetScale - 1.012) * progress,
+          };
+        };
+
+        const applyFullFrameMotion = (slot, scene, time) => {
+          if (!scene || scene.presentation === "device") return;
+          const motion = fullFrameMotion(scene, time);
+          slot.style.transformOrigin = `${motion.originX.toFixed(3)}% ${motion.originY.toFixed(3)}%`;
+          slot.style.transform = `scale(${motion.scale.toFixed(5)})`;
+        };
+
         const keyboardTapPoint = (digit) => ({
           "1": { x: 0.132, y: 0.742 },
           "2": { x: 0.376, y: 0.742 },
@@ -585,8 +606,8 @@ __AUDIO__
         };
 
         const renderGesture = (gesture, time, imageRect) => {
+          tap.style.opacity = "0";
           if (!gesture || time < gesture.pointerStartAt || time >= gesture.endAt) {
-            tap.style.opacity = "0";
             hand.style.opacity = "0";
             return;
           }
@@ -614,13 +635,6 @@ __AUDIO__
             1,
           );
           const ripple = Math.sin(Math.PI * rippleProgress);
-          tap.style.left = `${focalX.toFixed(2)}px`;
-          tap.style.top = `${focalY.toFixed(2)}px`;
-          tap.style.opacity = String((pointerProgress * (1 - responseProgress) * 0.96).toFixed(4));
-          tap.style.transform = `translate(-50%, -50%) scale(${(
-            0.9 - pressProgress * 0.08 + ripple * 0.3
-          ).toFixed(4)})`;
-
           const handWidth = clamp(imageRect.width * handWidthRatio, 150, 420);
           const mirrored = gesture.x > 0.72;
           const fingertipX = handWidth * 0.145;
@@ -659,7 +673,13 @@ __AUDIO__
 
           const currentPresentation = scene.presentation || "full";
           const targetPresentation = targetScene?.presentation || "full";
-          setSource(backgroundImage, manifest.backgroundAsset || scene.asset);
+          if (manifest.backgroundAsset) {
+            setSource(backgroundImage, manifest.backgroundAsset);
+            backgroundImage.style.opacity = "1";
+          } else {
+            setSource(backgroundImage, null);
+            backgroundImage.style.opacity = "0";
+          }
           if (action.type === "close-modal" && targetScene) {
             setSource(shellAsset, targetScene.asset);
             setPresentation(shellSlot, targetPresentation);
@@ -681,6 +701,9 @@ __AUDIO__
           shellSlot.style.transform = "none";
           currentSlot.style.transform = "none";
           targetSlot.style.transform = "none";
+          shellSlot.style.transformOrigin = "50% 50%";
+          currentSlot.style.transformOrigin = "50% 50%";
+          targetSlot.style.transformOrigin = "50% 50%";
           shellAsset.style.transform = "";
           currentAsset.style.transform = "";
           targetAsset.style.transform = "";
@@ -755,13 +778,13 @@ __AUDIO__
               fieldsRendered = true;
             }
           } else if (currentPresentation === "full" && targetPresentation === "device") {
-            currentSlot.style.opacity = String(1 - transitionProgress);
-            targetSlot.style.opacity = String(transitionProgress);
+            currentSlot.style.opacity = String(1 - ease(transitionProgress / 0.5));
+            targetSlot.style.opacity = String(ease((transitionProgress - 0.5) / 0.5));
             currentSlot.style.transform = "none";
             targetSlot.style.transform = `translateY(${(6 * (1 - transitionProgress)).toFixed(3)}%) scale(${(0.96 + transitionProgress * 0.04).toFixed(4)})`;
           } else if (currentPresentation === "device" && targetPresentation === "full") {
-            currentSlot.style.opacity = String(1 - transitionProgress);
-            targetSlot.style.opacity = String(transitionProgress);
+            currentSlot.style.opacity = String(1 - ease(transitionProgress / 0.5));
+            targetSlot.style.opacity = String(ease((transitionProgress - 0.5) / 0.5));
             currentSlot.style.transform = `translateY(${(-3 * transitionProgress).toFixed(3)}%) scale(${(1 - transitionProgress * 0.02).toFixed(4)})`;
             targetSlot.style.transform = "none";
           } else {
@@ -769,6 +792,13 @@ __AUDIO__
             targetSlot.style.opacity = String(transitionProgress);
             currentSlot.style.transform = "none";
             targetSlot.style.transform = "none";
+          }
+
+          if (currentPresentation === "full") {
+            applyFullFrameMotion(currentSlot, scene, time);
+          }
+          if (targetScene && targetPresentation === "full") {
+            applyFullFrameMotion(targetSlot, targetScene, time);
           }
 
           if (!fieldsRendered) {

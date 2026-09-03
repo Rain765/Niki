@@ -3,13 +3,27 @@ export type LoanVideoBrand = (typeof LOAN_VIDEO_BRANDS)[number];
 
 export const LOAN_VIDEO_PURPOSES = [
   'anti-fraud',
+  'loan-guide',
+  'top-up-guide',
+] as const;
+export type LoanVideoPurpose = (typeof LOAN_VIDEO_PURPOSES)[number];
+
+export const LEGACY_LOAN_VIDEO_PURPOSES = [
   'acquisition',
   'tutorial',
   'feature',
   'promotion',
   'support',
 ] as const;
-export type LoanVideoPurpose = (typeof LOAN_VIDEO_PURPOSES)[number];
+export type LegacyLoanVideoPurpose = (typeof LEGACY_LOAN_VIDEO_PURPOSES)[number];
+
+export function normalizeLoanVideoPurpose(value: unknown): LoanVideoPurpose | null {
+  if (value === 'anti-fraud' || value === 'loan-guide' || value === 'top-up-guide') {
+    return value;
+  }
+  if (value === 'acquisition' || value === 'tutorial') return 'loan-guide';
+  return null;
+}
 
 export const LOAN_VIDEO_ASPECT_RATIOS = ['3:4', '1:1', '9:16', '16:9'] as const;
 export type LoanVideoAspectRatio = (typeof LOAN_VIDEO_ASPECT_RATIOS)[number];

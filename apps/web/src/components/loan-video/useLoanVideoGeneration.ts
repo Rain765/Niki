@@ -30,8 +30,8 @@ import {
 import {
   LOAN_VIDEO_ASPECT_RATIOS,
   LOAN_VIDEO_BRANDS,
-  LOAN_VIDEO_PURPOSES,
   loanVideoPresetKey,
+  normalizeLoanVideoPurpose,
   type LoanVideoAspectRatio,
   type LoanVideoDraft,
   type LoanVideoQuickOptions,
@@ -128,17 +128,14 @@ function isTutorialVideoProject(project: Project): boolean {
     && project.metadata.videoModel === 'hyperframes-html';
 }
 
-function projectPresetKey(project: Project): string {
+function projectPresetKey(project: Project): string | null {
   const preset = project.metadata?.loanVideoPreset;
-  if (
-    preset?.version === 1
-    && LOAN_VIDEO_BRANDS.includes(preset.brand)
-    && LOAN_VIDEO_PURPOSES.includes(preset.purpose)
-  ) {
-    return loanVideoPresetKey(preset.brand, preset.purpose);
+  if (preset?.version === 1 && LOAN_VIDEO_BRANDS.includes(preset.brand)) {
+    const purpose = normalizeLoanVideoPurpose(preset.purpose);
+    return purpose ? loanVideoPresetKey(preset.brand, purpose) : null;
   }
   const legacyBrand = project.name.toLowerCase().includes('biumoney') ? 'biumoney' : 'zamloan';
-  return loanVideoPresetKey(legacyBrand, 'tutorial');
+  return loanVideoPresetKey(legacyBrand, 'loan-guide');
 }
 
 function videoFiles(files: ProjectFile[]): ProjectFile[] {
@@ -206,7 +203,8 @@ async function restoreLatestVideoTask(sessionScope: string): Promise<RestoredVid
   const configuredPresetKeys = Array.from(new Set(
     projectFileEntries
       .filter((entry) => videoFiles(entry.files).length > 0)
-      .map((entry) => projectPresetKey(entry.project)),
+      .map((entry) => projectPresetKey(entry.project))
+      .filter((key): key is string => key !== null),
   ));
   const videoTasks = taskResponse.tasks.filter((task) => (
     task.surface === 'video' && task.model === 'hyperframes-html'

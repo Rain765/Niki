@@ -121,6 +121,9 @@ export interface ProjectMetadata {
     brand: 'zamloan' | 'biumoney';
     purpose:
       | 'anti-fraud'
+      | 'loan-guide'
+      | 'top-up-guide'
+      // Historical values stay readable so existing projects remain visible.
       | 'acquisition'
       | 'tutorial'
       | 'feature'

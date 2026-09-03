@@ -25,7 +25,7 @@ export interface LoanVideoModalAction {
 }
 
 export interface LoanVideoSceneInteraction {
-  type: 'type' | 'otp';
+  type: 'type' | 'keypad' | 'otp';
   start: number;
   duration: number;
   text: string;

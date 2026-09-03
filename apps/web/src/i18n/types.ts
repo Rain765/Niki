@@ -731,11 +731,8 @@ export interface Dict {
   'loanVideo.backToQuick': string;
   'loanVideo.purpose': string;
   'loanVideo.purpose.anti-fraud': string;
-  'loanVideo.purpose.acquisition': string;
-  'loanVideo.purpose.tutorial': string;
-  'loanVideo.purpose.feature': string;
-  'loanVideo.purpose.promotion': string;
-  'loanVideo.purpose.support': string;
+  'loanVideo.purpose.loan-guide': string;
+  'loanVideo.purpose.top-up-guide': string;
   'loanVideo.presetReady': string;
   'loanVideo.presetReadyHint': string;
   'loanVideo.presetRequired': string;

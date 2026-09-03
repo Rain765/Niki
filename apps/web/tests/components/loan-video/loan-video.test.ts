@@ -10,13 +10,17 @@ import {
   loanVideoProjectName,
   validateLoanVideoDraft,
 } from '../../../src/components/loan-video/loan-video';
-import type { LoanVideoDraft } from '../../../src/components/loan-video/types';
+import {
+  LOAN_VIDEO_PURPOSES,
+  normalizeLoanVideoPurpose,
+  type LoanVideoDraft,
+} from '../../../src/components/loan-video/types';
 
 function completeDraft(): LoanVideoDraft {
   return {
     title: 'How to apply',
     brand: 'zamloan',
-    purpose: 'tutorial',
+    purpose: 'loan-guide',
     language: 'en',
     aspectRatio: '9:16',
     durationSeconds: 30,
@@ -46,6 +50,13 @@ function completeDraft(): LoanVideoDraft {
 }
 
 describe('loan video draft helpers', () => {
+  it('exposes only the three business video types and migrates historical guide presets', () => {
+    expect(LOAN_VIDEO_PURPOSES).toEqual(['anti-fraud', 'loan-guide', 'top-up-guide']);
+    expect(normalizeLoanVideoPurpose('tutorial')).toBe('loan-guide');
+    expect(normalizeLoanVideoPurpose('acquisition')).toBe('loan-guide');
+    expect(normalizeLoanVideoPurpose('support')).toBeNull();
+  });
+
   it('reports missing required tutorial inputs without duplicate errors', () => {
     const draft: LoanVideoDraft = {
       ...completeDraft(),
@@ -179,7 +190,7 @@ describe('loan video draft helpers', () => {
         { fromSceneId: 'step-2', toSceneId: 'outro', action: { type: 'auto' } },
       ],
     });
-    expect(loanVideoProjectName(draft)).toBe('ZamLoan · 操作教学 · How to apply');
+    expect(loanVideoProjectName(draft)).toBe('ZamLoan · 贷款引导 · How to apply');
     expect(loanVideoOutputName(draft)).toBe('zamloan-how-to-apply.mp4');
   });
 
@@ -228,10 +239,10 @@ describe('loan video draft helpers', () => {
     });
 
     expect(storyboard.scenes[1]?.interaction).toEqual({
-      type: 'type',
+      type: 'keypad',
       start: 0.68,
       duration: 1.1,
-      text: '971 234 567',
+      text: '971234567',
       target: { x: 0.25, y: 0.255, width: 0.4, height: 0.05 },
     });
     expect(storyboard.transitions[1]?.action).toEqual({

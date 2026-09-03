@@ -357,6 +357,9 @@ describe('loan-video fixed HyperFrames builder', () => {
     expect(html).toContain('data-loan-video-current');
     expect(html).toContain('data-loan-video-target');
     expect(html).toContain('data-loan-video-tap');
+    expect(html).toContain('display: none;');
+    expect(html).toContain('const fullFrameMotion = (scene, time) =>');
+    expect(html).toContain('applyFullFrameMotion(currentSlot, scene, time);');
     expect(html).toContain('data-loan-video-hand');
     expect(html).toContain('assets/tutorial-dark-hand.png');
     expect(html).toContain('const handWidthRatio = 0.56;');
@@ -432,6 +435,9 @@ describe('loan-video fixed HyperFrames builder', () => {
       height: 0.055,
     });
     expect(html).toContain('data-loan-video-background-image');
+    expect(html).toContain('backgroundImage.style.opacity = "0";');
+    expect(html).toContain('currentSlot.style.opacity = String(1 - ease(transitionProgress / 0.5));');
+    expect(html).toContain('targetSlot.style.opacity = String(ease((transitionProgress - 0.5) / 0.5));');
     expect(html.match(/<img class="tutorial-background__image" data-loan-video-background-image/g))
       .toHaveLength(1);
     expect(html).toContain('data-loan-video-shell');

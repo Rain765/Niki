@@ -87,11 +87,8 @@ export function loanVideoLanguageLabel(language: LoanVideoDraft['language']): st
 export function loanVideoPurposeLabel(purpose: LoanVideoPurpose): string {
   const labels: Record<LoanVideoPurpose, string> = {
     'anti-fraud': '防欺诈',
-    acquisition: '引流获客',
-    tutorial: '操作教学',
-    feature: '新功能发布',
-    promotion: '活动促销',
-    support: '客服答疑',
+    'loan-guide': '贷款引导',
+    'top-up-guide': 'Top Up 引导',
   };
   return labels[purpose];
 }
@@ -107,7 +104,7 @@ export function loanVideoOutputName(draft: LoanVideoDraft): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
-  return `${draft.brand}-${title || 'tutorial'}.mp4`;
+  return `${draft.brand}-${title || draft.purpose}.mp4`;
 }
 
 export function loanVideoPresetOutputName(
@@ -216,14 +213,19 @@ function stepInteraction(step: LoanVideoStepDraft) {
   }
   const text = step.interactionText.trim();
   const isOtp = step.interaction === 'otp';
+  const keypadText = step.interaction === 'type' ? text.replace(/\D/g, '') : '';
+  const interactionType: 'keypad' | 'type' | 'otp' = keypadText && keypadText.length <= 15
+    ? 'keypad'
+    : step.interaction;
+  const interactionText = interactionType === 'keypad' ? keypadText : text;
   const width = isOtp ? 0.83 : 0.4;
   const height = isOtp ? 0.073 : 0.05;
   const firstCellOffset = isOtp ? width / (Math.max(1, text.length) * 2) : width / 2;
   return {
-    type: step.interaction,
+    type: interactionType,
     start: isOtp ? 0.66 : 0.68,
     duration: isOtp ? 1.12 : 1.1,
-    text,
+    text: interactionText,
     target: {
       x: roundCoordinate(Math.min(1 - width, Math.max(0, step.interactionTap.x - firstCellOffset))),
       y: roundCoordinate(Math.min(1 - height, Math.max(0, step.interactionTap.y - height / 2))),

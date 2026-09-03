@@ -116,7 +116,11 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
         invalid(`loanVideoStoryboard.scenes[${offset}].interaction must be an object`);
       }
       const rawInteraction = scene.interaction as Record<string, unknown>;
-      if (rawInteraction.type !== 'type' && rawInteraction.type !== 'otp') {
+      if (
+        rawInteraction.type !== 'type'
+        && rawInteraction.type !== 'keypad'
+        && rawInteraction.type !== 'otp'
+      ) {
         invalid(`loanVideoStoryboard.scenes[${offset}].interaction.type is unsupported`);
       }
       if (!rawInteraction.target || typeof rawInteraction.target !== 'object' || Array.isArray(rawInteraction.target)) {
@@ -156,6 +160,9 @@ export function normalizeLoanVideoStoryboard(value: unknown): LoanVideoStoryboar
       );
       if (rawInteraction.type === 'otp' && !/^\d{1,8}$/.test(interactionText)) {
         invalid(`loanVideoStoryboard.scenes[${offset}].interaction.text must contain 1-8 digits`);
+      }
+      if (rawInteraction.type === 'keypad' && !/^\d{1,15}$/.test(interactionText)) {
+        invalid(`loanVideoStoryboard.scenes[${offset}].interaction.text must contain 1-15 digits`);
       }
       const start = Number(rawInteraction.start);
       const interactionDuration = Number(rawInteraction.duration);

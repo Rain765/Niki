@@ -83,4 +83,38 @@ describe('loan video storyboard normalization', () => {
       clipTop: 0.106,
     });
   });
+
+  it('accepts numeric keypad interactions for phone-number entry', () => {
+    const storyboard = normalizeLoanVideoStoryboard({
+      version: 2,
+      title: 'Phone sign in',
+      product: 'zamloan',
+      language: 'en',
+      aspectRatio: '3:4',
+      durationSeconds: 15,
+      narration: false,
+      subtitles: false,
+      scenes: [{
+        id: 'phone',
+        assetRef: '.od-inputs/phone.png',
+        presentation: 'device',
+        text: '',
+        captionEnabled: false,
+        voiceoverEnabled: false,
+        interaction: {
+          type: 'keypad',
+          start: 0.5,
+          duration: 3.6,
+          text: '971234567',
+          target: { x: 0.2, y: 0.24, width: 0.5, height: 0.06 },
+        },
+      }],
+      transitions: [],
+    });
+
+    expect(storyboard.scenes[0]?.interaction).toMatchObject({
+      type: 'keypad',
+      text: '971234567',
+    });
+  });
 });

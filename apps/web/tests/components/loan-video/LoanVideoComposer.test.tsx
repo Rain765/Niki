@@ -37,7 +37,7 @@ describe('LoanVideoComposer', () => {
       <LoanVideoComposer
         onSubmit={vi.fn()}
         onQuickGenerate={onQuickGenerate}
-        configuredPresetKeys={['zamloan:tutorial']}
+        configuredPresetKeys={['zamloan:loan-guide']}
       />,
     );
 
@@ -54,17 +54,19 @@ describe('LoanVideoComposer', () => {
     expect(generate.className).toContain('od-filter-grid__action');
     expect(toolbar.lastElementChild).toBe(generate);
     expect(generate.disabled).toBe(false);
+    fireEvent.click(screen.getByRole('combobox', { name: 'Purpose' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Loan guide' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio' }));
     fireEvent.click(screen.getByRole('option', { name: '3:4' }));
     fireEvent.click(generate);
     expect(onQuickGenerate).toHaveBeenCalledWith({
       brand: 'zamloan',
-      purpose: 'tutorial',
+      purpose: 'loan-guide',
       aspectRatio: '3:4',
     });
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Purpose' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Customer support' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Top Up guide' }));
     expect(generate.disabled).toBe(false);
     fireEvent.click(generate);
 
@@ -163,7 +165,7 @@ describe('LoanVideoComposer', () => {
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
       title: 'How to top up',
       brand: 'zamloan',
-      purpose: 'tutorial',
+      purpose: 'anti-fraud',
       aspectRatio: '9:16',
       durationSeconds: 30,
       intro: expect.objectContaining({ name: 'intro.png' }),
@@ -337,7 +339,7 @@ describe('LoanVideoComposer', () => {
 
     const selections = [
       ['loan-video-brand', /BiuMoney/, 'Product: BiuMoney'],
-      ['loan-video-purpose', /Customer support/, 'Purpose: Customer support'],
+      ['loan-video-purpose', /Top Up guide/, 'Purpose: Top Up guide'],
       ['loan-video-language', /简体中文/, 'Language: 简体中文'],
       ['loan-video-aspect', /^3:4$/, 'Aspect ratio: 3:4'],
       ['loan-video-duration', /^45s$/, 'Target length: 45s'],

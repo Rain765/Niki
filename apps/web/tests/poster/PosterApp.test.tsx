@@ -370,6 +370,8 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
     const quickGenerate = await screen.findByTestId('loan-video-quick-generate');
     await waitFor(() => expect((quickGenerate as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(screen.getByRole('combobox', { name: 'Purpose' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Loan guide' }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio' }));
     fireEvent.click(screen.getByRole('option', { name: '3:4' }));
     fireEvent.click(quickGenerate);
@@ -387,7 +389,7 @@ describe('PosterApp mobile-safe flow', () => {
       expect.objectContaining({
         surface: 'video',
         model: 'hyperframes-html',
-        output: expect.stringMatching(/^zamloan-tutorial-[a-z0-9]{8}\.mp4$/),
+        output: expect.stringMatching(/^zamloan-loan-guide-[a-z0-9]{8}\.mp4$/),
         loanVideoStoryboard: expect.objectContaining({ aspectRatio: '3:4' }),
       }),
     );

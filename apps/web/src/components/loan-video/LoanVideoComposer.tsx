@@ -56,7 +56,7 @@ function initialDraft(): LoanVideoDraft {
   return {
     title: '',
     brand: 'zamloan',
-    purpose: 'tutorial',
+    purpose: 'anti-fraud',
     language: 'en',
     aspectRatio: '9:16',
     durationSeconds: 30,
