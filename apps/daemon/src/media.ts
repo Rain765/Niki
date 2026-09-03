@@ -4129,7 +4129,11 @@ async function renderFishAudioTTS(ctx: MediaContext, credentials: ProviderConfig
 //      under the user-supplied filename.
 // ---------------------------------------------------------------------------
 
-const HYPERFRAMES_RENDER_TIMEOUT_MS = 5 * 60 * 1000;
+// A 30-second 1080x1440 tutorial can take 6-8 minutes on the production
+// Mac mini because every UI interaction is rendered frame by frame. Keep the
+// watchdog comfortably above that normal path while still terminating a
+// genuinely stuck renderer.
+const HYPERFRAMES_RENDER_TIMEOUT_MS = 15 * 60 * 1000;
 
 async function renderHyperFramesViaCli(ctx: MediaContext, projectDir: string, onProgress?: ProgressFn): Promise<RenderResult> {
   const compRel = ctx.compositionDir;
