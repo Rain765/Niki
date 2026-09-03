@@ -16,6 +16,7 @@ import {
   updateDesignSystemDraft,
 } from '../providers/registry';
 import { buildSrcdoc } from '../runtime/srcdoc';
+import { CustomSelect } from './CustomSelect';
 import { Icon } from './Icon';
 import type { DesignSystemSummary, Surface } from '../types';
 
@@ -249,15 +250,19 @@ export function DesignSystemsTab({
             <span className="ds-manager-eyebrow">Design Systems</span>
             <h2>Your systems</h2>
           </div>
-          <select
-            aria-label="Filter design systems"
+          <CustomSelect
+            ariaLabel="Filter design systems"
+            className="od-control-select"
+            triggerClassName="od-control-select__trigger"
+            menuClassName="od-control-select__menu"
             value={userFilter}
-            onChange={(event) => setUserFilter(event.target.value as UserListFilter)}
-          >
-            <option value="all">All</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-          </select>
+            onChange={(value) => setUserFilter(value as UserListFilter)}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'published', label: 'Published' },
+              { value: 'draft', label: 'Draft' },
+            ]}
+          />
         </div>
 
         {onCreate ? (
@@ -375,8 +380,9 @@ export function DesignSystemsTab({
             <h2>Built-in library</h2>
           </div>
         </div>
-        <div className="tab-panel-toolbar ds-manager-toolbar">
+        <div className="tab-panel-toolbar ds-manager-toolbar od-filter-grid">
           <input
+            className="od-filter-grid__item"
             data-testid="design-systems-search"
             placeholder={t('ds.searchPlaceholder')}
             value={filter}
@@ -391,8 +397,13 @@ export function DesignSystemsTab({
             }}
             onChange={(e) => setFilter(e.target.value)}
           />
-          <select
-            data-testid="design-systems-category-select"
+          <CustomSelect
+            ariaLabel={t('pluginsHome.categoryFilterAria')}
+            className="od-control-select od-filter-grid__item"
+            triggerClassName="od-control-select__trigger"
+            menuClassName="od-control-select__menu"
+            menuPlacement="bottom"
+            testId="design-systems-category-select"
             value={category}
             onFocus={() => {
               if (categoryTrackedRef.current) return;
@@ -403,14 +414,9 @@ export function DesignSystemsTab({
                 element: 'search_dropdown',
               });
             }}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {renderCategory(c)}
-              </option>
-            ))}
-          </select>
+            onChange={setCategory}
+            options={categories.map((c) => ({ value: c, label: renderCategory(c) }))}
+          />
         </div>
         <div
           className="examples-filter-row"

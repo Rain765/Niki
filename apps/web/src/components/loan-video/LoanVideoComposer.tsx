@@ -193,7 +193,7 @@ export function LoanVideoComposer({
 
         {mode === 'quick' ? (
           <div
-            className="od-generation-toolbar loan-video-quick"
+            className="od-generation-toolbar od-filter-grid loan-video-quick"
             data-testid="loan-video-quick-mode"
           >
             <SelectField
@@ -223,6 +223,7 @@ export function LoanVideoComposer({
             />
 
             <SelectField
+              className="od-filter-grid__wide"
               label={t('loanVideo.aspectRatio')}
               menuMinWidth={224}
               onChange={(value) => setDraft((current) => ({
@@ -237,7 +238,7 @@ export function LoanVideoComposer({
 
             <Button
               variant="primary"
-              className="loan-video-quick__generate"
+              className="od-filter-grid__action loan-video-quick__generate"
               data-testid="loan-video-quick-generate"
               disabled={disabled || !onQuickGenerate}
               loading={disabled}

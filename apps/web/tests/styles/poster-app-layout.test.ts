@@ -46,12 +46,15 @@ function controlMediaRules(query: string): string {
 }
 
 describe('poster app image layout', () => {
-  it('stacks mobile filters and keeps the generate action full width', () => {
+  it('uses two mobile filter columns and keeps the generate action full width', () => {
     const mobile = controlMediaRules('(max-width: 760px)');
     const tablet = controlMediaRules('(max-width: 1100px)');
 
     expect(mobile).toMatch(
-      /\.od-generation-toolbar\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s,
+      /\.od-generation-toolbar\s*{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
+    );
+    expect(mobile).toMatch(
+      /\.od-generation-toolbar > \.od-button:last-child\s*{[^}]*grid-column:\s*1 \/ -1;/s,
     );
     expect(tablet).toMatch(
       /\.od-generation-toolbar > \.od-button:last-child\s*{[^}]*grid-column:\s*1 \/ -1;/s,

@@ -2111,9 +2111,8 @@ describe('SettingsDialog skills section', () => {
       expect(screen.getByText('sales-deck')).toBeTruthy();
     });
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Type' }), {
-      target: { value: 'deck' },
-    });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Type' }));
+    fireEvent.click(screen.getByRole('option', { name: /^deck \(/ }));
     expect(screen.queryByText('blog-post')).toBeNull();
     expect(screen.getByText('sales-deck')).toBeTruthy();
 

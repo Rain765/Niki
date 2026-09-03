@@ -378,9 +378,45 @@
 }
 
 @media (max-width: 760px) {
+  /* Mobile filter and generation toolbars use one shared 2-column rhythm.
+   * Add `od-filter-grid__wide` to the final item when a toolbar has an odd
+   * number of fields, and `od-filter-grid__action` to its primary action. */
+  .od-filter-grid.od-filter-grid,
   .od-generation-toolbar {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .od-filter-grid.od-filter-grid {
+    display: grid;
+    align-items: end;
+  }
+
+  .od-filter-grid.od-filter-grid > .od-filter-grid__item {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .od-filter-grid.od-filter-grid > label.od-filter-grid__item,
+  .od-filter-grid.od-filter-grid > .od-field.od-filter-grid__item {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .od-filter-grid > :is(input, select, button).od-filter-grid__item,
+  .od-filter-grid > .od-filter-grid__item > :is(input, select) {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: var(--od-control-height);
+  }
+
+  .od-filter-grid > .od-filter-grid__wide,
+  .od-filter-grid > .od-filter-grid__action,
+  .od-filter-grid > .od-filter-grid__meta,
+  .od-generation-toolbar > .od-button:last-child {
+    grid-column: 1 / -1;
   }
 
   .od-toast {

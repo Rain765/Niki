@@ -898,7 +898,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
 
       {creationMode === 'poster' ? (
         <>
-      <section className="od-generation-toolbar" aria-label="Poster generation settings">
+      <section
+        className="od-generation-toolbar od-filter-grid"
+        aria-label="Poster generation settings"
+      >
         <SelectField
           label="Product"
           value={brand}

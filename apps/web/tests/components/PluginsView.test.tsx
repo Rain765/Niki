@@ -201,6 +201,8 @@ describe('PluginsView', () => {
     fireEvent.click(availableTab);
     expect(await screen.findByText('Remote Plugin')).toBeTruthy();
     expect(screen.getAllByText('Example Catalog').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Search available plugins').closest('.plugins-view__available-controls')?.className)
+      .toContain('od-filter-grid');
   });
 
   it('shows all installed plugins by default on the Plugins page', async () => {
@@ -375,9 +377,8 @@ describe('PluginsView', () => {
     expect(within(dialog).getByText('Capability summary')).toBeTruthy();
     expect(within(dialog).getByText('Injects prompt context')).toBeTruthy();
 
-    fireEvent.change(within(dialog).getByLabelText('Plugin version'), {
-      target: { value: '1.1.0' },
-    });
+    fireEvent.click(within(dialog).getByRole('combobox', { name: 'Plugin version' }));
+    fireEvent.click(screen.getByRole('option', { name: '1.1.0' }));
     expect(within(dialog).getByTestId('plugins-available-install-command').textContent)
       .toContain('od plugin install remote-plugin@1.1.0');
     expect(within(dialog).getByTestId('plugins-available-provenance').textContent)
@@ -428,9 +429,8 @@ describe('PluginsView', () => {
     expect(within(dialog).getByTestId('plugins-available-provenance').textContent)
       .toContain('github:owner/repo@v1.2.0 · sha256:latest');
 
-    fireEvent.change(within(dialog).getByLabelText('Plugin version'), {
-      target: { value: '1.1.0' },
-    });
+    fireEvent.click(within(dialog).getByRole('combobox', { name: 'Plugin version' }));
+    fireEvent.click(screen.getByRole('option', { name: '1.1.0' }));
 
     expect(within(dialog).getByTestId('plugins-available-provenance').textContent)
       .toContain('from Official Registry · official · github:owner/repo');
@@ -493,9 +493,8 @@ describe('PluginsView', () => {
     expect(await screen.findByText('Figma Importer')).toBeTruthy();
     expect(screen.queryByText('Remote Plugin')).toBeNull();
 
-    fireEvent.change(screen.getByLabelText('Source'), {
-      target: { value: 'catalog-1' },
-    });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Source' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Example Catalog' }));
 
     expect(await screen.findByText('No available entries match your filters.')).toBeTruthy();
 
@@ -567,9 +566,8 @@ describe('PluginsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(mockedRefreshMarketplace).toHaveBeenCalledWith('catalog-1'));
 
-    fireEvent.change(screen.getByLabelText('Trust for Example Catalog'), {
-      target: { value: 'trusted' },
-    });
+    fireEvent.click(screen.getByRole('combobox', { name: /^Trust for Example Catalog:/ }));
+    fireEvent.click(screen.getByRole('option', { name: 'Trusted' }));
     await waitFor(() =>
       expect(mockedSetMarketplaceTrust).toHaveBeenCalledWith('catalog-1', 'trusted'),
     );

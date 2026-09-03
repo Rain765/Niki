@@ -33,9 +33,13 @@ import {
   uploadPluginFolder,
   uploadPluginZip,
 } from '../state/projects';
+import { Button } from './Button';
+import { CustomSelect } from './CustomSelect';
 import { Icon } from './Icon';
 import { PluginDetailsModal } from './PluginDetailsModal';
 import { PluginsHomeSection } from './PluginsHomeSection';
+import { SelectField } from './SelectField';
+import { Toast } from './Toast';
 import { TrustBadge } from './TrustBadge';
 import { useI18n } from '../i18n';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
@@ -286,9 +290,8 @@ export function PluginsView({
           </p>
         </div>
         <div className="plugins-view__hero-actions">
-          <button
-            type="button"
-            className="plugins-view__primary"
+          <Button
+            variant="primary"
             onClick={() => {
               trackPluginsTopClick(analytics.track, {
                 page_name: 'plugins',
@@ -301,10 +304,9 @@ export function PluginsView({
           >
             <Icon name="edit" size={13} />
             <span>{t('homeHero.chip.createPlugin')}</span>
-          </button>
-          <button
-            type="button"
-            className="plugins-view__secondary"
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => {
               trackPluginsTopClick(analytics.track, {
                 page_name: 'plugins',
@@ -318,7 +320,7 @@ export function PluginsView({
           >
             <Icon name="plus" size={13} />
             <span>{t('pluginsView.importPlugin')}</span>
-          </button>
+          </Button>
           <div className="plugins-view__badge" aria-hidden="true">
             <Icon name="grid" size={15} />
             <span>{t('pluginsView.agentContext')}</span>
@@ -364,7 +366,7 @@ export function PluginsView({
         })}
       </nav>
 
-      {notice ? <Notice outcome={notice} /> : null}
+      {notice ? <Notice outcome={notice} onDismiss={() => setNotice(null)} /> : null}
 
       <div className="plugins-view__gallery">
         {loading ? <div className="plugins-view__empty">{t('pluginsView.loading')}</div> : null}
@@ -772,30 +774,26 @@ function pluginTabHint(id: PluginsTab, t: ReturnType<typeof useI18n>['t']): stri
 
 function Notice({
   outcome,
+  onDismiss,
 }: {
   outcome: PluginInstallOutcome | { ok: boolean; message: string };
+  onDismiss: () => void;
 }) {
   const warnings = 'warnings' in outcome ? outcome.warnings : [];
   const log = 'log' in outcome ? outcome.log : [];
   return (
-    <div className={`plugins-view__notice${outcome.ok ? ' is-success' : ' is-error'}`} role="status">
-      <div>{outcome.message}</div>
-      {warnings.length > 0 ? (
-        <div className="plugins-view__notice-sub">
-          {warnings.length} warning{warnings.length === 1 ? '' : 's'}
-        </div>
-      ) : null}
-      {log.length > 0 ? (
-        <details className="plugins-view__notice-log">
-          <summary>Install log</summary>
-          <ul>
-            {log.map((line, idx) => (
-              <li key={`${line}-${idx}`}>{line}</li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
-    </div>
+    <Toast
+      message={outcome.message ?? (outcome.ok ? 'Plugin action completed.' : 'Plugin action failed.')}
+      details={warnings.length > 0
+        ? `${warnings.length} warning${warnings.length === 1 ? '' : 's'}`
+        : null}
+      code={!outcome.ok && log.length > 0 ? log.join('\n') : null}
+      tone={outcome.ok ? 'success' : 'error'}
+      persistent={!outcome.ok}
+      dismissible
+      dismissLabel="Dismiss plugin status"
+      onDismiss={onDismiss}
+    />
   );
 }
 
@@ -866,8 +864,11 @@ function AvailablePluginsPanel({
         </span>
       </div>
       {plugins.length > 0 ? (
-        <div className="plugins-view__available-controls" aria-label={t('pluginsView.availableFiltersAria')}>
-          <div className="plugins-view__search">
+        <div
+          className="plugins-view__available-controls od-filter-grid"
+          aria-label={t('pluginsView.availableFiltersAria')}
+        >
+          <div className="plugins-view__search od-filter-grid__item">
             <Icon name="search" size={13} className="plugins-view__search-icon" />
             <input
               id="plugins-available-search"
@@ -894,26 +895,24 @@ function AvailablePluginsPanel({
               </button>
             ) : null}
           </div>
-          <label className="plugins-view__filter" htmlFor="plugins-available-source">
-            <span>{t('pluginsView.source')}</span>
-            <select
-              id="plugins-available-source"
-              value={sourceFilter}
-              onFocus={() => {
-                if (sourceTrackedRef.current) return;
-                sourceTrackedRef.current = true;
-                onSourceDropdown?.();
-              }}
-              onChange={(event) => setSourceFilter(event.target.value)}
-            >
-              <option value="all">{t('promptTemplates.allSources')}</option>
-              {sourceOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <SelectField
+            className="plugins-view__filter od-filter-grid__item"
+            label={t('pluginsView.source')}
+            value={sourceFilter}
+            onChange={setSourceFilter}
+            onFocus={() => {
+              if (sourceTrackedRef.current) return;
+              sourceTrackedRef.current = true;
+              onSourceDropdown?.();
+            }}
+            options={[
+              { value: 'all', label: t('promptTemplates.allSources') },
+              ...sourceOptions.map((option) => ({
+                value: option.id,
+                label: option.label,
+              })),
+            ]}
+          />
         </div>
       ) : null}
       {plugins.length === 0 ? (
@@ -1103,33 +1102,28 @@ function AvailablePluginDetailsModal({
               </h3>
             </div>
             <div className="plugins-view__version-install">
-              <label className="plugins-view__version-select">
-                <span>{t('plugins.availableDetails.version')}</span>
-                <select
-                  aria-label={t('plugins.availableDetails.pluginVersion')}
-                  value={selectedVersion}
-                  onChange={(event) => {
-                    setSelectedVersion(event.target.value);
-                    setCopiedInstall(false);
-                  }}
-                >
-                  {versions.map((version) => (
-                    <option
-                      key={version.version}
-                      value={version.version}
-                      disabled={version.yanked}
-                    >
-                      {version.version}
-                      {version.deprecated
-                        ? t('plugins.availableDetails.versionDeprecatedSuffix')
-                        : ''}
-                      {version.yanked
-                        ? t('plugins.availableDetails.versionYankedSuffix')
-                        : ''}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <SelectField
+                className="plugins-view__version-select"
+                label={t('plugins.availableDetails.pluginVersion')}
+                value={selectedVersion}
+                onChange={(value) => {
+                  setSelectedVersion(value);
+                  setCopiedInstall(false);
+                }}
+                options={versions.map((version) => ({
+                  value: version.version,
+                  disabled: version.yanked,
+                  label: [
+                    version.version,
+                    version.deprecated
+                      ? t('plugins.availableDetails.versionDeprecatedSuffix')
+                      : '',
+                    version.yanked
+                      ? t('plugins.availableDetails.versionYankedSuffix')
+                      : '',
+                  ].join(''),
+                }))}
+              />
               <div className="plugins-view__install-command">
                 <code data-testid="plugins-available-install-command">
                   {installCommand}
@@ -1376,23 +1370,27 @@ function SourcesPanel({
             placeholder="https://example.com/open-design-marketplace.json"
             disabled={pendingAction === 'add'}
           />
-          <select
+          <CustomSelect
+            ariaLabel={t('pluginsView.defaultTrust')}
+            className="od-control-select plugins-view__source-trust"
+            triggerClassName="od-control-select__trigger"
+            menuClassName="od-control-select__menu"
             value={trust}
-            onChange={(event) => setTrust(event.target.value as PluginMarketplaceTrust)}
+            onChange={(value) => setTrust(value as PluginMarketplaceTrust)}
             disabled={pendingAction === 'add'}
-            aria-label={t('pluginsView.defaultTrust')}
-          >
-            <option value="restricted">{t('pluginsView.trust.restricted')}</option>
-            <option value="trusted">{t('pluginsView.trust.trusted')}</option>
-            <option value="official">{t('pluginsView.trust.official')}</option>
-          </select>
-          <button
+            options={[
+              { value: 'restricted', label: t('pluginsView.trust.restricted') },
+              { value: 'trusted', label: t('pluginsView.trust.trusted') },
+              { value: 'official', label: t('pluginsView.trust.official') },
+            ]}
+          />
+          <Button
             type="submit"
-            className="plugins-view__primary"
+            variant="primary"
             disabled={!trimmedUrl || pendingAction === 'add'}
           >
             {pendingAction === 'add' ? t('pluginsView.adding') : t('pluginsView.addSource')}
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -1416,34 +1414,38 @@ function SourcesPanel({
                 </div>
               </div>
               <div className="plugins-view__source-actions">
-                <select
+                <CustomSelect
+                  ariaLabel={t('pluginsView.trustFor', { name: marketplace.manifest.name ?? marketplace.url })}
+                  className="od-control-select plugins-view__source-trust"
+                  triggerClassName="od-control-select__trigger"
+                  menuClassName="od-control-select__menu"
                   value={marketplace.trust}
-                  onChange={(event) =>
-                    onTrust(marketplace, event.target.value as PluginMarketplaceTrust)
+                  onChange={(value) =>
+                    onTrust(marketplace, value as PluginMarketplaceTrust)
                   }
-                  aria-label={t('pluginsView.trustFor', { name: marketplace.manifest.name ?? marketplace.url })}
                   disabled={pendingAction?.startsWith(`trust:${marketplace.id}:`)}
-                >
-                  <option value="restricted">{t('pluginsView.trust.restricted')}</option>
-                  <option value="trusted">{t('pluginsView.trust.trusted')}</option>
-                  <option value="official">{t('pluginsView.trust.official')}</option>
-                </select>
-                <button
-                  type="button"
-                  className="plugins-view__secondary"
+                  options={[
+                    { value: 'restricted', label: t('pluginsView.trust.restricted') },
+                    { value: 'trusted', label: t('pluginsView.trust.trusted') },
+                    { value: 'official', label: t('pluginsView.trust.official') },
+                  ]}
+                />
+                <Button
+                  variant="secondary"
+                  size="compact"
                   onClick={() => onRefresh(marketplace)}
                   disabled={pendingAction === `refresh:${marketplace.id}`}
                 >
                   {pendingAction === `refresh:${marketplace.id}` ? t('pluginsView.refreshing') : t('designFiles.refresh')}
-                </button>
-                <button
-                  type="button"
-                  className="plugins-view__danger"
+                </Button>
+                <Button
+                  variant="danger"
+                  size="compact"
                   onClick={() => onRemove(marketplace)}
                   disabled={pendingAction === `remove:${marketplace.id}`}
                 >
                   {pendingAction === `remove:${marketplace.id}` ? t('pluginsView.removing') : t('chat.comments.remove')}
-                </button>
+                </Button>
               </div>
             </article>
           ))}

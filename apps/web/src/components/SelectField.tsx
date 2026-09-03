@@ -11,6 +11,7 @@ export interface SelectFieldProps {
   label: string;
   menuMinWidth?: number;
   onChange: (value: string) => void;
+  onFocus?: () => void;
   options: CustomSelectItem[];
   testId?: string;
   value: string;
@@ -22,6 +23,7 @@ export function SelectField({
   label,
   menuMinWidth = 224,
   onChange,
+  onFocus,
   options,
   testId,
   value,
@@ -42,6 +44,7 @@ export function SelectField({
         menuMinWidth={menuMinWidth}
         menuPlacement="bottom"
         onChange={onChange}
+        onFocus={onFocus}
         options={options}
         testId={testId}
         triggerClassName="od-control-select__trigger"

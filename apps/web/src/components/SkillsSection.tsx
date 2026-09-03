@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useT } from '../i18n';
+import { Button } from './Button';
 import { Icon } from './Icon';
+import { SelectField } from './SelectField';
 import type { AppConfig } from '../types';
 import type { SkillSummary } from '@open-design/contracts';
 import {
@@ -370,76 +372,60 @@ export function SkillsSection({ cfg, setCfg }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button
-            type="button"
-            className="primary skills-add-btn"
+          <Button
+            variant="primary"
+            size="compact"
+            className="skills-add-btn"
             onClick={startCreate}
             data-testid="skills-new"
           >
             <Icon name="plus" size={13} />
             <span>{t('settings.skillsNew')}</span>
-          </button>
+          </Button>
         </div>
         {/* Row 2: filter dropdowns */}
-        <div className="library-filter-selects">
-          <label className="library-filter-select">
-            <span className="library-filter-select-label">Source</span>
-            <select
-              value={sourceFilter}
-              data-active={sourceFilter !== 'all' ? 'true' : undefined}
-              onChange={(e) => setSourceFilter(e.target.value as SourceFilter)}
-            >
-              <option value="all">
-                {t('settings.libraryAll')} ({skills.length})
-              </option>
-              {(['user', 'built-in'] as const).map((s) => {
+        <div className="library-filter-selects od-filter-grid">
+          <SelectField
+            className="library-filter-select od-filter-grid__item"
+            label="Source"
+            value={sourceFilter}
+            onChange={(value) => setSourceFilter(value as SourceFilter)}
+            options={[
+              { value: 'all', label: `${t('settings.libraryAll')} (${skills.length})` },
+              ...(['user', 'built-in'] as const).map((s) => {
                 const count = skills.filter((sk) => sk.source === s).length;
-                return (
-                  <option key={s} value={s}>
-                    {s} ({count})
-                  </option>
-                );
-              })}
-            </select>
-          </label>
-          <label className="library-filter-select">
-            <span className="library-filter-select-label">Type</span>
-            <select
-              value={modeFilter}
-              data-active={modeFilter !== 'all' ? 'true' : undefined}
-              onChange={(e) => setModeFilter(e.target.value)}
-            >
-              <option value="all">
-                {t('settings.libraryAll')} ({skills.length})
-              </option>
-              {modeOptions.map(([mode, count]) => (
-                <option key={mode} value={mode}>
-                  {mode} ({count})
-                </option>
-              ))}
-            </select>
-          </label>
+                return { value: s, label: `${s} (${count})` };
+              }),
+            ]}
+          />
+          <SelectField
+            className="library-filter-select od-filter-grid__item"
+            label="Type"
+            value={modeFilter}
+            onChange={setModeFilter}
+            options={[
+              { value: 'all', label: `${t('settings.libraryAll')} (${skills.length})` },
+              ...modeOptions.map(([mode, count]) => ({
+                value: mode,
+                label: `${mode} (${count})`,
+              })),
+            ]}
+          />
           {categoryOptions.length > 0 ? (
-            <label
-              className="library-filter-select"
-              data-testid="skills-category-filters"
-            >
-              <span className="library-filter-select-label">Category</span>
-              <select
-                value={categoryFilter}
-                data-active={categoryFilter !== 'all' ? 'true' : undefined}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">
-                  {t('settings.libraryAll')} ({skills.length})
-                </option>
-                {categoryOptions.map(([cat, count]) => (
-                  <option key={cat} value={cat}>
-                    {humanizeCategory(cat)} ({count})
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              className="library-filter-select od-filter-grid__item od-filter-grid__wide"
+              testId="skills-category-filters"
+              label="Category"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              options={[
+                { value: 'all', label: `${t('settings.libraryAll')} (${skills.length})` },
+                ...categoryOptions.map(([cat, count]) => ({
+                  value: cat,
+                  label: `${humanizeCategory(cat)} (${count})`,
+                })),
+              ]}
+            />
           ) : null}
         </div>
       </div>

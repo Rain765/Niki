@@ -26,6 +26,12 @@ describe('LiteImageHome', () => {
     expect((screen.getByTestId('lite-image-count') as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByTestId('lite-image-aspect') as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByTestId('lite-image-brand') as HTMLSelectElement).disabled).toBe(false);
+    const composer = screen.getByTestId('lite-image-count').closest('.lite-image-home__composer');
+    expect(composer?.className).toContain('od-filter-grid');
+    expect(screen.getByTestId('lite-image-brand').closest('.od-field')?.className)
+      .toContain('od-filter-grid__wide');
+    expect(screen.getByTestId('lite-image-submit').className)
+      .toContain('od-filter-grid__action');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

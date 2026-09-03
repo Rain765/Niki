@@ -80,6 +80,8 @@ describe('DesignSystemsTab', () => {
     expect(screen.getByText('Create')).toBeTruthy();
     expect(screen.getByText('Acme Design System')).toBeTruthy();
     expect(screen.getByText('Linear')).toBeTruthy();
+    expect(screen.getByTestId('design-systems-search').parentElement?.className)
+      .toContain('od-filter-grid');
   });
 
   it('routes create and open actions to the dedicated design-system flow', () => {
@@ -153,9 +155,8 @@ function surfacePillCount(label: string): string | null {
 }
 
 function selectCategory(value: string) {
-  fireEvent.change(screen.getByTestId('design-systems-category-select'), {
-    target: { value },
-  });
+  fireEvent.click(screen.getByTestId('design-systems-category-select'));
+  fireEvent.click(screen.getByRole('option', { name: value }));
 }
 
 describe('DesignSystemsTab surface filtering', () => {
@@ -188,7 +189,7 @@ describe('DesignSystemsTab surface filtering', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^Web/ }));
 
     expect(
-      (screen.getByTestId('design-systems-category-select') as HTMLSelectElement).value,
+      screen.getByTestId('design-systems-category-select').getAttribute('value'),
     ).toBe('Retro');
     expect(screen.getByText('Retro Web One')).toBeTruthy();
     expect(screen.getByText('Retro Web Two')).toBeTruthy();

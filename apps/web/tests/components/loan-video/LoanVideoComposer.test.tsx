@@ -43,11 +43,15 @@ describe('LoanVideoComposer', () => {
 
     const toolbar = screen.getByTestId('loan-video-quick-mode');
     expect(toolbar.className).toContain('od-generation-toolbar');
+    expect(toolbar.className).toContain('od-filter-grid');
     expect(toolbar.querySelectorAll('.od-field')).toHaveLength(3);
     expect(toolbar.querySelectorAll('.od-control-select__trigger')).toHaveLength(3);
+    expect(screen.getByTestId('loan-video-quick-aspect').closest('.od-field')?.className)
+      .toContain('od-filter-grid__wide');
     expect(toolbar.querySelector('.loan-video-quick__readiness')).toBeNull();
     expect(screen.queryByTestId('loan-video-editor-settings')).toBeNull();
     const generate = screen.getByTestId('loan-video-quick-generate') as HTMLButtonElement;
+    expect(generate.className).toContain('od-filter-grid__action');
     expect(toolbar.lastElementChild).toBe(generate);
     expect(generate.disabled).toBe(false);
     fireEvent.click(screen.getByRole('combobox', { name: 'Aspect ratio' }));

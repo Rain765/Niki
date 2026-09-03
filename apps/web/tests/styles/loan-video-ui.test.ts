@@ -106,7 +106,7 @@ describe('loan video UI', () => {
     expect.soft(sharedToolbar).toContain('align-items: end;');
     expect.soft(generate).toContain('min-width: 0;');
     expect(componentCss).toMatch(
-      /@media \(max-width: 760px\)[\s\S]*?\.loan-video-quick\s*{[^}]*grid-template-columns: minmax\(0, 1fr\);/,
+      /@media \(max-width: 760px\)[\s\S]*?\.loan-video-quick\s*{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
     );
   });
 
