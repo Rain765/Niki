@@ -115,6 +115,7 @@ vi.mock('../../src/lib/image-file-actions', () => ({
 }));
 
 import { PosterApp } from '../../src/poster/PosterApp';
+import { I18nProvider } from '../../src/i18n';
 
 const project = {
   id: 'project-1',
@@ -248,9 +249,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function selectWorkspace(name: 'Posters' | 'Videos' | 'Documents' | 'English practice') {
+  const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
+  fireEvent.click(within(navigation).getByRole('button', { name }));
+}
+
 async function fillValidVideoDraft(title = 'How to apply') {
-  fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-  fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+  selectWorkspace('Videos');
   fireEvent.click(screen.getByTestId('loan-video-editor-mode'));
   await waitFor(() => {
     expect((screen.getByTestId('loan-video-generate') as HTMLButtonElement).disabled).toBe(false);
@@ -280,6 +285,30 @@ async function fillValidVideoDraft(title = 'How to apply') {
 }
 
 describe('PosterApp mobile-safe flow', () => {
+  it('uses a standard top navigation with a persistent Chinese and English switch', () => {
+    render(
+      <I18nProvider initial="zh-CN">
+        <PosterApp />
+      </I18nProvider>,
+    );
+
+    const navigation = screen.getByRole('navigation', { name: '主导航' });
+    expect(within(navigation).getByRole('button', { name: '海报' })).toBeTruthy();
+    expect(within(navigation).getByRole('button', { name: '视频' })).toBeTruthy();
+    expect(within(navigation).getByRole('button', { name: '文档' })).toBeTruthy();
+    expect(within(navigation).getByRole('link', { name: 'Logo' })).toBeTruthy();
+    expect(within(navigation).getByRole('button', { name: '英语练习' })).toBeTruthy();
+
+    const language = screen.getByRole('group', { name: '界面语言' });
+    expect(within(language).getByRole('button', { name: '中文' }).getAttribute('aria-pressed'))
+      .toBe('true');
+    fireEvent.click(within(language).getByRole('button', { name: 'English' }));
+
+    expect(window.localStorage.getItem('open-design:locale')).toBe('en');
+    expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Generate loan posters' })).toBeTruthy();
+  });
+
   it('regenerates from an approved page plan without reopening the editor', async () => {
     const savedProject = {
       ...project,
@@ -366,8 +395,7 @@ describe('PosterApp mobile-safe flow', () => {
     }));
 
     render(<PosterApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+    selectWorkspace('Videos');
     const quickGenerate = await screen.findByTestId('loan-video-quick-generate');
     await waitFor(() => expect((quickGenerate as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(screen.getByRole('combobox', { name: 'Purpose' }));
@@ -403,10 +431,10 @@ describe('PosterApp mobile-safe flow', () => {
       size: 1_024,
       mtime: 10,
     }]);
-    const initialHref = window.location.href;
     render(<PosterApp />);
 
     await fillValidVideoDraft();
+    const initialHref = window.location.href;
 
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
@@ -530,9 +558,9 @@ describe('PosterApp mobile-safe flow', () => {
         nextSince: 0,
       };
     });
-    const initialHref = window.location.href;
     render(<PosterApp />);
     await fillValidVideoDraft('Retry this tutorial');
+    const initialHref = window.location.href;
 
     fireEvent.click(screen.getByTestId('loan-video-generate'));
     expect(await screen.findByText('Provider rejected the video request.')).toBeTruthy();
@@ -600,8 +628,7 @@ describe('PosterApp mobile-safe flow', () => {
     fetchProjectFilesMock.mockResolvedValue([]);
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+    selectWorkspace('Videos');
 
     expect(await screen.findByText(
       'The video task finished without producing a durable MP4. Submit again to retry.',
@@ -649,8 +676,7 @@ describe('PosterApp mobile-safe flow', () => {
     waitForMediaTaskMock.mockImplementation(() => new Promise(() => {}));
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+    selectWorkspace('Videos');
 
     const loading = await screen.findByTestId('poster-app-video-loading');
     expect(loading.className).toContain('is-square');
@@ -716,8 +742,7 @@ describe('PosterApp mobile-safe flow', () => {
     });
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+    selectWorkspace('Videos');
 
     await waitFor(() => expect(waitForMediaTaskMock).toHaveBeenCalledOnce());
     expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
@@ -731,7 +756,7 @@ describe('PosterApp mobile-safe flow', () => {
   it('renders the existing poster options unchanged in custom selects and defaults to anti-fraud', () => {
     render(<PosterApp />);
 
-    expect(screen.getByRole('heading', { name: 'Generate Loan Posters' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Generate loan posters' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     const selectOptions = (label: string) => {
       const trigger = screen.getByRole('combobox', { name: label });
@@ -757,7 +782,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByText(/Landscape|Square|Portrait/)).toBeNull();
   });
 
-  it('switches from the title menu while preserving the poster form state', async () => {
+  it('switches from the top navigation while preserving the poster form state', async () => {
     render(<PosterApp />);
 
     fireEvent.click(screen.getByRole('combobox', { name: 'Product' }));
@@ -766,10 +791,9 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /引流/ }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Quantity' }));
     fireEvent.click(screen.getByRole('option', { name: /3/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Videos/ }));
+    selectWorkspace('Videos');
 
-    expect(screen.getByRole('heading', { name: 'Generate Videos' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Generate a business video' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Tutorial video generator' })).toBeTruthy();
     expect(screen.getByTestId('loan-video-quick-mode')).toBeTruthy();
     expect(screen.getByTestId('loan-video-editor-mode')).toBeTruthy();
@@ -779,8 +803,7 @@ describe('PosterApp mobile-safe flow', () => {
     });
     expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Videos' }));
-    fireEvent.click(screen.getByRole('option', { name: /Generate Loan Posters/ }));
+    selectWorkspace('Posters');
 
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Product' }).getAttribute('value'))
@@ -791,11 +814,10 @@ describe('PosterApp mobile-safe flow', () => {
       .toBe('3');
   });
 
-  it('opens Document Search from the title menu', () => {
+  it('opens Document Search from the top navigation', () => {
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    fireEvent.click(screen.getByRole('option', { name: /Document Search/ }));
+    selectWorkspace('Documents');
 
     expect(screen.getByRole('heading', { name: 'Document Search' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'What do you want to find?' })).toBeTruthy();
@@ -807,34 +829,27 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByRole('region', { name: 'Tutorial video generator' })).toBeNull();
   });
 
-  it('opens Daily English Practice from the title menu', () => {
+  it('opens Daily English Practice from the top navigation', () => {
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    const options = within(screen.getByRole('listbox', { name: 'Creation mode' }))
-      .getAllByRole('option');
-    const englishOption = options.find((option) => option.textContent?.includes('Daily English Practice'));
-    expect(englishOption?.textContent).toContain('Practice real-life English conversations');
-
-    fireEvent.click(englishOption!);
+    selectWorkspace('English practice');
     expect(screen.getByRole('heading', { name: 'Daily English Practice' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '10 个经典生活场景' })).toBeTruthy();
     expect(window.location.search).toBe('?mode=english');
   });
 
-  it('keeps Daily English last in the title menu and links to Logo Studio', () => {
+  it('keeps all workspaces in a stable top-navigation order and links to Logo Studio', () => {
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Loan Posters' }));
-    const options = within(screen.getByRole('listbox', { name: 'Creation mode' }))
-      .getAllByRole('option');
-    const logoOption = options.find((option) => option.textContent?.includes('Logo Studio'));
-    const englishOption = options.at(-1);
-
-    expect(logoOption?.textContent).toContain('Logo Studio');
-    expect(logoOption?.textContent).toContain('Create a focused identity system');
-    expect(logoOption?.getAttribute('href')).toBe('/logo');
-    expect(englishOption?.textContent).toContain('Daily English Practice');
+    const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
+    expect(Array.from(navigation.children).map((item) => item.textContent)).toEqual([
+      'Posters',
+      'Videos',
+      'Documents',
+      'Logo',
+      'English practice',
+    ]);
+    expect(within(navigation).getByRole('link', { name: 'Logo' }).getAttribute('href')).toBe('/logo');
   });
 
   it('renders Logo Studio as a light Niki creation page', () => {
@@ -846,14 +861,12 @@ describe('PosterApp mobile-safe flow', () => {
     expect(document.querySelector('.poster-app')?.classList.contains('is-logo')).toBe(true);
   });
 
-  it('keeps the mode chevron in the title flow', () => {
+  it('keeps the page title separate from navigation controls', () => {
     render(<PosterApp />);
 
-    const title = screen.getByRole('heading', { name: 'Generate Loan Posters' });
-    const trigger = screen.getByRole('button', { name: 'Generate Loan Posters' });
-
-    expect(title.querySelector('svg')).toBeTruthy();
-    expect(trigger.children).toHaveLength(1);
+    const title = screen.getByRole('heading', { name: 'Generate loan posters' });
+    expect(title.querySelector('svg')).toBeNull();
+    expect(screen.queryByRole('listbox', { name: 'Creation mode' })).toBeNull();
   });
 
   it('submits anti-fraud with the unchanged default controls', async () => {

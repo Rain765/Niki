@@ -7,7 +7,7 @@ import { PosterApp } from '../../src/poster/PosterApp';
 export function ClientLogoApp() {
   return (
     <NikiAuthGate>
-      <I18nProvider deferUntilClient>
+      <I18nProvider defaultLocale="zh-CN" deferUntilClient>
         <PosterApp initialMode="logo" />
       </I18nProvider>
     </NikiAuthGate>

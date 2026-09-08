@@ -74,10 +74,10 @@ export function resolveSystemLocale(languages: readonly string[]): Locale | null
   return null;
 }
 
-// First-run defaults to the user's browser/system language when possible.
-// An explicit user pick saved to localStorage always wins; unsupported
-// languages fall back to English.
-function detectInitialLocale(): Locale {
+// An explicit user pick saved to localStorage always wins. Individual app
+// shells may then provide a product default; otherwise first-run follows the
+// browser/system language and unsupported languages fall back to English.
+function detectInitialLocale(defaultLocale?: Locale): Locale {
   if (typeof window === 'undefined') return 'en';
   try {
     const stored = window.localStorage.getItem(LS_KEY);
@@ -87,6 +87,7 @@ function detectInitialLocale(): Locale {
   } catch {
     /* ignore */
   }
+  if (defaultLocale) return defaultLocale;
   const detected = resolveSystemLocale(
     navigator.languages?.length ? navigator.languages : [navigator.language],
   );
@@ -103,18 +104,24 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 interface ProviderProps {
   initial?: Locale;
+  defaultLocale?: Locale;
   deferUntilClient?: boolean;
   children: ReactNode;
 }
 
 const RTL_LOCALES: Locale[] = ['ar', 'fa'];
 
-export function I18nProvider({ initial, deferUntilClient = false, children }: ProviderProps) {
+export function I18nProvider({
+  initial,
+  defaultLocale,
+  deferUntilClient = false,
+  children,
+}: ProviderProps) {
   // Keep the server render and the browser's first render deterministic.
   // Reading localStorage or navigator in the state initializer makes the
   // browser render a different language than the prerendered HTML, forcing
   // React to discard and rebuild the whole page during hydration.
-  const initialLocale = initial ?? 'en';
+  const initialLocale = initial ?? defaultLocale ?? 'en';
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
   const [dict, setDict] = useState<Dict>(() => SYNC_DICTS[initialLocale] ?? en);
   const [ready, setReady] = useState(initial != null || !deferUntilClient);
@@ -136,7 +143,7 @@ export function I18nProvider({ initial, deferUntilClient = false, children }: Pr
 
   useEffect(() => {
     if (initial != null) return;
-    const detected = detectInitialLocale();
+    const detected = detectInitialLocale(defaultLocale);
     let active = true;
     setLocaleState(detected);
 
@@ -155,7 +162,7 @@ export function I18nProvider({ initial, deferUntilClient = false, children }: Pr
     return () => {
       active = false;
     };
-  }, [initial]);
+  }, [defaultLocale, initial]);
 
   // Keep <html lang="…" dir="…"> in sync so screen readers and CSS hooks
   // pick the right language token and direction without each component

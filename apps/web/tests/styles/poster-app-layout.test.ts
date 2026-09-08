@@ -61,15 +61,33 @@ describe('poster app image layout', () => {
     );
   });
 
-  it('stacks the eyebrow above the naturally wrapping mode title', () => {
+  it('uses a stable sticky top navigation and keeps the page title independent', () => {
     const eyebrow = rule('.poster-app__eyebrow');
-    const modeSelect = rule('.poster-app__mode-select');
-    const trigger = rule('.poster-app__mode-trigger');
+    const topbar = rule('.poster-app__topbar');
+    const topbarInner = rule('.poster-app__topbar-inner');
+    const navigation = rule('.poster-app__primary-nav');
+    const content = rule('.poster-app__content');
 
     expect(eyebrow).toContain('display: block;');
-    expect(modeSelect).toContain('flex: 1 1 auto;');
-    expect(trigger).toContain('display: inline-block;');
-    expect(trigger).toContain('max-width: 100%;');
+    expect(topbar).toContain('position: sticky;');
+    expect(topbar).toContain('top: 0;');
+    expect(topbarInner).toContain('grid-template-columns: auto minmax(0, 1fr) auto;');
+    expect(navigation).toContain('display: flex;');
+    expect(content).toContain('width: min(100%, 1040px);');
+  });
+
+  it('moves mobile navigation to a horizontally scrollable second row', () => {
+    const mobile = mediaRules('(max-width: 760px)');
+
+    expect(mobile).toMatch(
+      /\.poster-app__topbar-inner\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
+    );
+    expect(mobile).toMatch(
+      /\.poster-app__primary-nav\s*{[^}]*grid-row:\s*2;[^}]*grid-column:\s*1 \/ -1;[^}]*overflow-x:\s*auto;/s,
+    );
+    expect(mobile).toMatch(
+      /\.poster-app__topbar-actions\s*{[^}]*grid-row:\s*1;[^}]*grid-column:\s*2;/s,
+    );
   });
 
   it('uses the standardized fill system with custom select controls', () => {

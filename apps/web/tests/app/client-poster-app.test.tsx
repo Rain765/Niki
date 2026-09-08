@@ -16,6 +16,28 @@ vi.mock('../../src/poster/PosterApp', () => ({
   },
 }));
 
+vi.mock('../../src/i18n', () => ({
+  I18nProvider: function MockI18nProvider({
+    children,
+    defaultLocale,
+    deferUntilClient,
+  }: {
+    children: ReactNode;
+    defaultLocale?: string;
+    deferUntilClient?: boolean;
+  }) {
+    return (
+      <div
+        data-testid="i18n-provider"
+        data-default-locale={defaultLocale}
+        data-defer-until-client={String(deferUntilClient)}
+      >
+        {children}
+      </div>
+    );
+  },
+}));
+
 import { ClientPosterApp } from '../../app/client-poster-app';
 
 afterEach(() => {
@@ -26,5 +48,9 @@ it('renders the dedicated poster flow behind authentication at the root', () => 
   render(<ClientPosterApp />);
 
   expect(screen.getByTestId('auth-gate')).toBeTruthy();
+  expect(screen.getByTestId('i18n-provider').getAttribute('data-default-locale'))
+    .toBe('zh-CN');
+  expect(screen.getByTestId('i18n-provider').getAttribute('data-defer-until-client'))
+    .toBe('true');
   expect(screen.getByTestId('poster-app')).toBeTruthy();
 });

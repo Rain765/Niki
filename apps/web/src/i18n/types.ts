@@ -101,6 +101,26 @@ export interface Dict {
   'app.brandSubtitle': string;
   'app.welcomeLoading': string;
 
+  // Niki poster workspace navigation
+  'posterNav.primary': string;
+  'posterNav.poster': string;
+  'posterNav.video': string;
+  'posterNav.documents': string;
+  'posterNav.logo': string;
+  'posterNav.english': string;
+  'posterNav.language': string;
+  'posterNav.posterEyebrow': string;
+  'posterNav.posterTitle': string;
+  'posterNav.posterSubtitle': string;
+  'posterNav.documentsTitle': string;
+  'posterNav.documentsSubtitle': string;
+  'posterNav.logoTitle': string;
+  'posterNav.logoSubtitle': string;
+  'posterNav.englishTitle': string;
+  'posterNav.englishSubtitle': string;
+  'posterNav.account': string;
+  'posterNav.signOut': string;
+
   // Settings dialog
   'settings.welcomeKicker': string;
   'settings.welcomeTitle': string;

@@ -34,6 +34,7 @@ import {
   type AutoPosterPurpose,
 } from '../components/home-hero/zambia-posters';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
+import { useI18n } from '../i18n';
 import { DocumentSearch } from './DocumentSearch';
 import { EnglishPractice } from './EnglishPractice';
 import {
@@ -78,14 +79,14 @@ function initialCreationMode(): CreationMode {
   if (typeof window === 'undefined') return 'poster';
   if (window.location.pathname === '/logo') return 'logo';
   const mode = new URLSearchParams(window.location.search).get('mode');
-  return mode === 'documents' || mode === 'english' ? mode : 'poster';
+  return mode === 'video' || mode === 'documents' || mode === 'english' ? mode : 'poster';
 }
 
 function updateCreationModeUrl(mode: CreationMode): void {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
   url.pathname = mode === 'logo' ? '/logo' : '/';
-  if (mode === 'documents' || mode === 'english') url.searchParams.set('mode', mode);
+  if (mode === 'video' || mode === 'documents' || mode === 'english') url.searchParams.set('mode', mode);
   else url.searchParams.delete('mode');
   window.history.replaceState(window.history.state, '', url);
 }
@@ -231,11 +232,11 @@ function useVideoElapsed(running: boolean, requestedAt: number | null): string {
 
 export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) {
   const { user, logout } = useNikiAuth();
+  const { locale, setLocale, t } = useI18n();
   const [creationMode, setCreationMode] = useState<CreationMode>(
     () => initialMode ?? initialCreationMode(),
   );
   const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video');
-  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
@@ -265,26 +266,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const observedBatchIdRef = useRef<string | null>(null);
   const generationFeedbackIdRef = useRef(0);
   const videoGenerationStartedRef = useRef(false);
-  const modeMenuRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!modeMenuOpen) return;
-    const dismissMenu = (event: PointerEvent) => {
-      if (!modeMenuRef.current?.contains(event.target as Node)) {
-        setModeMenuOpen(false);
-      }
-    };
-    const dismissMenuWithKeyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setModeMenuOpen(false);
-    };
-    window.addEventListener('pointerdown', dismissMenu);
-    window.addEventListener('keydown', dismissMenuWithKeyboard);
-    return () => {
-      window.removeEventListener('pointerdown', dismissMenu);
-      window.removeEventListener('keydown', dismissMenuWithKeyboard);
-    };
-  }, [modeMenuOpen]);
 
   useEffect(() => {
     if (!accountMenuOpen) return;
@@ -748,145 +730,123 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
 
   return (
     <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}`}>
-      <header className="poster-app__header">
-        <div className="poster-app__mode-select" ref={modeMenuRef}>
-          <span className="poster-app__eyebrow">
-            {creationMode === 'poster'
-              ? 'NIKI POSTER'
-              : creationMode === 'video'
-                ? 'NIKI VIDEO'
-                : creationMode === 'documents'
-                  ? 'NIKI DOCS'
-                  : creationMode === 'english'
-                    ? 'NIKI ENGLISH'
-                    : 'NIKI LOGO'}
-          </span>
+      <header className="poster-app__topbar">
+        <div className="poster-app__topbar-inner">
           <button
             type="button"
-            className="poster-app__mode-trigger"
-            aria-haspopup="listbox"
-            aria-expanded={modeMenuOpen}
-            onClick={() => setModeMenuOpen((current) => !current)}
+            className="poster-app__brand"
+            aria-label={t('app.brand')}
+            onClick={() => {
+              setCreationMode('poster');
+              updateCreationModeUrl('poster');
+            }}
           >
-            <span className="poster-app__mode-title" role="heading" aria-level={1}>
-              {creationMode === 'poster'
-                ? 'Generate Loan Posters'
-                : creationMode === 'video'
-                  ? 'Generate Videos'
-                  : creationMode === 'documents'
-                    ? 'Document Search'
-                    : creationMode === 'english'
-                      ? 'Daily English Practice'
-                      : 'Logo Studio'}
-              <Icon name="chevron-down" size={24} />
-            </span>
+            <img src="/logo.svg" alt="" />
+            <span>{t('app.brand')}</span>
           </button>
-          <div
-            className={`poster-app__mode-menu${modeMenuOpen ? ' is-open' : ''}`}
-            role="listbox"
-            aria-label="Creation mode"
-            aria-hidden={!modeMenuOpen}
-          >
+          <nav className="poster-app__primary-nav" aria-label={t('posterNav.primary')}>
             {([
-              { value: 'poster', title: 'Generate Loan Posters', description: 'Create ready-to-use loan campaign images', icon: 'image' },
-              { value: 'video', title: 'Generate Videos', description: 'Create business videos from approved page plans', icon: 'play' },
-              { value: 'documents', title: 'Document Search', description: 'Search Feishu or open a document link', icon: 'search' },
-            ] as const).map((option) => (
+              ['poster', 'posterNav.poster'],
+              ['video', 'posterNav.video'],
+              ['documents', 'posterNav.documents'],
+            ] as const).map(([mode, label]) => (
               <button
-                key={option.value}
+                key={mode}
                 type="button"
-                role="option"
-                aria-selected={creationMode === option.value}
-                tabIndex={modeMenuOpen ? 0 : -1}
+                className={creationMode === mode ? 'is-active' : undefined}
+                aria-current={creationMode === mode ? 'page' : undefined}
                 onClick={() => {
-                  setCreationMode(option.value);
-                  updateCreationModeUrl(option.value);
-                  setModeMenuOpen(false);
+                  setCreationMode(mode);
+                  updateCreationModeUrl(mode);
                 }}
               >
-                <span className="poster-app__mode-option-icon"><Icon name={option.icon} size={18} /></span>
-                <span>
-                  <strong>{option.title}</strong>
-                  <small>{option.description}</small>
-                </span>
-                {creationMode === option.value ? <Icon name="check" size={19} /> : null}
+                {t(label)}
               </button>
             ))}
             <Link
               href="/logo"
               prefetch={false}
-              role="option"
-              aria-selected={creationMode === 'logo'}
-              tabIndex={modeMenuOpen ? 0 : -1}
-              onClick={() => setModeMenuOpen(false)}
+              className={creationMode === 'logo' ? 'is-active' : undefined}
+              aria-current={creationMode === 'logo' ? 'page' : undefined}
             >
-              <span className="poster-app__mode-option-icon"><Icon name="sparkles" size={18} /></span>
-              <span>
-                <strong>Logo Studio</strong>
-                <small>Create a focused identity system</small>
-              </span>
-              {creationMode === 'logo' ? <Icon name="check" size={19} /> : null}
+              {t('posterNav.logo')}
             </Link>
             <button
               type="button"
-              role="option"
-              aria-selected={creationMode === 'english'}
-              tabIndex={modeMenuOpen ? 0 : -1}
+              className={creationMode === 'english' ? 'is-active' : undefined}
+              aria-current={creationMode === 'english' ? 'page' : undefined}
               onClick={() => {
                 setCreationMode('english');
                 updateCreationModeUrl('english');
-                setModeMenuOpen(false);
               }}
             >
-              <span className="poster-app__mode-option-icon"><Icon name="languages" size={18} /></span>
-              <span>
-                <strong>Daily English Practice</strong>
-                <small>Practice real-life English conversations</small>
-              </span>
-              {creationMode === 'english' ? <Icon name="check" size={19} /> : null}
+              {t('posterNav.english')}
             </button>
-          </div>
-        </div>
-        <div className="poster-app__account-wrap" ref={accountMenuRef}>
-          <button
-            type="button"
-            className="poster-app__account"
-            aria-haspopup="menu"
-            aria-expanded={accountMenuOpen}
-            onClick={() => setAccountMenuOpen((current) => !current)}
-          >
-            {user.name}
-          </button>
-          <div
-            className={`poster-app__account-menu${accountMenuOpen ? ' is-open' : ''}`}
-            role="menu"
-            aria-hidden={!accountMenuOpen}
-          >
-            {user.role === 'admin' ? (
+          </nav>
+          <div className="poster-app__topbar-actions">
+            <div
+              className="poster-app__language-switch"
+              role="group"
+              aria-label={t('posterNav.language')}
+            >
               <button
                 type="button"
-                role="menuitem"
-                tabIndex={accountMenuOpen ? 0 : -1}
-                onClick={() => {
-                  setAccountMenuOpen(false);
-                  setAccountManagerOpen(true);
-                }}
+                aria-pressed={locale === 'zh-CN'}
+                onClick={() => setLocale('zh-CN')}
               >
-                Account
+                中文
               </button>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              tabIndex={accountMenuOpen ? 0 : -1}
-              className="is-danger"
-              onClick={() => {
-                setAccountMenuOpen(false);
-                void logout();
-              }}
-            >
-              Sign out
-            </button>
+              <button
+                type="button"
+                aria-pressed={locale === 'en'}
+                onClick={() => setLocale('en')}
+              >
+                English
+              </button>
+            </div>
+            <div className="poster-app__account-wrap" ref={accountMenuRef}>
+              <button
+                type="button"
+                className="poster-app__account"
+                aria-haspopup="menu"
+                aria-expanded={accountMenuOpen}
+                onClick={() => setAccountMenuOpen((current) => !current)}
+              >
+                {user.name}
+                <Icon name="chevron-down" size={16} />
+              </button>
+              <div
+                className={`poster-app__account-menu${accountMenuOpen ? ' is-open' : ''}`}
+                role="menu"
+                aria-hidden={!accountMenuOpen}
+              >
+                {user.role === 'admin' ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    tabIndex={accountMenuOpen ? 0 : -1}
+                    onClick={() => {
+                      setAccountMenuOpen(false);
+                      setAccountManagerOpen(true);
+                    }}
+                  >
+                    {t('posterNav.account')}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabIndex={accountMenuOpen ? 0 : -1}
+                  className="is-danger"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    void logout();
+                  }}
+                >
+                  {t('posterNav.signOut')}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -896,8 +856,14 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         onClose={() => setAccountManagerOpen(false)}
       />
 
+      <div className="poster-app__content">
       {creationMode === 'poster' ? (
         <>
+      <header className="poster-app__page-header">
+        <span className="poster-app__eyebrow">{t('posterNav.posterEyebrow')}</span>
+        <h1>{t('posterNav.posterTitle')}</h1>
+        <p>{t('posterNav.posterSubtitle')}</p>
+      </header>
       <section
         className="od-generation-toolbar od-filter-grid"
         aria-label="Poster generation settings"
@@ -1302,12 +1268,31 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           ) : null}
         </section>
       ) : creationMode === 'documents' ? (
-        <DocumentSearch />
+        <>
+          <header className="poster-app__page-header">
+            <h1>{t('posterNav.documentsTitle')}</h1>
+            <p>{t('posterNav.documentsSubtitle')}</p>
+          </header>
+          <DocumentSearch />
+        </>
       ) : creationMode === 'english' ? (
-        <EnglishPractice />
+        <>
+          <header className="poster-app__page-header">
+            <h1>{t('posterNav.englishTitle')}</h1>
+            <p>{t('posterNav.englishSubtitle')}</p>
+          </header>
+          <EnglishPractice />
+        </>
       ) : (
-        <LogoStudioView />
+        <>
+          <header className="poster-app__page-header">
+            <h1>{t('posterNav.logoTitle')}</h1>
+            <p>{t('posterNav.logoSubtitle')}</p>
+          </header>
+          <LogoStudioView />
+        </>
       )}
+      </div>
     </main>
   );
 }
