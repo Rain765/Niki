@@ -882,7 +882,10 @@ describe('PosterApp mobile-safe flow', () => {
   it('opens Document Search from the top navigation', () => {
     render(<PosterApp />);
 
-    selectWorkspace('Documents');
+    const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const documentsTab = within(navigation).getByRole('button', { name: 'Documents' });
+    documentsTab.focus();
+    fireEvent.click(documentsTab);
 
     expect(screen.queryByText('Document Search')).toBeNull();
     expect(screen.getByRole('heading', { name: 'What do you want to find?' })).toBeTruthy();
@@ -890,6 +893,7 @@ describe('PosterApp mobile-safe flow', () => {
       name: 'Search Feishu documents or paste a link',
     })).toBeTruthy();
     expect(window.location.search).toBe('?mode=documents');
+    expect(document.activeElement).toBe(documentsTab);
     expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Tutorial video generator' })).toBeNull();
   });

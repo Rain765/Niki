@@ -373,7 +373,6 @@ function DocumentComposer({
           : copy.searchPlaceholder}
         aria-label={copy.inputLabel}
         autoComplete="off"
-        autoFocus={!compact}
       />
       <button
         type="submit"
