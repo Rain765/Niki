@@ -644,40 +644,32 @@ describe('Zambia poster preset', () => {
     },
   );
 
-  it('rotates seven stable non-purple color templates without defaulting every scene to green', () => {
+  it('rotates three stable warm-or-green templates without purple or blue backgrounds', () => {
     const prompts = buildLoanPosterScenePlans({
-      count: 7,
+      count: 3,
       aspectRatio: '3:4',
       brand: 'zamloan',
       purpose: 'anti-fraud',
       variationOffset: 0,
     }).map((plan) => plan.prompt);
 
-    expect(prompts).toHaveLength(7);
+    expect(prompts).toHaveLength(3);
     expect(prompts[0]).toContain('warm ivory (#f7ecd9)');
     expect(prompts[0]).toContain('deep forest green (#153f2e)');
-    expect(prompts[1]).toContain('mist blue-gray (#e5edf3)');
-    expect(prompts[1]).toContain('deep cobalt blue (#174a82)');
-    expect(prompts[2]).toContain('warm sand (#f1dfc3)');
-    expect(prompts[2]).toContain('rich burgundy (#6f2937)');
-    expect(prompts[3]).toContain('pale peach (#f7dfd2)');
-    expect(prompts[3]).toContain('deep navy blue (#173554)');
-    expect(prompts[4]).toContain('warm cream');
-    expect(prompts[4]).toContain('burnished terracotta');
-    expect(prompts[5]).toContain('soft rose');
-    expect(prompts[5]).toContain('charcoal blue');
-    expect(prompts[6]).toContain('soft mint (#e2f1e8)');
-    expect(prompts[6]).toContain('deep teal (#0c514e)');
+    expect(prompts[1]).toContain('warm sand (#f1dfc3)');
+    expect(prompts[1]).toContain('rich burgundy (#6f2937)');
+    expect(prompts[2]).toContain('warm cream');
+    expect(prompts[2]).toContain('burnished terracotta');
     expect(prompts.every((prompt) => (
       prompt.includes('The selected palette is mandatory and must dominate the background')
     ))).toBe(true);
-    expect(prompts.slice(1, 6).every((prompt) => (
+    expect(prompts.slice(1).every((prompt) => (
       prompt.includes('Do not replace the selected scene color with Zamloan green')
     ))).toBe(true);
   });
 
-  it('never emits a purple, lavender, plum, or indigo anti-fraud background', () => {
-    const prompts = Array.from({ length: 17 }, (_, variationOffset) => (
+  it('never emits a purple, blue, navy, cobalt, cyan, indigo, or teal anti-fraud background', () => {
+    const prompts = Array.from({ length: 12 }, (_, variationOffset) => (
       buildLoanPosterScenePlans({
         count: 1,
         aspectRatio: '3:4',
@@ -687,11 +679,26 @@ describe('Zambia poster preset', () => {
       })[0]?.prompt ?? ''
     ));
 
-    expect(prompts.every((prompt) => !/purple|lavender|plum|indigo/i.test(prompt))).toBe(true);
+    const forbiddenBackgroundTerms = [
+      'purple',
+      'lavender',
+      'plum',
+      'indigo',
+      'mist blue-gray',
+      'cobalt blue',
+      'navy blue',
+      'charcoal blue',
+      'cyan',
+      'teal',
+      '#24263F',
+    ];
+    expect(prompts.every((prompt) => (
+      forbiddenBackgroundTerms.every((term) => !prompt.includes(term))
+    ))).toBe(true);
   });
 
   it.each(AUTO_POSTER_BRANDS)(
-    'scatters every non-neutral logo color into independent light-and-original palettes for %s',
+    'scatters every allowed non-blue logo color into independent light-and-original palettes for %s',
     (brand) => {
       const logoColors = [
         '#46A93C',
@@ -702,15 +709,14 @@ describe('Zambia poster preset', () => {
         '#0AB81C',
         '#0B1D0B',
         '#0FCE65',
-        '#24263F',
         '#FE5200',
       ];
       const prompts = buildLoanPosterScenePlans({
-        count: 10,
+        count: 9,
         aspectRatio: '3:4',
         brand,
         purpose: 'anti-fraud',
-        variationOffset: 7,
+        variationOffset: 3,
       }).map((plan) => plan.prompt);
 
       expect(prompts).toHaveLength(logoColors.length);
@@ -731,7 +737,7 @@ describe('Zambia poster preset', () => {
         aspectRatio: '3:4',
         brand,
         purpose: 'anti-fraud',
-        variationOffset: 7,
+        variationOffset: 3,
       })[0]?.prompt;
 
       expect(prompt).toContain('keep the complete top-left logo-safe row near-white');
@@ -741,11 +747,11 @@ describe('Zambia poster preset', () => {
 
   it('does not pair two different logo colors in one added palette', () => {
     const prompts = buildLoanPosterScenePlans({
-      count: 10,
+      count: 9,
       aspectRatio: '3:4',
       brand: 'zamloan',
       purpose: 'anti-fraud',
-      variationOffset: 7,
+      variationOffset: 3,
     }).map((plan) => plan.prompt);
 
     for (const prompt of prompts) {

@@ -303,34 +303,14 @@ const ANTI_FRAUD_POSTER_PALETTES = [
     protectsSceneHue: false,
   },
   {
-    copyField: 'mist blue-gray (#e5edf3)',
-    sceneField: 'deep cobalt blue (#174a82)',
-    protectsSceneHue: true,
-  },
-  {
     copyField: 'warm sand (#f1dfc3)',
     sceneField: 'rich burgundy (#6f2937)',
-    protectsSceneHue: true,
-  },
-  {
-    copyField: 'pale peach (#f7dfd2)',
-    sceneField: 'deep navy blue (#173554)',
     protectsSceneHue: true,
   },
   {
     copyField: 'warm cream',
     sceneField: 'burnished terracotta',
     protectsSceneHue: true,
-  },
-  {
-    copyField: 'soft rose',
-    sceneField: 'charcoal blue',
-    protectsSceneHue: true,
-  },
-  {
-    copyField: 'soft mint (#e2f1e8)',
-    sceneField: 'deep teal (#0c514e)',
-    protectsSceneHue: false,
   },
 ] as const satisfies readonly AntiFraudPosterPalette[];
 
@@ -343,7 +323,6 @@ const ANTI_FRAUD_LOGO_COLOR_SWATCHES = [
   '#0AB81C',
   '#0B1D0B',
   '#0FCE65',
-  '#24263F',
   '#FE5200',
 ] as const;
 
