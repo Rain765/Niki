@@ -91,6 +91,29 @@ beforeEach(() => {
 });
 
 describe('LogoStudioView', () => {
+  it('shows a focused quick brief and keeps advanced settings collapsed by default', () => {
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByLabelText('Brand name')).toBeTruthy();
+    expect(screen.getByLabelText('Industry')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Logo architecture' })).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Brand personality' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Generate 4 directions' })).toBeTruthy();
+
+    const toggle = screen.getByRole('button', { name: 'Advanced settings' });
+    const advanced = document.querySelector('.logo-studio__advanced');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(advanced?.classList.contains('open')).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(advanced?.classList.contains('open')).toBe(true);
+  });
+
   it('builds the brief and moves four generated files into history instead of the preview', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -280,6 +303,37 @@ describe('LogoStudioView', () => {
     expect(batches[0]?.textContent).toContain('AMIZ Logo actual generation');
     expect(batches[1]?.textContent).toContain('Atlas Logo');
     expect(history.textContent).not.toContain('Poster project');
+  });
+
+  it('loads saved logo projects six at a time', async () => {
+    listProjectsMock.mockResolvedValue(Array.from({ length: 7 }, (_, index) => ({
+      id: `logo-project-${index + 1}`,
+      name: `Brand ${index + 1} Logo`,
+      skillId: 'logo-generator',
+      designSystemId: null,
+      createdAt: 100 - index,
+      updatedAt: 100 - index,
+    })));
+    fetchProjectFilesMock.mockResolvedValue(Array.from({ length: 4 }, (_, index) => ({
+      name: `logo-direction-${String(index + 1).padStart(2, '0')}.png`,
+      size: 1_024 + index,
+      mtime: index + 1,
+      kind: 'image',
+      mime: 'image/png',
+    })));
+
+    render(
+      <I18nProvider initial="en">
+        <LogoStudioView />
+      </I18nProvider>,
+    );
+
+    const history = await screen.findByRole('region', { name: 'Generation history' });
+    await waitFor(() => expect(within(history).getAllByRole('article')).toHaveLength(6));
+    expect(fetchProjectFilesMock).toHaveBeenCalledTimes(6);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
+    await waitFor(() => expect(within(history).getAllByRole('article')).toHaveLength(7));
   });
 
   it('turns a selected history direction into a persisted downloadable brand kit', async () => {
@@ -495,6 +549,7 @@ describe('LogoStudioView', () => {
       </I18nProvider>,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Starting palette 1' }));
     expect(screen.getByRole('dialog', { name: 'Color picker for Starting palette 1' })).toBeTruthy();
 

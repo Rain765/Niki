@@ -15903,33 +15903,6 @@ button.ghost.mcp-copy-btn:hover:not(:disabled) {
 }
 
 /*
- * Shared accordion expand/collapse motion. `grid-template-rows: 0fr -> 1fr`
- * is the modern way to animate auto-height content; pair it with a
- * fade so the body doesn't pop in flat. Strong ease-out curve, with
- * asymmetric timing (enter 200ms, exit 140ms) per Emil Kowalski's
- * framework — entrance reads as considered, exit is decisive.
- */
-.accordion-collapsible {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 140ms cubic-bezier(0.23, 1, 0.32, 1),
-    opacity 100ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-.accordion-collapsible.open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transition:
-    grid-template-rows 200ms cubic-bezier(0.23, 1, 0.32, 1),
-    opacity 200ms cubic-bezier(0.23, 1, 0.32, 1);
-}
-.accordion-collapsible-inner {
-  min-height: 0;
-  overflow: hidden;
-}
-
-/*
  * Make the todo card header a clickable expand/collapse affordance.
  * Default is expanded while work is in flight; the user can flip it via
  * the chevron at the right. Removing the bottom border in the collapsed

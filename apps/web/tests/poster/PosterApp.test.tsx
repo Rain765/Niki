@@ -249,7 +249,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function selectWorkspace(name: 'Posters' | 'Videos' | 'Documents' | 'Voice') {
+function selectWorkspace(name: 'Posters' | 'Videos' | 'Documents' | 'Logo' | 'Voice') {
   const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
   fireEvent.click(within(navigation).getByRole('button', { name }));
 }
@@ -296,7 +296,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(within(navigation).getByRole('button', { name: '海报' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '视频' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '文档' })).toBeTruthy();
-    expect(within(navigation).getByRole('link', { name: '品牌' })).toBeTruthy();
+    expect(within(navigation).getByRole('button', { name: '品牌' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '语音' })).toBeTruthy();
     expect(screen.getByRole('region', { name: '海报生成设置' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '产品' })).toBeTruthy();
@@ -856,7 +856,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(window.location.search).toBe('?mode=english');
   });
 
-  it('keeps all workspaces in a stable top-navigation order and links to Logo Studio', () => {
+  it('keeps all workspaces in a stable top-navigation order and opens Logo Studio in place', () => {
     render(<PosterApp />);
 
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
@@ -867,16 +867,24 @@ describe('PosterApp mobile-safe flow', () => {
       'Logo',
       'Voice',
     ]);
-    expect(within(navigation).getByRole('link', { name: 'Logo' }).getAttribute('href')).toBe('/logo');
+    selectWorkspace('Logo');
+
+    expect(within(navigation).getByRole('button', { name: 'Logo' }).getAttribute('aria-current'))
+      .toBe('page');
+    expect(window.location.pathname).toBe('/logo');
+    expect(screen.getByRole('region', { name: 'Brand brief' })).toBeTruthy();
   });
 
-  it('renders Logo Studio as a light Niki creation page', () => {
+  it('renders Logo Studio without restoring an unrelated poster project', async () => {
     render(<PosterApp initialMode="logo" />);
+
+    await act(async () => Promise.resolve());
 
     expect(screen.queryByText('Logo Studio')).toBeNull();
     expect(screen.queryByText('Build a mark worth remembering.')).toBeNull();
     expect(screen.getByRole('region', { name: 'Brand brief' })).toBeTruthy();
     expect(document.querySelector('.poster-app')?.classList.contains('is-logo')).toBe(true);
+    expect(resolveDirectLoanPosterProjectMock).not.toHaveBeenCalled();
   });
 
   it('starts with the creation controls instead of a repeated page title', () => {

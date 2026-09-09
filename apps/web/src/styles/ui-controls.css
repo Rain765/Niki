@@ -20,6 +20,29 @@
   --od-control-ease: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
+/* Shared auto-height disclosure motion for every application shell. */
+.accordion-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 140ms var(--od-control-ease),
+    opacity 100ms var(--od-control-ease);
+}
+
+.accordion-collapsible.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 200ms var(--od-control-ease),
+    opacity 200ms var(--od-control-ease);
+}
+
+.accordion-collapsible-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .od-field {
   display: grid;
   min-width: 0;

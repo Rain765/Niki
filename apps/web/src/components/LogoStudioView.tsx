@@ -24,6 +24,7 @@ const PERSONALITIES = ['precise', 'warm', 'bold', 'playful', 'premium', 'organic
 const APPLICATIONS = ['web', 'favicon', 'social', 'app-icon', 'print'] as const;
 const ARCHITECTURES: LogoArchitecture[] = ['combination', 'symbol', 'wordmark', 'monogram'];
 const PREPARE_TIMEOUT_MS = 30_000;
+const HISTORY_PAGE_SIZE = 6;
 const IMAGE_MODEL = 'gpt-image-2';
 const LAST_LOGO_PROJECT_STORAGE_KEY = 'niki:logo-studio:last-project';
 const LOGO_DIRECTIONS = [
@@ -71,7 +72,9 @@ const COPY = {
     audience: 'Audience',
     audiencePlaceholder: 'Who needs to trust or remember this brand?',
     architecture: 'Logo architecture',
-    personality: 'Personality',
+    personality: 'Brand personality',
+    advanced: 'Advanced settings',
+    advancedHint: 'Audience, colors, applications, and creative constraints',
     palette: 'Starting palette',
     applications: 'Primary applications',
     avoid: 'Avoid',
@@ -96,6 +99,7 @@ const COPY = {
     historyWorking: 'Generating',
     historyFailed: 'Failed',
     historyIncomplete: 'Incomplete',
+    historyMore: 'Load more',
     direction: 'Direction',
     selectDirection: 'Select',
     selectedDirection: 'Selected direction',
@@ -143,6 +147,8 @@ const COPY = {
     audiencePlaceholder: '谁需要信任并记住这个品牌？',
     architecture: 'Logo 架构',
     personality: '品牌气质',
+    advanced: '高级设置',
+    advancedHint: '目标受众、色板、使用场景与创作限制',
     palette: '起始色板',
     applications: '主要使用场景',
     avoid: '需要避开',
@@ -167,6 +173,7 @@ const COPY = {
     historyWorking: '生成中',
     historyFailed: '生成失败',
     historyIncomplete: '结果不完整',
+    historyMore: '加载更多',
     direction: '方向',
     selectDirection: '选择',
     selectedDirection: '已选方向',
@@ -352,11 +359,14 @@ export function LogoStudioView() {
   const [openPaletteIndex, setOpenPaletteIndex] = useState<number | null>(null);
   const [avoid, setAvoid] = useState('');
   const [notes, setNotes] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const [historyEntries, setHistoryEntries] = useState<LogoHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyProjectCount, setHistoryProjectCount] = useState(0);
+  const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE_SIZE);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [selectedDirection, setSelectedDirection] = useState<{
@@ -373,6 +383,7 @@ export function LogoStudioView() {
   const runAbortRef = useRef<AbortController | null>(null);
   const refinementAbortRef = useRef<AbortController | null>(null);
   const prepareTimeoutRef = useRef<number | null>(null);
+  const historyLoadedRef = useRef(false);
   const closeColorPicker = useCallback(() => setOpenPaletteIndex(null), []);
 
   const clearPrepareTimeout = useCallback(() => {
@@ -390,7 +401,9 @@ export function LogoStudioView() {
     const projects = (await listProjects())
       .filter((project) => project.skillId === 'logo-generator')
       .sort((left, right) => right.createdAt - left.createdAt);
-    const entries = await Promise.all(projects.map(async (project) => {
+    if (signal?.aborted) return;
+    setHistoryProjectCount(projects.length);
+    const entries = await Promise.all(projects.slice(0, historyLimit).map(async (project) => {
       try {
         const [files, response, finalizationResponse] = await Promise.all([
           fetchProjectFiles(project.id),
@@ -403,9 +416,17 @@ export function LogoStudioView() {
       }
     }));
     if (signal?.aborted) return;
-    setHistoryEntries(entries.filter((entry): entry is LogoHistoryEntry => Boolean(entry)));
+    const fetchedEntries = entries.filter((entry): entry is LogoHistoryEntry => Boolean(entry));
+    setHistoryEntries((current) => {
+      const fetchedProjectIds = new Set(fetchedEntries.map((entry) => entry.projectId));
+      return [
+        ...fetchedEntries,
+        ...current.filter((entry) => !fetchedProjectIds.has(entry.projectId)),
+      ].sort((left, right) => right.createdAt - left.createdAt);
+    });
+    historyLoadedRef.current = true;
     setHistoryLoading(false);
-  }, []);
+  }, [historyLimit]);
 
   useEffect(() => () => {
     clearPrepareTimeout();
@@ -417,8 +438,13 @@ export function LogoStudioView() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void refreshHistory(controller.signal, true);
-    return () => controller.abort();
+    const timeoutId = window.setTimeout(() => {
+      void refreshHistory(controller.signal, !historyLoadedRef.current);
+    }, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [refreshHistory]);
 
   useEffect(() => {
@@ -720,7 +746,6 @@ export function LogoStudioView() {
                 onChange={(event) => setBrandName(event.target.value)}
                 placeholder={copy.brandPlaceholder}
                 maxLength={80}
-                autoFocus
               />
             </label>
             <label className="logo-studio__field">
@@ -733,16 +758,6 @@ export function LogoStudioView() {
               />
             </label>
           </div>
-
-          <label className="logo-studio__field">
-            <span>{copy.audience}</span>
-            <input
-              value={audience}
-              onChange={(event) => setAudience(event.target.value)}
-              placeholder={copy.audiencePlaceholder}
-              maxLength={240}
-            />
-          </label>
 
           <fieldset className="logo-studio__fieldset">
             <legend>{copy.architecture}</legend>
@@ -779,77 +794,113 @@ export function LogoStudioView() {
             </div>
           </fieldset>
 
-          <fieldset className="logo-studio__fieldset">
-            <legend>{copy.palette}</legend>
-            <div className="logo-studio__palette">
-              {palette.map((color, index) => (
-                <div className="logo-studio__palette-item" key={index}>
-                  <button
-                    ref={(node) => { paletteButtonRefs.current[index] = node; }}
-                    type="button"
-                    className={openPaletteIndex === index ? 'is-open' : ''}
-                    aria-label={`${copy.palette} ${index + 1}`}
-                    aria-haspopup="dialog"
-                    aria-expanded={openPaletteIndex === index}
-                    title={color}
-                    onClick={() => setOpenPaletteIndex((current) => current === index ? null : index)}
-                  >
-                    <span className="logo-studio__palette-swatch" style={{ backgroundColor: color }} />
-                    <span>{color}</span>
-                  </button>
-                  {openPaletteIndex === index ? (
-                    <LogoColorPicker
-                      anchor={paletteButtonRefs.current[index] ?? null}
-                      label={`${copy.palette} ${index + 1}`}
-                      language={language}
-                      value={color}
-                      onChange={(nextColor) => setPalette((current) => current.map((item, itemIndex) => (
-                        itemIndex === index ? nextColor : item
-                      )))}
-                      onClose={closeColorPicker}
+          <button
+            type="button"
+            className="logo-studio__advanced-toggle"
+            aria-label={copy.advanced}
+            aria-controls="logo-studio-advanced-settings"
+            aria-expanded={advancedOpen}
+            onClick={() => setAdvancedOpen((current) => !current)}
+          >
+            <span>
+              <strong>{copy.advanced}</strong>
+              <small>{copy.advancedHint}</small>
+            </span>
+            <Icon name="chevron-down" size={17} />
+          </button>
+
+          <div
+            id="logo-studio-advanced-settings"
+            className={`accordion-collapsible logo-studio__advanced${advancedOpen ? ' open' : ''}`}
+            aria-hidden={!advancedOpen}
+            inert={!advancedOpen ? true : undefined}
+          >
+            <div className="accordion-collapsible-inner">
+              <div className="logo-studio__advanced-content">
+                <label className="logo-studio__field">
+                  <span>{copy.audience}</span>
+                  <input
+                    value={audience}
+                    onChange={(event) => setAudience(event.target.value)}
+                    placeholder={copy.audiencePlaceholder}
+                    maxLength={240}
+                  />
+                </label>
+
+                <fieldset className="logo-studio__fieldset">
+                  <legend>{copy.palette}</legend>
+                  <div className="logo-studio__palette">
+                    {palette.map((color, index) => (
+                      <div className="logo-studio__palette-item" key={index}>
+                        <button
+                          ref={(node) => { paletteButtonRefs.current[index] = node; }}
+                          type="button"
+                          className={openPaletteIndex === index ? 'is-open' : ''}
+                          aria-label={`${copy.palette} ${index + 1}`}
+                          aria-haspopup="dialog"
+                          aria-expanded={openPaletteIndex === index}
+                          title={color}
+                          onClick={() => setOpenPaletteIndex((current) => current === index ? null : index)}
+                        >
+                          <span className="logo-studio__palette-swatch" style={{ backgroundColor: color }} />
+                          <span>{color}</span>
+                        </button>
+                        {openPaletteIndex === index ? (
+                          <LogoColorPicker
+                            anchor={paletteButtonRefs.current[index] ?? null}
+                            label={`${copy.palette} ${index + 1}`}
+                            language={language}
+                            value={color}
+                            onChange={(nextColor) => setPalette((current) => current.map((item, itemIndex) => (
+                              itemIndex === index ? nextColor : item
+                            )))}
+                            onClose={closeColorPicker}
+                          />
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <fieldset className="logo-studio__fieldset">
+                  <legend>{copy.applications}</legend>
+                  <div className="logo-studio__chips">
+                    {APPLICATIONS.map((item) => (
+                      <button
+                        type="button"
+                        key={item}
+                        className={applications.includes(item) ? 'is-selected' : ''}
+                        aria-pressed={applications.includes(item)}
+                        onClick={() => setApplications((current) => toggleValue(current, item))}
+                      >
+                        {APPLICATION_LABELS[item][language]}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <div className="logo-studio__field-grid">
+                  <label className="logo-studio__field">
+                    <span>{copy.avoid}</span>
+                    <textarea
+                      value={avoid}
+                      onChange={(event) => setAvoid(event.target.value)}
+                      placeholder={copy.avoidPlaceholder}
+                      rows={3}
                     />
-                  ) : null}
+                  </label>
+                  <label className="logo-studio__field">
+                    <span>{copy.notes}</span>
+                    <textarea
+                      value={notes}
+                      onChange={(event) => setNotes(event.target.value)}
+                      placeholder={copy.notesPlaceholder}
+                      rows={3}
+                    />
+                  </label>
                 </div>
-              ))}
+              </div>
             </div>
-          </fieldset>
-
-          <fieldset className="logo-studio__fieldset">
-            <legend>{copy.applications}</legend>
-            <div className="logo-studio__chips">
-              {APPLICATIONS.map((item) => (
-                <button
-                  type="button"
-                  key={item}
-                  className={applications.includes(item) ? 'is-selected' : ''}
-                  aria-pressed={applications.includes(item)}
-                  onClick={() => setApplications((current) => toggleValue(current, item))}
-                >
-                  {APPLICATION_LABELS[item][language]}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <div className="logo-studio__field-grid">
-            <label className="logo-studio__field">
-              <span>{copy.avoid}</span>
-              <textarea
-                value={avoid}
-                onChange={(event) => setAvoid(event.target.value)}
-                placeholder={copy.avoidPlaceholder}
-                rows={3}
-              />
-            </label>
-            <label className="logo-studio__field">
-              <span>{copy.notes}</span>
-              <textarea
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder={copy.notesPlaceholder}
-                rows={3}
-              />
-            </label>
           </div>
 
           {error ? <p className="logo-studio__error" role="alert">{error}</p> : null}
@@ -978,6 +1029,15 @@ export function LogoStudioView() {
             ))}
           </div>
         )}
+        {!historyLoading && historyLimit < historyProjectCount ? (
+          <button
+            type="button"
+            className="logo-studio__history-more"
+            onClick={() => setHistoryLimit((current) => current + HISTORY_PAGE_SIZE)}
+          >
+            {copy.historyMore}
+          </button>
+        ) : null}
       </section>
     </section>
   );

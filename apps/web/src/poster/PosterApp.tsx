@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   useCallback,
   useEffect,
@@ -640,6 +639,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   }, [copy.loadPostersFailed]);
 
   useEffect(() => {
+    if (creationMode !== 'poster') {
+      setLoadingProject(false);
+      return undefined;
+    }
     let cancelled = false;
     setLoadingProject(true);
     void (async () => {
@@ -669,10 +672,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     return () => {
       cancelled = true;
     };
-  }, [user.id]);
+  }, [creationMode, user.id]);
 
   useEffect(() => {
-    if (!projectId) return undefined;
+    if (creationMode !== 'poster' || !projectId) return undefined;
     const reconcile = () => {
       if (document.visibilityState === 'visible') {
         void refreshProject(projectId, true);
@@ -693,7 +696,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       window.removeEventListener('pageshow', reconcile);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [projectId, refreshProject, status.state]);
+  }, [creationMode, projectId, refreshProject, status.state]);
 
   const generate = async () => {
     if (generating) return;
@@ -956,14 +959,17 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                 {t(label)}
               </button>
             ))}
-            <Link
-              href="/logo"
-              prefetch={false}
+            <button
+              type="button"
               className={creationMode === 'logo' ? 'is-active' : undefined}
               aria-current={creationMode === 'logo' ? 'page' : undefined}
+              onClick={() => {
+                setCreationMode('logo');
+                updateCreationModeUrl('logo');
+              }}
             >
               {t('posterNav.logo')}
-            </Link>
+            </button>
             <button
               type="button"
               className={creationMode === 'english' ? 'is-active' : undefined}
