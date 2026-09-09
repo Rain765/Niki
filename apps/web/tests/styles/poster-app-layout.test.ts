@@ -95,7 +95,28 @@ describe('poster app image layout', () => {
     expect(documentProjectTitle).toContain('font-size: var(--poster-type-title);');
     expect(lessonTitle).toContain('font-size: var(--poster-type-feature);');
     expect(wordTitle).toContain('font-size: var(--poster-type-title);');
-    expect(ieltsHero).toContain('font-size: var(--poster-type-display);');
+    expect(ieltsHero).toContain('font-size: var(--poster-type-feature);');
+  });
+
+  it('uses standard tabs and transparent compact headers on the voice page', () => {
+    const tabs = rule('.english-practice__mode-switch');
+    const tab = rule('.english-practice__mode-switch button');
+    const activeMarker = rule('.english-practice__mode-switch button::after');
+    const scenarioHeader = rule('.english-practice__hero');
+    const ieltsHeader = rule('.ielts-coach__header');
+    const mobile = mediaRules('(max-width: 760px)');
+
+    expect(tabs).toContain('border-bottom: 1px solid var(--poster-line-divide);');
+    expect(tabs).not.toContain('background:');
+    expect(tab).toContain('background: transparent;');
+    expect(activeMarker).toContain('background: var(--poster-accent);');
+    expect(scenarioHeader).not.toContain('background:');
+    expect(scenarioHeader).not.toContain('border-radius:');
+    expect(ieltsHeader).not.toContain('background:');
+    expect(ieltsHeader).not.toContain('border-radius:');
+    expect(mobile).toMatch(
+      /\.english-practice__mode-switch\s*{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
+    );
   });
 
   it('moves mobile navigation to a horizontally scrollable second row', () => {

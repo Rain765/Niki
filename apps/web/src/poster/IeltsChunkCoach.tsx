@@ -378,7 +378,6 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
     <section className="ielts-coach" aria-label="IELTS Speaking Chunk Coach">
       <header className="ielts-coach__header">
         <div>
-          <span className="english-practice__kicker">IELTS SPEAKING · CHUNK COACH</span>
           <h2>{coachText(language, '把语块练成随时能用的表达', 'Turn chunks into expressions you can use on demand')}</h2>
           <p>{coachText(language, '真实任务形式，训练主动调用和跨题迁移；不背范文，不堆生僻词。', 'Practice active recall and transfer through real task formats—without memorizing model answers or rare words.')}</p>
         </div>

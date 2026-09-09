@@ -47,6 +47,8 @@ describe('EnglishPractice', () => {
   it('shows ten stable life scenarios and opens the complete coffee lesson', () => {
     renderPractice();
 
+    expect(screen.queryByText('DAILY ENGLISH · 每日英语')).toBeNull();
+    expect(screen.queryByText('听说基础训练')).toBeNull();
     expect(screen.getByRole('heading', { name: '10 个经典生活场景' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /A1|A2|B1/ })).toHaveLength(10);
 
@@ -99,6 +101,7 @@ describe('EnglishPractice', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /IELTS 口语教练/ }));
 
+    expect(screen.queryByText('IELTS SPEAKING · CHUNK COACH')).toBeNull();
     expect(screen.getByRole('heading', { name: '把语块练成随时能用的表达' })).toBeTruthy();
     expect(screen.getByText(/均标注为“模拟题”/)).toBeTruthy();
     expect(screen.getByRole('button', { name: '工作与学习' }).className).toContain('is-active');
@@ -108,6 +111,18 @@ describe('EnglishPractice', () => {
     expect(screen.getByRole('heading', { name: 'Do you work or are you a student?' })).toBeTruthy();
     expect(screen.getByText('1 / 3')).toBeTruthy();
     expect(screen.queryByText('What do you enjoy most about your work or studies?')).toBeNull();
+  });
+
+  it('supports standard tab keyboard navigation between practice modes', () => {
+    renderPractice();
+
+    const scenesTab = screen.getByRole('tab', { name: '生活场景' });
+    fireEvent.keyDown(scenesTab, { key: 'ArrowRight' });
+
+    const ieltsTab = screen.getByRole('tab', { name: 'IELTS 口语教练' });
+    expect(ieltsTab.getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(ieltsTab);
+    expect(screen.getByRole('tabpanel').getAttribute('aria-labelledby')).toBe('english-practice-tab-ielts');
   });
 
   it('moves from diagnosis to replaceable chunks and reveals transfer hints progressively', () => {

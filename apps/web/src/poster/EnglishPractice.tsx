@@ -6,7 +6,7 @@ import type {
   EnglishPracticeProgressResponse,
   EnglishPracticeProgressUpdate,
 } from '@open-design/contracts';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
 import { useI18n } from '../i18n';
 import { IeltsChunkCoach } from './IeltsChunkCoach';
@@ -63,10 +63,7 @@ const PRACTICE_COPY = {
     practiceLabel: 'Daily English practice',
     modeLabel: 'English practice mode',
     scenes: 'Life scenarios',
-    scenesDetail: 'Listening and speaking basics',
     ielts: 'IELTS speaking coach',
-    ieltsDetail: 'Active chunk recall and transfer',
-    kicker: 'DAILY ENGLISH',
     title: '10 classic life scenarios',
     subtitle: 'Practice one real-life situation each day: understand it, say it, then use it.',
     vocabulary: 'Vocabulary',
@@ -142,10 +139,7 @@ const PRACTICE_COPY = {
     practiceLabel: '每日英语练习',
     modeLabel: '英语训练模式',
     scenes: '生活场景',
-    scenesDetail: '听说基础训练',
     ielts: 'IELTS 口语教练',
-    ieltsDetail: '语块主动调用与迁移',
-    kicker: 'DAILY ENGLISH · 每日英语',
     title: '10 个经典生活场景',
     subtitle: '每天练一个真实场景。先听懂，再开口，最后把表达用出来。',
     vocabulary: '生词本',
@@ -550,23 +544,67 @@ export function EnglishPractice() {
     if (correct) setProgress((current) => ({ ...current, sentenceOrderCompleted: true }));
   }
 
+  function handleModeTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    const modeOrder: PracticeMode[] = ['scenes', 'ielts'];
+    let nextIndex = modeOrder.indexOf(practiceMode);
+    if (event.key === 'ArrowRight') nextIndex = (nextIndex + 1) % modeOrder.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (nextIndex - 1 + modeOrder.length) % modeOrder.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = modeOrder.length - 1;
+    else return;
+
+    event.preventDefault();
+    const nextMode = modeOrder[nextIndex];
+    if (!nextMode) return;
+    setPracticeMode(nextMode);
+    event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]
+      ?.focus();
+  }
+
   if (view === 'home') {
     return (
       <section className="english-practice" aria-label={copy.practiceLabel}>
         <div className="english-practice__mode-switch" role="tablist" aria-label={copy.modeLabel}>
-          <button type="button" role="tab" aria-selected={practiceMode === 'scenes'} onClick={() => setPracticeMode('scenes')}>
-            <span>{copy.scenes}</span><small>{copy.scenesDetail}</small>
+          <button
+            id="english-practice-tab-scenes"
+            type="button"
+            role="tab"
+            className={practiceMode === 'scenes' ? 'is-active' : undefined}
+            aria-controls="english-practice-panel-scenes"
+            aria-selected={practiceMode === 'scenes'}
+            tabIndex={practiceMode === 'scenes' ? 0 : -1}
+            onClick={() => setPracticeMode('scenes')}
+            onKeyDown={handleModeTabKeyDown}
+          >
+            <span>{copy.scenes}</span>
           </button>
-          <button type="button" role="tab" aria-selected={practiceMode === 'ielts'} onClick={() => setPracticeMode('ielts')}>
-            <span>{copy.ielts}</span><small>{copy.ieltsDetail}</small>
+          <button
+            id="english-practice-tab-ielts"
+            type="button"
+            role="tab"
+            className={practiceMode === 'ielts' ? 'is-active' : undefined}
+            aria-controls="english-practice-panel-ielts"
+            aria-selected={practiceMode === 'ielts'}
+            tabIndex={practiceMode === 'ielts' ? 0 : -1}
+            onClick={() => setPracticeMode('ielts')}
+            onKeyDown={handleModeTabKeyDown}
+          >
+            <span>{copy.ielts}</span>
           </button>
         </div>
 
+        <div
+          id={`english-practice-panel-${practiceMode}`}
+          className="english-practice__mode-panel"
+          role="tabpanel"
+          aria-labelledby={`english-practice-tab-${practiceMode}`}
+          tabIndex={-1}
+        >
         {practiceMode === 'ielts' ? <IeltsChunkCoach language={language} /> : (
           <>
         <div className="english-practice__hero">
           <div>
-            <span className="english-practice__kicker">{copy.kicker}</span>
             <h2>{copy.title}</h2>
             <p>{copy.subtitle}</p>
           </div>
@@ -629,6 +667,7 @@ export function EnglishPractice() {
         </div>
           </>
         )}
+        </div>
       </section>
     );
   }
