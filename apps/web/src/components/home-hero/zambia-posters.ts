@@ -86,6 +86,7 @@ export interface LoanPosterScenePlan {
 
 interface AutoPosterBrandConfig {
   label: string;
+  domain: string;
   logo?: {
     url: string;
     name: string;
@@ -95,23 +96,28 @@ interface AutoPosterBrandConfig {
 const AUTO_POSTER_BRAND_CONFIG: Record<AutoPosterBrand, AutoPosterBrandConfig> = {
   zamloan: {
     label: 'Zamloan',
+    domain: 'zamloan.com',
     logo: { url: ZAMLOAN_LOGO_URL, name: ZAMLOAN_LOGO_NAME },
   },
-  biumoney: { label: 'BiuMoney' },
+  biumoney: { label: 'BiuMoney', domain: 'biumoney.com' },
   zamcash: {
     label: 'ZamCash',
+    domain: 'zamcash.com',
     logo: { url: '/brand/zambia-support/zamcash-logo.svg', name: 'zamcash-logo.svg' },
   },
   zammoney: {
     label: 'ZamMoney',
+    domain: 'zammoney.com',
     logo: { url: '/brand/zambia-support/zammoney-logo.svg', name: 'zammoney-logo.svg' },
   },
   fastako: {
     label: 'Fastako',
+    domain: 'fastako.com',
     logo: { url: '/brand/zambia-support/fastako-logo.svg', name: 'fastako-logo.svg' },
   },
   yangaloan: {
     label: 'Yangaloan',
+    domain: 'yangaloan.com',
     logo: { url: '/brand/zambia-support/yangaloan-logo.svg', name: 'yangaloan-logo.svg' },
   },
 };
@@ -131,6 +137,10 @@ export function normalizeZambiaPosterCount(value: number): number {
 
 export function autoPosterBrandLabel(brand: AutoPosterBrand): string {
   return AUTO_POSTER_BRAND_CONFIG[brand].label;
+}
+
+export function autoPosterBrandDomain(brand: AutoPosterBrand): string {
+  return AUTO_POSTER_BRAND_CONFIG[brand].domain;
 }
 
 export function autoPosterPurposeLabel(purpose: AutoPosterPurpose): string {
@@ -322,30 +332,6 @@ const ANTI_FRAUD_POSTER_PALETTES = [
   },
 ] as const;
 
-const ANTI_FRAUD_POSTER_COMPOSITIONS = {
-  '3:4': [
-    {
-      logoAnchor: 'left' as const,
-      textAnchor: 'left' as const,
-      instruction: 'Build a clean diagonal split with a smooth light copy field covering about 58% of the left side and the environmental scene in the right 42%. Run the dividing edge diagonally from the upper-right toward the lower-middle. Keep the model in the lower-right, but let the open stop palm extend slightly into the left field beneath the copy',
-    },
-  ],
-  '1:1': [
-    {
-      logoAnchor: 'left' as const,
-      textAnchor: 'left' as const,
-      instruction: 'Build a clean diagonal split with a smooth light copy field covering about 54% of the left side and the environmental scene in the right 46%. Run the dividing edge diagonally from the upper-right toward the lower-middle. Keep the model on the right, but let the open stop palm extend slightly into the left field beneath the copy',
-    },
-  ],
-  '16:9': [
-    {
-      logoAnchor: 'left' as const,
-      textAnchor: 'left' as const,
-      instruction: 'Build a clean diagonal split with a smooth light copy field covering about 45% of the left side and the environmental scene in the right 55%. Run the dividing edge diagonally from the upper-center toward the lower-middle. Keep the model on the right, but let the open stop palm extend slightly into the left field beneath the copy',
-    },
-  ],
-} as const;
-
 const ZAMLOAN_ANTI_FRAUD_HALF_SPLIT_INSTRUCTION =
   'Build a clean editorial diagonal split using one straight dividing edge from the exact bottom-left canvas corner (0%, 100%) to the right canvas edge at (100%, 8%). This creates approximately 54% light copy field and 46% environmental scene: the smooth light copy field is above-left and the environmental scene is below-right. The left endpoint must visibly touch the exact bottom-left corner with no gap or early exit. The right endpoint must touch the right edge 8% below the top. Do not move either endpoint, vary the angle, curve the edge, or add another wedge or split. Keep the model in the lower-right scene field, but let the open rejecting palm extend slightly into the light field beneath the copy';
 
@@ -367,15 +353,6 @@ const LOAN_POSTER_PALETTES = [
   { gradient: 'coral red to emerald green', ribbon: 'glossy emerald green' },
   { gradient: 'burgundy red to electric cyan', ribbon: 'glossy cyan blue' },
   { gradient: 'sunset red to fresh lime', ribbon: 'glossy forest green' },
-] as const;
-
-const MODEL_SAFE_POSTER_COMPOSITIONS = [
-  'Place the model in the right third and reserve the entire left half as clean negative space for the two-line text block',
-  'Place the model in the left third and reserve the entire right half as clean negative space for the two-line text block',
-  'Place the model in the lower-right quadrant and keep the upper-left quadrant clear for the two-line text block',
-  'Use an editorial waist-up crop on the right with an uncluttered text-safe panel on the left',
-  'Place the model in the lower-left quadrant and keep the upper-right quadrant clear for the two-line text block',
-  'Use a wide environmental composition with the model confined to one outer third and the opposite side reserved for text',
 ] as const;
 
 const WIDESCREEN_POSTER_COMPOSITIONS = [
@@ -443,6 +420,7 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     ? options.purpose
     : AUTO_POSTER_DEFAULT_PURPOSE;
   const brandLabel = autoPosterBrandLabel(brand);
+  const brandDomain = autoPosterBrandDomain(brand);
   const seedOffset = options.variationSeed
     ? stableStringHash(options.variationSeed)
     : 0;
@@ -457,9 +435,6 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     const antiFraudPalette = ANTI_FRAUD_POSTER_PALETTES[
       variationIndex % ANTI_FRAUD_POSTER_PALETTES.length
     ]!;
-    const antiFraudComposition = ANTI_FRAUD_POSTER_COMPOSITIONS[aspectRatio][
-      variationIndex % ANTI_FRAUD_POSTER_COMPOSITIONS[aspectRatio].length
-    ]!;
     const palette = LOAN_POSTER_PALETTES[
       (variationIndex * 3) % LOAN_POSTER_PALETTES.length
     ]!;
@@ -471,24 +446,29 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     ]!;
     const composition = aspectRatio === '16:9'
       ? widescreenComposition.instruction
-      : brand === 'biumoney'
-        ? MODEL_SAFE_POSTER_COMPOSITIONS[
-          (variationIndex * 5) % MODEL_SAFE_POSTER_COMPOSITIONS.length
-        ]!
-        : nonWidescreenComposition.instruction;
+      : nonWidescreenComposition.instruction;
     const logoAnchor: LoanPosterLogoAnchor = aspectRatio === '16:9'
       ? widescreenComposition.logoAnchor
       : 'left';
-    if (purpose === 'anti-fraud' && brand === 'zamloan') {
+    if (purpose === 'anti-fraud') {
       const campaignComposition = ZAMLOAN_ANTI_FRAUD_COPY_LAYOUTS[aspectRatio];
       const lowerRightContinuityZone = {
         '3:4': 'x=73% to 100% and y=72% to 90% of the canvas',
         '1:1': 'x=71% to 100% and y=69% to 94% of the canvas',
         '16:9': 'x=78% to 100% and y=66% to 94% of the canvas',
       }[aspectRatio];
+      const protectedBrandColor = brand === 'zamloan'
+        ? 'Zamloan green'
+        : `${brandLabel} brand colors`;
       const paletteProtection = antiFraudPalette.protectsSceneHue
-        ? ' Do not replace the selected scene color with Zamloan green; reserve Zamloan green for the supplied logo and the compact phone shield only.'
+        ? ` Do not replace the selected scene color with ${protectedBrandColor}; reserve brand colors for the supplied logo and the compact green phone shield only.`
         : '';
+      const brandBackground = brand === 'zamloan'
+        ? 'Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, and subtitle pixel.'
+        : 'Do not render a letter Z, alphabetic background motif, logo-shaped watermark, or invented brand symbol. Preserve the same visual depth with restrained non-alphabetic tonal texture.';
+      const logoSafeCopy = AUTO_POSTER_BRAND_CONFIG[brand].logo
+        ? `Keep the top-left logo-safe row completely blank and calm for the exact ${brandLabel} logo that will be composited later; do not render, redraw, or typeset a logo or brand name.`
+        : 'Keep the top-left brand-safe row completely blank and calm; do not render, redraw, or typeset a logo or brand name.';
       return {
         logoAnchor: 'left',
         textAnchor: 'right',
@@ -496,40 +476,19 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
         subtitle: 'Trust Only Official Customer Service',
         prompt: `Create a premium ${brandLabel} Zambia public-safety anti-fraud poster in ${aspectRatio} as one unified composition, using the same campaign-quality composition system as the ${brandLabel} mobile-loan advertising posters.
 
-Use ${antiFraudPalette.copyField} and ${antiFraudPalette.sceneField} for a crisp editorial diagonal split applied only as a background surface treatment. The selected palette is mandatory and must dominate the background.${paletteProtection} ${ZAMLOAN_ANTI_FRAUD_HALF_SPLIT_INSTRUCTION}. ${campaignComposition}. Keep the top-left logo-safe row completely blank and calm for the exact Zamloan logo that will be composited later; do not render, redraw, or typeset a logo or brand name. Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, and subtitle pixel.
+Use ${antiFraudPalette.copyField} and ${antiFraudPalette.sceneField} for a crisp editorial diagonal split applied only as a background surface treatment. The selected palette is mandatory and must dominate the background.${paletteProtection} ${ZAMLOAN_ANTI_FRAUD_HALF_SPLIT_INSTRUCTION}. ${campaignComposition}. ${logoSafeCopy} ${brandBackground}
 
 Render exactly two poster-copy text elements: “Prevent Fraud” as the very large bold primary headline and “Trust Only Official Customer Service” as the large supporting subtitle. Reproduce both phrases exactly. Match the acquisition posters' expressive heavy campaign typography, oversized scale, tight line spacing, and compact headline-to-subtitle gap. Make the subtitle about 20% larger than a conventional supporting line and use one solid deep-charcoal color across every subtitle word; do not color any subtitle word green, red, or another accent. Do not reduce the established headline or subtitle font size to satisfy the new spacing; achieve separation only through the specified position, line breaks, width, and negative space. Keep the complete copy inside the reserved negative-space region with a visible gap from every person, hand, prop, and phone.
 
 Show exactly one person: ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Do not include a companion, background person, cropped person, or any limb entering from outside the frame. Preserve the acquisition posters' model scale, editorial crop, premium lighting, natural skin retouching, and clear model-to-copy balance. Use ${antiFraudPlan.camera}. The person should look alert, calm, and empowered. Render exactly two arms and two hands in the entire image. The phone hand and rejecting hand must belong to this one person, with both arms visibly and anatomically connected to that same person's shoulders and torso. The phone hand must present a smartphone at the same scale and visual prominence as the acquisition posters. Keep the phone on the inner side, nearer the copy-model intersection, and place the rejecting hand farther outward on the lower-right gesture side. Bend the rejecting arm naturally at the elbow and place the rejecting hand directly above and slightly left of the lower-right continuity zone. Angle that forearm diagonally down-right, away from the phone. Aim the motion vector from wrist through fingertips directly at the center of that zone, and tilt the open palm 25 to 40 degrees downward and slightly outward toward that center, with fingers naturally together, as if actively pushing an unseen threat down and out of the frame. The rejecting palm and fingers must never point inward toward the phone. Preserve a clear air gap between every fingertip, the wrist, and the lower-right continuity zone. Keep the model, both hands, and the complete phone above and to the left of that zone.
 
-The smartphone must remain on the model side of the required 5%-wide copy-to-subject air gap rather than crowding the subtitle or sitting at the canvas edge. It must be upright, complete, perfectly front-on, unobstructed by fingers, free of glare, and large enough for its interface to read clearly. Use a clean white screen containing only a compact solid green shield silhouette with a crisp white checkmark above centered bold black text “zamloan.com”. Keep the shield to about one-quarter of the visible screen height. The shield and domain together should occupy no more than half of the visible screen height with balanced spacing.
+The smartphone must remain on the model side of the required 5%-wide copy-to-subject air gap rather than crowding the subtitle or sitting at the canvas edge. It must be upright, complete, perfectly front-on, unobstructed by fingers, free of glare, and large enough for its interface to read clearly. Use a clean white screen containing only a compact solid green shield silhouette with a crisp white checkmark above centered bold black text “${brandDomain}”. Reproduce this exact official domain with the full “.com” suffix; do not substitute, misspell, abbreviate, or show another brand. Keep the shield to about one-quarter of the visible screen height. The shield and domain together should occupy no more than half of the visible screen height with balanced spacing.
 
 Across ${lowerRightContinuityZone}, the surrounding base background must flow continuously without any separate visual treatment. Its color, gradient, texture, depth, and lighting must be indistinguishable from the immediately adjacent background. Keep every person, phone, hand, prop, shelf edge, product label, and high-contrast detail outside this zone. Leave it visually empty and unbounded. Position its top edge directly beneath the rejecting hand within 2 to 4% of the canvas height, close enough that the gesture clearly pushes toward it without touching it. Keep the fingertips and wrist immediately above and slightly left of the zone, with their direction aimed at its center. This zone is ordinary surrounding background and must not appear as a separate designed element.
 
 Use realistic Zambian lifestyle commercial photography, strong text hierarchy, expressive campaign typography, clear visual storytelling, and generous safe margins. Do not depict a scammer, completed payment, money rain, panic, intimidation, or instructions that could help commit fraud.
 
-Negative prompt: Z over subject, Z over text, foreground Z, duplicate Z, extra Z, logo, watermark, brand wordmark, benefit copy, feature callout, badge, disclaimer, extra poster text, small typography, generic Arial-like typography, loose headline spacing, detached subtitle, multicolor subtitle, green subtitle word, red subtitle word, text over model, text over face, text over body, text over hands, text over phone, two people, multiple people, companion, background person, cropped person, extra person, third hand, extra arm, duplicate limb, disconnected arm, hands belonging to different people, arm entering from outside frame, upright stop-sign palm, vertical palm facing the camera, waving gesture, pointing finger, rejecting hand below the lower-right zone, hand entering or covering the lower-right zone, arm crossing the phone, rejecting palm aimed toward the phone, inward push gesture, hand gesture aimed away from the lower-right zone, phone at the canvas edge, phone in the lower-right zone, tiny phone, hidden phone screen, phone turned away, cropped phone, blank phone screen, outlined shield, oversized shield, excessive phone-screen whitespace, screen glare, full-page website screenshot, extra floating graphic, geometric foreground tile, discontinuous lower-right background, drop shadow, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, mixed brands.`,
-      };
-    }
-    if (purpose === 'anti-fraud') {
-      return {
-        logoAnchor: antiFraudComposition.logoAnchor,
-        textAnchor: antiFraudComposition.textAnchor,
-        headline: 'Prevent Fraud',
-        subtitle: 'Trust Only Official Customer Service',
-        prompt: `Create a premium ${brandLabel} public-safety anti-fraud campaign scene in ${aspectRatio}, designed for Zambia. This is a clear fraud-prevention story, not a loan approval, cash, or generic product-endorsement advertisement.
-
-Create a crisp editorial diagonal split background. Use ${antiFraudPalette.copyField} as the smooth left copy field and ${antiFraudPalette.sceneField} behind the right-side environment. Keep the boundary graphic and intentional rather than a soft gradient. Do not render a letter Z, alphabetic background motif, logo, wordmark, or logo-shaped watermark. ${antiFraudComposition.instruction}.
-
-Show exactly one person: ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Do not include any companion, background person, cropped person, or limb entering from outside the frame. Match the confident campaign pose: torso on the scene side, face turned toward the suspicious-message area, one open palm extended toward the camera in a firm stop gesture, and the other hand presenting the official website. Render exactly two arms and two hands, with both arms visibly and anatomically connected to that same person's shoulders and torso. Stage ${antiFraudPlan.riskCue}. In the same frame, show the safe response: ${antiFraudPlan.safeAction}. The person must be holding a smartphone upright with its complete screen facing the camera, perfectly front-on, large, unobstructed by fingers, and free of glare. Render a clean, text-free official website interface on the phone using a white page, the brand color direction, and one simple shield-and-check symbol. Do not render readable interface copy, numbers, or contact details.
-
-Keep the warning-message placement area in the lower-left copy field and the green official website phone on the right visually separate and connected by the person's decisive stop gesture. Leave the lower-left 36% clear for a compact light-gray isometric notification above a separate blocked-contact tile, but keep the underlying background visually continuous and uninterrupted. Use no solid rectangle, color block, panel, placeholder, frame, or backing plate behind that future alert. Place the stop palm immediately to the right of that alert stack with a visible gap, never behind it. Do not generate the warning card itself; the notification, blocked-contact tile, and exact suspicious-message copy will be composited later. Do not generate floating red or green 3D cards. Use ${antiFraudPlan.camera}. The person should look alert, calm, and empowered rather than frightened.
-
-Abstract notification, caller, and payment symbols are allowed only as non-readable visual cues. Do not render any visible text, letters, numbers, URLs, brand names, interface labels, contact details, chat copy, verification codes, account numbers, payment instructions, or QR codes anywhere in the generated scene. Exact campaign copy and branding will be composited later into the reserved copy panel.
-
-Use realistic Zambian lifestyle commercial photography, reassuring premium lighting, natural skin retouching, crisp editorial art direction, clear visual storytelling, and generous safe margins. Do not depict a scammer, completed payment, money rain, loan approval, panic, intimidation, or any instructions that could help commit fraud.
-
-Negative prompt: visible text, letters, numbers, logo, watermark, brand wordmark, readable chat message, readable phone UI, phone number, contact number, payment code, verification code, account number, QR code, URL text, scam instructions, completed cash transfer, loan approval, money rain, panic, intimidation, generic smiling endorsement pose, two people, multiple people, companion, background person, cropped person, third hand, extra arm, duplicate limb, disconnected arm, hands belonging to different people, arm entering from outside frame, solid rectangle behind notification, color block behind notification, placeholder panel, notification backing plate, cluttered copy panel, warning and official states merged together, blurry, low quality, distorted anatomy, deformed hands, extra fingers, duplicated elements, mixed brands, letter Z, background letter, alphabetic background motif.`,
+Negative prompt: Z over subject, Z over text, foreground Z, duplicate Z, extra Z, logo, watermark, brand wordmark, benefit copy, feature callout, badge, disclaimer, extra poster text, small typography, generic Arial-like typography, loose headline spacing, detached subtitle, multicolor subtitle, green subtitle word, red subtitle word, text over model, text over face, text over body, text over hands, text over phone, two people, multiple people, companion, background person, cropped person, extra person, third hand, extra arm, duplicate limb, disconnected arm, hands belonging to different people, arm entering from outside frame, upright stop-sign palm, vertical palm facing the camera, waving gesture, pointing finger, rejecting hand below the lower-right zone, hand entering or covering the lower-right zone, arm crossing the phone, rejecting palm aimed toward the phone, inward push gesture, hand gesture aimed away from the lower-right zone, phone at the canvas edge, phone in the lower-right zone, tiny phone, hidden phone screen, phone turned away, cropped phone, blank phone screen, missing domain, misspelled domain, wrong brand domain, missing .com suffix, outlined shield, oversized shield, excessive phone-screen whitespace, screen glare, full-page website screenshot, extra floating graphic, geometric foreground tile, discontinuous lower-right background, drop shadow, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, mixed brands.`,
       };
     }
     if (brand !== 'zamloan') {
@@ -538,11 +497,11 @@ Negative prompt: visible text, letters, numbers, logo, watermark, brand wordmark
       ]!;
       return {
         logoAnchor,
-        prompt: `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio}.
+        prompt: `Create a premium ${brandLabel} Zambia mobile-loan advertising poster in ${aspectRatio} as one unified composition, using the shared campaign-quality composition system.
 
-Use a clean ${palette.gradient} dominant background with subtle abstract depth and no letter Z, no alphabetic background motif, and no logo-shaped watermark. Render exactly two visible text elements on the poster canvas: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Do not render any other poster words, numbers, labels, badges, benefit text, brand names, or disclaimers. ${composition}. Show ${plan.model} ${plan.scene}, clearly presenting an anatomically correct smartphone with its screen facing the camera, fully visible, unobstructed by fingers, and large enough for the interface to read clearly. The phone screen is the only text exception: build a clean white success interface with a compact solid green circle containing a crisp white checkmark. The entire circle must occupy no more than about one-sixth of the visible screen height. Place it in the upper half of the phone screen, then leave a generous vertical gap of at least one full circle diameter before the centered short black status copy “${phoneStatus}” below it. Do not render any other phone-screen words, numbers, labels, controls, or icons.
+Use a clean ${palette.gradient} dominant background with subtle abstract depth, one restrained ${palette.ribbon} curved ribbon along the bottom, and no letter Z, alphabetic background motif, or logo-shaped watermark. Render exactly two visible text elements on the poster canvas: “${plan.headline}” as a very large bold headline and “${plan.subline}” as a large supporting subtitle. Match the shared expressive heavy campaign typography, oversized scale, tight line spacing, and compact headline-to-subtitle gap. Do not render any other poster words, numbers, labels, badges, benefit text, brand names, or disclaimers. ${composition}. Show ${plan.model} ${plan.scene}, clearly presenting an anatomically correct smartphone at the same scale and visual prominence as the campaign baseline, with its screen facing the camera, fully visible, unobstructed by fingers, and large enough for the interface to read clearly. The phone screen is the only text exception: build a clean white success interface with a compact solid green circle containing a crisp white checkmark. The entire circle must occupy no more than about one-sixth of the visible screen height. Place it in the upper half of the phone screen, then leave a generous vertical gap of at least one full circle diameter before the centered short black status copy “${phoneStatus}” below it. Do not render any other phone-screen words, numbers, labels, controls, or icons.
 
-Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve a clearly visible gap between the text block and the model silhouette. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, oversized readable typography, and generous safe margins.
+Keep the complete headline and subtitle inside the reserved negative-space region. The text must never overlap the model’s face, hair, body, hands, clothing, or phone. Preserve the required copy-to-subject air gap: at least 5% of the canvas width of uninterrupted background between the widest copy pixel and the nearest model, hand, prop, or phone pixel. Use realistic Zambian lifestyle commercial photography, premium lighting, natural skin retouching, strong text hierarchy, expressive heavy campaign typography, and generous safe margins.
 
 Negative prompt: letter Z, background letter, alphabetic background motif, logo, watermark, brand wordmark, benefit text, callout, badge, label, disclaimer, extra poster text, small typography, text over model, text over face, text over body, text over hands, text over phone, hidden phone screen, phone screen turned away, cropped phone, blank phone screen, screen glare, standalone green checkmark, green checkmark without a circle, green checkmark on white background, oversized success icon, icon touching status text, cramped phone UI, extra phone-screen text, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable poster text, duplicated elements, mixed brands.`,
       };
@@ -579,6 +538,7 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
     ? options.purpose
     : AUTO_POSTER_DEFAULT_PURPOSE;
   const brandLabel = autoPosterBrandLabel(brand);
+  const brandDomain = autoPosterBrandDomain(brand);
   const aspectDescription = {
     '1:1': '1:1 square',
     '16:9': '16:9 landscape',
@@ -599,7 +559,9 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
       : `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
     : isBiuMoney
       ? 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.'
-      : `The attached internal file \`${bundledLogo!.name}\` is the exact ${brandLabel} logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row after generation; do not redraw, typeset, recolor, or invent a replacement logo in the generated image.`;
+      : purpose === 'anti-fraud'
+        ? `The attached internal file \`${bundledLogo!.name}\` is the exact ${brandLabel} logo. Locate its project-relative path and pass it through \`--overlay-logo\` with \`--overlay-logo-anchor left\` for every generation. The daemon will composite it in the reserved top-left logo-safe row after generation; do not redraw, typeset, recolor, or invent a replacement logo in the generated image.`
+        : `The attached internal file \`${bundledLogo!.name}\` is the exact ${brandLabel} logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row after generation; do not redraw, typeset, recolor, or invent a replacement logo in the generated image.`;
   const acquisitionBrandOverride = isZamloan
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
 - Generate the background, Z, model, phone, headline, and subtitle together in one image so the model can coordinate the complete composition.
@@ -621,27 +583,36 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - ${ZAMLOAN_ANTI_FRAUD_COPY_LAYOUTS[aspectRatio]}.
 - Depict a calm Zambian customer presenting the official website on a large front-facing phone on the model side of the required copy-to-subject air gap. Keep the phone on the inner side and the rejecting hand farther outward on the lower-right gesture side. Bend the rejecting arm naturally at the elbow, place the rejecting hand above and slightly left of the lower-right continuity zone, angle the forearm diagonally down-right away from the phone, and aim the motion vector from wrist through fingertips directly at that zone's center. Tilt the open palm 25 to 40 degrees downward and slightly outward as if actively pushing an unseen threat down and out; never aim the rejecting palm toward the phone.
 - Show exactly one person with exactly two arms and two hands. Both the phone hand and rejecting hand must belong to that person, and both arms must visibly connect to the same shoulders and torso. Do not include any companion, background person, cropped person, or out-of-frame limb.
-- The phone-screen exception must contain only a compact solid green shield with a white checkmark above centered black text \`zamloan.com\`. Keep the shield about one-quarter of the visible screen height and the complete group no more than half of the screen height.
+- The phone-screen exception must contain only a compact solid green shield with a white checkmark above centered bold black text showing the exact official domain \`${brandDomain}\`. Preserve the full \`.com\` suffix and do not substitute, misspell, abbreviate, or mix in another brand. Keep the shield about one-quarter of the visible screen height and the complete group no more than half of the screen height.
 - Keep the ratio-specific lower-right continuity zone free of every person, phone, hand, prop, text, and high-contrast detail. The surrounding base background must flow through it with indistinguishable color, gradient, texture, depth, and lighting. Describe only this positive background continuity and its coordinates inside the provider prompt.
 - Generate the background, Z, model, phone, headline, and subtitle together in one image. The deterministic \`anti-fraud-message\` style is post-processing only; never describe, quote, or transfer its UI contents, shape, or visual vocabulary into the provider prompt, and do not use it to redraw the title, subtitle, or phone screen.
 - Do not depict fraud instructions beyond the short warning example, cash transfer, panic, or intimidation.
 - These Zamloan anti-fraud copy and scene rules take precedence over conflicting skill template rules.`
-      : `- Do not render a logo, wordmark, letter Z, background letter, or alphabetic motif.
-- Render exactly two visible text elements across the entire poster: \`Prevent Fraud\` as the headline and \`Trust Only Official Customer Service\` as the subtitle. Reproduce both phrases exactly without translation, paraphrase, punctuation, or added copy.
-- Depict a calm Zambian customer rejecting a suspicious message or call and independently verifying support through the brand official website.
-- Keep the phone screen free of readable text, numbers, contact details, chat bubbles, payment requests, verification codes, and QR codes.
-- Do not depict fraud instructions, cash transfer, panic, or intimidation.
-- These anti-fraud copy and scene rules take precedence over conflicting skill template rules.`
+      : `- Use the same single-pass composition, oversized expressive typography, phone prominence, model scale, logo-safe region, and copy-safe geometry as the shared acquisition-poster baseline.
+- Do not render a letter Z, background letter, alphabetic motif, or invented brand symbol. Preserve visual depth with restrained non-alphabetic tonal texture.
+- ${bundledLogo ? `Reserve the top-left logo-safe row or band for the supplied exact ${brandLabel} logo overlay.` : 'Keep the top-left brand-safe row calm and empty; do not invent a logo.'}
+- Render \`Prevent Fraud\` as the very large primary headline and \`Trust Only Official Customer Service\` as a supporting subtitle about 20% larger than the previous treatment. Reproduce both phrases exactly with tight line spacing and a compact gap between them. Use one solid deep-charcoal color for every subtitle word. Do not reduce either established font size.
+- ${ZAMLOAN_ANTI_FRAUD_COPY_LAYOUTS[aspectRatio]}.
+- Depict a calm Zambian customer presenting the official website on a large front-facing phone on the model side of the required copy-to-subject air gap. Keep the phone on the inner side and the rejecting hand farther outward on the lower-right gesture side. Bend the rejecting arm naturally at the elbow, place the rejecting hand above and slightly left of the lower-right continuity zone, angle the forearm diagonally down-right away from the phone, and aim the motion vector from wrist through fingertips directly at that zone's center. Tilt the open palm 25 to 40 degrees downward and slightly outward as if actively pushing an unseen threat down and out; never aim the rejecting palm toward the phone.
+- Show exactly one person with exactly two arms and two hands. Both the phone hand and rejecting hand must belong to that person, and both arms must visibly connect to the same shoulders and torso. Do not include any companion, background person, cropped person, or out-of-frame limb.
+- The phone-screen exception must contain only a compact solid green shield with a white checkmark above centered bold black text showing the exact official domain \`${brandDomain}\`. Preserve the full \`.com\` suffix and do not substitute, misspell, abbreviate, or mix in another brand. Keep the shield about one-quarter of the visible screen height and the complete group no more than half of the screen height.
+- Keep the ratio-specific lower-right continuity zone free of every person, phone, hand, prop, text, and high-contrast detail. The surrounding base background must flow through it with indistinguishable color, gradient, texture, depth, and lighting. Describe only this positive background continuity and its coordinates inside the provider prompt.
+- Generate the background, model, phone, headline, and subtitle together in one image. The deterministic \`anti-fraud-message\` style is post-processing only; never describe, quote, or transfer its UI contents, shape, or visual vocabulary into the provider prompt, and do not use it to redraw the title, subtitle, or phone screen.
+- Do not depict fraud instructions beyond the short warning example, cash transfer, panic, or intimidation.
+- These ${brandLabel} anti-fraud copy and scene rules take precedence over conflicting skill template rules.`
     : acquisitionBrandOverride;
   const generationReference = ', without an `--image` reference';
-  const generationCommandExtras = isZamloan && purpose === 'anti-fraud'
-    ? `, \`--overlay-logo\` with the Zamloan logo path, \`--overlay-logo-anchor left\`, \`--poster-headline "Prevent Fraud"\`, \`--poster-subtitle "Trust Only Official Customer Service"\`, \`--poster-text-anchor right\`, and \`--poster-copy-style anti-fraud-message\``
+  const antiFraudLogoCommand = bundledLogo
+    ? `, \`--overlay-logo\` with the ${brandLabel} logo path, and \`--overlay-logo-anchor left\``
+    : '';
+  const generationCommandExtras = purpose === 'anti-fraud'
+    ? `${antiFraudLogoCommand}, \`--poster-headline "Prevent Fraud"\`, \`--poster-subtitle "Trust Only Official Customer Service"\`, \`--poster-text-anchor right\`, and \`--poster-copy-style anti-fraud-message\``
     : isZamloan
       ? `, and \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', plus `--overlay-logo-anchor` matching the scene title column' : ''}`
       : bundledLogo
         ? `, and \`--overlay-logo\` with the ${brandLabel} logo path${aspectRatio === '16:9' ? ', plus `--overlay-logo-anchor` matching the scene title column' : ''}`
         : '';
-  const generationFlagRestriction = isZamloan && purpose === 'anti-fraud'
+  const generationFlagRestriction = purpose === 'anti-fraud'
     ? 'Do not pass `--overlay-z`, `--foreground-prompt-file`, or `--overlay-phone-screen`. Treat `anti-fraud-message` as deterministic post-processing and keep all of its UI semantics out of the full-poster provider prompt.'
     : 'Do not pass `--overlay-z`, `--foreground-prompt-file`, `--poster-headline`, `--poster-subtitle`, or `--poster-text-anchor`.';
 

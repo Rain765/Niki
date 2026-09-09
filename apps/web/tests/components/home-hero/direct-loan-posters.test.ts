@@ -18,11 +18,11 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
   autoPosterUsesZReference: () => false,
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
   buildLoanPosterScenePlans: (options: { brand?: string; purpose?: string }) => {
-    const zamloanAntiFraud = options.brand === 'zamloan' && options.purpose === 'anti-fraud';
+    const antiFraud = options.purpose === 'anti-fraud';
     return buildLoanPosterScenePromptsMock(options).map((prompt, index) => ({
       prompt,
-      logoAnchor: zamloanAntiFraud || index % 2 === 0 ? 'left' : 'right',
-      ...(zamloanAntiFraud
+      logoAnchor: antiFraud || index % 2 === 0 ? 'left' : 'right',
+      ...(antiFraud
         ? {
           headline: 'Prevent Fraud',
           subtitle: 'Trust Only Official Customer Service',
@@ -183,7 +183,13 @@ describe('startDirectLoanPosterProject', () => {
     )).toBe(false);
   });
 
-  it('creates one project and dispatches designed anti-fraud image jobs without an agent run', async () => {
+  it.each([
+    { brand: 'zamloan' as const, logoName: 'zamloan-logo.svg' },
+    { brand: 'fastako' as const, logoName: 'fastako-logo.svg' },
+  ])('creates one project and dispatches designed $brand anti-fraud jobs', async ({
+    brand,
+    logoName,
+  }) => {
     const today = new Date();
     const compactDate = [
       today.getFullYear(),
@@ -215,7 +221,7 @@ describe('startDirectLoanPosterProject', () => {
         expect(init?.signal).toBeInstanceOf(AbortSignal);
         expect(body.quality).toBe('medium');
         expect(body.model).toBe('gpt-image-2');
-        expect(body.overlayLogo).toBe('.od-inputs/zamloan-logo.svg');
+        expect(body.overlayLogo).toBe(`.od-inputs/${logoName}`);
         expect(body).not.toHaveProperty('overlayPhoneScreen');
         expect(body).not.toHaveProperty('overlayZ');
         expect(body).not.toHaveProperty('image');
@@ -226,7 +232,7 @@ describe('startDirectLoanPosterProject', () => {
         expect(body.posterTextAnchor).toBe('right');
         expect(body.posterCopyStyle).toBe('anti-fraud-message');
         expect(body.output).toMatch(
-          new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
+          new RegExp(`^${brand}-poster-${compactDate}-00[12]\\.png$`),
         );
         return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
           status: 202,
@@ -257,7 +263,7 @@ describe('startDirectLoanPosterProject', () => {
     await expect(startDirectLoanPosterProject({
       count: 2,
       aspectRatio: '16:9',
-      brand: 'zamloan',
+      brand,
       purpose: 'anti-fraud',
     })).resolves.toEqual({ projectId: 'project-1' });
 
@@ -274,7 +280,7 @@ describe('startDirectLoanPosterProject', () => {
       directGeneration: {
         kind: 'loan-poster',
         expectedOutputs: 0,
-        outputPrefix: 'zamloan-poster',
+        outputPrefix: `${brand}-poster`,
         status: 'preparing',
         activeBatchId: 'project-1',
         batches: [{
@@ -282,7 +288,7 @@ describe('startDirectLoanPosterProject', () => {
           status: 'preparing',
           expectedOutputs: 2,
           outputNames: [],
-          brand: 'zamloan',
+          brand,
           aspectRatio: '16:9',
           purpose: 'anti-fraud',
         }],
@@ -302,8 +308,8 @@ describe('startDirectLoanPosterProject', () => {
         status: 'queued',
         expectedOutputs: 2,
         outputNames: [
-          `zamloan-poster-${compactDate}-001.png`,
-          `zamloan-poster-${compactDate}-002.png`,
+          `${brand}-poster-${compactDate}-001.png`,
+          `${brand}-poster-${compactDate}-002.png`,
         ],
       }),
     ]);

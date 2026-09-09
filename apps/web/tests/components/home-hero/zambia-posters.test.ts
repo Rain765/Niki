@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   AUTO_POSTER_BRANDS,
+  autoPosterBrandDomain,
   autoPosterUsesZReference,
   autoPosterBrandLabel,
   buildLoanPosterPrompt,
@@ -24,10 +25,16 @@ import {
 
 describe('Zambia poster preset', () => {
   const additionalBrands = [
-    { brand: 'zamcash' as const, label: 'ZamCash', logo: 'zamcash-logo.svg' },
-    { brand: 'zammoney' as const, label: 'ZamMoney', logo: 'zammoney-logo.svg' },
-    { brand: 'fastako' as const, label: 'Fastako', logo: 'fastako-logo.svg' },
-    { brand: 'yangaloan' as const, label: 'Yangaloan', logo: 'yangaloan-logo.svg' },
+    { brand: 'zamcash' as const, label: 'ZamCash', logo: 'zamcash-logo.svg', domain: 'zamcash.com' },
+    { brand: 'zammoney' as const, label: 'ZamMoney', logo: 'zammoney-logo.svg', domain: 'zammoney.com' },
+    { brand: 'fastako' as const, label: 'Fastako', logo: 'fastako-logo.svg', domain: 'fastako.com' },
+    { brand: 'yangaloan' as const, label: 'Yangaloan', logo: 'yangaloan-logo.svg', domain: 'yangaloan.com' },
+  ];
+
+  const brandDomains = [
+    { brand: 'zamloan' as const, domain: 'zamloan.com' },
+    { brand: 'biumoney' as const, domain: 'biumoney.com' },
+    ...additionalBrands.map(({ brand, domain }) => ({ brand, domain })),
   ];
 
   it('offers portrait 3:4 posters alongside square and landscape formats', () => {
@@ -50,6 +57,62 @@ describe('Zambia poster preset', () => {
       'Yangaloan',
     ]);
   });
+
+  it.each(brandDomains)(
+    'maps $brand to the exact official domain $domain',
+    ({ brand, domain }) => {
+      expect(autoPosterBrandDomain(brand)).toBe(domain);
+    },
+  );
+
+  it.each(brandDomains)(
+    'uses the shared high-legibility anti-fraud phone and composition rules for $brand',
+    ({ brand, domain }) => {
+      const plan = buildLoanPosterScenePlans({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'anti-fraud',
+      })[0];
+      const prompt = buildLoanPosterPrompt({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'anti-fraud',
+      });
+
+      expect(plan).toMatchObject({
+        logoAnchor: 'left',
+        headline: 'Prevent Fraud',
+        subtitle: 'Trust Only Official Customer Service',
+        textAnchor: 'right',
+      });
+      expect(plan?.prompt).toContain('same campaign-quality composition system');
+      expect(plan?.prompt).toContain(`centered bold black text “${domain}”`);
+      expect(plan?.prompt).toContain('large enough for its interface to read clearly');
+      expect(prompt).toContain(`exact official domain \`${domain}\``);
+      expect(prompt).toContain('`--poster-copy-style anti-fraud-message`');
+      for (const other of brandDomains) {
+        if (other.domain !== domain) expect(plan?.prompt).not.toContain(other.domain);
+      }
+    },
+  );
+
+  it.each(AUTO_POSTER_BRANDS.filter((brand) => brand !== 'zamloan'))(
+    'aligns the additional-brand acquisition typography, phone prominence, and copy spacing for %s',
+    (brand) => {
+      const plan = buildLoanPosterScenePlans({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'acquisition',
+      })[0];
+
+      expect(plan?.prompt).toContain('expressive heavy campaign typography');
+      expect(plan?.prompt).toContain('same scale and visual prominence');
+      expect(plan?.prompt).toContain('required copy-to-subject air gap');
+    },
+  );
 
   it('clamps the requested poster count to 1 through 10', () => {
     expect(normalizeZambiaPosterCount(-3)).toBe(1);
@@ -483,7 +546,7 @@ describe('Zambia poster preset', () => {
     }
   });
 
-  it('keeps BiuMoney anti-fraud scenes on their existing deterministic copy path', () => {
+  it('moves BiuMoney anti-fraud scenes onto the shared high-legibility path', () => {
     const plans = buildLoanPosterScenePlans({
       count: 4,
       aspectRatio: '3:4',
@@ -497,11 +560,12 @@ describe('Zambia poster preset', () => {
     expect(plans.every((plan) => (
       plan.subtitle === 'Trust Only Official Customer Service'
     ))).toBe(true);
-    expect(plans.every((plan) => plan.textAnchor === 'left')).toBe(true);
-    expect(prompts.every((prompt) => !prompt.includes('Prevent Fraud'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('Do not render any visible text'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('compact light-gray isometric notification'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('Do not generate floating'))).toBe(true);
+    expect(plans.every((plan) => plan.textAnchor === 'right')).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Prevent Fraud'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('biumoney.com'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('centered bold black text'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('same campaign-quality composition system'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('geometric foreground tile'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('mother and her adult daughter'))).toBe(true);
