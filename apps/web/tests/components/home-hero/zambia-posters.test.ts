@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   AUTO_POSTER_BRANDS,
+  autoPosterBrandColors,
   autoPosterBrandDomain,
   autoPosterUsesZReference,
   autoPosterBrandLabel,
@@ -64,6 +65,18 @@ describe('Zambia poster preset', () => {
       expect(autoPosterBrandDomain(brand)).toBe(domain);
     },
   );
+
+  it('exposes only the non-neutral colors found in each bundled brand logo', () => {
+    expect(autoPosterBrandColors('zamloan')).toEqual(['#46A93C', '#D35430']);
+    expect(autoPosterBrandColors('biumoney')).toEqual([]);
+    expect(autoPosterBrandColors('zamcash')).toEqual(['#43AA3E', '#D45330', '#DC5130']);
+    expect(autoPosterBrandColors('zammoney')).toEqual(['#0AB81C', '#0B1D0B']);
+    expect(autoPosterBrandColors('fastako')).toEqual(['#0FCE65', '#24263F']);
+    expect(autoPosterBrandColors('yangaloan')).toEqual(['#FE5200']);
+
+    expect(AUTO_POSTER_BRANDS.flatMap(autoPosterBrandColors)).not.toContain('#191919');
+    expect(AUTO_POSTER_BRANDS.flatMap(autoPosterBrandColors)).not.toContain('#595959');
+  });
 
   it.each(brandDomains)(
     'uses the shared high-legibility anti-fraud phone and composition rules for $brand',
@@ -667,6 +680,42 @@ describe('Zambia poster preset', () => {
     expect(prompts.slice(1, 9).every((prompt) => (
       prompt.includes('Do not replace the selected scene color with Zamloan green')
     ))).toBe(true);
+  });
+
+  it.each([
+    ['zamloan', '#D35430', '#46A93C'],
+    ['zamcash', '#D45330', '#43AA3E'],
+    ['zammoney', '#0B1D0B', '#0AB81C'],
+    ['fastako', '#24263F', '#0FCE65'],
+    ['yangaloan', '#FE5200', '#FE5200'],
+  ] as const)(
+    'appends logo-derived anti-fraud palettes for %s after the ten existing templates',
+    (brand, primaryColor, secondaryColor) => {
+      const firstAddedPrompt = buildLoanPosterScenePlans({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'anti-fraud',
+        variationOffset: 10,
+      })[0]?.prompt;
+
+      expect(firstAddedPrompt).toContain('logo-derived brand palette');
+      expect(firstAddedPrompt).toContain(primaryColor);
+      expect(firstAddedPrompt).toContain(secondaryColor);
+    },
+  );
+
+  it('keeps BiuMoney on the existing palettes because no bundled logo exists', () => {
+    const prompt = buildLoanPosterScenePlans({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'biumoney',
+      purpose: 'anti-fraud',
+      variationOffset: 10,
+    })[0]?.prompt;
+
+    expect(prompt).toContain('warm ivory (#f7ecd9)');
+    expect(prompt).not.toContain('logo-derived brand palette');
   });
 
   it('rotates every creative dimension instead of restarting at scene one', () => {
