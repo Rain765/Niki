@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as testingRender, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 
 import { NikiAuthGate, useNikiAuth } from '../../src/auth/NikiAuth';
+import { I18nProvider } from '../../src/i18n';
+
+function render(ui: ReactNode) {
+  return testingRender(<I18nProvider initial="zh-CN">{ui}</I18nProvider>);
+}
 
 function UserProbe() {
   const { user } = useNikiAuth();

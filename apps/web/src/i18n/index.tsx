@@ -77,21 +77,26 @@ export function resolveSystemLocale(languages: readonly string[]): Locale | null
 // An explicit user pick saved to localStorage always wins. Individual app
 // shells may then provide a product default; otherwise first-run follows the
 // browser/system language and unsupported languages fall back to English.
-function detectInitialLocale(defaultLocale?: Locale): Locale {
+function detectInitialLocale(
+  defaultLocale?: Locale,
+  supportedLocales: readonly Locale[] = LOCALES,
+): Locale {
   if (typeof window === 'undefined') return 'en';
+  const supports = (candidate: Locale): boolean => supportedLocales.includes(candidate);
   try {
     const stored = window.localStorage.getItem(LS_KEY);
-    if (stored && (LOCALES as string[]).includes(stored)) {
+    if (stored && (LOCALES as string[]).includes(stored) && supports(stored as Locale)) {
       return stored as Locale;
     }
   } catch {
     /* ignore */
   }
-  if (defaultLocale) return defaultLocale;
+  if (defaultLocale && supports(defaultLocale)) return defaultLocale;
   const detected = resolveSystemLocale(
     navigator.languages?.length ? navigator.languages : [navigator.language],
   );
-  return detected ?? 'en';
+  if (detected && supports(detected)) return detected;
+  return supportedLocales[0] ?? 'en';
 }
 
 interface I18nContextValue {
@@ -105,6 +110,7 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 interface ProviderProps {
   initial?: Locale;
   defaultLocale?: Locale;
+  supportedLocales?: readonly Locale[];
   deferUntilClient?: boolean;
   children: ReactNode;
 }
@@ -114,6 +120,7 @@ const RTL_LOCALES: Locale[] = ['ar', 'fa'];
 export function I18nProvider({
   initial,
   defaultLocale,
+  supportedLocales = LOCALES,
   deferUntilClient = false,
   children,
 }: ProviderProps) {
@@ -143,7 +150,7 @@ export function I18nProvider({
 
   useEffect(() => {
     if (initial != null) return;
-    const detected = detectInitialLocale(defaultLocale);
+    const detected = detectInitialLocale(defaultLocale, supportedLocales);
     let active = true;
     setLocaleState(detected);
 
@@ -162,7 +169,7 @@ export function I18nProvider({
     return () => {
       active = false;
     };
-  }, [defaultLocale, initial]);
+  }, [defaultLocale, initial, supportedLocales]);
 
   // Keep <html lang="…" dir="…"> in sync so screen readers and CSS hooks
   // pick the right language token and direction without each component

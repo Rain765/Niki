@@ -62,10 +62,6 @@ const POSTER_PRODUCT_OPTIONS = [
   { value: 'zamloan', label: 'Zamloan' },
   { value: 'biumoney', label: 'Biumoney' },
 ];
-const POSTER_TYPE_OPTIONS = [
-  { value: 'acquisition', label: '引流' },
-  { value: 'anti-fraud', label: '防欺诈' },
-];
 const POSTER_QUANTITY_OPTIONS = [1, 2, 3, 4].map((value) => ({
   value: String(value),
   label: String(value),
@@ -74,6 +70,171 @@ const POSTER_RATIO_OPTIONS = ['3:4', '1:1', '16:9'].map((value) => ({
   value,
   label: value,
 }));
+
+const POSTER_COPY = {
+  en: {
+    settings: 'Poster generation settings',
+    product: 'Product',
+    type: 'Type',
+    quantity: 'Quantity',
+    ratio: 'Ratio',
+    acquisition: 'Acquisition',
+    antiFraud: 'Anti-fraud',
+    submitting: 'Submitting…',
+    generatePosters: 'Generate posters',
+    generatingPosters: 'Generating posters…',
+    generated: (count: number) => `${count} ${count === 1 ? 'poster' : 'posters'} generated`,
+    generationFailed: (detail?: string) => `Generation failed${detail ? `: ${detail}` : ''}`,
+    generationSubmitFailed: 'Could not submit the generation task',
+    readyToGenerate: 'Ready to generate',
+    readyPosterDetail: 'Choose a quantity and ratio, then generate.',
+    batchFailed: 'This batch did not finish',
+    batchFailedDetail: 'The generation service did not finish. Please try again.',
+    batchDeleted: 'Images from this batch were deleted',
+    latestPinned: 'The latest images are pinned above for preview, download, copy, or sharing.',
+    generateAgain: 'Generate a new batch whenever you are ready.',
+    generatingProgress: (count: number, expected: number) => `Generating · ${count}/${expected}`,
+    generationRunning: 'The task is running. Finished images will appear here automatically.',
+    closeStatus: 'Close status',
+    latestBatch: 'Latest batch',
+    loadingRecentPosters: 'Loading recent posters…',
+    generatingImage: 'Generating image…',
+    posterHistory: 'Poster history',
+    expandPosterHistory: 'Expand poster history',
+    collapsePosterHistory: 'Collapse poster history',
+    close: 'Close',
+    share: 'Share',
+    sharing: 'Sharing…',
+    preparing: 'Preparing…',
+    saving: 'Saving…',
+    saveImage: 'Save image',
+    prepareAgain: 'Prepare again',
+    preparingOriginal: 'Preparing original…',
+    copying: 'Copying…',
+    copyImage: 'Copy image',
+    delete: 'Delete',
+    deleting: 'Deleting…',
+    prepareOriginalFailed: 'Could not prepare the original image. Tap to retry.',
+    loadOriginalFailed: 'Could not load the original image. Please try again.',
+    preparingAgain: 'Preparing the original again…',
+    loadPostersFailed: 'Could not load posters',
+    saveMenuHint: 'Choose Save to Photos or Save to Files in the system menu.',
+    imageDownloadStarted: 'Image download started',
+    saveImageFailed: 'Could not save the image. Please try again.',
+    copyingHint: 'Copying the original image. Choose Copy if a system menu appears.',
+    imageCopied: 'Image copied',
+    imageActionComplete: 'Image action completed',
+    copyUnsupported: 'This Feishu version cannot copy images. Use Save image instead.',
+    shareLinkCopied: 'System sharing is unavailable. Image link copied.',
+    shareFailed: 'Could not share image',
+    deleteImageFailed: 'Could not delete the image',
+    deleteConfirm: (name: string) => `Delete ${name}?`,
+    tutorialGenerator: 'Tutorial video generator',
+    closeVideoStatus: 'Close video status',
+    latestVideo: 'Latest video',
+    downloadVideo: 'Download video',
+    elapsed: (value: string) => `Elapsed ${value}`,
+    videoHistory: 'Video history',
+    expandVideoHistory: 'Expand video history',
+    collapseVideoHistory: 'Collapse video history',
+    download: 'Download',
+    videoDeleted: 'Video deleted',
+    videoDeleteFailed: 'Could not delete the video',
+    videoFailed: 'Video generation did not finish',
+    videoRetry: 'Submit the same tutorial again to retry.',
+    videoGenerated: 'Tutorial video generated',
+    videoGeneratedDetail: 'The latest MP4 is ready to preview or download below.',
+    videoRestoring: ['Loading recent video…', 'Checking the latest project and run.'],
+    videoPreparing: ['Preparing video project', 'Creating a durable project for this tutorial.'],
+    videoUploading: ['Uploading screenshots', 'Adding the ordered screenshots to the project.'],
+    videoQueued: ['Video generation queued', 'The rendering task will start shortly.'],
+    videoRunning: ['Generating tutorial video', 'The task is running. The MP4 will appear here automatically.'],
+    videoFinishing: ['Finishing tutorial video', 'The run finished. Waiting for the MP4 to appear.'],
+    readyVideoDetail: 'Choose a product, purpose, and ratio, then generate an MP4.',
+  },
+  zh: {
+    settings: '海报生成设置',
+    product: '产品',
+    type: '类型',
+    quantity: '数量',
+    ratio: '比例',
+    acquisition: '获客引流',
+    antiFraud: '防欺诈',
+    submitting: '正在提交…',
+    generatePosters: '生成海报',
+    generatingPosters: '正在生成海报…',
+    generated: (count: number) => `已生成 ${count} 张海报`,
+    generationFailed: (detail?: string) => `生成失败${detail ? `：${detail}` : ''}`,
+    generationSubmitFailed: '无法提交生成任务',
+    readyToGenerate: '可以开始生成',
+    readyPosterDetail: '选择数量和比例后即可生成。',
+    batchFailed: '本批次未能完成',
+    batchFailedDetail: '生成服务未能完成任务，请重试。',
+    batchDeleted: '本批次图片已删除',
+    latestPinned: '最新图片已置顶，可预览、下载、复制或分享。',
+    generateAgain: '准备好后可随时生成新批次。',
+    generatingProgress: (count: number, expected: number) => `正在生成 · ${count}/${expected}`,
+    generationRunning: '任务正在运行，完成的图片会自动显示在这里。',
+    closeStatus: '关闭状态提示',
+    latestBatch: '最新一批',
+    loadingRecentPosters: '正在加载最近海报…',
+    generatingImage: '正在生成图片…',
+    posterHistory: '海报历史',
+    expandPosterHistory: '展开海报历史',
+    collapsePosterHistory: '收起海报历史',
+    close: '关闭',
+    share: '分享',
+    sharing: '正在分享…',
+    preparing: '正在准备…',
+    saving: '正在保存…',
+    saveImage: '保存图片',
+    prepareAgain: '重新准备',
+    preparingOriginal: '正在准备原图…',
+    copying: '正在复制…',
+    copyImage: '复制图片',
+    delete: '删除',
+    deleting: '正在删除…',
+    prepareOriginalFailed: '无法准备原图，点击重试。',
+    loadOriginalFailed: '无法加载原图，请重试。',
+    preparingAgain: '正在重新准备原图…',
+    loadPostersFailed: '无法加载海报',
+    saveMenuHint: '请在系统菜单中选择“存储到照片”或“存储到文件”。',
+    imageDownloadStarted: '图片下载已开始',
+    saveImageFailed: '无法保存图片，请重试。',
+    copyingHint: '正在复制原图；如果出现系统菜单，请选择“复制”。',
+    imageCopied: '图片已复制',
+    imageActionComplete: '图片操作已完成',
+    copyUnsupported: '当前飞书版本无法复制图片，请改用“保存图片”。',
+    shareLinkCopied: '系统分享不可用，图片链接已复制。',
+    shareFailed: '无法分享图片',
+    deleteImageFailed: '无法删除图片',
+    deleteConfirm: (name: string) => `确定删除 ${name} 吗？`,
+    tutorialGenerator: '教学视频生成器',
+    closeVideoStatus: '关闭视频状态提示',
+    latestVideo: '最新视频',
+    downloadVideo: '下载视频',
+    elapsed: (value: string) => `已用时 ${value}`,
+    videoHistory: '视频历史',
+    expandVideoHistory: '展开视频历史',
+    collapseVideoHistory: '收起视频历史',
+    download: '下载',
+    videoDeleted: '视频已删除',
+    videoDeleteFailed: '无法删除视频',
+    videoFailed: '视频生成未能完成',
+    videoRetry: '请重新提交同一份教程以重试。',
+    videoGenerated: '教学视频已生成',
+    videoGeneratedDetail: '最新 MP4 已可在下方预览或下载。',
+    videoRestoring: ['正在加载最近视频…', '正在检查最新项目和任务。'],
+    videoPreparing: ['正在准备视频项目', '正在为本教程创建可持续使用的项目。'],
+    videoUploading: ['正在上传截图', '正在按顺序把截图添加到项目中。'],
+    videoQueued: ['视频生成已排队', '渲染任务即将开始。'],
+    videoRunning: ['正在生成教学视频', '任务正在运行，MP4 完成后会自动显示在这里。'],
+    videoFinishing: ['正在完成教学视频', '任务已结束，正在等待 MP4 文件。'],
+    readyVideoDetail: '选择产品、用途和比例后即可生成 MP4。',
+  },
+} as const;
+
+type PosterCopy = (typeof POSTER_COPY)[keyof typeof POSTER_COPY];
 
 function initialCreationMode(): CreationMode {
   if (typeof window === 'undefined') return 'poster';
@@ -127,38 +288,38 @@ async function fetchPosterFiles(projectId: string): Promise<ProjectFile[]> {
   return body.files ?? [];
 }
 
-function generationCopy(batch: DirectPosterBatchView | null): {
+function generationCopy(batch: DirectPosterBatchView | null, copy: PosterCopy): {
   detail: string;
   state: 'idle' | 'working' | 'complete' | 'failed';
   title: string;
 } {
   if (!batch) {
-    return { state: 'idle', title: 'Ready to generate', detail: 'Choose a quantity and ratio, then generate.' };
+    return { state: 'idle', title: copy.readyToGenerate, detail: copy.readyPosterDetail };
   }
   const fileCount = batch.files.length;
   const expected = Math.max(fileCount, batch.expectedCount ?? 0);
   if (batch.status === 'failed' || batch.status === 'interrupted') {
     return {
       state: 'failed',
-      title: 'This batch did not finish',
-      detail: batch.lastError ?? 'The generation service did not finish. Please try again.',
+      title: copy.batchFailed,
+      detail: batch.lastError ?? copy.batchFailedDetail,
     };
   }
   if (batch.status === 'complete') {
     return {
       state: 'complete',
       title: fileCount > 0
-        ? `${fileCount} ${fileCount === 1 ? 'poster' : 'posters'} generated in this batch`
-        : 'Images from this batch were deleted',
+        ? copy.generated(fileCount)
+        : copy.batchDeleted,
       detail: fileCount > 0
-        ? 'The latest images are pinned above for preview, download, copy, or sharing.'
-        : 'Generate a new batch whenever you are ready.',
+        ? copy.latestPinned
+        : copy.generateAgain,
     };
   }
   return {
     state: 'working',
-    title: fileCount > 0 ? `Generating · ${fileCount}/${expected}` : 'Generating posters',
-    detail: 'The task is running. Finished images will appear here automatically.',
+    title: fileCount > 0 ? copy.generatingProgress(fileCount, expected) : copy.generatingPosters,
+    detail: copy.generationRunning,
   };
 }
 
@@ -166,6 +327,7 @@ function videoGenerationCopy(
   phase: LoanVideoGenerationPhase,
   hasVideo: boolean,
   error: string | null,
+  copy: PosterCopy,
 ): {
   detail: string;
   state: 'idle' | 'working' | 'complete' | 'failed';
@@ -174,31 +336,31 @@ function videoGenerationCopy(
   if (phase === 'failed') {
     return {
       state: 'failed',
-      title: 'Video generation did not finish',
-      detail: error ?? 'Submit the same tutorial again to retry.',
+      title: copy.videoFailed,
+      detail: error ?? copy.videoRetry,
     };
   }
   if (phase === 'succeeded' && hasVideo) {
     return {
       state: 'complete',
-      title: 'Tutorial video generated',
-      detail: 'The latest MP4 is ready to preview or download below.',
+      title: copy.videoGenerated,
+      detail: copy.videoGeneratedDetail,
     };
   }
-  const workingCopy: Partial<Record<LoanVideoGenerationPhase, [string, string]>> = {
-    restoring: ['Loading recent video…', 'Checking the latest project and run.'],
-    preparing: ['Preparing video project', 'Creating a durable project for this tutorial.'],
-    uploading: ['Uploading screenshots', 'Adding the ordered screenshots to the project.'],
-    queued: ['Video generation queued', 'The rendering task will start shortly.'],
-    running: ['Generating tutorial video', 'The task is running. The MP4 will appear here automatically.'],
-    succeeded: ['Finishing tutorial video', 'The run finished. Waiting for the MP4 to appear.'],
+  const workingCopy: Partial<Record<LoanVideoGenerationPhase, readonly [string, string]>> = {
+    restoring: copy.videoRestoring,
+    preparing: copy.videoPreparing,
+    uploading: copy.videoUploading,
+    queued: copy.videoQueued,
+    running: copy.videoRunning,
+    succeeded: copy.videoFinishing,
   };
-  const copy = workingCopy[phase];
-  if (copy) return { state: 'working', title: copy[0], detail: copy[1] };
+  const phaseCopy = workingCopy[phase];
+  if (phaseCopy) return { state: 'working', title: phaseCopy[0], detail: phaseCopy[1] };
   return {
     state: 'idle',
-    title: 'Ready to generate',
-    detail: 'Choose a product, purpose, and ratio, then generate an MP4.',
+    title: copy.readyToGenerate,
+    detail: copy.readyVideoDetail,
   };
 }
 
@@ -233,6 +395,11 @@ function useVideoElapsed(running: boolean, requestedAt: number | null): string {
 export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) {
   const { user, logout } = useNikiAuth();
   const { locale, setLocale, t } = useI18n();
+  const copy = POSTER_COPY[locale === 'zh-CN' ? 'zh' : 'en'];
+  const posterTypeOptions = useMemo(() => [
+    { value: 'acquisition', label: copy.acquisition },
+    { value: 'anti-fraud', label: copy.antiFraud },
+  ], [copy]);
   const [creationMode, setCreationMode] = useState<CreationMode>(
     () => initialMode ?? initialCreationMode(),
   );
@@ -333,7 +500,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     && preparedPreviewFile === null
     && failedPreviewKey !== previewFileKey;
   const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
-  const status = generationCopy(latestBatch);
+  const status = generationCopy(latestBatch, copy);
   const generationFeedbackKey = generationFeedback
     ? `${generationFeedback.id}:${generationFeedback.state}:${generationFeedback.message}`
     : null;
@@ -343,6 +510,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     videoGeneration.state.phase,
     videoGeneration.latestVideo !== null,
     videoGeneration.state.error,
+    copy,
   );
   const videoWorking = videoStatus.state === 'working'
     && videoGeneration.state.requestedAt !== null;
@@ -376,7 +544,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       setGenerationFeedback({
         ...generationFeedback,
         state: 'complete',
-        message: `${generatedCount} ${generatedCount === 1 ? 'poster' : 'posters'} generated`,
+        message: copy.generated(generatedCount),
       });
       return;
     }
@@ -385,10 +553,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       setGenerationFeedback({
         ...generationFeedback,
         state: 'failed',
-        message: `Generation failed${failureDetail ? `: ${failureDetail}` : ''}`,
+        message: copy.generationFailed(failureDetail),
       });
     }
-  }, [generationFeedback, latestBatch]);
+  }, [copy, generationFeedback, latestBatch]);
 
   useEffect(() => {
     if (!previewFile || !projectId || !previewFileKey) return undefined;
@@ -411,12 +579,12 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         errorName: error instanceof Error ? error.name : 'UnknownError',
         fileName,
       });
-      setPreviewNotice({ message: 'Could not prepare the original image. Tap to retry.', tone: 'error' });
+      setPreviewNotice({ message: copy.prepareOriginalFailed, tone: 'error' });
     });
     return () => {
       cancelled = true;
     };
-  }, [prepareAttempt, previewFileKey]);
+  }, [copy, prepareAttempt, previewFileKey]);
 
   useEffect(() => {
     const batchId = latestBatch?.id ?? null;
@@ -454,14 +622,14 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       }
       if (!quiet) {
         setNotice({
-          message: error instanceof Error ? error.message : 'Could not load posters',
+          message: error instanceof Error ? error.message : copy.loadPostersFailed,
           tone: 'error',
         });
       }
     } finally {
       if (!quiet) setLoadingProject(false);
     }
-  }, []);
+  }, [copy.loadPostersFailed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -529,7 +697,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     setGenerationFeedback({
       id: feedbackId,
       batchId: null,
-      message: 'Generating posters…',
+      message: copy.generatingPosters,
       state: 'working',
     });
     try {
@@ -554,13 +722,13 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     } catch (error) {
       const failureDetail = error instanceof Error
         ? error.message
-        : 'Could not submit the generation task';
+        : copy.generationSubmitFailed;
       setGenerationFeedback((current) => (
         current?.id === feedbackId
           ? {
             ...current,
             state: 'failed',
-            message: `Generation failed: ${failureDetail}`,
+            message: copy.generationFailed(failureDetail),
           }
           : current
       ));
@@ -576,12 +744,12 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   };
 
   const removeVideo = async (file: ProjectFile) => {
-    if (deletingVideoName || !window.confirm(`Delete ${file.name}?`)) return;
+    if (deletingVideoName || !window.confirm(copy.deleteConfirm(file.name))) return;
     setDeletingVideoName(file.name);
     try {
       const deleted = await videoGeneration.removeVideo(file);
       setNotice({
-        message: deleted ? 'Video deleted' : 'Could not delete the video',
+        message: deleted ? copy.videoDeleted : copy.videoDeleteFailed,
         tone: deleted ? 'info' : 'error',
       });
     } finally {
@@ -596,8 +764,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       const result = await savePreparedImageFile(file);
       setPreviewNotice({
         message: result === 'shared'
-          ? 'Choose Save to Photos or Save to Files in the system menu.'
-          : 'Image download started',
+          ? copy.saveMenuHint
+          : copy.imageDownloadStarted,
         tone: 'info',
       });
     } catch (error) {
@@ -607,7 +775,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           errorName: error instanceof Error ? error.name : 'UnknownError',
           fileName: file.name,
         });
-        setPreviewNotice({ message: 'Could not save the image. Please try again.', tone: 'error' });
+        setPreviewNotice({ message: copy.saveImageFailed, tone: 'error' });
       }
     } finally {
       setActiveAction(null);
@@ -618,19 +786,19 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     if (activeAction) return;
     setActiveAction('copy');
     setPreviewNotice({
-      message: 'Copying the original image. Choose Copy if a system menu appears.',
+      message: copy.copyingHint,
       tone: 'info',
     });
     try {
       const result = await copyOrSharePreparedImageFile(file);
       setPreviewNotice({
-        message: result === 'copied' ? 'Image copied' : 'Image action completed',
+        message: result === 'copied' ? copy.imageCopied : copy.imageActionComplete,
         tone: 'info',
       });
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         setPreviewNotice({
-          message: 'This Feishu version cannot copy images. Use Save image instead.',
+          message: copy.copyUnsupported,
           tone: 'error',
         });
       }
@@ -657,7 +825,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       if (error instanceof DOMException && error.name === 'AbortError') return;
       const copied = await copyToClipboard(absoluteUrl);
       setPreviewNotice({
-        message: copied ? 'System sharing is unavailable. Image link copied.' : 'Could not share image',
+        message: copied ? copy.shareLinkCopied : copy.shareFailed,
         tone: copied ? 'info' : 'error',
       });
     } finally {
@@ -666,13 +834,13 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   };
 
   const remove = async (file: ProjectFile) => {
-    if (!projectId || !window.confirm(`Delete ${file.name}?`)) return;
+    if (!projectId || !window.confirm(copy.deleteConfirm(file.name))) return;
     const response = await fetch(rawUrl(projectId, file.name), {
       method: 'DELETE',
       credentials: 'include',
     }).catch(() => null);
     if (!response?.ok) {
-      setNotice({ message: 'Could not delete the image', tone: 'error' });
+      setNotice({ message: copy.deleteImageFailed, tone: 'error' });
       return;
     }
     setPreviewName(null);
@@ -866,31 +1034,31 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       </header>
       <section
         className="od-generation-toolbar od-filter-grid"
-        aria-label="Poster generation settings"
+        aria-label={copy.settings}
       >
         <SelectField
-          label="Product"
+          label={copy.product}
           value={brand}
           options={POSTER_PRODUCT_OPTIONS}
           disabled={generating}
           onChange={(value) => setBrand(value as AutoPosterBrand)}
         />
         <SelectField
-          label="Type"
+          label={copy.type}
           value={purpose}
-          options={POSTER_TYPE_OPTIONS}
+          options={posterTypeOptions}
           disabled={generating}
           onChange={(value) => setPurpose(value as AutoPosterPurpose)}
         />
         <SelectField
-          label="Quantity"
+          label={copy.quantity}
           value={String(count)}
           options={POSTER_QUANTITY_OPTIONS}
           disabled={generating}
           onChange={(value) => setCount(Number(value))}
         />
         <SelectField
-          label="Ratio"
+          label={copy.ratio}
           value={aspectRatio}
           options={POSTER_RATIO_OPTIONS}
           disabled={generating}
@@ -901,7 +1069,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           loading={generating}
           onClick={() => void generate()}
         >
-          {generating ? 'Submitting…' : 'Generate posters'}
+          {generating ? copy.submitting : copy.generatePosters}
         </Button>
       </section>
 
@@ -916,7 +1084,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               : 'info'}
           persistent={generationFeedback.state !== 'complete'}
           dismissible
-          dismissLabel="Close status"
+          dismissLabel={copy.closeStatus}
           onDismiss={() => setDismissedStatusKey(generationFeedbackKey)}
         />
       ) : null}
@@ -934,12 +1102,12 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       <section
         ref={latestBatchRef}
         className="poster-app__batch-section poster-app__latest-batch"
-        aria-label="Latest batch"
+        aria-label={copy.latestBatch}
         tabIndex={-1}
       >
         <header className="poster-app__section-header">
           <div className="poster-app__section-heading">
-            <h2>Latest batch</h2>
+            <h2>{copy.latestBatch}</h2>
             <span className="poster-app__section-meta">
               {latestBatchAspectRatio} × {latestBatchCount}
             </span>
@@ -957,23 +1125,23 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               : latestBatchAspectRatio === '3:4'
                 ? ' is-portrait'
                 : ''}`}>
-              <span>{loadingProject ? 'Loading recent posters…' : 'Generating image…'}</span>
+              <span>{loadingProject ? copy.loadingRecentPosters : copy.generatingImage}</span>
             </div>
           ) : null}
         </div>
       </section>
 
       {historyFiles.length > 0 ? (
-        <section className="poster-app__batch-section poster-app__history" aria-label="Poster history">
+        <section className="poster-app__batch-section poster-app__history" aria-label={copy.posterHistory}>
           <button
             type="button"
             className="poster-app__history-toggle"
             aria-expanded={showHistory}
-            aria-label={`${showHistory ? 'Collapse' : 'Expand'} poster history`}
+            aria-label={showHistory ? copy.collapsePosterHistory : copy.expandPosterHistory}
             onClick={() => setShowHistory((current) => !current)}
           >
             <span className="poster-app__section-heading">
-              <span className="poster-app__section-title">Poster history</span>
+              <span className="poster-app__section-title">{copy.posterHistory}</span>
               <span className="poster-app__section-meta">({historyFiles.length})</span>
             </span>
             <span className="poster-app__history-toggle-icon" aria-hidden="true">
@@ -1002,8 +1170,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             <button
               type="button"
               onClick={() => setPreviewName(null)}
-              aria-label="Close"
-              title="Close"
+              aria-label={copy.close}
+              title={copy.close}
             >
               <Icon name="close" size={24} />
             </button>
@@ -1011,11 +1179,11 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               type="button"
               disabled={activeAction !== null || preparedPreviewFile === null}
               aria-label={activeAction === 'share'
-                ? 'Sharing…'
+                ? copy.sharing
                 : preparedPreviewFile
-                  ? 'Share'
-                  : 'Preparing…'}
-              title="Share"
+                  ? copy.share
+                  : copy.preparing}
+              title={copy.share}
               onClick={() => preparedPreviewFile && void share(previewFile, preparedPreviewFile)}
             >
               <Icon
@@ -1052,7 +1220,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                   if (!rawFallbackNames.has(previewFile.name)) {
                     setRawFallbackNames((current) => new Set(current).add(previewFile.name));
                   } else {
-                    setPreviewNotice({ message: 'Could not load the original image. Please try again.', tone: 'error' });
+                    setPreviewNotice({ message: copy.loadOriginalFailed, tone: 'error' });
                   }
                 }}
               />
@@ -1063,19 +1231,19 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               type="button"
               disabled={activeAction !== null || previewFilePreparing}
               aria-label={activeAction === 'download'
-                ? 'Saving…'
+                ? copy.saving
                 : preparedPreviewFile
-                  ? 'Save image'
+                  ? copy.saveImage
                   : failedPreviewKey === previewFileKey
-                    ? 'Prepare again'
-                    : 'Preparing original…'}
-              title="Save image"
+                    ? copy.prepareAgain
+                    : copy.preparingOriginal}
+              title={copy.saveImage}
               onClick={() => {
                 if (preparedPreviewFile) {
                   void download(preparedPreviewFile);
                   return;
                 }
-                setPreviewNotice({ message: 'Preparing the original again…', tone: 'info' });
+                setPreviewNotice({ message: copy.preparingAgain, tone: 'info' });
                 setPrepareAttempt((current) => current + 1);
               }}
             >
@@ -1089,8 +1257,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             <button
               type="button"
               disabled={activeAction !== null || preparedPreviewFile === null}
-              aria-label={activeAction === 'copy' ? 'Copying…' : 'Copy image'}
-              title="Copy image"
+              aria-label={activeAction === 'copy' ? copy.copying : copy.copyImage}
+              title={copy.copyImage}
               onClick={() => preparedPreviewFile && void copyImage(preparedPreviewFile)}
             >
               <Icon name={activeAction === 'copy' ? 'spinner' : 'copy'} size={23} />
@@ -1099,8 +1267,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               type="button"
               className="is-danger"
               disabled={activeAction !== null}
-              aria-label="Delete"
-              title="Delete"
+              aria-label={copy.delete}
+              title={copy.delete}
               onClick={() => void remove(previewFile)}
             >
               <Icon name="trash" size={23} />
@@ -1110,7 +1278,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       ) : null}
         </>
       ) : creationMode === 'video' ? (
-        <section className="poster-app__video" aria-label="Tutorial video generator">
+        <section className="poster-app__video" aria-label={copy.tutorialGenerator}>
           <LoanVideoComposer
             onSubmit={generateVideo}
             onQuickGenerate={(options) => {
@@ -1136,7 +1304,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                   : 'info'}
               persistent={videoStatus.state !== 'complete'}
               dismissible
-              dismissLabel="Close video status"
+              dismissLabel={copy.closeVideoStatus}
               onDismiss={() => setDismissedVideoStatusKey(videoStatusKey)}
             />
           ) : null}
@@ -1144,11 +1312,11 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           {videoWorking || videoResultAvailable ? (
             <section
               className="poster-app__batch-section poster-app__latest-batch"
-              aria-label="Latest video"
+              aria-label={copy.latestVideo}
             >
               <header className="poster-app__section-header">
                 <div className="poster-app__section-heading">
-                  <h2>Latest video</h2>
+                  <h2>{copy.latestVideo}</h2>
                   <span className="poster-app__section-meta">
                     {videoGeneration.state.aspectRatio} · MP4
                   </span>
@@ -1163,7 +1331,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                       )}
                       download
                     >
-                      Download video
+                      {copy.downloadVideo}
                     </a>
                     <button
                       type="button"
@@ -1171,7 +1339,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                       disabled={deletingVideoName !== null}
                       onClick={() => void removeVideo(videoGeneration.latestVideo!)}
                     >
-                      {deletingVideoName === videoGeneration.latestVideo!.name ? 'Deleting…' : 'Delete'}
+                      {deletingVideoName === videoGeneration.latestVideo!.name ? copy.deleting : copy.delete}
                     </button>
                   </div>
                 ) : null}
@@ -1191,7 +1359,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                   <span className="poster-app__video-loading-copy">
                     <strong>{videoStatus.title}</strong>
                     <span>{videoStatus.detail}</span>
-                    <time>Elapsed {videoElapsed}</time>
+                    <time>{copy.elapsed(videoElapsed)}</time>
                   </span>
                 </div>
               ) : videoResultAvailable ? (
@@ -1212,16 +1380,16 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           ) : null}
 
           {videoHistory.length > 0 && videoGeneration.state.projectId ? (
-            <section className="poster-app__batch-section poster-app__history" aria-label="Video history">
+            <section className="poster-app__batch-section poster-app__history" aria-label={copy.videoHistory}>
               <button
                 type="button"
                 className="poster-app__history-toggle"
                 aria-expanded={showVideoHistory}
-                aria-label={`${showVideoHistory ? 'Collapse' : 'Expand'} video history`}
+                aria-label={showVideoHistory ? copy.collapseVideoHistory : copy.expandVideoHistory}
                 onClick={() => setShowVideoHistory((current) => !current)}
               >
                 <span className="poster-app__section-heading">
-                  <span className="poster-app__section-title">Video history</span>
+                  <span className="poster-app__section-title">{copy.videoHistory}</span>
                   <span className="poster-app__section-meta">({videoHistory.length})</span>
                 </span>
                 <span className="poster-app__history-toggle-icon" aria-hidden="true">
@@ -1249,7 +1417,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                           href={projectFileDownloadUrl(videoGeneration.state.projectId!, file.name)}
                           download
                         >
-                          Download
+                          {copy.download}
                         </a>
                         <button
                           type="button"
@@ -1257,7 +1425,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                           disabled={deletingVideoName !== null}
                           onClick={() => void removeVideo(file)}
                         >
-                          {deletingVideoName === file.name ? 'Deleting…' : 'Delete'}
+                          {deletingVideoName === file.name ? copy.deleting : copy.delete}
                         </button>
                       </footer>
                     </article>

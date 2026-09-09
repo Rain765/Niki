@@ -7,6 +7,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -16,6 +17,64 @@ import type {
   NikiAuthUser,
 } from '@open-design/contracts';
 import { Icon } from '../components/Icon';
+import { useI18n } from '../i18n';
+
+const AUTH_COPY = {
+  en: {
+    configFailed: 'Could not load sign-in configuration',
+    statusFailed: 'Could not load sign-in status',
+    timeout: 'Connection timed out. Check your network and try again.',
+    unavailable: 'Niki is temporarily unavailable',
+    credentialsRequired: 'Enter your username and password',
+    loginFailed: 'Sign-in failed. Please try again.',
+    loadingTitle: 'Niki Posters',
+    loginTitle: 'Sign in to Niki',
+    connecting: 'Connecting to Niki…',
+    reconnect: 'Reconnect',
+    notConfigured: 'Feishu sign-in has not been configured on the server.',
+    configureHint: 'Add the App ID and App Secret on the Mac mini first.',
+    passwordIntro: 'Sign in with the Niki account created for you by an administrator.',
+    feishuIntro: 'Sign in with your company Feishu identity. Each user has separate projects and images.',
+    feishuFailed: 'Feishu sign-in did not finish. Please try again.',
+    username: 'Username',
+    password: 'Password',
+    hidePassword: 'Hide password',
+    showPassword: 'Show password',
+    signingIn: 'Signing in…',
+    signIn: 'Sign in',
+    backToFeishu: 'Back to Feishu sign-in',
+    openingFeishu: 'Opening Feishu…',
+    feishuSignIn: 'Sign in with Feishu',
+    passwordSignIn: 'Sign in with username and password',
+  },
+  zh: {
+    configFailed: '无法读取登录配置',
+    statusFailed: '无法读取登录状态',
+    timeout: '连接超时，请检查网络后重试',
+    unavailable: 'Niki 暂时无法连接',
+    credentialsRequired: '请输入用户名和密码',
+    loginFailed: '登录失败，请重试',
+    loadingTitle: 'Niki 海报',
+    loginTitle: '登录 Niki',
+    connecting: '正在连接 Niki…',
+    reconnect: '重新连接',
+    notConfigured: '服务器尚未完成飞书登录配置。',
+    configureHint: '请先在 Mac mini 写入 App ID 和 App Secret。',
+    passwordIntro: '使用管理员为你创建的 Niki 账号登录。',
+    feishuIntro: '使用公司飞书身份登录。每位用户拥有独立的项目和图片。',
+    feishuFailed: '飞书登录未完成，请重试。',
+    username: '用户名',
+    password: '密码',
+    hidePassword: '隐藏密码',
+    showPassword: '显示密码',
+    signingIn: '正在登录…',
+    signIn: '登录',
+    backToFeishu: '返回飞书登录',
+    openingFeishu: '正在前往飞书…',
+    feishuSignIn: '使用飞书登录',
+    passwordSignIn: '账号密码登录',
+  },
+} as const;
 
 interface NikiAuthContextValue {
   enabled: boolean;
@@ -68,7 +127,14 @@ type AuthState =
   | { status: 'authenticated'; enabled: boolean; user: NikiAuthUser };
 
 export function NikiAuthGate({ children }: { children: ReactNode }) {
+  const { locale } = useI18n();
+  const copy = AUTH_COPY[locale === 'zh-CN' ? 'zh' : 'en'];
+  const copyRef = useRef(copy);
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+
+  useEffect(() => {
+    copyRef.current = copy;
+  }, [copy]);
 
   const load = useCallback(async () => {
     setState({ status: 'loading' });
@@ -91,7 +157,7 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
           const configResponse = await configRequest;
           if (!configResponse.ok) {
             if (configResponse.status >= 500) throw new RetryableAuthBootstrapError();
-            throw new Error('无法读取登录配置');
+            throw new Error(copyRef.current.configFailed);
           }
           const config = await configResponse.json() as NikiAuthConfigResponse;
           if (!config.enabled) {
@@ -112,7 +178,7 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
           }
           if (!meResponse.ok) {
             if (meResponse.status >= 500) throw new RetryableAuthBootstrapError();
-            throw new Error('无法读取登录状态');
+            throw new Error(copyRef.current.statusFailed);
           }
           const me = await meResponse.json() as NikiAuthMeResponse;
           clearAuthErrorFromLocation();
@@ -131,10 +197,10 @@ export function NikiAuthGate({ children }: { children: ReactNode }) {
       setState({
         status: 'error',
         message: controller.signal.aborted
-          ? '连接超时，请检查网络后重试'
+          ? copyRef.current.timeout
           : error instanceof Error
             ? error.message
-            : 'Niki 暂时无法连接',
+            : copyRef.current.unavailable,
       });
     } finally {
       clearTimeout(timeoutId);
@@ -187,6 +253,8 @@ function NikiAuthScreen({
   state: Exclude<AuthState, { status: 'authenticated' }>;
   onRetry: () => Promise<void>;
 }) {
+  const { locale } = useI18n();
+  const copy = AUTH_COPY[locale === 'zh-CN' ? 'zh' : 'en'];
   const [passwordMode, setPasswordMode] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -212,7 +280,7 @@ function NikiAuthScreen({
   };
   const loginWithPassword = async () => {
     if (!username.trim() || !password) {
-      setPasswordError('请输入用户名和密码');
+      setPasswordError(copy.credentialsRequired);
       return;
     }
     setSubmitting(true);
@@ -226,14 +294,14 @@ function NikiAuthScreen({
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error || '登录失败，请重试');
+        throw new Error(body.error || copy.loginFailed);
       }
       clearAuthErrorFromLocation();
       setPassword('');
       setPasswordVisible(false);
       await onRetry();
     } catch (error) {
-      setPasswordError(error instanceof Error ? error.message : '登录失败，请重试');
+      setPasswordError(error instanceof Error ? error.message : copy.loginFailed);
     } finally {
       setSubmitting(false);
     }
@@ -248,32 +316,32 @@ function NikiAuthScreen({
           alt=""
           draggable={false}
         />
-        <h1>{state.status === 'loading' ? 'Niki 海报' : '登录 Niki'}</h1>
+        <h1>{state.status === 'loading' ? copy.loadingTitle : copy.loginTitle}</h1>
         {state.status === 'loading' ? (
           <div className="niki-auth__loading">
             <span className="niki-auth__spinner" aria-hidden />
-            <span>正在连接 Niki…</span>
+            <span>{copy.connecting}</span>
           </div>
         ) : state.status === 'error' ? (
           <>
             <p>{state.message}</p>
-            <button type="button" onClick={() => void onRetry()}>重新连接</button>
+            <button type="button" onClick={() => void onRetry()}>{copy.reconnect}</button>
           </>
         ) : !state.ready ? (
           <>
-            <p>服务器尚未完成飞书登录配置。</p>
-            <p className="niki-auth__hint">请先在 Mac mini 写入 App ID 和 App Secret。</p>
+            <p>{copy.notConfigured}</p>
+            <p className="niki-auth__hint">{copy.configureHint}</p>
           </>
         ) : (
           <>
             <p>
               {passwordMode
-                ? '使用管理员为你创建的 Niki 账号登录。'
-                : '使用公司飞书身份登录。每位用户拥有独立的项目和图片。'}
+                ? copy.passwordIntro
+                : copy.feishuIntro}
             </p>
             {authError ? (
               <div className="niki-auth__error">
-                飞书登录未完成，请重试。
+                {copy.feishuFailed}
               </div>
             ) : null}
             {passwordMode ? (
@@ -285,7 +353,7 @@ function NikiAuthScreen({
                 }}
               >
                 <label>
-                  <span>用户名</span>
+                  <span>{copy.username}</span>
                   <input
                     autoComplete="username"
                     value={username}
@@ -294,7 +362,7 @@ function NikiAuthScreen({
                   />
                 </label>
                 <div className="niki-auth__password-field">
-                  <label htmlFor={passwordInputId}>密码</label>
+                  <label htmlFor={passwordInputId}>{copy.password}</label>
                   <div className="niki-auth__password-control">
                     <input
                       id={passwordInputId}
@@ -308,7 +376,7 @@ function NikiAuthScreen({
                       type="button"
                       className="niki-auth__password-visibility"
                       disabled={submitting}
-                      aria-label={passwordVisible ? '隐藏密码' : '显示密码'}
+                      aria-label={passwordVisible ? copy.hidePassword : copy.showPassword}
                       aria-pressed={passwordVisible}
                       onClick={() => setPasswordVisible((visible) => !visible)}
                     >
@@ -320,7 +388,7 @@ function NikiAuthScreen({
                   <div className="niki-auth__error">{passwordError}</div>
                 ) : null}
                 <button type="submit" disabled={submitting}>
-                  {submitting ? '正在登录…' : '登录'}
+                  {submitting ? copy.signingIn : copy.signIn}
                 </button>
                 <button
                   type="button"
@@ -333,7 +401,7 @@ function NikiAuthScreen({
                   }}
                   disabled={submitting}
                 >
-                  返回飞书登录
+                  {copy.backToFeishu}
                 </button>
               </form>
             ) : (
@@ -350,9 +418,9 @@ function NikiAuthScreen({
                   {feishuSubmitting ? (
                     <>
                       <span className="niki-auth__button-spinner" aria-hidden />
-                      <span>正在前往飞书…</span>
+                      <span>{copy.openingFeishu}</span>
                     </>
-                  ) : '使用飞书登录'}
+                  ) : copy.feishuSignIn}
                 </button>
                 <button
                   type="button"
@@ -364,7 +432,7 @@ function NikiAuthScreen({
                   }}
                   disabled={feishuSubmitting}
                 >
-                  账号密码登录
+                  {copy.passwordSignIn}
                 </button>
               </>
             )}

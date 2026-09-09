@@ -8,6 +8,7 @@ import type {
 } from '@open-design/contracts';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../components/Icon';
+import { useI18n } from '../i18n';
 import { IeltsChunkCoach } from './IeltsChunkCoach';
 
 type Speaker = 'A' | 'B';
@@ -56,6 +57,182 @@ interface StoredProgress {
 }
 
 const STORAGE_KEY = 'niki:daily-english-practice:v1';
+
+const PRACTICE_COPY = {
+  en: {
+    practiceLabel: 'Daily English practice',
+    modeLabel: 'English practice mode',
+    scenes: 'Life scenarios',
+    scenesDetail: 'Listening and speaking basics',
+    ielts: 'IELTS speaking coach',
+    ieltsDetail: 'Active chunk recall and transfer',
+    kicker: 'DAILY ENGLISH',
+    title: '10 classic life scenarios',
+    subtitle: 'Practice one real-life situation each day: understand it, say it, then use it.',
+    vocabulary: 'Vocabulary',
+    today: 'Today’s pick · A2',
+    coffeeShop: 'Ordering at a Coffee Shop',
+    coffeeShopChinese: '咖啡店点餐',
+    lessonMeta: '12 natural exchanges · about 8 minutes',
+    progress: (value: number) => `Learning progress ${value}%`,
+    continue: 'Continue',
+    start: 'Start lesson',
+    scenarioCourses: 'Scenario lessons',
+    scenarioDetail: 'Classic, practical, and made for repetition',
+    available: '1 / 10 available',
+    comingSoon: 'Coming soon',
+    returnCourses: 'Back to lessons',
+    vocabularyTitle: 'Vocabulary',
+    vocabularySubtitle: 'Review words you saved from the dialogue.',
+    pronounce: (word: string) => `Pronounce ${word}`,
+    removeVocabulary: 'Remove from vocabulary',
+    vocabularyEmpty: 'No saved words yet',
+    vocabularyEmptyHint: 'Open the coffee-shop lesson and select any word to save it.',
+    firstLesson: 'Start the first lesson',
+    lessonLabel: 'Ordering at a Coffee Shop lesson',
+    allScenarios: 'All scenarios',
+    customer: 'Customer',
+    barista: 'Barista',
+    dialogue: 'Dialogue',
+    speakingPractice: 'Speaking practice',
+    stopPlayback: 'Stop playback',
+    playAll: 'Play all',
+    speed: 'Playback speed',
+    chinese: 'Chinese',
+    listenOnly: 'Listen only',
+    rolePlay: 'Role play',
+    playA: 'I am A',
+    playB: 'I am B',
+    roleActive: 'Your lines are hidden; speak when it is your turn.',
+    roleInactive: 'Choose a role and the system will read the other part.',
+    playLine: (index: number) => `Play line ${index}`,
+    tapToPlay: (index: number) => `Play line ${index}`,
+    yourTurn: 'Your turn',
+    yourTurnHint: 'Speak first, then play the reference pronunciation',
+    keyPhrases: 'Key phrases',
+    keyPhrasesHint: 'Use alternatives to express yourself more flexibly',
+    shadowing: 'Shadowing practice',
+    shadowingHint: 'Listen to the reference, then read the full sentence aloud.',
+    listenReference: 'Play reference',
+    complete: 'Completed',
+    markShadowed: 'I repeated it',
+    roleExercise: 'A/B role play',
+    roleExerciseHint: 'Choose a role, return to the dialogue, and the system will hide your lines.',
+    playCustomer: 'Play customer A',
+    playBarista: 'Play barista B',
+    sentenceOrder: 'Sentence order',
+    sentenceOrderHint: 'Arrange the blocks to ask politely for oat milk instead of regular milk.',
+    selectedWords: 'Selected words',
+    selectBlocks: 'Choose word blocks below',
+    reset: 'Reset',
+    checkAnswer: 'Check answer',
+    correct: 'Correct! This is a complete and polite substitution request.',
+    tryAgain: 'Try again. Start with the polite request “Could I…”.',
+    wordCard: (word: string) => `${word} word card`,
+    closeWordCard: 'Close word card',
+    close: 'Close',
+    removeFavorite: 'Remove from favorites',
+    addFavorite: 'Save word',
+    chineseMeaning: 'Chinese meaning',
+    currentContext: 'Current context',
+    genericMeaning: 'Lesson vocabulary',
+    genericContext: 'Use the play button to hear this word in the current sentence.',
+  },
+  zh: {
+    practiceLabel: '每日英语练习',
+    modeLabel: '英语训练模式',
+    scenes: '生活场景',
+    scenesDetail: '听说基础训练',
+    ielts: 'IELTS 口语教练',
+    ieltsDetail: '语块主动调用与迁移',
+    kicker: 'DAILY ENGLISH · 每日英语',
+    title: '10 个经典生活场景',
+    subtitle: '每天练一个真实场景。先听懂，再开口，最后把表达用出来。',
+    vocabulary: '生词本',
+    today: '今日推荐 · A2',
+    coffeeShop: '咖啡店点餐',
+    coffeeShopChinese: 'Ordering at a Coffee Shop',
+    lessonMeta: '12 轮自然对话 · 约 8 分钟',
+    progress: (value: number) => `学习进度 ${value}%`,
+    continue: '继续学习',
+    start: '开始学习',
+    scenarioCourses: '场景课程',
+    scenarioDetail: '经典、实用、可反复练习',
+    available: '1 / 10 已开放',
+    comingSoon: '即将上线',
+    returnCourses: '返回课程',
+    vocabularyTitle: '生词本',
+    vocabularySubtitle: '复习你在对话中收藏过的单词。',
+    pronounce: (word: string) => `朗读 ${word}`,
+    removeVocabulary: '移出生词本',
+    vocabularyEmpty: '还没有收藏单词',
+    vocabularyEmptyHint: '进入咖啡店课程，点击任意单词后就可以收藏。',
+    firstLesson: '开始第一课',
+    lessonLabel: '咖啡店点餐课程',
+    allScenarios: '全部场景',
+    customer: '顾客',
+    barista: '店员',
+    dialogue: '对话学习',
+    speakingPractice: '开口练习',
+    stopPlayback: '停止播放',
+    playAll: '连续播放',
+    speed: '朗读语速',
+    chinese: '中文',
+    listenOnly: '只听不看',
+    rolePlay: '角色扮演',
+    playA: '我演 A',
+    playB: '我演 B',
+    roleActive: '你的台词已隐藏；轮到你时请开口朗读。',
+    roleInactive: '选择一个角色，系统朗读另一方。',
+    playLine: (index: number) => `播放第 ${index} 句`,
+    tapToPlay: (index: number) => `点击播放第 ${index} 句`,
+    yourTurn: '轮到你说',
+    yourTurnHint: '先开口，再点击听参考发音',
+    keyPhrases: '重点短语',
+    keyPhrasesHint: '换一种说法，表达更灵活',
+    shadowing: '跟读练习',
+    shadowingHint: '先听参考发音，再完整朗读这句话。',
+    listenReference: '听参考',
+    complete: '已完成',
+    markShadowed: '我已跟读',
+    roleExercise: 'A/B 角色扮演',
+    roleExerciseHint: '选择角色后返回对话页，系统会隐藏你的台词并朗读另一方。',
+    playCustomer: '扮演顾客 A',
+    playBarista: '扮演店员 B',
+    sentenceOrder: '句子排序',
+    sentenceOrderHint: '点击词块，组成“可以把普通牛奶换成燕麦奶吗？”',
+    selectedWords: '已选择的单词',
+    selectBlocks: '从下面选择词块',
+    reset: '重新排列',
+    checkAnswer: '检查答案',
+    correct: '正确！这是一个礼貌提出替换要求的完整句子。',
+    tryAgain: '再试一次，先从礼貌请求 “Could I…” 开始。',
+    wordCard: (word: string) => `${word} 单词卡`,
+    closeWordCard: '关闭单词卡',
+    close: '关闭',
+    removeFavorite: '取消收藏',
+    addFavorite: '收藏单词',
+    chineseMeaning: '中文释义',
+    currentContext: '当前语境',
+    genericMeaning: '本课词汇',
+    genericContext: '点击播放按钮可听这个词在当前句子中的发音。',
+  },
+} as const;
+
+type PracticeCopy = (typeof PRACTICE_COPY)[keyof typeof PRACTICE_COPY];
+
+const ENGLISH_SCENARIO_DESCRIPTIONS: Record<string, string> = {
+  introductions: 'Greet someone, introduce yourself, and start a conversation naturally',
+  'coffee-shop': 'Choose a drink, customize it, confirm the price, and collect the order',
+  restaurant: 'Book a table, order food, make requests, and pay',
+  shopping: 'Ask prices, try things on, compare products, and pay',
+  directions: 'Ask for directions, confirm stops, and buy a ticket',
+  hotel: 'Confirm a booking, request a room, and check out',
+  airport: 'Check bags, confirm the gate, and board on time',
+  meeting: 'Share, support, add to, and politely challenge ideas',
+  appointment: 'Book, confirm, and reschedule by phone',
+  doctor: 'Describe symptoms, duration, and understand advice',
+};
 
 const SCENARIOS: Scenario[] = [
   { id: 'introductions', number: 1, title: '初次见面与自我介绍', englishTitle: 'Meeting Someone New', description: '打招呼、介绍自己并自然开启话题', level: 'A1', icon: '👋', available: false },
@@ -195,12 +372,12 @@ function readProgress(): StoredProgress {
   }
 }
 
-function wordInfo(value: string): WordInfo {
+function wordInfo(value: string, copy: PracticeCopy): WordInfo {
   const normalized = normalizeWord(value);
   const entry = WORDS[normalized];
   return entry
     ? { word: value, ...entry }
-    : { word: value, ipa: `/${normalized}/`, meaning: '本课词汇', context: '点击播放按钮可听这个词在当前句子中的发音。' };
+    : { word: value, ipa: `/${normalized}/`, meaning: copy.genericMeaning, context: copy.genericContext };
 }
 
 function shuffledOrder(): string[] {
@@ -258,6 +435,9 @@ function useSpeechPlayer(rate: SpeechRate, onLineListened: (id: string) => void)
 }
 
 export function EnglishPractice() {
+  const { locale } = useI18n();
+  const language = locale === 'zh-CN' ? 'zh' : 'en';
+  const copy = PRACTICE_COPY[language];
   const [practiceMode, setPracticeMode] = useState<PracticeMode>('scenes');
   const [view, setView] = useState<PracticeView>('home');
   const [lessonTab, setLessonTab] = useState<LessonTab>('dialogue');
@@ -339,7 +519,10 @@ export function EnglishPractice() {
   }, []);
   const speech = useSpeechPlayer(rate, markListened);
   const lessonPercent = Math.min(100, Math.round((progress.listenedLineIds.length / dialogue.length) * 100));
-  const favoriteWords = useMemo(() => progress.favorites.map((word) => wordInfo(word)), [progress.favorites]);
+  const favoriteWords = useMemo(
+    () => progress.favorites.map((word) => wordInfo(word, copy)),
+    [copy, progress.favorites],
+  );
 
   function openLesson() {
     speech.stop();
@@ -363,33 +546,33 @@ export function EnglishPractice() {
 
   function checkOrder() {
     const correct = orderedWords.join(' ') === 'Could I have oat milk instead of regular milk?';
-    setOrderFeedback(correct ? '正确！这是一个礼貌提出替换要求的完整句子。' : '再试一次，先从礼貌请求 “Could I…” 开始。');
+    setOrderFeedback(correct ? copy.correct : copy.tryAgain);
     if (correct) setProgress((current) => ({ ...current, sentenceOrderCompleted: true }));
   }
 
   if (view === 'home') {
     return (
-      <section className="english-practice" aria-label="每日英语练习">
-        <div className="english-practice__mode-switch" role="tablist" aria-label="英语训练模式">
+      <section className="english-practice" aria-label={copy.practiceLabel}>
+        <div className="english-practice__mode-switch" role="tablist" aria-label={copy.modeLabel}>
           <button type="button" role="tab" aria-selected={practiceMode === 'scenes'} onClick={() => setPracticeMode('scenes')}>
-            <span>生活场景</span><small>听说基础训练</small>
+            <span>{copy.scenes}</span><small>{copy.scenesDetail}</small>
           </button>
           <button type="button" role="tab" aria-selected={practiceMode === 'ielts'} onClick={() => setPracticeMode('ielts')}>
-            <span>IELTS 口语教练</span><small>语块主动调用与迁移</small>
+            <span>{copy.ielts}</span><small>{copy.ieltsDetail}</small>
           </button>
         </div>
 
-        {practiceMode === 'ielts' ? <IeltsChunkCoach /> : (
+        {practiceMode === 'ielts' ? <IeltsChunkCoach language={language} /> : (
           <>
         <div className="english-practice__hero">
           <div>
-            <span className="english-practice__kicker">DAILY ENGLISH · 每日英语</span>
-            <h2>10 个经典生活场景</h2>
-            <p>每天练一个真实场景。先听懂，再开口，最后把表达用出来。</p>
+            <span className="english-practice__kicker">{copy.kicker}</span>
+            <h2>{copy.title}</h2>
+            <p>{copy.subtitle}</p>
           </div>
           <button type="button" className="english-practice__vocab-link" onClick={() => setView('vocabulary')}>
             <Icon name="star" size={17} />
-            生词本
+            {copy.vocabulary}
             <span>{progress.favorites.length}</span>
           </button>
         </div>
@@ -397,26 +580,26 @@ export function EnglishPractice() {
         <article className="english-practice__today">
           <div className="english-practice__today-icon" aria-hidden>☕</div>
           <div>
-            <span>今日推荐 · A2</span>
-            <h3>咖啡店点餐</h3>
-            <p>12 轮自然对话 · 约 8 分钟</p>
+            <span>{copy.today}</span>
+            <h3>{copy.coffeeShop}</h3>
+            <p>{copy.lessonMeta}</p>
           </div>
-          <div className="english-practice__today-progress" aria-label={`学习进度 ${lessonPercent}%`}>
+          <div className="english-practice__today-progress" aria-label={copy.progress(lessonPercent)}>
             <strong>{lessonPercent}%</strong>
             <span><i style={{ width: `${lessonPercent}%` }} /></span>
           </div>
           <button type="button" className="english-practice__primary" onClick={openLesson}>
-            {lessonPercent > 0 ? '继续学习' : '开始学习'}
+            {lessonPercent > 0 ? copy.continue : copy.start}
             <Icon name="chevron-right" size={17} />
           </button>
         </article>
 
         <div className="english-practice__section-heading">
           <div>
-            <h3>场景课程</h3>
-            <p>经典、实用、可反复练习</p>
+            <h3>{copy.scenarioCourses}</h3>
+            <p>{copy.scenarioDetail}</p>
           </div>
-          <span>1 / 10 已开放</span>
+          <span>{copy.available}</span>
         </div>
 
         <div className="english-practice__scenarios">
@@ -431,13 +614,15 @@ export function EnglishPractice() {
               <span className="english-practice__scenario-number">{String(scenario.number).padStart(2, '0')}</span>
               <span className="english-practice__scenario-icon" aria-hidden>{scenario.icon}</span>
               <span className="english-practice__scenario-copy">
-                <strong>{scenario.title}</strong>
-                <small>{scenario.englishTitle}</small>
-                <em>{scenario.description}</em>
+                <strong>{language === 'zh' ? scenario.title : scenario.englishTitle}</strong>
+                <small>{language === 'zh' ? scenario.englishTitle : scenario.title}</small>
+                <em>{language === 'zh'
+                  ? scenario.description
+                  : ENGLISH_SCENARIO_DESCRIPTIONS[scenario.id] ?? scenario.description}</em>
               </span>
               <span className="english-practice__scenario-meta">
                 <b>{scenario.level}</b>
-                {scenario.available ? `${lessonPercent}%` : '即将上线'}
+                {scenario.available ? `${lessonPercent}%` : copy.comingSoon}
               </span>
             </button>
           ))}
@@ -450,36 +635,36 @@ export function EnglishPractice() {
 
   if (view === 'vocabulary') {
     return (
-      <section className="english-practice english-practice--subpage" aria-label="生词本">
+      <section className="english-practice english-practice--subpage" aria-label={copy.vocabularyTitle}>
         <button type="button" className="english-practice__back" onClick={() => setView('home')}>
-          <Icon name="arrow-left" size={17} /> 返回课程
+          <Icon name="arrow-left" size={17} /> {copy.returnCourses}
         </button>
         <div className="english-practice__subhead">
           <span className="english-practice__kicker">VOCABULARY</span>
-          <h2>生词本</h2>
-          <p>复习你在对话中收藏过的单词。</p>
+          <h2>{copy.vocabularyTitle}</h2>
+          <p>{copy.vocabularySubtitle}</p>
         </div>
         {favoriteWords.length > 0 ? (
           <div className="english-practice__vocab-grid">
             {favoriteWords.map((info) => (
               <article key={normalizeWord(info.word)}>
-              <button type="button" className="english-practice__vocab-speak" aria-label={`朗读 ${info.word}`} onClick={() => void speech.speak(info.word, `word:${info.word}`)}>
+              <button type="button" className="english-practice__vocab-speak" aria-label={copy.pronounce(info.word)} onClick={() => void speech.speak(info.word, `word:${info.word}`)}>
                   <Icon name="play" size={15} />
                 </button>
                 <strong>{info.word}</strong>
                 <span>{info.ipa}</span>
                 <p>{info.meaning}</p>
                 <small>{info.context}</small>
-                <button type="button" onClick={() => toggleFavorite(info.word)}>移出生词本</button>
+                <button type="button" onClick={() => toggleFavorite(info.word)}>{copy.removeVocabulary}</button>
               </article>
             ))}
           </div>
         ) : (
           <div className="english-practice__empty">
             <Icon name="star" size={28} />
-            <h3>还没有收藏单词</h3>
-            <p>进入咖啡店课程，点击任意单词后就可以收藏。</p>
-            <button type="button" className="english-practice__primary" onClick={openLesson}>开始第一课</button>
+            <h3>{copy.vocabularyEmpty}</h3>
+            <p>{copy.vocabularyEmptyHint}</p>
+            <button type="button" className="english-practice__primary" onClick={openLesson}>{copy.firstLesson}</button>
           </div>
         )}
       </section>
@@ -487,10 +672,10 @@ export function EnglishPractice() {
   }
 
   return (
-    <section className="english-practice english-practice--lesson" aria-label="咖啡店点餐课程">
+    <section className="english-practice english-practice--lesson" aria-label={copy.lessonLabel}>
       <div className="english-lesson__topbar">
         <button type="button" className="english-practice__back" onClick={() => { speech.stop(); setView('home'); }}>
-          <Icon name="arrow-left" size={17} /> 全部场景
+          <Icon name="arrow-left" size={17} /> {copy.allScenarios}
         </button>
         <div className="english-lesson__progress"><span><i style={{ width: `${lessonPercent}%` }} /></span><b>{lessonPercent}%</b></div>
       </div>
@@ -499,18 +684,18 @@ export function EnglishPractice() {
         <div className="english-lesson__intro-icon" aria-hidden>☕</div>
         <div>
           <span>A2 · SCENE 02</span>
-          <h2>咖啡店点餐</h2>
-          <p>Ordering at a Coffee Shop</p>
+          <h2>{copy.coffeeShop}</h2>
+          <p>{copy.coffeeShopChinese}</p>
         </div>
         <div className="english-lesson__roles">
-          <span><i className="is-a">A</i> Maya · 顾客</span>
-          <span><i className="is-b">B</i> Alex · 店员</span>
+          <span><i className="is-a">A</i> Maya · {copy.customer}</span>
+          <span><i className="is-b">B</i> Alex · {copy.barista}</span>
         </div>
       </div>
 
       <div className="english-lesson__tabs" role="tablist">
-        <button type="button" role="tab" aria-selected={lessonTab === 'dialogue'} onClick={() => setLessonTab('dialogue')}>对话学习</button>
-        <button type="button" role="tab" aria-selected={lessonTab === 'practice'} onClick={() => setLessonTab('practice')}>开口练习</button>
+        <button type="button" role="tab" aria-selected={lessonTab === 'dialogue'} onClick={() => setLessonTab('dialogue')}>{copy.dialogue}</button>
+        <button type="button" role="tab" aria-selected={lessonTab === 'practice'} onClick={() => setLessonTab('practice')}>{copy.speakingPractice}</button>
       </div>
 
       {lessonTab === 'dialogue' ? (
@@ -522,9 +707,9 @@ export function EnglishPractice() {
                 else void speech.speakSequence(dialogue);
               }}>
                 <Icon name={speech.speakingId ? 'stop' : 'play'} size={16} />
-                {speech.speakingId ? '停止播放' : '连续播放'}
+                {speech.speakingId ? copy.stopPlayback : copy.playAll}
               </button>
-              <div className="english-lesson__rate" aria-label="朗读语速">
+              <div className="english-lesson__rate" aria-label={copy.speed}>
                 {([0.75, 1, 1.25] as const).map((value) => (
                   <button key={value} type="button" className={rate === value ? 'is-active' : ''} onClick={() => { speech.stop(); setRate(value); }}>{value}×</button>
                 ))}
@@ -532,19 +717,19 @@ export function EnglishPractice() {
             </div>
             <div className="english-lesson__toggles">
               <button type="button" className={showChinese ? 'is-active' : ''} onClick={() => setShowChinese((current) => !current)}>
-                <Icon name={showChinese ? 'eye' : 'eye-off'} size={15} /> 中文
+                <Icon name={showChinese ? 'eye' : 'eye-off'} size={15} /> {copy.chinese}
               </button>
               <button type="button" className={listenOnly ? 'is-active' : ''} onClick={() => setListenOnly((current) => !current)}>
-                <Icon name="play" size={15} /> 只听不看
+                <Icon name="play" size={15} /> {copy.listenOnly}
               </button>
             </div>
           </div>
 
           <div className="english-lesson__roleplay">
-            <span>角色扮演</span>
-            <button type="button" className={rolePlayRole === 'A' ? 'is-active' : ''} onClick={() => setRolePlayRole((current) => current === 'A' ? null : 'A')}>我演 A</button>
-            <button type="button" className={rolePlayRole === 'B' ? 'is-active' : ''} onClick={() => setRolePlayRole((current) => current === 'B' ? null : 'B')}>我演 B</button>
-            {rolePlayRole ? <small>你的台词已隐藏；轮到你时请开口朗读。</small> : <small>选择一个角色，系统朗读另一方。</small>}
+            <span>{copy.rolePlay}</span>
+            <button type="button" className={rolePlayRole === 'A' ? 'is-active' : ''} onClick={() => setRolePlayRole((current) => current === 'A' ? null : 'A')}>{copy.playA}</button>
+            <button type="button" className={rolePlayRole === 'B' ? 'is-active' : ''} onClick={() => setRolePlayRole((current) => current === 'B' ? null : 'B')}>{copy.playB}</button>
+            {rolePlayRole ? <small>{copy.roleActive}</small> : <small>{copy.roleInactive}</small>}
           </div>
 
           <div className={`english-lesson__dialogue${listenOnly ? ' is-listen-only' : ''}`}>
@@ -558,7 +743,7 @@ export function EnglishPractice() {
                     {listenOnly ? (
                       <button type="button" className="english-line__listen-card" onClick={() => void speech.speak(line.english, line.id, line.speaker)}>
                         <Icon name="play" size={18} />
-                        <span>点击播放第 {index + 1} 句</span>
+                        <span>{copy.tapToPlay(index + 1)}</span>
                       </button>
                     ) : isYourTurn ? (
                       <button type="button" className="english-line__your-turn" onClick={() => {
@@ -566,13 +751,13 @@ export function EnglishPractice() {
                         setProgress((current) => ({ ...current, rolePlayCompleted: true }));
                       }}>
                         <Icon name="mic" size={18} />
-                        <span><strong>轮到你说</strong><small>先开口，再点击听参考发音</small></span>
+                        <span><strong>{copy.yourTurn}</strong><small>{copy.yourTurnHint}</small></span>
                       </button>
                     ) : (
                       <div className="english-line__bubble">
                         <p className="english-line__english">
                           {tokens(line.english).map((token, tokenIndex) => token.word ? (
-                            <button key={`${line.id}-${tokenIndex}`} type="button" onClick={() => setSelectedWord(wordInfo(token.value))}>{token.value}</button>
+                            <button key={`${line.id}-${tokenIndex}`} type="button" onClick={() => setSelectedWord(wordInfo(token.value, copy))}>{token.value}</button>
                           ) : <span key={`${line.id}-${tokenIndex}`}>{token.value}</span>)}
                         </p>
                         {showChinese ? <p className="english-line__chinese">{line.chinese}</p> : null}
@@ -580,7 +765,7 @@ export function EnglishPractice() {
                     )}
                   </div>
                   {!listenOnly && !isYourTurn ? (
-                    <button type="button" className="english-line__play" aria-label={`播放第 ${index + 1} 句`} onClick={() => void speech.speak(line.english, line.id, line.speaker)}>
+                    <button type="button" className="english-line__play" aria-label={copy.playLine(index + 1)} onClick={() => void speech.speak(line.english, line.id, line.speaker)}>
                       <Icon name={speech.speakingId === line.id ? 'stop' : 'play'} size={15} />
                     </button>
                   ) : null}
@@ -590,7 +775,7 @@ export function EnglishPractice() {
           </div>
 
           <section className="english-lesson__phrases">
-            <div className="english-practice__section-heading"><div><h3>重点短语</h3><p>换一种说法，表达更灵活</p></div></div>
+            <div className="english-practice__section-heading"><div><h3>{copy.keyPhrases}</h3><p>{copy.keyPhrasesHint}</p></div></div>
             <div className="english-lesson__phrase-grid">
               {PHRASES.map((phrase) => (
                 <article key={phrase.phrase}>
@@ -607,28 +792,28 @@ export function EnglishPractice() {
         <div className="english-practice__exercises">
           <article className="english-exercise english-exercise--shadowing">
             <span className="english-exercise__number">01</span>
-            <div><h3>跟读练习</h3><p>先听参考发音，再完整朗读这句话。</p></div>
+            <div><h3>{copy.shadowing}</h3><p>{copy.shadowingHint}</p></div>
             <blockquote>“I’d like a medium latte, please.”</blockquote>
             <div className="english-exercise__actions">
-              <button type="button" onClick={() => void speech.speak("I'd like a medium latte, please.", 'shadowing', 'A')}><Icon name="play" size={16} /> 听参考</button>
-              <button type="button" className={progress.shadowingCompleted ? 'is-complete' : ''} onClick={() => setProgress((current) => ({ ...current, shadowingCompleted: true }))}><Icon name={progress.shadowingCompleted ? 'check' : 'mic'} size={16} /> {progress.shadowingCompleted ? '已完成' : '我已跟读'}</button>
+              <button type="button" onClick={() => void speech.speak("I'd like a medium latte, please.", 'shadowing', 'A')}><Icon name="play" size={16} /> {copy.listenReference}</button>
+              <button type="button" className={progress.shadowingCompleted ? 'is-complete' : ''} onClick={() => setProgress((current) => ({ ...current, shadowingCompleted: true }))}><Icon name={progress.shadowingCompleted ? 'check' : 'mic'} size={16} /> {progress.shadowingCompleted ? copy.complete : copy.markShadowed}</button>
             </div>
           </article>
 
           <article className="english-exercise english-exercise--roleplay">
             <span className="english-exercise__number">02</span>
-            <div><h3>A/B 角色扮演</h3><p>选择角色后返回对话页，系统会隐藏你的台词并朗读另一方。</p></div>
+            <div><h3>{copy.roleExercise}</h3><p>{copy.roleExerciseHint}</p></div>
             <div className="english-exercise__role-buttons">
-              <button type="button" onClick={() => { setRolePlayRole('A'); setLessonTab('dialogue'); }}>扮演顾客 A</button>
-              <button type="button" onClick={() => { setRolePlayRole('B'); setLessonTab('dialogue'); }}>扮演店员 B</button>
+              <button type="button" onClick={() => { setRolePlayRole('A'); setLessonTab('dialogue'); }}>{copy.playCustomer}</button>
+              <button type="button" onClick={() => { setRolePlayRole('B'); setLessonTab('dialogue'); }}>{copy.playBarista}</button>
             </div>
           </article>
 
           <article className="english-exercise english-exercise--ordering">
             <span className="english-exercise__number">03</span>
-            <div><h3>句子排序</h3><p>点击词块，组成“可以把普通牛奶换成燕麦奶吗？”</p></div>
-            <div className="english-exercise__answer" aria-label="已选择的单词">
-              {orderedWords.length > 0 ? orderedWords.map((word, index) => <button type="button" key={`${word}-${index}`} onClick={() => setOrderedWords((current) => current.filter((_, itemIndex) => itemIndex !== index))}>{word}</button>) : <span>从下面选择词块</span>}
+            <div><h3>{copy.sentenceOrder}</h3><p>{copy.sentenceOrderHint}</p></div>
+            <div className="english-exercise__answer" aria-label={copy.selectedWords}>
+              {orderedWords.length > 0 ? orderedWords.map((word, index) => <button type="button" key={`${word}-${index}`} onClick={() => setOrderedWords((current) => current.filter((_, itemIndex) => itemIndex !== index))}>{word}</button>) : <span>{copy.selectBlocks}</span>}
             </div>
             <div className="english-exercise__word-bank">
               {shuffledOrder().map((word, index) => (
@@ -636,8 +821,8 @@ export function EnglishPractice() {
               ))}
             </div>
             <div className="english-exercise__actions">
-              <button type="button" onClick={() => { setOrderedWords([]); setOrderFeedback(null); }}>重新排列</button>
-              <button type="button" onClick={checkOrder}>检查答案</button>
+              <button type="button" onClick={() => { setOrderedWords([]); setOrderFeedback(null); }}>{copy.reset}</button>
+              <button type="button" onClick={checkOrder}>{copy.checkAnswer}</button>
             </div>
             {orderFeedback ? <p className={progress.sentenceOrderCompleted ? 'is-correct' : 'is-error'}>{orderFeedback}</p> : null}
           </article>
@@ -645,18 +830,18 @@ export function EnglishPractice() {
       )}
 
       {selectedWord ? (
-        <div className="english-word-sheet" role="dialog" aria-modal="true" aria-label={`${selectedWord.word} 单词卡`}>
-          <button type="button" className="english-word-sheet__scrim" onClick={() => setSelectedWord(null)} aria-label="关闭单词卡" />
+        <div className="english-word-sheet" role="dialog" aria-modal="true" aria-label={copy.wordCard(selectedWord.word)}>
+          <button type="button" className="english-word-sheet__scrim" onClick={() => setSelectedWord(null)} aria-label={copy.closeWordCard} />
           <article>
             <div className="english-word-sheet__handle" />
-            <button type="button" className="english-word-sheet__close" onClick={() => setSelectedWord(null)} aria-label="关闭"><Icon name="close" size={18} /></button>
+            <button type="button" className="english-word-sheet__close" onClick={() => setSelectedWord(null)} aria-label={copy.close}><Icon name="close" size={18} /></button>
             <div className="english-word-sheet__word-row">
               <div><strong>{selectedWord.word}</strong><span>{selectedWord.ipa}</span></div>
-              <button type="button" aria-label={`朗读 ${selectedWord.word}`} onClick={() => void speech.speak(selectedWord.word, `word:${selectedWord.word}`)}><Icon name="play" size={18} /></button>
-              <button type="button" aria-label={progress.favorites.includes(normalizeWord(selectedWord.word)) ? '取消收藏' : '收藏单词'} className={progress.favorites.includes(normalizeWord(selectedWord.word)) ? 'is-active' : ''} onClick={() => toggleFavorite(selectedWord.word)}><Icon name="star" size={18} /></button>
+              <button type="button" aria-label={copy.pronounce(selectedWord.word)} onClick={() => void speech.speak(selectedWord.word, `word:${selectedWord.word}`)}><Icon name="play" size={18} /></button>
+              <button type="button" aria-label={progress.favorites.includes(normalizeWord(selectedWord.word)) ? copy.removeFavorite : copy.addFavorite} className={progress.favorites.includes(normalizeWord(selectedWord.word)) ? 'is-active' : ''} onClick={() => toggleFavorite(selectedWord.word)}><Icon name="star" size={18} /></button>
             </div>
-            <div className="english-word-sheet__meaning"><span>中文释义</span><p>{selectedWord.meaning}</p></div>
-            <div className="english-word-sheet__context"><span>当前语境</span><p>{selectedWord.context}</p></div>
+            <div className="english-word-sheet__meaning"><span>{copy.chineseMeaning}</span><p>{selectedWord.meaning}</p></div>
+            <div className="english-word-sheet__context"><span>{copy.currentContext}</span><p>{selectedWord.context}</p></div>
           </article>
         </div>
       ) : null}

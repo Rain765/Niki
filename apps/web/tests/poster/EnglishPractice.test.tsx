@@ -3,6 +3,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnglishPractice } from '../../src/poster/EnglishPractice';
+import { I18nProvider } from '../../src/i18n';
 
 class SpeechSynthesisUtteranceStub {
   lang = '';
@@ -37,8 +38,14 @@ afterEach(() => {
 });
 
 describe('EnglishPractice', () => {
+  const renderPractice = () => render(
+    <I18nProvider initial="zh-CN">
+      <EnglishPractice />
+    </I18nProvider>,
+  );
+
   it('shows ten stable life scenarios and opens the complete coffee lesson', () => {
-    render(<EnglishPractice />);
+    renderPractice();
 
     expect(screen.getByRole('heading', { name: '10 个经典生活场景' })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /A1|A2|B1/ })).toHaveLength(10);
@@ -51,7 +58,7 @@ describe('EnglishPractice', () => {
   });
 
   it('opens a contextual word card and saves the word to the vocabulary book', () => {
-    render(<EnglishPractice />);
+    renderPractice();
     fireEvent.click(screen.getByRole('button', { name: /咖啡店点餐.*Ordering at a Coffee Shop/ }));
     fireEvent.click(screen.getByRole('button', { name: 'latte' }));
 
@@ -69,7 +76,7 @@ describe('EnglishPractice', () => {
   });
 
   it('supports role play, hidden Chinese, listen-only mode, and playback speed', () => {
-    render(<EnglishPractice />);
+    renderPractice();
     fireEvent.click(screen.getByRole('button', { name: /咖啡店点餐.*Ordering at a Coffee Shop/ }));
 
     fireEvent.click(screen.getByRole('button', { name: '我演 A' }));
@@ -88,7 +95,7 @@ describe('EnglishPractice', () => {
   });
 
   it('opens the IELTS coach inside Daily English and starts a one-question-at-a-time diagnosis', () => {
-    render(<EnglishPractice />);
+    renderPractice();
 
     fireEvent.click(screen.getByRole('tab', { name: /IELTS 口语教练/ }));
 
@@ -104,7 +111,7 @@ describe('EnglishPractice', () => {
   });
 
   it('moves from diagnosis to replaceable chunks and reveals transfer hints progressively', () => {
-    render(<EnglishPractice />);
+    renderPractice();
     fireEvent.click(screen.getByRole('tab', { name: /IELTS 口语教练/ }));
     fireEvent.click(screen.getByRole('button', { name: /开始 Part 1 诊断/ }));
 
@@ -124,5 +131,22 @@ describe('EnglishPractice', () => {
     expect(screen.getByText('想一个真实的习惯、工具或环境。')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '再给一点提示' }));
     expect(screen.getByText('… plays a major role in …')).toBeTruthy();
+  });
+
+  it('renders the practice shell and IELTS setup in English', () => {
+    render(
+      <I18nProvider initial="en">
+        <EnglishPractice />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByRole('heading', { name: '10 classic life scenarios' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Ordering at a Coffee Shop/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /IELTS speaking coach/ }));
+    expect(screen.getByRole('heading', {
+      name: 'Turn chunks into expressions you can use on demand',
+    })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Work & study' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '工作与学习' })).toBeNull();
   });
 });

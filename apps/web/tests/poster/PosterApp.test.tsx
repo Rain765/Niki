@@ -298,6 +298,14 @@ describe('PosterApp mobile-safe flow', () => {
     expect(within(navigation).getByRole('button', { name: '文档' })).toBeTruthy();
     expect(within(navigation).getByRole('link', { name: 'Logo' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '英语练习' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '海报生成设置' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '产品' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '类型' }).textContent).toContain('防欺诈');
+    expect(screen.getByRole('combobox', { name: '数量' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '比例' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '生成海报' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '最新一批' })).toBeTruthy();
+    expect(screen.queryByText('Product')).toBeNull();
 
     const language = screen.getByRole('group', { name: '界面语言' });
     expect(within(language).getByRole('button', { name: '中文' }).getAttribute('aria-pressed'))
@@ -307,6 +315,11 @@ describe('PosterApp mobile-safe flow', () => {
     expect(window.localStorage.getItem('open-design:locale')).toBe('en');
     expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Generate loan posters' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Product' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Generate posters' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Latest batch' })).toBeTruthy();
+    expect(screen.queryByText('产品')).toBeNull();
   });
 
   it('regenerates from an approved page plan without reopening the editor', async () => {
@@ -771,7 +784,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(product.options).toEqual(['Zamloan', 'Biumoney']);
     expect(product.trigger.getAttribute('value')).toBe('zamloan');
     const type = selectOptions('Type');
-    expect(type.options).toEqual(['引流', '防欺诈']);
+    expect(type.options).toEqual(['Acquisition', 'Anti-fraud']);
     expect(type.trigger.getAttribute('value')).toBe('anti-fraud');
     const quantity = selectOptions('Quantity');
     expect(quantity.options).toEqual(['1', '2', '3', '4']);
@@ -788,7 +801,7 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('combobox', { name: 'Product' }));
     fireEvent.click(screen.getByRole('option', { name: /Biumoney/ }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Type' }));
-    fireEvent.click(screen.getByRole('option', { name: /引流/ }));
+    fireEvent.click(screen.getByRole('option', { name: /Acquisition/ }));
     fireEvent.click(screen.getByRole('combobox', { name: 'Quantity' }));
     fireEvent.click(screen.getByRole('option', { name: /3/ }));
     selectWorkspace('Videos');
@@ -834,7 +847,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     selectWorkspace('English practice');
     expect(screen.getByRole('heading', { name: 'Daily English Practice' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: '10 个经典生活场景' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '10 classic life scenarios' })).toBeTruthy();
     expect(window.location.search).toBe('?mode=english');
   });
 
@@ -895,7 +908,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     expect(logoutMock).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Account' }));
-    expect(await screen.findByRole('dialog', { name: '账号管理' })).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'Account management' })).toBeTruthy();
   });
 
   it('shows a gallery placeholder immediately while restoring the server project', () => {

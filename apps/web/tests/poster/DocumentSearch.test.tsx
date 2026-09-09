@@ -6,6 +6,7 @@ import {
   DocumentSearch,
   parseFeishuDocumentUrl,
 } from '../../src/poster/DocumentSearch';
+import { I18nProvider } from '../../src/i18n';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -53,6 +54,26 @@ describe('DocumentSearch', () => {
       'https://biu-tech.feishu.cn/docx/JEQKdwxl3oeWARxEl9mcj5F1nPh',
     );
     expect(parseFeishuDocumentUrl('https://feishu.cn.evil.test/docx/AbCdEf123')).toBeNull();
+  });
+
+  it('renders the complete workspace chrome in Chinese', async () => {
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (String(input) === '/api/projects') return jsonResponse({ projects: [] });
+      return jsonResponse({}, 404);
+    });
+
+    render(
+      <I18nProvider initial="zh-CN">
+        <DocumentSearch />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByRole('textbox', { name: '搜索飞书文档或粘贴链接' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '你想查找什么？' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /新建对话/ })).toBeTruthy();
+    expect(await screen.findByText('文档项目会显示在这里。')).toBeTruthy();
+    expect(screen.queryByText('New chat')).toBeNull();
+    expect(screen.queryByText('Projects')).toBeNull();
   });
 
   it('uses one input for keyword search and renders matching documents', async () => {

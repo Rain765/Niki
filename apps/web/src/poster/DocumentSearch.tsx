@@ -10,6 +10,7 @@ import type {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Icon } from '../components/Icon';
+import { useI18n } from '../i18n';
 import {
   createConversation,
   createProject,
@@ -32,6 +33,125 @@ const FEISHU_DOCUMENT_PATH = /^\/(docx|wiki)\/[^/?#]+/i;
 const FEISHU_DOCUMENT_URL_IN_TEXT = /https:\/\/(?:[a-z0-9-]+\.)*feishu\.cn\/(?:docx|wiki)\/[a-z0-9_-]+/i;
 const DOCUMENT_EVENT_PREFIX = 'niki-feishu-document:';
 const MAX_RECENT_THREADS = 18;
+
+const DOCUMENT_COPY = {
+  en: {
+    locale: 'en',
+    untitled: 'Untitled document',
+    justNow: 'Just now',
+    minutes: (value: number) => `${value}m`,
+    hours: (value: number) => `${value}h`,
+    days: (value: number) => `${value}d`,
+    today: 'Today',
+    previous7Days: 'Previous 7 days',
+    older: 'Older',
+    summarize: 'Summarize this document',
+    emptyDocument: 'This document is empty.',
+    noReadableText: 'The source document does not contain readable text.',
+    askPlaceholder: 'Ask about this document or paste another Feishu link',
+    searchPlaceholder: 'Search Feishu documents or paste a link',
+    inputLabel: 'Search Feishu documents or paste a link',
+    readDocument: 'Read Feishu document',
+    searchDocuments: 'Search documents',
+    restoreFailed: 'This saved document could not be restored.',
+    projectNamePrompt: 'Project name',
+    projectName: (index: number) => `Document project ${index}`,
+    myDocuments: 'My documents',
+    readFailed: 'Could not read this Feishu document. Please try again.',
+    searchFailed: 'Could not search Feishu. Please try again.',
+    navigation: 'Document workspace navigation',
+    closeNavigation: 'Close navigation',
+    newChat: 'New chat',
+    projects: 'Projects',
+    newProject: 'New project',
+    loading: 'Loading…',
+    projectsEmpty: 'Your document projects will appear here.',
+    recent: 'Recent',
+    recentEmpty: 'No document summaries yet.',
+    openNavigation: 'Open document navigation',
+    project: 'PROJECT',
+    projectLabel: 'Document project',
+    savedSummaries: (count: number) => `${count} saved ${count === 1 ? 'summary' : 'summaries'}`,
+    updatedAgo: (value: string) => `Updated ${value} ago`,
+    projectEmpty: 'No summaries in this project',
+    projectEmptyHint: 'Start a new chat and paste a Feishu document link.',
+    summaryLabel: 'Document summary',
+    loadingSummary: 'Loading summary…',
+    openFeishu: 'Open in Feishu',
+    sourceDocument: 'Source document',
+    followUpHint: 'Ask a follow-up grounded in this document, or paste another Feishu link.',
+    searchLabel: 'Feishu document search',
+    heroTitle: 'What do you want to find?',
+    linkDetected: 'Feishu link detected · Read with view-only access',
+    permissionHint: 'Search only shows documents you already have permission to view',
+    reading: 'Reading Feishu document…',
+    searching: 'Searching Feishu…',
+    reconnect: 'Reconnect Feishu',
+    resultsFor: (query: string) => `Results for “${query}”`,
+    found: (count: number) => `${count} found`,
+    noMatches: 'No matching documents',
+    noMatchesHint: 'Try another title, keyword, or paste a Feishu link.',
+  },
+  zh: {
+    locale: 'zh-CN',
+    untitled: '未命名文档',
+    justNow: '刚刚',
+    minutes: (value: number) => `${value} 分钟`,
+    hours: (value: number) => `${value} 小时`,
+    days: (value: number) => `${value} 天`,
+    today: '今天',
+    previous7Days: '过去 7 天',
+    older: '更早',
+    summarize: '总结这份文档',
+    emptyDocument: '这份文档没有内容。',
+    noReadableText: '源文档中没有可读取的文本。',
+    askPlaceholder: '询问这份文档，或粘贴另一个飞书链接',
+    searchPlaceholder: '搜索飞书文档或粘贴链接',
+    inputLabel: '搜索飞书文档或粘贴链接',
+    readDocument: '读取飞书文档',
+    searchDocuments: '搜索文档',
+    restoreFailed: '无法恢复这份已保存的文档。',
+    projectNamePrompt: '项目名称',
+    projectName: (index: number) => `文档项目 ${index}`,
+    myDocuments: '我的文档',
+    readFailed: '无法读取这份飞书文档，请重试。',
+    searchFailed: '无法搜索飞书文档，请重试。',
+    navigation: '文档工作区导航',
+    closeNavigation: '关闭导航',
+    newChat: '新建对话',
+    projects: '项目',
+    newProject: '新建项目',
+    loading: '正在加载…',
+    projectsEmpty: '文档项目会显示在这里。',
+    recent: '最近',
+    recentEmpty: '还没有文档摘要。',
+    openNavigation: '打开文档导航',
+    project: '项目',
+    projectLabel: '文档项目',
+    savedSummaries: (count: number) => `已保存 ${count} 份摘要`,
+    updatedAgo: (value: string) => `${value}前更新`,
+    projectEmpty: '此项目还没有摘要',
+    projectEmptyHint: '新建对话并粘贴一个飞书文档链接。',
+    summaryLabel: '文档摘要',
+    loadingSummary: '正在加载摘要…',
+    openFeishu: '在飞书中打开',
+    sourceDocument: '源文档',
+    followUpHint: '继续询问这份文档，或粘贴另一个飞书链接。',
+    searchLabel: '飞书文档搜索',
+    heroTitle: '你想查找什么？',
+    linkDetected: '已识别飞书链接 · 将以只读权限读取',
+    permissionHint: '搜索结果仅包含你已有权限查看的文档',
+    reading: '正在读取飞书文档…',
+    searching: '正在搜索飞书文档…',
+    reconnect: '重新连接飞书',
+    resultsFor: (query: string) => `“${query}”的搜索结果`,
+    found: (count: number) => `找到 ${count} 项`,
+    noMatches: '没有匹配的文档',
+    noMatchesHint: '请尝试其他标题或关键词，或粘贴飞书链接。',
+  },
+} as const;
+
+type DocumentCopy = (typeof DOCUMENT_COPY)[keyof typeof DOCUMENT_COPY];
 
 interface WorkspaceThread extends Conversation {
   projectName: string;
@@ -75,44 +195,44 @@ function cleanHighlightedText(value: string | undefined): string {
     .replace(/&#39;/g, "'");
 }
 
-function formatUpdatedAt(value: number | undefined): string | null {
+function formatUpdatedAt(value: number | undefined, copy: DocumentCopy): string | null {
   if (!value || !Number.isFinite(value)) return null;
   const milliseconds = value < 10_000_000_000 ? value * 1_000 : value;
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat(copy.locale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(new Date(milliseconds));
 }
 
-function relativeDate(value: number): string {
+function relativeDate(value: number, copy: DocumentCopy): string {
   const elapsed = Date.now() - value;
-  if (elapsed < 60_000) return 'Just now';
-  if (elapsed < 3_600_000) return `${Math.max(1, Math.floor(elapsed / 60_000))}m`;
-  if (elapsed < 86_400_000) return `${Math.max(1, Math.floor(elapsed / 3_600_000))}h`;
-  if (elapsed < 604_800_000) return `${Math.max(1, Math.floor(elapsed / 86_400_000))}d`;
-  return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(value);
+  if (elapsed < 60_000) return copy.justNow;
+  if (elapsed < 3_600_000) return copy.minutes(Math.max(1, Math.floor(elapsed / 60_000)));
+  if (elapsed < 86_400_000) return copy.hours(Math.max(1, Math.floor(elapsed / 3_600_000)));
+  if (elapsed < 604_800_000) return copy.days(Math.max(1, Math.floor(elapsed / 86_400_000)));
+  return new Intl.DateTimeFormat(copy.locale, { month: 'short', day: 'numeric' }).format(value);
 }
 
-function recentGroup(value: number): 'Today' | 'Previous 7 days' | 'Older' {
+function recentGroup(value: number, copy: DocumentCopy): string {
   const age = Date.now() - value;
-  if (age < 86_400_000) return 'Today';
-  if (age < 604_800_000) return 'Previous 7 days';
-  return 'Older';
+  if (age < 86_400_000) return copy.today;
+  if (age < 604_800_000) return copy.previous7Days;
+  return copy.older;
 }
 
 function isDocumentWorkspaceProject(project: Project): boolean {
   return project.metadata?.documentWorkspace?.source === 'feishu';
 }
 
-function instructionFromValue(value: string, url: string): string {
+function instructionFromValue(value: string, url: string, copy: DocumentCopy): string {
   const instruction = value.replace(url, '').trim();
-  return instruction || 'Summarize this document';
+  return instruction || copy.summarize;
 }
 
-function summarizeDocumentContent(content: string): string {
+function summarizeDocumentContent(content: string, copy: DocumentCopy): string {
   const normalized = content.trim();
-  if (!normalized) return 'This document is empty.';
+  if (!normalized) return copy.emptyDocument;
   if (normalized.length <= 7_000) return normalized;
 
   const paragraphs = normalized
@@ -129,7 +249,7 @@ function summarizeDocumentContent(content: string): string {
   return `${selected.join('\n\n')}\n\n…`;
 }
 
-function answerFromDocument(content: string, query: string): string {
+function answerFromDocument(content: string, query: string, copy: DocumentCopy): string {
   const paragraphs = content
     .split(/\n{2,}|\n(?=[一二三四五六七八九十0-9]+[、.])/u)
     .map((paragraph) => paragraph.trim())
@@ -152,7 +272,7 @@ function answerFromDocument(content: string, query: string): string {
     .sort((left, right) => right.score - left.score || left.index - right.index);
   const matches = ranked.filter((item) => item.score > 0).slice(0, 3);
   const selected = matches.length > 0 ? matches : ranked.slice(0, 3);
-  if (selected.length === 0) return 'The source document does not contain readable text.';
+  if (selected.length === 0) return copy.noReadableText;
   return selected.map((item) => item.paragraph).join('\n\n');
 }
 
@@ -194,8 +314,8 @@ function documentFromMessages(messages: ChatMessage[]): FeishuDocumentReadRespon
   return null;
 }
 
-function SearchResult({ result }: { result: FeishuDocumentSearchResult }) {
-  const updatedAt = formatUpdatedAt(result.updatedAt);
+function SearchResult({ result, copy }: { result: FeishuDocumentSearchResult; copy: DocumentCopy }) {
+  const updatedAt = formatUpdatedAt(result.updatedAt, copy);
   const metadata = [result.ownerName, updatedAt].filter(Boolean).join(' · ');
   return (
     <a
@@ -208,7 +328,7 @@ function SearchResult({ result }: { result: FeishuDocumentSearchResult }) {
         <Icon name="file" size={19} />
       </span>
       <span className="document-search__result-copy">
-        <strong>{cleanHighlightedText(result.title) || 'Untitled document'}</strong>
+        <strong>{cleanHighlightedText(result.title) || copy.untitled}</strong>
         {result.summary ? <small>{cleanHighlightedText(result.summary)}</small> : null}
         {metadata ? <span>{metadata}</span> : null}
       </span>
@@ -218,6 +338,7 @@ function SearchResult({ result }: { result: FeishuDocumentSearchResult }) {
 }
 
 interface ComposerProps {
+  copy: DocumentCopy;
   compact?: boolean;
   documentUrl: string | null;
   loading: boolean;
@@ -228,6 +349,7 @@ interface ComposerProps {
 
 function DocumentComposer({
   compact = false,
+  copy,
   documentUrl,
   loading,
   onChange,
@@ -247,15 +369,15 @@ function DocumentComposer({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={compact
-          ? 'Ask about this document or paste another Feishu link'
-          : 'Search Feishu documents or paste a link'}
-        aria-label="Search Feishu documents or paste a link"
+          ? copy.askPlaceholder
+          : copy.searchPlaceholder}
+        aria-label={copy.inputLabel}
         autoComplete="off"
         autoFocus={!compact}
       />
       <button
         type="submit"
-        aria-label={documentUrl ? 'Read Feishu document' : 'Search documents'}
+        aria-label={documentUrl ? copy.readDocument : copy.searchDocuments}
         disabled={!value.trim() || loading}
       >
         {loading ? <Icon name="spinner" size={19} /> : <Icon name="arrow-up" size={20} />}
@@ -265,6 +387,8 @@ function DocumentComposer({
 }
 
 export function DocumentSearch() {
+  const { locale } = useI18n();
+  const copy = DOCUMENT_COPY[locale === 'zh-CN' ? 'zh' : 'en'];
   const [value, setValue] = useState('');
   const [submittedQuery, setSubmittedQuery] = useState('');
   const [results, setResults] = useState<FeishuDocumentSearchResult[]>([]);
@@ -353,15 +477,15 @@ export function DocumentSearch() {
     if (!savedDocument) {
       setError({
         code: 'FEISHU_READ_FAILED',
-        error: 'This saved document could not be restored.',
+        error: copy.restoreFailed,
       });
     }
     setThreadLoading(false);
-  }, []);
+  }, [copy.restoreFailed]);
 
   const createWorkspaceProject = useCallback(async () => {
-    const suggestedName = `Document project ${workspaceProjects.length + 1}`;
-    const name = window.prompt('Project name', suggestedName)?.trim();
+    const suggestedName = copy.projectName(workspaceProjects.length + 1);
+    const name = window.prompt(copy.projectNamePrompt, suggestedName)?.trim();
     if (!name) return null;
     const created = await createProject({
       name,
@@ -378,7 +502,7 @@ export function DocumentSearch() {
     setView('project');
     setSidebarOpen(false);
     return created;
-  }, [refreshWorkspace, workspaceProjects.length]);
+  }, [copy, refreshWorkspace, workspaceProjects.length]);
 
   const ensureTargetProject = useCallback(async (): Promise<{
     project: Project;
@@ -389,7 +513,7 @@ export function DocumentSearch() {
     const existing = workspaceProjects[0];
     if (existing) return { project: existing };
     const created = await createProject({
-      name: 'My documents',
+      name: copy.myDocuments,
       skillId: null,
       designSystemId: null,
       metadata: {
@@ -400,7 +524,7 @@ export function DocumentSearch() {
     return created
       ? { project: created.project, conversationId: created.conversationId }
       : null;
-  }, [activeProjectId, workspaceProjects]);
+  }, [activeProjectId, copy.myDocuments, workspaceProjects]);
 
   const persistDocument = useCallback(async (
     nextDocument: FeishuDocumentReadResponse,
@@ -418,13 +542,13 @@ export function DocumentSearch() {
     const nextMessages: ChatMessage[] = [{
       id: randomUUID(),
       role: 'user',
-      content: instructionFromValue(originalValue, nextDocument.url),
+      content: instructionFromValue(originalValue, nextDocument.url, copy),
       createdAt: now,
     }, {
       id: randomUUID(),
       role: 'assistant',
       agentName: 'Niki',
-      content: summarizeDocumentContent(nextDocument.content),
+      content: summarizeDocumentContent(nextDocument.content, copy),
       events: documentEvent(nextDocument),
       createdAt: now + 1,
     }];
@@ -435,7 +559,7 @@ export function DocumentSearch() {
     setMessages(nextMessages);
     setView('thread');
     await refreshWorkspace();
-  }, [ensureTargetProject, refreshWorkspace]);
+  }, [copy, ensureTargetProject, refreshWorkspace]);
 
   const submitFollowUp = useCallback(async (query: string) => {
     if (!document || !activeConversation || !activeProjectId) return;
@@ -449,7 +573,7 @@ export function DocumentSearch() {
       id: randomUUID(),
       role: 'assistant',
       agentName: 'Niki',
-      content: answerFromDocument(document.content, query),
+      content: answerFromDocument(document.content, query, copy),
       createdAt: now + 1,
     }];
     setMessages((current) => [...current, ...nextMessages]);
@@ -457,7 +581,7 @@ export function DocumentSearch() {
     await saveMessage(activeProjectId, activeConversation.id, nextMessages[0]!);
     await saveMessage(activeProjectId, activeConversation.id, nextMessages[1]!);
     await refreshWorkspace();
-  }, [activeConversation, activeProjectId, document, refreshWorkspace]);
+  }, [activeConversation, activeProjectId, copy, document, refreshWorkspace]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -514,8 +638,8 @@ export function DocumentSearch() {
       setError({
         code: candidate.code ?? (documentUrl ? 'FEISHU_READ_FAILED' : 'FEISHU_SEARCH_FAILED'),
         error: candidate.error ?? (documentUrl
-          ? 'Could not read this Feishu document. Please try again.'
-          : 'Could not search Feishu. Please try again.'),
+          ? copy.readFailed
+          : copy.searchFailed),
         ...(candidate.reconnectUrl ? { reconnectUrl: candidate.reconnectUrl } : {}),
       });
     } finally {
@@ -526,19 +650,19 @@ export function DocumentSearch() {
   const recentGroups = useMemo(() => {
     const groups = new Map<string, WorkspaceThread[]>();
     for (const thread of threads.slice(0, MAX_RECENT_THREADS)) {
-      const group = recentGroup(thread.updatedAt);
+      const group = recentGroup(thread.updatedAt, copy);
       groups.set(group, [...(groups.get(group) ?? []), thread]);
     }
     return groups;
-  }, [threads]);
+  }, [copy, threads]);
   const activeProject = workspaceProjects.find((project) => project.id === activeProjectId) ?? null;
   const activeProjectThreads = threads.filter((thread) => thread.projectId === activeProjectId);
 
   const sidebar = (
-    <aside className="document-workspace__sidebar" aria-label="Document workspace navigation">
+    <aside className="document-workspace__sidebar" aria-label={copy.navigation}>
       <div className="document-workspace__sidebar-head">
         <strong>NIKI DOCS</strong>
-        <button type="button" onClick={() => setSidebarOpen(false)} aria-label="Close navigation">
+        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={copy.closeNavigation}>
           <Icon name="close" size={17} />
         </button>
       </div>
@@ -548,20 +672,20 @@ export function DocumentSearch() {
         onClick={() => startNewChat()}
       >
         <Icon name="plus" size={17} />
-        <span>New chat</span>
+        <span>{copy.newChat}</span>
       </button>
 
       <div className="document-workspace__section-heading">
-        <span>Projects</span>
-        <button type="button" onClick={() => void createWorkspaceProject()} aria-label="New project">
+        <span>{copy.projects}</span>
+        <button type="button" onClick={() => void createWorkspaceProject()} aria-label={copy.newProject}>
           <Icon name="plus" size={15} />
         </button>
       </div>
       <div className="document-workspace__nav-list">
         {workspaceLoading && workspaceProjects.length === 0 ? (
-          <span className="document-workspace__nav-empty">Loading…</span>
+          <span className="document-workspace__nav-empty">{copy.loading}</span>
         ) : workspaceProjects.length === 0 ? (
-          <span className="document-workspace__nav-empty">Your document projects will appear here.</span>
+          <span className="document-workspace__nav-empty">{copy.projectsEmpty}</span>
         ) : workspaceProjects.map((project) => {
           const count = threads.filter((thread) => thread.projectId === project.id).length;
           return (
@@ -580,10 +704,10 @@ export function DocumentSearch() {
         })}
       </div>
 
-      <div className="document-workspace__section-heading is-recent"><span>Recent</span></div>
+      <div className="document-workspace__section-heading is-recent"><span>{copy.recent}</span></div>
       <div className="document-workspace__recent-list">
         {threads.length === 0 && !workspaceLoading ? (
-          <span className="document-workspace__nav-empty">No document summaries yet.</span>
+          <span className="document-workspace__nav-empty">{copy.recentEmpty}</span>
         ) : [...recentGroups.entries()].map(([group, groupThreads]) => (
           <div className="document-workspace__recent-group" key={group}>
             <small>{group}</small>
@@ -593,10 +717,10 @@ export function DocumentSearch() {
                 key={thread.id}
                 className={view === 'thread' && activeConversation?.id === thread.id ? 'is-active' : ''}
                 onClick={() => void openThread(thread)}
-                title={thread.title ?? 'Untitled document'}
+                title={thread.title ?? copy.untitled}
               >
                 <Icon name="file" size={15} />
-                <span>{thread.title ?? 'Untitled document'}</span>
+                <span>{thread.title ?? copy.untitled}</span>
               </button>
             ))}
           </div>
@@ -611,7 +735,7 @@ export function DocumentSearch() {
         type="button"
         className="document-workspace__mobile-menu"
         onClick={() => setSidebarOpen(true)}
-        aria-label="Open document navigation"
+        aria-label={copy.openNavigation}
       >
         <Icon name="menu" size={20} />
       </button>
@@ -622,22 +746,22 @@ export function DocumentSearch() {
         type="button"
         className={`document-workspace__scrim${sidebarOpen ? ' is-open' : ''}`}
         onClick={() => setSidebarOpen(false)}
-        aria-label="Close document navigation"
+        aria-label={copy.closeNavigation}
       />
 
       <div className="document-workspace__main">
         {view === 'project' ? (
-          <section className="document-project" aria-label="Document project">
+          <section className="document-project" aria-label={copy.projectLabel}>
             <header>
               <span className="document-project__icon"><Icon name="folder" size={22} /></span>
               <div>
-                <span>PROJECT</span>
-                <h2>{activeProject?.name ?? 'Document project'}</h2>
-                <p>{activeProjectThreads.length} saved {activeProjectThreads.length === 1 ? 'summary' : 'summaries'}</p>
+                <span>{copy.project}</span>
+                <h2>{activeProject?.name ?? copy.projectLabel}</h2>
+                <p>{copy.savedSummaries(activeProjectThreads.length)}</p>
               </div>
               <button type="button" onClick={() => startNewChat(activeProjectId)}>
                 <Icon name="plus" size={16} />
-                New chat
+                {copy.newChat}
               </button>
             </header>
             {activeProjectThreads.length > 0 ? (
@@ -647,7 +771,7 @@ export function DocumentSearch() {
                     <span className="document-search__result-icon"><Icon name="file" size={18} /></span>
                     <span>
                       <strong>{thread.title}</strong>
-                      <small>Updated {relativeDate(thread.updatedAt)} ago</small>
+                      <small>{copy.updatedAgo(relativeDate(thread.updatedAt, copy))}</small>
                     </span>
                     <Icon name="chevron-right" size={17} />
                   </button>
@@ -656,17 +780,17 @@ export function DocumentSearch() {
             ) : (
               <div className="document-search__empty">
                 <Icon name="file" size={22} />
-                <strong>No summaries in this project</strong>
-                <span>Start a new chat and paste a Feishu document link.</span>
+                <strong>{copy.projectEmpty}</strong>
+                <span>{copy.projectEmptyHint}</span>
               </div>
             )}
           </section>
         ) : view === 'thread' ? (
-          <section className="document-thread" aria-label="Document summary">
+          <section className="document-thread" aria-label={copy.summaryLabel}>
             {threadLoading ? (
               <div className="document-search__empty">
                 <Icon name="spinner" size={22} />
-                <strong>Loading summary…</strong>
+                <strong>{copy.loadingSummary}</strong>
               </div>
             ) : error && !document ? (
               <div className="document-search__empty is-error">
@@ -677,11 +801,11 @@ export function DocumentSearch() {
               <>
                 <header className="document-thread__topbar">
                   <div>
-                    <small>{activeProject?.name ?? 'My documents'}</small>
+                    <small>{activeProject?.name ?? copy.myDocuments}</small>
                     <h2>{document.title}</h2>
                   </div>
                   <a href={document.url} target="_blank" rel="noreferrer">
-                    Open in Feishu
+                    {copy.openFeishu}
                     <Icon name="external-link" size={16} />
                   </a>
                 </header>
@@ -697,8 +821,8 @@ export function DocumentSearch() {
                       <pre>{message.content}</pre>
                       {message.role === 'assistant' && index === 1 ? (
                         <details className="document-thread__source">
-                          <summary>Source document</summary>
-                          <pre>{document.content || 'This document is empty.'}</pre>
+                          <summary>{copy.sourceDocument}</summary>
+                          <pre>{document.content || copy.emptyDocument}</pre>
                         </details>
                       ) : null}
                     </article>
@@ -707,13 +831,14 @@ export function DocumentSearch() {
                 <div className="document-thread__composer">
                   <DocumentComposer
                     compact
+                    copy={copy}
                     documentUrl={documentUrl}
                     loading={loading}
                     onChange={setValue}
                     onSubmit={submit}
                     value={value}
                   />
-                  <p>Ask a follow-up grounded in this document, or paste another Feishu link.</p>
+                  <p>{copy.followUpHint}</p>
                 </div>
               </>
             ) : null}
@@ -721,11 +846,12 @@ export function DocumentSearch() {
         ) : (
           <section
             className={`document-search${hasOutput ? ' has-results' : ''}`}
-            aria-label="Feishu document search"
+            aria-label={copy.searchLabel}
           >
             <div className="document-search__hero">
-              <h2>What do you want to find?</h2>
+              <h2>{copy.heroTitle}</h2>
               <DocumentComposer
+                copy={copy}
                 documentUrl={documentUrl}
                 loading={loading}
                 onChange={setValue}
@@ -734,8 +860,8 @@ export function DocumentSearch() {
               />
               <p className="document-search__hint">
                 {documentUrl
-                  ? 'Feishu link detected · Read with view-only access'
-                  : 'Search only shows documents you already have permission to view'}
+                  ? copy.linkDetected
+                  : copy.permissionHint}
               </p>
             </div>
 
@@ -744,31 +870,31 @@ export function DocumentSearch() {
                 {loading ? (
                   <div className="document-search__empty">
                     <Icon name="spinner" size={22} />
-                    <strong>{documentUrl ? 'Reading Feishu document…' : 'Searching Feishu…'}</strong>
+                    <strong>{documentUrl ? copy.reading : copy.searching}</strong>
                   </div>
                 ) : error ? (
                   <div className="document-search__empty is-error">
                     <Icon name="info" size={22} />
                     <strong>{error.error}</strong>
-                    {error.reconnectUrl ? <a href={error.reconnectUrl}>Reconnect Feishu</a> : null}
+                    {error.reconnectUrl ? <a href={error.reconnectUrl}>{copy.reconnect}</a> : null}
                   </div>
                 ) : results.length > 0 ? (
                   <>
                     <header>
-                      <h3>Results for “{submittedQuery}”</h3>
-                      <span>{results.length} found</span>
+                      <h3>{copy.resultsFor(submittedQuery)}</h3>
+                      <span>{copy.found(results.length)}</span>
                     </header>
                     <div className="document-search__result-list">
                       {results.map((result, index) => (
-                        <SearchResult key={`${result.url}:${index}`} result={result} />
+                        <SearchResult key={`${result.url}:${index}`} result={result} copy={copy} />
                       ))}
                     </div>
                   </>
                 ) : submittedQuery ? (
                   <div className="document-search__empty">
                     <Icon name="search" size={22} />
-                    <strong>No matching documents</strong>
-                    <span>Try another title, keyword, or paste a Feishu link.</span>
+                    <strong>{copy.noMatches}</strong>
+                    <span>{copy.noMatchesHint}</span>
                   </div>
                 ) : null}
               </div>

@@ -63,6 +63,7 @@ interface LogoHistoryEntry {
 const COPY = {
   en: {
     brief: 'Brand brief',
+    briefMeta: '4 directions · 1 system',
     brand: 'Brand name',
     brandPlaceholder: 'e.g. Northstar',
     industry: 'Industry',
@@ -81,6 +82,7 @@ const COPY = {
     submitting: 'Preparing studio…',
     generatingButton: 'Generating…',
     preview: 'Preview',
+    markPreview: (brand: string) => `${brand} mark preview`,
     previewHint: 'A structural reference for the brief. Generated directions appear in history below.',
     generatingPreview: 'Generating 4 directions',
     generatingHint: 'Creating distinct logo concepts and production-ready files. This can take a few minutes.',
@@ -132,6 +134,7 @@ const COPY = {
   },
   zh: {
     brief: '品牌简报',
+    briefMeta: '4 个方向 · 1 套系统',
     brand: '品牌名称',
     brandPlaceholder: '例如：北辰',
     industry: '行业 / 品类',
@@ -150,6 +153,7 @@ const COPY = {
     submitting: '正在准备工作台……',
     generatingButton: '生成中…',
     preview: '预览',
+    markPreview: (brand: string) => `${brand} 标志预览`,
     previewHint: '这里仅作为简报的结构参考，生成结果会保存在下方记录中。',
     generatingPreview: '正在生成 4 个方向',
     generatingHint: '正在创建不同的 Logo 概念与可交付文件，可能需要几分钟。',
@@ -705,7 +709,7 @@ export function LogoStudioView() {
         <div className="logo-studio__form-card">
           <div className="logo-studio__section-head">
             <span>{copy.brief}</span>
-            <span>4 directions · 1 system</span>
+            <span>{copy.briefMeta}</span>
           </div>
 
           <div className="logo-studio__field-grid">
@@ -894,6 +898,7 @@ export function LogoStudioView() {
                 architecture={architecture}
                 brandName={brandName || copy.brandPlaceholder}
                 initials={initials}
+                markPreviewLabel={copy.markPreview(brandName || copy.brandPlaceholder)}
                 primary={primaryColor}
                 ink={inkColor}
               />
@@ -1239,12 +1244,14 @@ function LogoPreview({
   architecture,
   brandName,
   initials,
+  markPreviewLabel,
   primary,
   ink,
 }: {
   architecture: LogoArchitecture;
   brandName: string;
   initials: string;
+  markPreviewLabel: string;
   primary: string;
   ink: string;
 }) {
@@ -1253,7 +1260,7 @@ function LogoPreview({
   return (
     <div className={`logo-studio__logo-preview is-${architecture}`}>
       {showSymbol ? (
-        <svg viewBox="0 0 120 120" role="img" aria-label={`${brandName} mark preview`}>
+        <svg viewBox="0 0 120 120" role="img" aria-label={markPreviewLabel}>
           <path d="M18 75 49 21h53L71 75Z" fill={primary} />
           <path d="m18 75 31 24h53L71 75Z" fill={ink} />
           {architecture === 'monogram' ? (

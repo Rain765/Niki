@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as testingRender, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { NikiManagedUser } from '@open-design/contracts';
+import type { ReactNode } from 'react';
 
 import { PasswordAccountManager } from '../../src/auth/PasswordAccountManager';
+import { I18nProvider } from '../../src/i18n';
+
+function render(ui: ReactNode) {
+  return testingRender(<I18nProvider initial="zh-CN">{ui}</I18nProvider>);
+}
 
 const admin: NikiManagedUser = {
   user: { id: 'admin-1', name: 'Niki 管理员', role: 'admin' },

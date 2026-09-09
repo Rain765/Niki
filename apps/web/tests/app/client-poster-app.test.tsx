@@ -20,16 +20,19 @@ vi.mock('../../src/i18n', () => ({
   I18nProvider: function MockI18nProvider({
     children,
     defaultLocale,
+    supportedLocales,
     deferUntilClient,
   }: {
     children: ReactNode;
     defaultLocale?: string;
+    supportedLocales?: readonly string[];
     deferUntilClient?: boolean;
   }) {
     return (
       <div
         data-testid="i18n-provider"
         data-default-locale={defaultLocale}
+        data-supported-locales={supportedLocales?.join(',')}
         data-defer-until-client={String(deferUntilClient)}
       >
         {children}
@@ -52,5 +55,7 @@ it('renders the dedicated poster flow behind authentication at the root', () => 
     .toBe('zh-CN');
   expect(screen.getByTestId('i18n-provider').getAttribute('data-defer-until-client'))
     .toBe('true');
+  expect(screen.getByTestId('i18n-provider').getAttribute('data-supported-locales'))
+    .toBe('zh-CN,en');
   expect(screen.getByTestId('poster-app')).toBeTruthy();
 });

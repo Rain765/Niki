@@ -38,3 +38,19 @@ it('keeps a saved user language ahead of the app default', async () => {
 
   expect(await screen.findByText('Cancel')).toBeTruthy();
 });
+
+it('ignores a saved language outside the app-supported locale set', async () => {
+  window.localStorage.setItem('open-design:locale', 'ja');
+
+  render(
+    <I18nProvider
+      defaultLocale="zh-CN"
+      supportedLocales={['zh-CN', 'en']}
+      deferUntilClient
+    >
+      <CancelLabel />
+    </I18nProvider>,
+  );
+
+  expect(await screen.findByText('取消')).toBeTruthy();
+});
