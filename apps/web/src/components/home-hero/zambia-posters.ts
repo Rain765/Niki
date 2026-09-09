@@ -318,23 +318,8 @@ const ANTI_FRAUD_POSTER_PALETTES = [
     protectsSceneHue: true,
   },
   {
-    copyField: 'pale lavender (#ece5f2)',
-    sceneField: 'charcoal plum (#49374f)',
-    protectsSceneHue: true,
-  },
-  {
-    copyField: 'soft silver-gray',
-    sceneField: 'saturated royal purple',
-    protectsSceneHue: true,
-  },
-  {
     copyField: 'warm cream',
     sceneField: 'burnished terracotta',
-    protectsSceneHue: true,
-  },
-  {
-    copyField: 'pale sky blue',
-    sceneField: 'midnight indigo',
     protectsSceneHue: true,
   },
   {
