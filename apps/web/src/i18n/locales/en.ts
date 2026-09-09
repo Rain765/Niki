@@ -76,7 +76,7 @@ export const en: Dict = {
   'posterNav.video': 'Videos',
   'posterNav.documents': 'Documents',
   'posterNav.logo': 'Logo',
-  'posterNav.english': 'English practice',
+  'posterNav.english': 'Voice',
   'posterNav.language': 'Interface language',
   'posterNav.posterEyebrow': 'NIKI POSTER',
   'posterNav.posterTitle': 'Generate loan posters',

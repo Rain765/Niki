@@ -249,7 +249,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function selectWorkspace(name: 'Posters' | 'Videos' | 'Documents' | 'English practice') {
+function selectWorkspace(name: 'Posters' | 'Videos' | 'Documents' | 'Voice') {
   const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
   fireEvent.click(within(navigation).getByRole('button', { name }));
 }
@@ -296,8 +296,8 @@ describe('PosterApp mobile-safe flow', () => {
     expect(within(navigation).getByRole('button', { name: '海报' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '视频' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '文档' })).toBeTruthy();
-    expect(within(navigation).getByRole('link', { name: 'Logo' })).toBeTruthy();
-    expect(within(navigation).getByRole('button', { name: '英语练习' })).toBeTruthy();
+    expect(within(navigation).getByRole('link', { name: '品牌' })).toBeTruthy();
+    expect(within(navigation).getByRole('button', { name: '语音' })).toBeTruthy();
     expect(screen.getByRole('region', { name: '海报生成设置' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '产品' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '类型' }).textContent).toContain('防欺诈');
@@ -845,7 +845,7 @@ describe('PosterApp mobile-safe flow', () => {
   it('opens Daily English Practice from the top navigation', () => {
     render(<PosterApp />);
 
-    selectWorkspace('English practice');
+    selectWorkspace('Voice');
     expect(screen.getByRole('heading', { name: 'Daily English Practice' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '10 classic life scenarios' })).toBeTruthy();
     expect(window.location.search).toBe('?mode=english');
@@ -860,7 +860,7 @@ describe('PosterApp mobile-safe flow', () => {
       'Videos',
       'Documents',
       'Logo',
-      'English practice',
+      'Voice',
     ]);
     expect(within(navigation).getByRole('link', { name: 'Logo' }).getAttribute('href')).toBe('/logo');
   });
