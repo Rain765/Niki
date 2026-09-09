@@ -107,7 +107,7 @@ export interface DirectLoanPosterBatch {
   failedAt?: number;
   expectedOutputs: number;
   outputNames: string[];
-  brand?: 'zamloan' | 'biumoney';
+  brand?: 'zamloan' | 'biumoney' | 'zamcash' | 'zammoney' | 'fastako' | 'yangaloan';
   purpose?: 'acquisition' | 'anti-fraud';
   aspectRatio?: MediaAspect;
   lastError?: string;

@@ -7,7 +7,14 @@ const { buildLoanPosterScenePromptsMock } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
-  autoPosterBrandLabel: () => 'Zamloan',
+  autoPosterBrandLabel: (brand: string) => ({
+    zamloan: 'Zamloan',
+    biumoney: 'BiuMoney',
+    zamcash: 'ZamCash',
+    zammoney: 'ZamMoney',
+    fastako: 'Fastako',
+    yangaloan: 'Yangaloan',
+  }[brand] ?? brand),
   autoPosterUsesZReference: () => false,
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
   buildLoanPosterScenePlans: (options: { brand?: string; purpose?: string }) => {
@@ -25,6 +32,11 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
     }));
   },
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
+  loadAutoPosterLogo: async (brand: string) => (
+    brand === 'biumoney'
+      ? null
+      : new File(['logo'], `${brand}-logo.svg`, { type: 'image/svg+xml' })
+  ),
   loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.svg', {
     type: 'image/svg+xml',
   }),
@@ -364,6 +376,68 @@ describe('startDirectLoanPosterProject', () => {
       count: 1,
       aspectRatio: '16:9',
       brand: 'biumoney',
+    })).resolves.toEqual({ projectId: 'project-1' });
+  });
+
+  it('uploads and overlays the selected additional-brand logo', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify(
+          init?.method === 'POST' ? { project } : { projects: [] },
+        ), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/upload?visibility=internal')) {
+        const file = (init?.body as FormData).get('files') as File;
+        expect(file.name).toBe('zamcash-logo.svg');
+        return new Response(JSON.stringify({
+          files: [{ path: `.od-inputs/${file.name}` }],
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/media/generate')) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        expect(body.overlayLogo).toBe('.od-inputs/zamcash-logo.svg');
+        expect(body.output).toMatch(/^zamcash-poster-\d{8}-001\.png$/);
+        expect(body).not.toHaveProperty('overlayZ');
+        expect(body).not.toHaveProperty('image');
+        return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          metadata: unknown;
+          updatedAt: number;
+        };
+        return new Response(JSON.stringify({
+          project: {
+            ...project,
+            metadata: body.metadata,
+            updatedAt: body.updatedAt,
+          },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'project-1' });
+
+    await expect(startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'zamcash',
+      purpose: 'acquisition',
     })).resolves.toEqual({ projectId: 'project-1' });
   });
 
@@ -912,7 +986,7 @@ describe('startDirectLoanPosterProject', () => {
       stage: 'upload-logo',
       status: 422,
       code: 'invalid_file',
-      message: '上传 Zamloan Logo 失败（HTTP 422）：Logo file is invalid.',
+      message: '上传品牌 Logo 失败（HTTP 422）：Logo file is invalid.',
     }));
     expect(uploadCallCount).toBe(1);
   });

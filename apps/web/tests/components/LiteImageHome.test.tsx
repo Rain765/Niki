@@ -26,6 +26,15 @@ describe('LiteImageHome', () => {
     expect((screen.getByTestId('lite-image-count') as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByTestId('lite-image-aspect') as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByTestId('lite-image-brand') as HTMLSelectElement).disabled).toBe(false);
+    fireEvent.click(screen.getByTestId('lite-image-brand'));
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Zamloan',
+      'BiuMoney',
+      'ZamCash',
+      'ZamMoney',
+      'Fastako',
+      'Yangaloan',
+    ]);
     const composer = screen.getByTestId('lite-image-count').closest('.lite-image-home__composer');
     expect(composer?.className).toContain('od-filter-grid');
     expect(screen.getByTestId('lite-image-brand').closest('.od-field')?.className)
