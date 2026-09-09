@@ -3424,6 +3424,7 @@ export async function startServer({
 
   app.get('/api/version', async (_req, res) => {
     const version = await readCurrentAppVersionInfo();
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({ version });
   });
 

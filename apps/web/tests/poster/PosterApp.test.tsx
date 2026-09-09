@@ -811,7 +811,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByTestId('poster-app-video-generation-status')).toBeNull();
   });
 
-  it('renders the existing poster options unchanged in custom selects and defaults to anti-fraud', () => {
+  it('renders every poster brand in the real poster-page select and defaults to anti-fraud', () => {
     render(<PosterApp />);
 
     expect(screen.queryByText('Generate loan posters')).toBeNull();
@@ -826,7 +826,14 @@ describe('PosterApp mobile-safe flow', () => {
     };
 
     const product = selectOptions('Product');
-    expect(product.options).toEqual(['Zamloan', 'Biumoney']);
+    expect(product.options).toEqual([
+      'Zamloan',
+      'Biumoney',
+      'ZamCash',
+      'ZamMoney',
+      'Fastako',
+      'Yangaloan',
+    ]);
     expect(product.trigger.getAttribute('value')).toBe('zamloan');
     const type = selectOptions('Type');
     expect(type.options).toEqual(['Acquisition', 'Anti-fraud']);

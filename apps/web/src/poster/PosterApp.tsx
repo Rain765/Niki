@@ -33,7 +33,9 @@ import {
   startDirectLoanPosterProject,
 } from '../components/home-hero/direct-loan-posters';
 import {
+  AUTO_POSTER_BRANDS,
   AUTO_POSTER_DEFAULT_BRAND,
+  autoPosterBrandLabel,
   isLoanPosterOutputName,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
@@ -52,6 +54,7 @@ import {
 } from '../lib/image-file-actions';
 import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
 import type { Project, ProjectFile } from '../types';
+import { useRuntimeReleaseRefresh } from './useRuntimeReleaseRefresh';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
@@ -65,10 +68,12 @@ type GenerationFeedback = {
 };
 
 const POSTER_APP_DEFAULT_PURPOSE: AutoPosterPurpose = 'anti-fraud';
-const POSTER_PRODUCT_OPTIONS = [
-  { value: 'zamloan', label: 'Zamloan' },
-  { value: 'biumoney', label: 'Biumoney' },
-];
+const POSTER_PRODUCT_OPTIONS = AUTO_POSTER_BRANDS.map((value) => ({
+  value,
+  // Preserve the established poster-page spelling while sourcing the option
+  // values from the shared brand registry.
+  label: value === 'biumoney' ? 'Biumoney' : autoPosterBrandLabel(value),
+}));
 const POSTER_QUANTITY_OPTIONS = [1, 2, 3, 4].map((value) => ({
   value: String(value),
   label: String(value),
@@ -93,6 +98,7 @@ const POSTER_COPY = {
     generated: (count: number) => `${count} ${count === 1 ? 'poster' : 'posters'} generated`,
     generationFailed: (detail?: string) => `Generation failed${detail ? `: ${detail}` : ''}`,
     generationSubmitFailed: 'Could not submit the generation task',
+    refreshingVersion: 'A new version is available. Refreshing…',
     readyToGenerate: 'Ready to generate',
     readyPosterDetail: 'Choose a quantity and ratio, then generate.',
     batchFailed: 'This batch did not finish',
@@ -173,6 +179,7 @@ const POSTER_COPY = {
     generated: (count: number) => `已生成 ${count} 张海报`,
     generationFailed: (detail?: string) => `生成失败${detail ? `：${detail}` : ''}`,
     generationSubmitFailed: '无法提交生成任务',
+    refreshingVersion: '发现新版本，正在更新…',
     readyToGenerate: '可以开始生成',
     readyPosterDetail: '选择数量和比例后即可生成。',
     batchFailed: '本批次未能完成',
@@ -521,6 +528,13 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   );
   const videoWorking = videoStatus.state === 'working'
     && videoGeneration.state.requestedAt !== null;
+  const showRuntimeReloading = useCallback(() => {
+    setNotice({ message: copy.refreshingVersion, tone: 'info' });
+  }, [copy.refreshingVersion]);
+  useRuntimeReleaseRefresh({
+    blocked: generating || videoWorking,
+    onReloading: showRuntimeReloading,
+  });
   const videoElapsed = useVideoElapsed(videoWorking, videoGeneration.state.requestedAt);
   const videoResultAvailable = videoGeneration.latestVideo !== null
     && videoGeneration.state.projectId !== null;
