@@ -1052,11 +1052,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       <div className="poster-app__content">
       {creationMode === 'poster' ? (
         <>
-      <header className="poster-app__page-header">
-        <span className="poster-app__eyebrow">{t('posterNav.posterEyebrow')}</span>
-        <h1>{t('posterNav.posterTitle')}</h1>
-        <p>{t('posterNav.posterSubtitle')}</p>
-      </header>
       <section
         className="od-generation-toolbar od-filter-grid"
         aria-label={copy.settings}
@@ -1475,29 +1470,11 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           ) : null}
         </section>
       ) : creationMode === 'documents' ? (
-        <>
-          <header className="poster-app__page-header">
-            <h1>{t('posterNav.documentsTitle')}</h1>
-            <p>{t('posterNav.documentsSubtitle')}</p>
-          </header>
-          <DocumentSearch />
-        </>
+        <DocumentSearch />
       ) : creationMode === 'english' ? (
-        <>
-          <header className="poster-app__page-header">
-            <h1>{t('posterNav.englishTitle')}</h1>
-            <p>{t('posterNav.englishSubtitle')}</p>
-          </header>
-          <EnglishPractice />
-        </>
+        <EnglishPractice />
       ) : (
-        <>
-          <header className="poster-app__page-header">
-            <h1>{t('posterNav.logoTitle')}</h1>
-            <p>{t('posterNav.logoSubtitle')}</p>
-          </header>
-          <LogoStudioView />
-        </>
+        <LogoStudioView />
       )}
       </div>
     </main>

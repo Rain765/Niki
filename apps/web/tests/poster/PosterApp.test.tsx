@@ -317,7 +317,8 @@ describe('PosterApp mobile-safe flow', () => {
 
     expect(window.localStorage.getItem('open-design:locale')).toBe('en');
     expect(screen.getByRole('navigation', { name: 'Primary navigation' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Generate loan posters' })).toBeTruthy();
+    expect(screen.queryByText('Generate loan posters')).toBeNull();
+    expect(screen.queryByText('Create campaign-ready loan posters from approved business templates.')).toBeNull();
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Product' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Generate posters' })).toBeTruthy();
@@ -773,7 +774,7 @@ describe('PosterApp mobile-safe flow', () => {
   it('renders the existing poster options unchanged in custom selects and defaults to anti-fraud', () => {
     render(<PosterApp />);
 
-    expect(screen.getByRole('heading', { name: 'Generate loan posters' })).toBeTruthy();
+    expect(screen.queryByText('Generate loan posters')).toBeNull();
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     const selectOptions = (label: string) => {
       const trigger = screen.getByRole('combobox', { name: label });
@@ -810,7 +811,7 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('option', { name: /3/ }));
     selectWorkspace('Videos');
 
-    expect(screen.getByRole('heading', { name: 'Generate a business video' })).toBeTruthy();
+    expect(screen.queryByText('Generate a business video')).toBeNull();
     expect(screen.getByRole('region', { name: 'Tutorial video generator' })).toBeTruthy();
     expect(screen.getByTestId('loan-video-quick-mode')).toBeTruthy();
     expect(screen.getByTestId('loan-video-editor-mode')).toBeTruthy();
@@ -836,7 +837,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     selectWorkspace('Documents');
 
-    expect(screen.getByRole('heading', { name: 'Document Search' })).toBeTruthy();
+    expect(screen.queryByText('Document Search')).toBeNull();
     expect(screen.getByRole('heading', { name: 'What do you want to find?' })).toBeTruthy();
     expect(screen.getByRole('textbox', {
       name: 'Search Feishu documents or paste a link',
@@ -850,7 +851,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     selectWorkspace('Voice');
-    expect(screen.getByRole('heading', { name: 'Daily English Practice' })).toBeTruthy();
+    expect(screen.queryByText('Daily English Practice')).toBeNull();
     expect(screen.getByRole('heading', { name: '10 classic life scenarios' })).toBeTruthy();
     expect(window.location.search).toBe('?mode=english');
   });
@@ -872,17 +873,19 @@ describe('PosterApp mobile-safe flow', () => {
   it('renders Logo Studio as a light Niki creation page', () => {
     render(<PosterApp initialMode="logo" />);
 
-    expect(screen.getByRole('heading', { name: 'Logo Studio' })).toBeTruthy();
+    expect(screen.queryByText('Logo Studio')).toBeNull();
     expect(screen.queryByText('Build a mark worth remembering.')).toBeNull();
     expect(screen.getByRole('region', { name: 'Brand brief' })).toBeTruthy();
     expect(document.querySelector('.poster-app')?.classList.contains('is-logo')).toBe(true);
   });
 
-  it('keeps the page title separate from navigation controls', () => {
+  it('starts with the creation controls instead of a repeated page title', () => {
     render(<PosterApp />);
 
-    const title = screen.getByRole('heading', { name: 'Generate loan posters' });
-    expect(title.querySelector('svg')).toBeNull();
+    expect(screen.queryByText('NIKI POSTER')).toBeNull();
+    expect(screen.queryByText('Generate loan posters')).toBeNull();
+    expect(screen.queryByText('Create campaign-ready loan posters from approved business templates.')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     expect(screen.queryByRole('listbox', { name: 'Creation mode' })).toBeNull();
   });
 

@@ -61,15 +61,13 @@ describe('poster app image layout', () => {
     );
   });
 
-  it('uses a stable sticky top navigation and keeps the page title independent', () => {
+  it('uses a stable sticky top navigation without repeated page-title blocks', () => {
     const app = rule('.poster-app');
-    const eyebrow = rule('.poster-app__eyebrow');
     const topbar = rule('.poster-app__topbar');
     const topbarInner = rule('.poster-app__topbar-inner');
     const navigation = rule('.poster-app__primary-nav');
     const content = rule('.poster-app__content');
 
-    expect(eyebrow).toContain('display: block;');
     expect(topbar).toContain('position: sticky;');
     expect(topbar).toContain('top: 0;');
     expect(app).toContain('--poster-shell-width: 1040px;');
@@ -78,6 +76,26 @@ describe('poster app image layout', () => {
     expect(navigation).toContain('display: flex;');
     expect(content).toContain('width: min(100%, var(--poster-shell-width));');
     expect(css).not.toMatch(/\.poster-app\.is-(?:documents|english) \.poster-app__content\s*{/);
+    expect(css).not.toContain('.poster-app__page-header');
+    expect(css).not.toContain('.poster-app__eyebrow');
+  });
+
+  it('uses a compact shared type scale for the remaining large interface copy', () => {
+    const app = rule('.poster-app');
+    const documentHero = rule('.document-search__hero h2');
+    const documentProjectTitle = rule('.document-project > header h2');
+    const lessonTitle = rules('.english-lesson__intro h2');
+    const wordTitle = rule('.english-word-sheet__word-row strong');
+    const ieltsHero = rule('.ielts-coach__header h2');
+
+    expect(app).toContain('--poster-type-display: clamp(28px, 3.4vw, 36px);');
+    expect(app).toContain('--poster-type-title: clamp(24px, 2.7vw, 30px);');
+    expect(app).toContain('--poster-type-feature: clamp(21px, 2.3vw, 26px);');
+    expect(documentHero).toContain('font-size: var(--poster-type-display);');
+    expect(documentProjectTitle).toContain('font-size: var(--poster-type-title);');
+    expect(lessonTitle).toContain('font-size: var(--poster-type-feature);');
+    expect(wordTitle).toContain('font-size: var(--poster-type-title);');
+    expect(ieltsHero).toContain('font-size: var(--poster-type-display);');
   });
 
   it('moves mobile navigation to a horizontally scrollable second row', () => {

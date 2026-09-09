@@ -63,7 +63,7 @@ button {
 
 .niki-auth h1 {
   margin: 24px 0 10px;
-  font-size: 30px;
+  font-size: 26px;
   line-height: 1.2;
 }
 
@@ -266,6 +266,9 @@ button {
 
 .poster-app {
   --poster-shell-width: 1040px;
+  --poster-type-display: clamp(28px, 3.4vw, 36px);
+  --poster-type-title: clamp(24px, 2.7vw, 30px);
+  --poster-type-feature: clamp(21px, 2.3vw, 26px);
   width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
@@ -437,34 +440,6 @@ button {
 .poster-app__language-switch button:focus-visible {
   outline: 2px solid var(--poster-line-active);
   outline-offset: 1px;
-}
-
-.poster-app__page-header {
-  margin-bottom: var(--poster-space-5);
-}
-
-.poster-app__eyebrow {
-  display: block;
-  color: var(--poster-accent);
-  font-size: 12px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-
-.poster-app h1 {
-  margin: var(--poster-space-2) 0 0;
-  font-size: clamp(28px, 7vw, 44px);
-  font-weight: 750;
-  line-height: 1.08;
-  letter-spacing: -0.04em;
-}
-
-.poster-app__page-header p {
-  max-width: 620px;
-  margin: var(--poster-space-3) 0 0;
-  color: var(--poster-text-secondary);
-  font-size: 15px;
-  line-height: 1.6;
 }
 
 .document-workspace {
@@ -679,7 +654,7 @@ button {
 .document-search__hero h2 {
   margin: 0 0 32px;
   color: var(--poster-text);
-  font-size: clamp(30px, 5vw, 43px);
+  font-size: var(--poster-type-display);
   font-weight: 560;
   letter-spacing: -0.035em;
   text-align: center;
@@ -1020,7 +995,7 @@ button {
 
 .document-project > header h2 {
   margin: 4px 0 0;
-  font-size: clamp(28px, 4vw, 42px);
+  font-size: var(--poster-type-title);
   letter-spacing: -0.04em;
 }
 
@@ -1359,14 +1334,6 @@ button {
 }
 
 .poster-app__video .home-hero__backdrop {
-  display: none;
-}
-
-.poster-app__video .loan-video-composer__header {
-  justify-content: flex-end;
-}
-
-.poster-app__video .loan-video-composer__header > div {
   display: none;
 }
 
@@ -2177,7 +2144,7 @@ button {
 /* Daily English practice -------------------------------------------------- */
 
 .english-practice {
-  padding: 28px 0 70px;
+  padding: 0 0 70px;
   color: var(--poster-text);
 }
 
@@ -2227,7 +2194,7 @@ button {
 .english-practice__subhead h2,
 .english-lesson__intro h2 {
   margin: 8px 0 10px;
-  font-size: clamp(30px, 5vw, 52px);
+  font-size: var(--poster-type-display);
   line-height: 1.06;
   letter-spacing: -0.045em;
 }
@@ -2621,7 +2588,7 @@ button {
 
 .english-lesson__intro h2 {
   margin: 2px 0;
-  font-size: 30px;
+  font-size: var(--poster-type-feature);
 }
 
 .english-lesson__intro-icon {
@@ -3104,7 +3071,7 @@ button {
 }
 
 .english-word-sheet__word-row strong {
-  font-size: 32px;
+  font-size: var(--poster-type-title);
 }
 
 .english-word-sheet__word-row span {
@@ -3217,7 +3184,7 @@ button {
 .ielts-coach__header h2 {
   max-width: 720px;
   margin: 8px 0 10px;
-  font-size: clamp(31px, 4.7vw, 50px);
+  font-size: var(--poster-type-display);
   line-height: 1.06;
   letter-spacing: -0.045em;
 }
@@ -3451,7 +3418,7 @@ button {
 .ielts-coach__cue-card h3,
 .ielts-chunk-card h3 {
   margin: 9px 0 10px;
-  font-size: clamp(23px, 4vw, 34px);
+  font-size: var(--poster-type-feature);
   line-height: 1.24;
   letter-spacing: -0.03em;
 }
@@ -3980,10 +3947,6 @@ button {
     width: 100%;
   }
 
-  .english-practice {
-    padding-top: 12px;
-  }
-
   .english-practice__mode-switch {
     margin-bottom: 14px;
   }
@@ -3997,10 +3960,6 @@ button {
     align-items: flex-start;
     padding: 25px 22px;
     flex-direction: column;
-  }
-
-  .ielts-coach__header h2 {
-    font-size: 34px;
   }
 
   .ielts-coach__score {
@@ -4055,10 +4014,6 @@ button {
     align-items: flex-start;
     padding: 25px 22px;
     flex-direction: column;
-  }
-
-  .english-practice__hero h2 {
-    font-size: 34px;
   }
 
   .english-practice__today {

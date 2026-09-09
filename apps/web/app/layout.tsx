@@ -73,7 +73,7 @@ const firstPaintStyle = `
 }
 :where(.niki-auth h1) {
   margin: 24px 0 10px;
-  font-size: 30px;
+  font-size: 26px;
   line-height: 1.2;
 }
 :where(.niki-auth__loading) {

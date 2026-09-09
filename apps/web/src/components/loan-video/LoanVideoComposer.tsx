@@ -169,11 +169,6 @@ export function LoanVideoComposer({
 
       <div className="loan-video-composer">
         <header className="loan-video-composer__header">
-          <div>
-            <span className="loan-video-composer__eyebrow">{t('loanVideo.eyebrow')}</span>
-            <h1>{mode === 'quick' ? t('loanVideo.quickTitle') : t('loanVideo.title')}</h1>
-            <p>{mode === 'quick' ? t('loanVideo.quickSubtitle') : t('loanVideo.subtitle')}</p>
-          </div>
           <Button
             variant="secondary"
             size="compact"
