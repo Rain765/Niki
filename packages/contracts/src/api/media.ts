@@ -1,4 +1,5 @@
-import type { MediaAspect } from './projects.js';
+import type { ProjectFile } from './files.js';
+import type { MediaAspect, Project } from './projects.js';
 
 export type MediaTaskStatus = 'queued' | 'running' | 'done' | 'failed' | 'interrupted';
 export type PosterCopyStyle = 'standard' | 'anti-fraud' | 'anti-fraud-message';
@@ -150,4 +151,16 @@ export interface ProjectMediaTaskSummary extends MediaTaskSnapshot {
 
 export interface ProjectMediaTasksResponse {
   tasks: ProjectMediaTaskSummary[];
+}
+
+/**
+ * One-round-trip restoration payload for Niki's tutorial-video workspace.
+ * Project selection, output discovery, and task lookup happen together in
+ * the local daemon so remote clients do not pay several serial network hops.
+ */
+export interface LoanVideoRestoreResponse {
+  configuredPresetKeys: string[];
+  files: ProjectFile[];
+  project: Project | null;
+  task: ProjectMediaTaskSummary | null;
 }

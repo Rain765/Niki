@@ -421,7 +421,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [generating, setGenerating] = useState(false);
-  const [loadingProject, setLoadingProject] = useState(true);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [previewNotice, setPreviewNotice] = useState<Notice | null>(null);
@@ -437,6 +436,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [prepareAttempt, setPrepareAttempt] = useState(0);
   const [deletingVideoName, setDeletingVideoName] = useState<string | null>(null);
   const latestBatchRef = useRef<HTMLElement | null>(null);
+  const restoredPosterUserRef = useRef<string | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
   const generationFeedbackIdRef = useRef(0);
   const videoGenerationStartedRef = useRef(false);
@@ -613,7 +613,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   }, [latestBatch?.id]);
 
   const refreshProject = useCallback(async (id: string, quiet = false) => {
-    if (!quiet) setLoadingProject(true);
     try {
       const [nextProject, nextFiles] = await Promise.all([
         fetchPosterProject(id),
@@ -633,23 +632,19 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           tone: 'error',
         });
       }
-    } finally {
-      if (!quiet) setLoadingProject(false);
     }
   }, [copy.loadPostersFailed]);
 
   useEffect(() => {
-    if (creationMode !== 'poster') {
-      setLoadingProject(false);
-      return undefined;
-    }
+    if (creationMode !== 'poster') return undefined;
+    if (restoredPosterUserRef.current === user.id) return undefined;
     let cancelled = false;
-    setLoadingProject(true);
     void (async () => {
       try {
         const restoredProject = await resolveDirectLoanPosterProject(user.id);
         if (cancelled) return;
         if (!restoredProject) {
+          restoredPosterUserRef.current = user.id;
           setProjectId(null);
           setProject(null);
           setFiles([]);
@@ -658,15 +653,16 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         setProjectId(restoredProject.id);
         setProject(restoredProject);
         const restoredFiles = await fetchPosterFiles(restoredProject.id);
-        if (!cancelled) setFiles(restoredFiles);
+        if (!cancelled) {
+          restoredPosterUserRef.current = user.id;
+          setFiles(restoredFiles);
+        }
       } catch (error) {
         if (cancelled) return;
         if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
           window.location.reload();
           return;
         }
-      } finally {
-        if (!cancelled) setLoadingProject(false);
       }
     })();
     return () => {
@@ -1171,13 +1167,13 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             eager: true,
             index,
           }))}
-          {loadingProject || status.state === 'working' ? (
+          {status.state === 'working' ? (
             <div className={`poster-app__poster-skeleton${latestBatchAspectRatio === '1:1'
               ? ' is-square'
               : latestBatchAspectRatio === '3:4'
                 ? ' is-portrait'
                 : ''}`}>
-              <span>{loadingProject ? copy.loadingRecentPosters : copy.generatingImage}</span>
+              <span>{copy.generatingImage}</span>
             </div>
           ) : null}
         </div>
@@ -1328,6 +1324,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             }}
             configuredPresetKeys={videoGeneration.state.configuredPresetKeys}
             disabled={videoGeneration.active}
+            restoring={videoGeneration.restoring}
           />
 
           {(videoGenerationStartedRef.current || videoStatus.state === 'failed')

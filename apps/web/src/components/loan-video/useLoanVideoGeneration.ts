@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Project, ProjectFile, ProjectMetadata } from '../../types';
 import {
-  listProjectMediaTasks,
+  restoreLoanVideo,
   startProjectMediaTask,
   waitForMediaTask,
 } from '../../providers/media';
@@ -14,7 +14,6 @@ import {
 } from '../../providers/registry';
 import {
   createProject,
-  getProject,
   listProjects,
   patchProject,
 } from '../../state/projects';
@@ -166,8 +165,7 @@ function taskFailureMessage(task: MediaTaskSnapshot | null): string {
 }
 
 function activePhase(phase: LoanVideoGenerationPhase): boolean {
-  return phase === 'restoring'
-    || phase === 'preparing'
+  return phase === 'preparing'
     || phase === 'uploading'
     || phase === 'queued'
     || phase === 'running';
@@ -175,47 +173,23 @@ function activePhase(phase: LoanVideoGenerationPhase): boolean {
 
 async function restoreLatestVideoTask(sessionScope: string): Promise<RestoredVideoTask | null> {
   const pointer = readStoredPointer(sessionScope);
-  const [storedProject, projects] = await Promise.all([
-    pointer ? getProject(pointer.projectId) : Promise.resolve(null),
-    listProjects(),
-  ]);
-  const candidates = projects.filter(isTutorialVideoProject);
-  if (
-    storedProject
-    && isTutorialVideoProject(storedProject)
-    && !candidates.some((candidate) => candidate.id === storedProject.id)
-  ) {
-    candidates.push(storedProject);
-  }
-  const project = candidates.sort((left, right) => right.updatedAt - left.updatedAt)[0] ?? null;
-  if (!project) {
+  const restored = await restoreLoanVideo(pointer);
+  if (!restored.project) {
     if (pointer) clearStoredPointer(sessionScope);
     return null;
   }
-  const [projectFileEntries, taskResponse] = await Promise.all([
-    Promise.all(candidates.map(async (candidate) => ({
-      project: candidate,
-      files: await fetchProjectFiles(candidate.id),
-    }))),
-    listProjectMediaTasks(project.id),
-  ]);
-  const files = projectFileEntries.find((entry) => entry.project.id === project.id)?.files ?? [];
-  const configuredPresetKeys = Array.from(new Set(
-    projectFileEntries
-      .filter((entry) => videoFiles(entry.files).length > 0)
-      .map((entry) => projectPresetKey(entry.project))
-      .filter((key): key is string => key !== null),
-  ));
-  const videoTasks = taskResponse.tasks.filter((task) => (
-    task.surface === 'video' && task.model === 'hyperframes-html'
-  ));
-  const task = (
-    pointer?.taskId
-      ? videoTasks.find((candidate) => candidate.taskId === pointer.taskId)
-      : null
-  ) ?? videoTasks[0] ?? null;
-  if (task) writeStoredPointer(sessionScope, { projectId: project.id, taskId: task.taskId });
-  return { configuredPresetKeys, project, files, task };
+  if (restored.task) {
+    writeStoredPointer(sessionScope, {
+      projectId: restored.project.id,
+      taskId: restored.task.taskId,
+    });
+  }
+  return {
+    configuredPresetKeys: restored.configuredPresetKeys,
+    project: restored.project,
+    files: restored.files,
+    task: restored.task,
+  };
 }
 
 async function readSavedStoryboard(projectId: string): Promise<LoanVideoStoryboard> {
@@ -236,6 +210,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
   const stateRef = useRef(state);
   const startGuardRef = useRef(false);
   const subscriptionRef = useRef<AbortController | null>(null);
+  const restoredScopeRef = useRef<string | null>(null);
 
   const updateState = useCallback((
     update: Partial<LoanVideoGenerationState>
@@ -290,10 +265,30 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     const controller = new AbortController();
     subscriptionRef.current?.abort();
     subscriptionRef.current = controller;
+
+    if (
+      restoredScopeRef.current === sessionScope
+      && stateRef.current.phase !== 'restoring'
+    ) {
+      const current = stateRef.current;
+      if (
+        current.projectId
+        && current.taskId
+        && (current.phase === 'queued' || current.phase === 'running')
+      ) {
+        void monitorTask(current.projectId, current.taskId, controller.signal);
+      }
+      return () => {
+        controller.abort();
+        if (subscriptionRef.current === controller) subscriptionRef.current = null;
+      };
+    }
+
     updateState(INITIAL_STATE);
 
     void restoreLatestVideoTask(sessionScope).then(async (restored) => {
       if (controller.signal.aborted) return;
+      restoredScopeRef.current = sessionScope;
       if (!restored) {
         updateState({ ...INITIAL_STATE, phase: 'idle' });
         return;
@@ -336,15 +331,12 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
   }, [enabled, monitorTask, sessionScope, updateState]);
 
   useEffect(() => {
-    if (!enabled || !state.projectId || state.phase === 'failed') return undefined;
+    if (!enabled || !state.projectId || !activePhase(state.phase)) return undefined;
     const projectId = state.projectId;
     const reconcile = () => {
       if (document.visibilityState === 'visible') void refreshFiles(projectId);
     };
-    const interval = window.setInterval(
-      reconcile,
-      activePhase(state.phase) || videoFiles(state.files).length === 0 ? 1_500 : 5_000,
-    );
+    const interval = window.setInterval(reconcile, 1_500);
     window.addEventListener('focus', reconcile);
     window.addEventListener('online', reconcile);
     window.addEventListener('pageshow', reconcile);
@@ -361,6 +353,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
   const start = useCallback(async (draft: LoanVideoDraft) => {
     if (startGuardRef.current) return;
     startGuardRef.current = true;
+    restoredScopeRef.current = sessionScope;
     subscriptionRef.current?.abort();
     const controller = new AbortController();
     subscriptionRef.current = controller;
@@ -475,6 +468,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
   const regenerate = useCallback(async (options: LoanVideoQuickOptions): Promise<boolean> => {
     if (startGuardRef.current) return false;
     startGuardRef.current = true;
+    restoredScopeRef.current = sessionScope;
     subscriptionRef.current?.abort();
     const controller = new AbortController();
     subscriptionRef.current = controller;
@@ -580,6 +574,7 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     regenerate,
     removeVideo,
     refreshFiles,
+    restoring: state.phase === 'restoring',
     start,
     state,
     videos,

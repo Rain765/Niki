@@ -74,6 +74,99 @@ describe('media task route recovery', () => {
     });
   });
 
+  it('restores the latest tutorial video, files, presets, and task in one request', async () => {
+    const dataDir = process.env.OD_DATA_DIR;
+    if (!dataDir) throw new Error('OD_DATA_DIR is required for daemon tests');
+    const projectsRoot = path.join(dataDir, 'projects');
+    const db = openDatabase(process.cwd(), { dataDir });
+    const olderProjectId = `project_${randomUUID()}`;
+    const latestProjectId = `project_${randomUUID()}`;
+    const taskId = `task_${randomUUID()}`;
+    const now = Date.now();
+
+    insertProject(db, {
+      id: olderProjectId,
+      name: 'BiuMoney · Top Up guide',
+      skillId: 'hyperframes',
+      createdAt: now - 20,
+      updatedAt: now - 20,
+      metadata: {
+        kind: 'video',
+        videoModel: 'hyperframes-html',
+        loanVideoPreset: {
+          version: 1,
+          brand: 'biumoney',
+          purpose: 'top-up-guide',
+        },
+      },
+    });
+    insertProject(db, {
+      id: latestProjectId,
+      name: 'ZamLoan · Anti-fraud',
+      skillId: 'hyperframes',
+      createdAt: now - 10,
+      updatedAt: now - 10,
+      metadata: {
+        kind: 'video',
+        videoModel: 'hyperframes-html',
+        videoAspect: '9:16',
+        loanVideoPreset: {
+          version: 1,
+          brand: 'zamloan',
+          purpose: 'anti-fraud',
+        },
+      },
+    });
+    await Promise.all([olderProjectId, latestProjectId].map(async (projectId) => {
+      const dir = path.join(projectsRoot, projectId);
+      await mkdir(dir, { recursive: true });
+      await writeFile(path.join(dir, `${projectId}.mp4`), Buffer.from('video'));
+    }));
+    insertMediaTask(db, {
+      id: taskId,
+      projectId: latestProjectId,
+      status: 'done',
+      surface: 'video',
+      model: 'hyperframes-html',
+      progress: ['complete'],
+      file: {
+        name: `${latestProjectId}.mp4`,
+        size: 5,
+        mtime: now,
+        kind: 'video',
+        mime: 'video/mp4',
+      },
+      startedAt: now - 9,
+      endedAt: now - 8,
+      updatedAt: now - 8,
+    });
+
+    const started = await startServer({ port: 0, returnServer: true }) as {
+      url: string;
+      server: http.Server;
+    };
+    server = started.server;
+
+    const response = await fetch(
+      `${started.url}/api/media/loan-video/restore?projectId=${latestProjectId}&taskId=${taskId}`,
+    );
+    const body = await response.json() as {
+      configuredPresetKeys: string[];
+      files: Array<{ name: string }>;
+      project: { id: string } | null;
+      task: { taskId: string; status: string } | null;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.project?.id).toBe(latestProjectId);
+    expect(body.files.map((file) => file.name)).toContain(`${latestProjectId}.mp4`);
+    expect(body.configuredPresetKeys.sort()).toEqual([
+      'biumoney:top-up-guide',
+      'zamloan:anti-fraud',
+    ]);
+    expect(body.task).toMatchObject({ taskId, status: 'done' });
+  });
+
   it('builds and persists a tutorial MP4 directly from a storyboard media task', async () => {
     const dataDir = process.env.OD_DATA_DIR;
     if (!dataDir) throw new Error('OD_DATA_DIR is required for daemon tests');

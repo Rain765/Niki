@@ -32,6 +32,7 @@ interface Props {
   onQuickGenerate?: (options: LoanVideoQuickOptions) => void;
   configuredPresetKeys?: readonly string[];
   disabled?: boolean;
+  restoring?: boolean;
 }
 
 const INITIAL_STEP_COUNT = 3;
@@ -74,6 +75,7 @@ export function LoanVideoComposer({
   onQuickGenerate,
   configuredPresetKeys = [],
   disabled = false,
+  restoring = false,
 }: Props) {
   const t = useT();
   const [draft, setDraft] = useState<LoanVideoDraft>(initialDraft);
@@ -238,7 +240,7 @@ export function LoanVideoComposer({
               disabled={disabled || !onQuickGenerate}
               loading={disabled}
               onClick={() => {
-                if (!presetConfigured) {
+                if (!restoring && !presetConfigured) {
                   setQuickNotice(t('loanVideo.presetRequiredHint'));
                   setMode('editor');
                   return;

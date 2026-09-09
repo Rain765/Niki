@@ -21,6 +21,7 @@ const {
   prepareImageFileMock,
   reattachDaemonRunMock,
   resolveDirectLoanPosterProjectMock,
+  restoreLoanVideoMock,
   savePreparedImageFileMock,
   saveMessageMock,
   startDirectLoanPosterProjectMock,
@@ -46,6 +47,7 @@ const {
   prepareImageFileMock: vi.fn(),
   reattachDaemonRunMock: vi.fn(),
   resolveDirectLoanPosterProjectMock: vi.fn(),
+  restoreLoanVideoMock: vi.fn(),
   savePreparedImageFileMock: vi.fn(),
   saveMessageMock: vi.fn(),
   startDirectLoanPosterProjectMock: vi.fn(),
@@ -76,6 +78,7 @@ vi.mock('../../src/providers/daemon', () => ({
 
 vi.mock('../../src/providers/media', () => ({
   listProjectMediaTasks: listProjectMediaTasksMock,
+  restoreLoanVideo: restoreLoanVideoMock,
   startProjectMediaTask: startProjectMediaTaskMock,
   waitForMediaTask: waitForMediaTaskMock,
 }));
@@ -139,6 +142,12 @@ beforeEach(() => {
   window.localStorage.clear();
   window.history.replaceState({}, '', '/');
   resolveDirectLoanPosterProjectMock.mockResolvedValue(project);
+  restoreLoanVideoMock.mockResolvedValue({
+    configuredPresetKeys: [],
+    files: [],
+    project: null,
+    task: null,
+  });
   createProjectMock.mockResolvedValue({
     project: {
       ...project,
@@ -348,6 +357,18 @@ describe('PosterApp mobile-safe flow', () => {
     };
     let videoReady = false;
     listProjectsMock.mockResolvedValue([savedProject]);
+    restoreLoanVideoMock.mockResolvedValue({
+      configuredPresetKeys: ['zamloan:loan-guide'],
+      files: [{
+        name: 'zamloan-tutorial-approved.mp4',
+        kind: 'video',
+        mime: 'video/mp4',
+        size: 2_048,
+        mtime: 20,
+      }],
+      project: savedProject,
+      task: null,
+    });
     fetchProjectFilesMock.mockImplementation(async () => [{
       name: videoReady
         ? String(startProjectMediaTaskMock.mock.calls.at(-1)?.[1]?.output)
@@ -641,8 +662,12 @@ describe('PosterApp mobile-safe flow', () => {
       projectId: restoredProject.id,
       taskId: restoredTask.taskId,
     }));
-    getProjectMock.mockResolvedValue(restoredProject);
-    listProjectMediaTasksMock.mockResolvedValue({ tasks: [restoredTask] });
+    restoreLoanVideoMock.mockResolvedValue({
+      configuredPresetKeys: [],
+      files: [],
+      project: restoredProject,
+      task: restoredTask,
+    });
     fetchProjectFilesMock.mockResolvedValue([]);
     render(<PosterApp />);
 
@@ -688,8 +713,12 @@ describe('PosterApp mobile-safe flow', () => {
       projectId: restoredProject.id,
       taskId: restoredTask.taskId,
     }));
-    getProjectMock.mockResolvedValue(restoredProject);
-    listProjectMediaTasksMock.mockResolvedValue({ tasks: [restoredTask] });
+    restoreLoanVideoMock.mockResolvedValue({
+      configuredPresetKeys: [],
+      files: [],
+      project: restoredProject,
+      task: restoredTask,
+    });
     fetchProjectFilesMock.mockResolvedValue([]);
     waitForMediaTaskMock.mockImplementation(() => new Promise(() => {}));
     render(<PosterApp />);
@@ -735,9 +764,20 @@ describe('PosterApp mobile-safe flow', () => {
       projectId: restoredProject.id,
       taskId: restoredTask.taskId,
     }));
-    getProjectMock.mockResolvedValue(restoredProject);
-    listProjectMediaTasksMock.mockResolvedValue({ tasks: [restoredTask] });
-    listProjectsMock.mockResolvedValue([]);
+    restoreLoanVideoMock.mockImplementation(async () => ({
+      configuredPresetKeys: ['zamloan:loan-guide'],
+      files: videoReady
+        ? [{
+            name: 'restored-video.mp4',
+            kind: 'video',
+            mime: 'video/mp4',
+            size: 4_096,
+            mtime: 60,
+          }]
+        : [],
+      project: restoredProject,
+      task: restoredTask,
+    }));
     fetchProjectFilesMock.mockImplementation(async () => videoReady
       ? [{
           name: 'restored-video.mp4',
@@ -926,10 +966,60 @@ describe('PosterApp mobile-safe flow', () => {
     expect(await screen.findByRole('dialog', { name: 'Account management' })).toBeTruthy();
   });
 
-  it('shows a gallery placeholder immediately while restoring the server project', () => {
+  it('keeps the poster gallery free of poster-sized placeholders while restoring history', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(() => undefined));
     render(<PosterApp />);
-    expect(screen.getByText('Loading recent posters…')).toBeTruthy();
+
+    expect(screen.queryByText('Loading recent posters…')).toBeNull();
+    expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
+  });
+
+  it('keeps video generation controls interactive while restoring history', () => {
+    restoreLoanVideoMock.mockReturnValue(new Promise(() => undefined));
+    render(<PosterApp />);
+
+    selectWorkspace('Videos');
+
+    expect((screen.getByTestId('loan-video-quick-brand') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('loan-video-quick-purpose') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('loan-video-quick-generate') as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByTestId('loan-video-quick-generate').textContent).toContain('Generate video');
+  });
+
+  it('reuses restored poster and video state when switching workspaces', async () => {
+    const restoredVideoProject = {
+      ...project,
+      id: 'cached-video-project',
+      skillId: 'hyperframes',
+      metadata: {
+        kind: 'video' as const,
+        videoModel: 'hyperframes-html',
+        videoAspect: '9:16' as const,
+      },
+    };
+    restoreLoanVideoMock.mockResolvedValue({
+      configuredPresetKeys: ['zamloan:loan-guide'],
+      files: [{
+        name: 'cached-video.mp4',
+        kind: 'video',
+        mime: 'video/mp4',
+        size: 4_096,
+        mtime: 60,
+      }],
+      project: restoredVideoProject,
+      task: null,
+    });
+    render(<PosterApp />);
+    await screen.findByRole('img', { name: 'biumoney-poster-20260804-001.png' });
+
+    selectWorkspace('Videos');
+    await screen.findByTestId('poster-app-video-result');
+    selectWorkspace('Posters');
+    selectWorkspace('Videos');
+
+    expect(resolveDirectLoanPosterProjectMock).toHaveBeenCalledTimes(1);
+    expect(restoreLoanVideoMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('poster-app-video-result')).toBeTruthy();
   });
 
   it('does not show a generation status while restoring an existing project', async () => {

@@ -1,9 +1,15 @@
 import type {
+  LoanVideoRestoreResponse,
   MediaGenerationRequest,
   MediaTaskAcceptedResponse,
   MediaTaskSnapshot,
   ProjectMediaTasksResponse,
 } from '@open-design/contracts';
+
+interface RestoreLoanVideoPointer {
+  projectId: string;
+  taskId?: string;
+}
 
 async function responseError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
@@ -70,4 +76,19 @@ export async function listProjectMediaTasks(
   );
   if (!response.ok) throw await responseError(response);
   return response.json() as Promise<ProjectMediaTasksResponse>;
+}
+
+export async function restoreLoanVideo(
+  pointer: RestoreLoanVideoPointer | null,
+): Promise<LoanVideoRestoreResponse> {
+  const query = new URLSearchParams();
+  if (pointer?.projectId) query.set('projectId', pointer.projectId);
+  if (pointer?.taskId) query.set('taskId', pointer.taskId);
+  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  const response = await fetch(`/api/media/loan-video/restore${suffix}`, {
+    credentials: 'include',
+    cache: 'no-store',
+  });
+  if (!response.ok) throw await responseError(response);
+  return response.json() as Promise<LoanVideoRestoreResponse>;
 }

@@ -44,6 +44,50 @@ function oneLine(value: string, limit = 300): string {
   return value.replace(/\s+/g, ' ').trim().slice(0, limit);
 }
 
+function isLoanVideoProject(project: any): boolean {
+  return project?.skillId === 'hyperframes'
+    && project?.metadata?.kind === 'video'
+    && project?.metadata?.videoModel === 'hyperframes-html';
+}
+
+function loanVideoPresetKey(project: any): string | null {
+  const preset = project?.metadata?.loanVideoPreset;
+  if (preset?.version === 1 && (preset.brand === 'zamloan' || preset.brand === 'biumoney')) {
+    const purpose = preset.purpose === 'acquisition' || preset.purpose === 'tutorial'
+      ? 'loan-guide'
+      : preset.purpose;
+    if (purpose === 'anti-fraud' || purpose === 'loan-guide' || purpose === 'top-up-guide') {
+      return `${preset.brand}:${purpose}`;
+    }
+    return null;
+  }
+  const brand = String(project?.name ?? '').toLowerCase().includes('biumoney')
+    ? 'biumoney'
+    : 'zamloan';
+  return `${brand}:loan-guide`;
+}
+
+function isVideoFile(file: any): boolean {
+  return file?.kind === 'video' || String(file?.name ?? '').toLowerCase().endsWith('.mp4');
+}
+
+function projectMediaTaskSummary(task: any) {
+  return {
+    taskId: task.id,
+    status: task.status,
+    startedAt: task.startedAt,
+    endedAt: task.endedAt,
+    elapsed: Math.round(((task.endedAt ?? Date.now()) - task.startedAt) / 1000),
+    surface: task.surface,
+    model: task.model,
+    progress: task.progress.slice(-3),
+    progressCount: task.progress.length,
+    nextSince: task.progress.length,
+    ...(task.status === 'done' ? { file: task.file } : {}),
+    ...(task.status === 'failed' || task.status === 'interrupted' ? { error: task.error } : {}),
+  };
+}
+
 interface MediaTaskAdmissionTask {
   id: string;
   projectId: string;
@@ -95,8 +139,8 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   const { readAppConfig, writeAppConfig } = ctx.appConfig;
   const { orbitService } = ctx.orbit;
   const { openNativeFolderDialog } = ctx.nativeDialogs;
-  const { getProject } = ctx.projectStore;
-  const { resolveProjectDir, writeProjectFile } = ctx.projectFiles;
+  const { getProject, listProjects } = ctx.projectStore;
+  const { listFiles, resolveProjectDir, writeProjectFile } = ctx.projectFiles;
   const { insertConversation, upsertMessage } = ctx.conversations;
   const { searchResearch, ResearchError } = ctx.research;
   const getResolvedPort = () => resolvedPortRef.current;
@@ -110,6 +154,55 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       videoLengthsSec: VIDEO_LENGTHS_SEC,
       audioDurationsSec: AUDIO_DURATIONS_SEC,
     });
+  });
+
+  app.get('/api/media/loan-video/restore', async (req, res) => {
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
+      return res.status(403).json({ error: 'cross-origin request rejected' });
+    }
+    try {
+      const candidates = listProjects(db)
+        .filter(isLoanVideoProject)
+        .sort((left: any, right: any) => right.updatedAt - left.updatedAt);
+      const project = candidates[0] ?? null;
+      if (!project) {
+        /** @type {import('@open-design/contracts').LoanVideoRestoreResponse} */
+        const body = { configuredPresetKeys: [], files: [], project: null, task: null };
+        return res.json(body);
+      }
+
+      const projectFileEntries = await Promise.all(candidates.map(async (candidate: any) => ({
+        project: candidate,
+        files: await listFiles(PROJECTS_DIR, candidate.id, { metadata: candidate.metadata })
+          .catch(() => []),
+      })));
+      const files = projectFileEntries.find((entry) => entry.project.id === project.id)?.files ?? [];
+      const configuredPresetKeys = Array.from(new Set(
+        projectFileEntries
+          .filter((entry) => entry.files.some(isVideoFile))
+          .map((entry) => loanVideoPresetKey(entry.project))
+          .filter((key): key is string => key !== null),
+      ));
+      const videoTasks = listMediaTasksByProject(db, project.id, { includeTerminal: true })
+        .filter((task: any) => task.surface === 'video' && task.model === 'hyperframes-html');
+      const requestedTaskId = typeof req.query.taskId === 'string' ? req.query.taskId : null;
+      const task = (
+        requestedTaskId
+          ? videoTasks.find((candidate: any) => candidate.id === requestedTaskId)
+          : null
+      ) ?? videoTasks[0] ?? null;
+
+      /** @type {import('@open-design/contracts').LoanVideoRestoreResponse} */
+      const body = {
+        configuredPresetKeys,
+        files,
+        project,
+        task: task ? projectMediaTaskSummary(task) : null,
+      };
+      return res.json(body);
+    } catch (err: any) {
+      return sendApiError(res, 500, 'LOAN_VIDEO_RESTORE_FAILED', String(err?.message ?? err));
+    }
   });
 
   app.get('/api/media/config', async (_req, res) => {
@@ -519,20 +612,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       req.query.includeDone === '1' || req.query.includeDone === 'true';
     const tasks = listMediaTasksByProject(db, projectId, {
       includeTerminal: includeDone,
-    }).map((t: any) => ({
-      taskId: t.id,
-      status: t.status,
-      startedAt: t.startedAt,
-      endedAt: t.endedAt,
-      elapsed: Math.round(((t.endedAt ?? Date.now()) - t.startedAt) / 1000),
-      surface: t.surface,
-      model: t.model,
-      progress: t.progress.slice(-3),
-      progressCount: t.progress.length,
-      nextSince: t.progress.length,
-      ...(t.status === 'done' ? { file: t.file } : {}),
-      ...(t.status === 'failed' || t.status === 'interrupted' ? { error: t.error } : {}),
-    }));
+    }).map(projectMediaTaskSummary);
     res.json({ tasks });
   });
 

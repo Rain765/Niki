@@ -4323,6 +4323,7 @@ export async function startServer({
   const uploadDeps = { upload, importUpload, handleProjectUpload };
   const projectStoreDeps = {
     getProject,
+    listProjects,
     insertProject,
     updateProject,
     dbDeleteProject,
