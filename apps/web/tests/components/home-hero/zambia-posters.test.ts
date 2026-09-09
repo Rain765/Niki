@@ -610,7 +610,7 @@ describe('Zambia poster preset', () => {
   it.each([
     [
       '3:4',
-      'headline top edge between 17.5% and 18.5% of the canvas height',
+      'headline top edge between 19% and 20% of the canvas height',
       'exactly two lines: “Trust Only Official” / “Customer Service”',
       'no wider than 36% of the canvas',
     ],
@@ -622,7 +622,7 @@ describe('Zambia poster preset', () => {
     ],
     [
       '1:1',
-      'headline top edge between 17.5% and 18.5% of the canvas height',
+      'headline top edge between 19% and 20% of the canvas height',
       'exactly three lines: “Trust Only” / “Official Customer” / “Service”',
       'no wider than 31% of the canvas',
     ],

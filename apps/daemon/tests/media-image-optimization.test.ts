@@ -358,6 +358,111 @@ describe('generated image optimization', () => {
     });
   });
 
+  it('accepts a calm pale anti-fraud logo band without retrying', async () => {
+    const clean = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="1067">
+        <rect width="800" height="1067" fill="#244c35"/>
+        <polygon points="0,0 800,0 800,85 0,1067" fill="#eee7d8"/>
+      </svg>
+    `)).png().toBuffer();
+    const prompts: string[] = [];
+
+    const rendered = await renderImageWithAntiFraudSafeZoneRetry(
+      'original prompt',
+      async (prompt) => {
+        prompts.push(prompt);
+        return { bytes: clean };
+      },
+      { anchor: 'left' },
+    );
+
+    expect(rendered.attempts).toBe(1);
+    expect(rendered.logoSafeZone.intrudes).toBe(false);
+    expect(prompts).toEqual(['original prompt']);
+  });
+
+  it('keeps a tall brand logo inside the portrait header safe area', async () => {
+    const poster = await sharp({
+      create: {
+        width: 800,
+        height: 1_067,
+        channels: 4,
+        background: { r: 238, g: 231, b: 216, alpha: 1 },
+      },
+    }).png().toBuffer();
+    const tallLogo = Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 501">
+        <rect width="1024" height="501" fill="#24263f"/>
+      </svg>
+    `);
+
+    const composited = await overlayZamloanLogo(poster, tallLogo);
+    const { data, info } = await sharp(composited)
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let bottom = -1;
+    for (let y = 0; y < info.height; y += 1) {
+      for (let x = 0; x < info.width; x += 1) {
+        const offset = (y * info.width + x) * info.channels;
+        if (
+          (data[offset] ?? 0) < 80
+          && (data[offset + 1] ?? 0) < 80
+          && (data[offset + 2] ?? 0) < 100
+        ) {
+          bottom = y;
+        }
+      }
+    }
+
+    expect(bottom).toBeGreaterThan(0);
+    expect(bottom / info.height).toBeLessThanOrEqual(0.11);
+  });
+
+  it('retries when a portrait anti-fraud headline enters the logo clearance band', async () => {
+    const clean = await sharp(Buffer.from(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="800" height="1067">
+        <rect width="800" height="1067" fill="#244c35"/>
+        <polygon points="0,0 800,0 800,85 0,1067" fill="#eee7d8"/>
+      </svg>
+    `)).png().toBuffer();
+    const intruding = await sharp(clean)
+      .composite([{
+        input: Buffer.from(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="300" height="90">
+            <rect x="0" y="0" width="24" height="90" fill="#173c2a"/>
+            <rect x="40" y="0" width="24" height="90" fill="#173c2a"/>
+            <rect x="80" y="0" width="24" height="90" fill="#173c2a"/>
+            <rect x="120" y="0" width="24" height="90" fill="#173c2a"/>
+            <rect x="160" y="0" width="24" height="90" fill="#173c2a"/>
+            <rect x="200" y="0" width="24" height="90" fill="#173c2a"/>
+            <rect x="240" y="0" width="24" height="90" fill="#173c2a"/>
+            <rect x="276" y="0" width="24" height="90" fill="#173c2a"/>
+          </svg>
+        `),
+        left: 44,
+        top: 148,
+      }])
+      .png()
+      .toBuffer();
+    const prompts: string[] = [];
+
+    const rendered = await renderImageWithAntiFraudSafeZoneRetry(
+      'original prompt',
+      async (prompt) => {
+        prompts.push(prompt);
+        return { bytes: prompts.length === 1 ? intruding : clean };
+      },
+      { anchor: 'left' },
+    );
+
+    expect(rendered.attempts).toBe(2);
+    expect(rendered.logoSafeZone.intrudes).toBe(false);
+    expect(rendered.result.bytes).toBe(clean);
+    expect(prompts[1]).toContain('2% to 17% of the canvas height');
+    expect(prompts[1]).toContain('headline top edge at 19% to 20%');
+  });
+
   it('retries a provider render once when content enters the logo-safe band', async () => {
     const clean = await sharp({
       create: {

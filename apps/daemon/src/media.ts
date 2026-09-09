@@ -166,7 +166,12 @@ export interface ZamloanLogoSafeZoneAnalysis {
  */
 export async function analyzeZamloanLogoSafeZone(
   input: Buffer,
-  options: { anchor?: 'left' | 'right'; bottomRatio?: number } = {},
+  options: {
+    anchor?: 'left' | 'right';
+    bottomRatio?: number;
+    allowNeutralLight?: boolean;
+    strongEdgeRatioLimit?: number;
+  } = {},
 ): Promise<ZamloanLogoSafeZoneAnalysis> {
   const image = sharp(input);
   const metadata = await image.metadata();
@@ -239,9 +244,13 @@ export async function analyzeZamloanLogoSafeZone(
 
   const neutralLightRatio = neutralLightPixels / pixelCount;
   const strongEdgeRatio = strongEdgePixels / pixelCount;
-  const score = neutralLightRatio * 2 + strongEdgeRatio;
+  const score = (options.allowNeutralLight ? 0 : neutralLightRatio * 2)
+    + strongEdgeRatio;
   return {
-    intrudes: neutralLightRatio >= 0.018 || strongEdgeRatio >= 0.065,
+    intrudes: (
+      (!options.allowNeutralLight && neutralLightRatio >= 0.018)
+      || strongEdgeRatio >= (options.strongEdgeRatioLimit ?? 0.065)
+    ),
     score,
     neutralLightRatio,
     strongEdgeRatio,
@@ -504,8 +513,8 @@ async function antiFraudLogoSafeZoneRules(input: Buffer): Promise<{
 }> {
   const metadata = await sharp(input).metadata();
   const widescreen = (metadata.width ?? 1) / (metadata.height ?? 1) >= 1.5;
-  const bottomRatio = widescreen ? 0.20 : 0.15;
-  const headlineRange = widescreen ? '22.5% to 23.5%' : '17.5% to 18.5%';
+  const bottomRatio = widescreen ? 0.20 : 0.17;
+  const headlineRange = widescreen ? '22.5% to 23.5%' : '19% to 20%';
   return {
     bottomRatio,
     retryInstruction: (anchor) => {
@@ -536,6 +545,8 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   let bestLogoSafeZone = await analyzeZamloanLogoSafeZone(bestResult.bytes, {
     anchor,
     bottomRatio: logoRules.bottomRatio,
+    allowNeutralLight: true,
+    strongEdgeRatioLimit: 0.025,
   });
   let bestLowerRight = await analyzeAntiFraudLowerRightContinuity(bestResult.bytes);
   let bestDiagonal = await analyzeAntiFraudDiagonalSplit(bestResult.bytes);
@@ -564,6 +575,8 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
     const retryLogoSafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, {
       anchor,
       bottomRatio: logoRules.bottomRatio,
+      allowNeutralLight: true,
+      strongEdgeRatioLimit: 0.025,
     });
     const retryLowerRight = await analyzeAntiFraudLowerRightContinuity(retryResult.bytes);
     const retryDiagonal = await analyzeAntiFraudDiagonalSplit(retryResult.bytes);
@@ -728,17 +741,28 @@ export async function overlayZamloanLogo(
     throw new Error('generated poster has no readable dimensions');
   }
 
+  const aspect = metadata.width / metadata.height;
+  const isWidescreen = aspect >= 1.5;
+  const isSquareOrPortrait = aspect <= 1.05;
   const logoWidth = Math.min(
     400,
     Math.max(180, Math.round(metadata.width * 0.24)),
   );
+  const logoHeight = Math.round(metadata.height * (
+    isWidescreen ? 0.15 : isSquareOrPortrait ? 0.07 : 0.12
+  ));
   const logoSourceMetadata = await sharp(logo).metadata();
   const logoImage = logoSourceMetadata.format === 'svg'
     ? sharp(logo, { density: 384 })
     : sharp(logo);
   const resizedLogo = await logoImage
     .ensureAlpha()
-    .resize({ width: logoWidth, fit: 'inside', withoutEnlargement: true })
+    .resize({
+      width: logoWidth,
+      height: logoHeight,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
     .png()
     .toBuffer();
   const logoMetadata = await sharp(resizedLogo).metadata();
@@ -749,7 +773,10 @@ export async function overlayZamloanLogo(
   const logoLeft = Math.round(
     metadata.width * (options.anchor === 'right' ? 0.53 : 0.055),
   );
-  const logoTop = Math.max(24, Math.round(metadata.height * 0.055));
+  const logoTop = Math.max(
+    24,
+    Math.round(metadata.height * (isSquareOrPortrait ? 0.035 : 0.05)),
+  );
   const adaptiveLogo = await adaptZamloanTaglineToBackground(
     resizedLogo,
     input,
