@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  AUTO_POSTER_BRANDS,
   autoPosterUsesZReference,
+  autoPosterBrandLabel,
   buildLoanPosterPrompt,
   buildLoanPosterScenePlans,
   buildLoanPosterScenePrompts,
@@ -12,6 +14,7 @@ import {
   isLoanPosterOutputName,
   LOAN_POSTER_SKILL_ID,
   AUTO_POSTER_ASPECT_RATIOS,
+  loadAutoPosterLogo,
   loadZamloanLogo,
   loadZambiaPosterReference,
   normalizeZambiaPosterCount,
@@ -20,8 +23,32 @@ import {
 } from '../../../src/components/home-hero/zambia-posters';
 
 describe('Zambia poster preset', () => {
+  const additionalBrands = [
+    { brand: 'zamcash' as const, label: 'ZamCash', logo: 'zamcash-logo.svg' },
+    { brand: 'zammoney' as const, label: 'ZamMoney', logo: 'zammoney-logo.svg' },
+    { brand: 'fastako' as const, label: 'Fastako', logo: 'fastako-logo.svg' },
+    { brand: 'yangaloan' as const, label: 'Yangaloan', logo: 'yangaloan-logo.svg' },
+  ];
+
   it('offers portrait 3:4 posters alongside square and landscape formats', () => {
     expect(AUTO_POSTER_ASPECT_RATIOS).toEqual(['1:1', '16:9', '3:4']);
+  });
+
+  it('appends four brands without changing the existing product options', () => {
+    expect(AUTO_POSTER_BRANDS).toEqual([
+      'zamloan',
+      'biumoney',
+      'zamcash',
+      'zammoney',
+      'fastako',
+      'yangaloan',
+    ]);
+    expect(additionalBrands.map(({ brand }) => autoPosterBrandLabel(brand))).toEqual([
+      'ZamCash',
+      'ZamMoney',
+      'Fastako',
+      'Yangaloan',
+    ]);
   });
 
   it('clamps the requested poster count to 1 through 10', () => {
@@ -126,6 +153,42 @@ describe('Zambia poster preset', () => {
     expect(prompt).not.toContain('The single semi-transparent background Z');
   });
 
+  it.each(additionalBrands)(
+    'builds isolated acquisition and anti-fraud prompts for $label',
+    ({ brand, label, logo }) => {
+      const acquisitionPlan = buildLoanPosterScenePlans({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'acquisition',
+      })[0];
+      const acquisitionPrompt = buildLoanPosterPrompt({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'acquisition',
+      });
+      const antiFraudPrompt = buildLoanPosterPrompt({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'anti-fraud',
+      });
+
+      expect(acquisitionPlan?.prompt).toContain(label);
+      expect(acquisitionPlan?.prompt).not.toContain('low-opacity Z');
+      expect(acquisitionPrompt).toContain(`brand: \`${brand}\` (${label})`);
+      expect(acquisitionPrompt).toContain(`\`${logo}\``);
+      expect(acquisitionPrompt).toContain(`\`${brand}-poster-01.png\``);
+      expect(acquisitionPrompt).toContain('`--overlay-logo`');
+      expect(acquisitionPrompt).not.toContain('`zamloan.com`');
+      expect(antiFraudPrompt).toContain(`brand: \`${brand}\` (${label})`);
+      expect(antiFraudPrompt).toContain(`\`${logo}\``);
+      expect(antiFraudPrompt).toContain('`--overlay-logo`');
+      expect(antiFraudPrompt).not.toContain('`zamloan.com`');
+    },
+  );
+
   it('keeps the legacy Zambia builder on the Zamloan 16:9 default', () => {
     const prompt = buildZambiaPosterPrompt(1);
 
@@ -144,12 +207,22 @@ describe('Zambia poster preset', () => {
     expect(isLoanPosterGenerationPrompt(
       prompt.replace(LOAN_POSTER_SKILL_ID, 'loan-poster-skill-v1.1'),
     )).toBe(true);
+    for (const { brand, label } of additionalBrands) {
+      expect(isLoanPosterGenerationPrompt(buildLoanPosterPrompt({
+        count: 1,
+        aspectRatio: '3:4',
+        brand,
+      })), label).toBe(true);
+    }
     expect(isLoanPosterGenerationPrompt('Design a Zamloan poster for me.')).toBe(false);
   });
 
   it('recognizes legacy and date-scoped numbered poster outputs', () => {
     expect(isLoanPosterOutputName('zamloan-poster-01.png')).toBe(true);
     expect(isLoanPosterOutputName('zamloan-poster-20260728-001.png')).toBe(true);
+    for (const { brand } of additionalBrands) {
+      expect(isLoanPosterOutputName(`${brand}-poster-20260909-001.png`)).toBe(true);
+    }
     expect(isLoanPosterOutputName('poster.png')).toBe(false);
   });
 
@@ -613,5 +686,36 @@ describe('Zambia poster preset', () => {
     );
     expect(file.name).toBe('zamloan-logo.svg');
     expect(file.type).toBe('image/svg+xml');
+  });
+
+  it.each(additionalBrands)('loads the exact bundled $label logo', async ({ brand, logo }) => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(
+      new Blob(['<svg/>'], { type: 'image/svg+xml' }),
+      {
+        status: 200,
+        headers: { 'content-type': 'image/svg+xml' },
+      },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const file = await loadAutoPosterLogo(brand);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/brand/zambia-support/${logo}`,
+      {
+        cache: 'force-cache',
+        signal: expect.any(AbortSignal),
+      },
+    );
+    expect(file?.name).toBe(logo);
+    expect(file?.type).toBe('image/svg+xml');
+  });
+
+  it('keeps BiuMoney on its existing no-bundled-logo path', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(loadAutoPosterLogo('biumoney')).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

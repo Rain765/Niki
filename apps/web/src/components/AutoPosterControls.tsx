@@ -72,13 +72,17 @@ export function AutoPosterControls({
   const [mobileInlineActive, setMobileInlineActive] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const preferencesRef = useRef<Record<AutoPosterBrand, ProductPreference>>({
-    zamloan: { count, aspectRatio },
-    biumoney: {
-      count: ZAMBIA_POSTER_DEFAULT_COUNT,
-      aspectRatio: AUTO_POSTER_DEFAULT_ASPECT_RATIO,
-    },
-  });
+  const preferencesRef = useRef<Record<AutoPosterBrand, ProductPreference>>(
+    Object.fromEntries(AUTO_POSTER_BRANDS.map((productBrand) => [
+      productBrand,
+      productBrand === brand
+        ? { count, aspectRatio }
+        : {
+            count: ZAMBIA_POSTER_DEFAULT_COUNT,
+            aspectRatio: AUTO_POSTER_DEFAULT_ASPECT_RATIO,
+          },
+    ])) as Record<AutoPosterBrand, ProductPreference>,
+  );
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   const [desktopPosition, setDesktopPosition] = useState<{
     left: number;

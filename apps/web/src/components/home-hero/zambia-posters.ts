@@ -14,7 +14,14 @@ export const AUTO_POSTER_ASPECT_RATIOS = ['1:1', '16:9', '3:4'] as const;
 export type AutoPosterAspectRatio = (typeof AUTO_POSTER_ASPECT_RATIOS)[number];
 export const AUTO_POSTER_DEFAULT_ASPECT_RATIO: AutoPosterAspectRatio = '16:9';
 
-export const AUTO_POSTER_BRANDS = ['zamloan', 'biumoney'] as const;
+export const AUTO_POSTER_BRANDS = [
+  'zamloan',
+  'biumoney',
+  'zamcash',
+  'zammoney',
+  'fastako',
+  'yangaloan',
+] as const;
 export type AutoPosterBrand = (typeof AUTO_POSTER_BRANDS)[number];
 export const AUTO_POSTER_DEFAULT_BRAND: AutoPosterBrand = 'zamloan';
 
@@ -37,13 +44,13 @@ export function isDirectLoanPosterProject(
 }
 
 export function isLoanPosterOutputName(name: string): boolean {
-  return /^(?:zamloan|biumoney)-poster-(?:\d{8}-)?\d+\.png$/i.test(name);
+  return /^(?:zamloan|biumoney|zamcash|zammoney|fastako|yangaloan)-poster-(?:\d{8}-)?\d+\.png$/i.test(name);
 }
 
 export function isLoanPosterGenerationPrompt(value: string | null | undefined): boolean {
   if (!value) return false;
   const prompt = value.trim();
-  return /^Generate exactly \d+ (?:Zamloan|BiuMoney) Zambia loan posters? now\./i.test(prompt)
+  return /^Generate exactly \d+ (?:Zamloan|BiuMoney|ZamCash|ZamMoney|Fastako|Yangaloan) Zambia loan posters? now\./i.test(prompt)
     && [LOAN_POSTER_SKILL_ID, LEGACY_LOAN_POSTER_SKILL_ID]
       .some((skillId) => prompt.includes(`\`${skillId}\``));
 }
@@ -77,9 +84,36 @@ export interface LoanPosterScenePlan {
   textAnchor?: LoanPosterLogoAnchor;
 }
 
-const BRAND_LABELS: Record<AutoPosterBrand, string> = {
-  zamloan: 'Zamloan',
-  biumoney: 'BiuMoney',
+interface AutoPosterBrandConfig {
+  label: string;
+  logo?: {
+    url: string;
+    name: string;
+  };
+}
+
+const AUTO_POSTER_BRAND_CONFIG: Record<AutoPosterBrand, AutoPosterBrandConfig> = {
+  zamloan: {
+    label: 'Zamloan',
+    logo: { url: ZAMLOAN_LOGO_URL, name: ZAMLOAN_LOGO_NAME },
+  },
+  biumoney: { label: 'BiuMoney' },
+  zamcash: {
+    label: 'ZamCash',
+    logo: { url: '/brand/zambia-support/zamcash-logo.svg', name: 'zamcash-logo.svg' },
+  },
+  zammoney: {
+    label: 'ZamMoney',
+    logo: { url: '/brand/zambia-support/zammoney-logo.svg', name: 'zammoney-logo.svg' },
+  },
+  fastako: {
+    label: 'Fastako',
+    logo: { url: '/brand/zambia-support/fastako-logo.svg', name: 'fastako-logo.svg' },
+  },
+  yangaloan: {
+    label: 'Yangaloan',
+    logo: { url: '/brand/zambia-support/yangaloan-logo.svg', name: 'yangaloan-logo.svg' },
+  },
 };
 
 const PURPOSE_LABELS: Record<AutoPosterPurpose, string> = {
@@ -96,7 +130,7 @@ export function normalizeZambiaPosterCount(value: number): number {
 }
 
 export function autoPosterBrandLabel(brand: AutoPosterBrand): string {
-  return BRAND_LABELS[brand];
+  return AUTO_POSTER_BRAND_CONFIG[brand].label;
 }
 
 export function autoPosterPurposeLabel(purpose: AutoPosterPurpose): string {
@@ -437,11 +471,11 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     ]!;
     const composition = aspectRatio === '16:9'
       ? widescreenComposition.instruction
-      : brand === 'zamloan'
-        ? nonWidescreenComposition.instruction
-        : MODEL_SAFE_POSTER_COMPOSITIONS[
+      : brand === 'biumoney'
+        ? MODEL_SAFE_POSTER_COMPOSITIONS[
           (variationIndex * 5) % MODEL_SAFE_POSTER_COMPOSITIONS.length
-        ]!;
+        ]!
+        : nonWidescreenComposition.instruction;
     const logoAnchor: LoanPosterLogoAnchor = aspectRatio === '16:9'
       ? widescreenComposition.logoAnchor
       : 'left';
@@ -498,7 +532,7 @@ Use realistic Zambian lifestyle commercial photography, reassuring premium light
 Negative prompt: visible text, letters, numbers, logo, watermark, brand wordmark, readable chat message, readable phone UI, phone number, contact number, payment code, verification code, account number, QR code, URL text, scam instructions, completed cash transfer, loan approval, money rain, panic, intimidation, generic smiling endorsement pose, two people, multiple people, companion, background person, cropped person, third hand, extra arm, duplicate limb, disconnected arm, hands belonging to different people, arm entering from outside frame, solid rectangle behind notification, color block behind notification, placeholder panel, notification backing plate, cluttered copy panel, warning and official states merged together, blurry, low quality, distorted anatomy, deformed hands, extra fingers, duplicated elements, mixed brands, letter Z, background letter, alphabetic background motif.`,
       };
     }
-    if (brand === 'biumoney') {
+    if (brand !== 'zamloan') {
       const phoneStatus = BIUMONEY_PHONE_STATUS_COPY[
         variationIndex % BIUMONEY_PHONE_STATUS_COPY.length
       ]!;
@@ -552,14 +586,20 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
   }[aspectRatio];
   const outputPrefix = `${brand}-poster`;
   const isZamloan = brand === 'zamloan';
+  const isBiuMoney = brand === 'biumoney';
+  const bundledLogo = AUTO_POSTER_BRAND_CONFIG[brand].logo;
   const referenceContract = isZamloan
     ? `Use a single-pass full-poster composition. Render one low-opacity background Z inside the generated artwork and keep that background Z behind every subject and copy pixel. Do not attach the legacy Z reference and do not pass \`--overlay-z\`: a post-generation overlay would necessarily sit above the flattened model and typography.`
-    : `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
+    : isBiuMoney
+      ? `BiuMoney reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`
+      : `${brandLabel} reference policy: Do not attach or use the Z reference. Do not render a letter Z, a background letter, or a replacement brand mark.`;
   const logoContract = isZamloan
     ? purpose === 'anti-fraud'
       ? `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` with \`--overlay-logo-anchor left\` for every generation. The daemon will composite it in the reserved top-left logo-safe row after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
       : `The attached internal file \`${ZAMLOAN_LOGO_NAME}\` is the exact Zamloan logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row with a unified soft backdrop after generation; do not redraw, typeset, or invent a replacement logo in the generated image.`
-    : 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.';
+    : isBiuMoney
+      ? 'BiuMoney logo policy: Do not attach, use, or render the Zamloan logo.'
+      : `The attached internal file \`${bundledLogo!.name}\` is the exact ${brandLabel} logo. Locate its project-relative path and pass it through \`--overlay-logo\` for every generation. For 16:9 scenes, also pass \`--overlay-logo-anchor left|right\` matching the scene's title column. The daemon will composite it in the reserved logo-safe row after generation; do not redraw, typeset, recolor, or invent a replacement logo in the generated image.`;
   const acquisitionBrandOverride = isZamloan
     ? `- Do not render \`${brandLabel}\`, another brand-name wordmark, or a replacement logo in the reserved logo-safe row.
 - Generate the background, Z, model, phone, headline, and subtitle together in one image so the model can coordinate the complete composition.
@@ -572,7 +612,7 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
 - Render exactly two visible text elements on the poster canvas: one headline and one subtitle. Do not add benefits, labels, badges, disclaimers, or other poster text.
 - The phone-screen exception is the only additional visible wording: clearly present the phone with its screen facing the camera, fully visible and large enough to read. Use a compact solid green circle containing a white checkmark, keep the circle no larger than about one-sixth of the screen height, leave at least one full circle diameter before the copy below it, and use the scene-specific short status copy instead of repeating one status across every scene.
 - Make both text elements large and readable, place them entirely in reserved negative space, and ensure they must never overlap the model, including the face, body, hands, clothing, and phone.
-- This BiuMoney override takes precedence over conflicting skill template rules.`;
+- This ${isBiuMoney ? 'BiuMoney' : brandLabel} override takes precedence over conflicting skill template rules.`;
   const brandOverride = purpose === 'anti-fraud'
     ? isZamloan
       ? `- Use the same single-pass composition, oversized expressive typography, phone prominence, model scale, logo-safe region, and copy-safe geometry as the Zamloan acquisition posters.
@@ -598,7 +638,9 @@ export function buildLoanPosterPrompt(options: AutoPosterOptions): string {
     ? `, \`--overlay-logo\` with the Zamloan logo path, \`--overlay-logo-anchor left\`, \`--poster-headline "Prevent Fraud"\`, \`--poster-subtitle "Trust Only Official Customer Service"\`, \`--poster-text-anchor right\`, and \`--poster-copy-style anti-fraud-message\``
     : isZamloan
       ? `, and \`--overlay-logo\` with the Zamloan logo path${aspectRatio === '16:9' ? ', plus `--overlay-logo-anchor` matching the scene title column' : ''}`
-      : '';
+      : bundledLogo
+        ? `, and \`--overlay-logo\` with the ${brandLabel} logo path${aspectRatio === '16:9' ? ', plus `--overlay-logo-anchor` matching the scene title column' : ''}`
+        : '';
   const generationFlagRestriction = isZamloan && purpose === 'anti-fraud'
     ? 'Do not pass `--overlay-z`, `--foreground-prompt-file`, or `--overlay-phone-screen`. Treat `anti-fraud-message` as deterministic post-processing and keep all of its UI semantics out of the full-poster provider prompt.'
     : 'Do not pass `--overlay-z`, `--foreground-prompt-file`, `--poster-headline`, `--poster-subtitle`, or `--poster-text-anchor`.';
@@ -649,11 +691,19 @@ export async function loadZambiaPosterReference(): Promise<File> {
 }
 
 export async function loadZamloanLogo(): Promise<File> {
+  const logo = await loadAutoPosterLogo('zamloan');
+  if (!logo) throw new Error('Unable to load Zamloan logo: asset is not configured');
+  return logo;
+}
+
+export async function loadAutoPosterLogo(brand: AutoPosterBrand): Promise<File | null> {
+  const config = AUTO_POSTER_BRAND_CONFIG[brand];
+  if (!config.logo) return null;
   return loadBundledPosterAsset({
-    url: ZAMLOAN_LOGO_URL,
-    name: ZAMLOAN_LOGO_NAME,
+    url: config.logo.url,
+    name: config.logo.name,
     fallbackType: 'image/svg+xml',
-    label: 'Zamloan logo',
+    label: `${config.label} logo`,
     requireImageContentType: true,
   });
 }

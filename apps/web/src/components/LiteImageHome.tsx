@@ -12,7 +12,7 @@ import {
   autoPosterBrandLabel,
   buildLoanPosterPrompt,
   LOAN_POSTER_SKILL_ID,
-  loadZamloanLogo,
+  loadAutoPosterLogo,
   normalizeZambiaPosterCount,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
@@ -79,9 +79,7 @@ export function LiteImageHome({
         ratio: aspectRatio,
       };
 
-      const referencePromises = brand === 'zamloan'
-        ? [loadZamloanLogo()]
-        : [];
+      const bundledLogo = await loadAutoPosterLogo(brand);
       const project = await createImageProject({
         id: browserUuid(),
         name: `${brandLabel} 贷款海报`,
@@ -94,12 +92,8 @@ export function LiteImageHome({
         pluginInputs,
         aspectRatio,
       });
-      const attachments = referencePromises.length > 0
-        ? (await Promise.all(
-            (await Promise.all(referencePromises)).map((file) =>
-              uploadInternalReference(project.project.id, file),
-            ),
-          )).flat()
+      const attachments = bundledLogo
+        ? await uploadInternalReference(project.project.id, bundledLogo)
         : [];
 
       try {

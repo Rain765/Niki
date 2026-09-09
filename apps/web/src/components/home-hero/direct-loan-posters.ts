@@ -2,7 +2,7 @@ import {
   autoPosterBrandLabel,
   buildLoanPosterScenePlans,
   LOAN_POSTER_SKILL_ID,
-  loadZamloanLogo,
+  loadAutoPosterLogo,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
   type AutoPosterPurpose,
@@ -145,7 +145,7 @@ export class DirectLoanPosterRequestError extends Error {
     const failureLabel = {
       'create-project': '创建海报项目失败',
       'upload-z-reference': '上传 Z 参考图失败',
-      'upload-logo': '上传 Zamloan Logo 失败',
+      'upload-logo': '上传品牌 Logo 失败',
       'upload-phone-screen': '上传 Zamloan 官网安全页失败',
       'start-generation': '启动图片生成失败',
     }[options.stage];
@@ -189,7 +189,7 @@ export async function startDirectLoanPosterProject(
   const dateKey = localDateKey();
   const storageKey = lastProjectStorageKey(options.sessionScope);
   let reusableProject = await resolveDirectLoanPosterProject(options.sessionScope);
-  const bundledLogo = options.brand === 'zamloan' ? await loadZamloanLogo() : null;
+  const bundledLogo = await loadAutoPosterLogo(options.brand);
   const prefix = `${options.brand}-poster`;
   let project: Project | null = null;
   let existingFiles: Awaited<ReturnType<typeof fetchProjectFiles>> = [];
