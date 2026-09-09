@@ -73,7 +73,9 @@ describe('poster app image layout', () => {
     expect(app).toContain('--poster-shell-width: 1040px;');
     expect(topbarInner).toContain('grid-template-columns: auto minmax(0, 1fr) auto;');
     expect(topbarInner).toContain('width: min(100%, var(--poster-shell-width));');
-    expect(navigation).toContain('display: flex;');
+    expect(navigation).toContain('display: grid;');
+    expect(navigation).toContain('grid-template-columns: repeat(5, minmax(0, 1fr));');
+    expect(navigation).toContain('width: 100%;');
     expect(content).toContain('width: min(100%, var(--poster-shell-width));');
     expect(css).not.toMatch(/\.poster-app\.is-(?:documents|english) \.poster-app__content\s*{/);
     expect(css).not.toContain('.poster-app__page-header');
@@ -119,14 +121,21 @@ describe('poster app image layout', () => {
     );
   });
 
-  it('moves mobile navigation to a horizontally scrollable second row', () => {
+  it('distributes mobile navigation across five equal content-width tabs', () => {
     const mobile = mediaRules('(max-width: 760px)');
 
     expect(mobile).toMatch(
       /\.poster-app__topbar-inner\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto;/s,
     );
     expect(mobile).toMatch(
-      /\.poster-app__primary-nav\s*{[^}]*grid-row:\s*2;[^}]*grid-column:\s*1 \/ -1;[^}]*overflow-x:\s*auto;/s,
+      /\.poster-app__primary-nav\s*{[^}]*grid-row:\s*2;[^}]*grid-column:\s*1 \/ -1;[^}]*width:\s*100%;/s,
+    );
+    expect(mobile).not.toMatch(/\.poster-app__primary-nav\s*{[^}]*overflow-x:\s*auto;/s);
+    expect(mobile).toMatch(
+      /\.poster-app__primary-nav > button,\s*\.poster-app__primary-nav > a\s*{[^}]*width:\s*100%;[^}]*min-height:\s*48px;/s,
+    );
+    expect(mobile).toMatch(
+      /\.poster-app__primary-nav > button::after,\s*\.poster-app__primary-nav > a::after\s*{[^}]*right:\s*6px;[^}]*left:\s*6px;/s,
     );
     expect(mobile).toMatch(
       /\.poster-app__topbar-actions\s*{[^}]*grid-row:\s*1;[^}]*grid-column:\s*2;/s,
