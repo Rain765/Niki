@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
 import { Button } from '../components/Button';
@@ -50,6 +57,7 @@ import type { Project, ProjectFile } from '../types';
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
 type CreationMode = 'poster' | 'video' | 'documents' | 'english' | 'logo';
+type PosterResultTab = 'latest' | 'history';
 type GenerationFeedback = {
   id: number;
   batchId: string | null;
@@ -99,9 +107,9 @@ const POSTER_COPY = {
     latestBatch: 'Latest batch',
     loadingRecentPosters: 'Loading recent posters…',
     generatingImage: 'Generating image…',
-    posterHistory: 'Poster history',
-    expandPosterHistory: 'Expand poster history',
-    collapsePosterHistory: 'Collapse poster history',
+    posterResults: 'Poster results',
+    posterHistory: 'History',
+    noPosterHistory: 'No previous generations yet.',
     close: 'Close',
     share: 'Share',
     sharing: 'Sharing…',
@@ -179,9 +187,9 @@ const POSTER_COPY = {
     latestBatch: '最新一批',
     loadingRecentPosters: '正在加载最近海报…',
     generatingImage: '正在生成图片…',
-    posterHistory: '海报历史',
-    expandPosterHistory: '展开海报历史',
-    collapsePosterHistory: '收起海报历史',
+    posterResults: '海报结果',
+    posterHistory: '历史生成',
+    noPosterHistory: '暂无历史生成记录。',
     close: '关闭',
     share: '分享',
     sharing: '正在分享…',
@@ -420,7 +428,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [previewNotice, setPreviewNotice] = useState<Notice | null>(null);
   const [activeAction, setActiveAction] = useState<'copy' | 'download' | 'share' | null>(null);
   const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
-  const [showHistory, setShowHistory] = useState(false);
+  const [posterResultTab, setPosterResultTab] = useState<PosterResultTab>('latest');
   const [showVideoHistory, setShowVideoHistory] = useState(false);
   const [generationFeedback, setGenerationFeedback] = useState<GenerationFeedback | null>(null);
   const [dismissedStatusKey, setDismissedStatusKey] = useState<string | null>(null);
@@ -595,7 +603,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     }
     if (observedBatchIdRef.current === batchId) return;
     observedBatchIdRef.current = batchId;
-    setShowHistory(false);
+    setPosterResultTab('latest');
     const timer = window.setTimeout(() => {
       const section = latestBatchRef.current;
       if (!section) return;
@@ -691,6 +699,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     if (generating) return;
     const feedbackId = generationFeedbackIdRef.current + 1;
     generationFeedbackIdRef.current = feedbackId;
+    setPosterResultTab('latest');
     setGenerating(true);
     setNotice(null);
     setDismissedStatusKey(null);
@@ -735,6 +744,22 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handlePosterResultTabKeyDown = (
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+  ) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const nextTab: PosterResultTab = event.key === 'Home'
+      ? 'latest'
+      : event.key === 'End'
+        ? 'history'
+        : posterResultTab === 'latest'
+          ? 'history'
+          : 'latest';
+    setPosterResultTab(nextTab);
+    document.getElementById(`poster-result-tab-${nextTab}`)?.focus();
   };
 
   const generateVideo = (draft: LoanVideoDraft) => {
@@ -1099,20 +1124,46 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         </button>
       ) : null}
 
+      <div className="poster-app__result-tabs" role="tablist" aria-label={copy.posterResults}>
+        <button
+          id="poster-result-tab-latest"
+          type="button"
+          role="tab"
+          className={posterResultTab === 'latest' ? 'is-active' : undefined}
+          aria-controls="poster-result-panel-latest"
+          aria-selected={posterResultTab === 'latest'}
+          tabIndex={posterResultTab === 'latest' ? 0 : -1}
+          onClick={() => setPosterResultTab('latest')}
+          onKeyDown={handlePosterResultTabKeyDown}
+        >
+          <span>{copy.latestBatch}</span>
+          <small>{latestBatchAspectRatio} × {latestBatchCount}</small>
+        </button>
+        <button
+          id="poster-result-tab-history"
+          type="button"
+          role="tab"
+          className={posterResultTab === 'history' ? 'is-active' : undefined}
+          aria-controls="poster-result-panel-history"
+          aria-selected={posterResultTab === 'history'}
+          tabIndex={posterResultTab === 'history' ? 0 : -1}
+          onClick={() => setPosterResultTab('history')}
+          onKeyDown={handlePosterResultTabKeyDown}
+        >
+          <span>{copy.posterHistory}</span>
+          <small>{historyFiles.length}</small>
+        </button>
+      </div>
+
       <section
+        id="poster-result-panel-latest"
         ref={latestBatchRef}
-        className="poster-app__batch-section poster-app__latest-batch"
-        aria-label={copy.latestBatch}
+        className="poster-app__batch-section poster-app__result-panel"
+        role="tabpanel"
+        aria-labelledby="poster-result-tab-latest"
+        hidden={posterResultTab !== 'latest'}
         tabIndex={-1}
       >
-        <header className="poster-app__section-header">
-          <div className="poster-app__section-heading">
-            <h2>{copy.latestBatch}</h2>
-            <span className="poster-app__section-meta">
-              {latestBatchAspectRatio} × {latestBatchCount}
-            </span>
-          </div>
-        </header>
         <div className="poster-app__gallery">
           {latestBatch?.files.map((file, index) => renderPoster(file, {
             aspectRatio: latestBatch.aspectRatio,
@@ -1131,38 +1182,26 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         </div>
       </section>
 
-      {historyFiles.length > 0 ? (
-        <section className="poster-app__batch-section poster-app__history" aria-label={copy.posterHistory}>
-          <button
-            type="button"
-            className="poster-app__history-toggle"
-            aria-expanded={showHistory}
-            aria-label={showHistory ? copy.collapsePosterHistory : copy.expandPosterHistory}
-            onClick={() => setShowHistory((current) => !current)}
-          >
-            <span className="poster-app__section-heading">
-              <span className="poster-app__section-title">{copy.posterHistory}</span>
-              <span className="poster-app__section-meta">({historyFiles.length})</span>
-            </span>
-            <span className="poster-app__history-toggle-icon" aria-hidden="true">
-              <Icon
-                name="chevron-down"
-                size={18}
-                className={showHistory ? 'is-expanded' : undefined}
-              />
-            </span>
-          </button>
-          {showHistory ? (
-            <div className="poster-app__gallery poster-app__history-gallery">
-              {historyFiles.map(({ aspectRatio: fileAspectRatio, file }, index) => renderPoster(file, {
-                aspectRatio: fileAspectRatio,
-                eager: false,
-                index,
-              }))}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
+      <section
+        id="poster-result-panel-history"
+        className="poster-app__batch-section poster-app__result-panel"
+        role="tabpanel"
+        aria-labelledby="poster-result-tab-history"
+        hidden={posterResultTab !== 'history'}
+        tabIndex={0}
+      >
+        {historyFiles.length > 0 ? (
+          <div className="poster-app__gallery poster-app__history-gallery">
+            {historyFiles.map(({ aspectRatio: fileAspectRatio, file }, index) => renderPoster(file, {
+              aspectRatio: fileAspectRatio,
+              eager: false,
+              index,
+            }))}
+          </div>
+        ) : (
+          <div className="poster-app__history-empty">{copy.noPosterHistory}</div>
+        )}
+      </section>
 
       {previewFile && projectId ? (
         <div className="poster-preview" role="dialog" aria-modal="true" aria-label={previewFile.name}>

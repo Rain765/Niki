@@ -62,6 +62,7 @@ describe('poster app image layout', () => {
   });
 
   it('uses a stable sticky top navigation and keeps the page title independent', () => {
+    const app = rule('.poster-app');
     const eyebrow = rule('.poster-app__eyebrow');
     const topbar = rule('.poster-app__topbar');
     const topbarInner = rule('.poster-app__topbar-inner');
@@ -71,9 +72,12 @@ describe('poster app image layout', () => {
     expect(eyebrow).toContain('display: block;');
     expect(topbar).toContain('position: sticky;');
     expect(topbar).toContain('top: 0;');
+    expect(app).toContain('--poster-shell-width: 1040px;');
     expect(topbarInner).toContain('grid-template-columns: auto minmax(0, 1fr) auto;');
+    expect(topbarInner).toContain('width: min(100%, var(--poster-shell-width));');
     expect(navigation).toContain('display: flex;');
-    expect(content).toContain('width: min(100%, 1040px);');
+    expect(content).toContain('width: min(100%, var(--poster-shell-width));');
+    expect(css).not.toMatch(/\.poster-app\.is-(?:documents|english) \.poster-app__content\s*{/);
   });
 
   it('moves mobile navigation to a horizontally scrollable second row', () => {
@@ -242,26 +246,20 @@ describe('poster app image layout', () => {
     expect(focusedControls).toContain('box-shadow: 0 0 0 3px color-mix(in srgb, var(--poster-fill-0) 48%, transparent);');
   });
 
-  it('keeps poster history interaction lighter than filter controls', () => {
-    const historyHover = rule('.poster-app__history-toggle:hover');
-    const historyPressed = rule('.poster-app__history-toggle:active');
-    const filterHover = controlRule('.od-control-select__menu .od-select-option:hover:not(:disabled),\n.od-control-select__menu .od-select-option.active:not(:disabled)');
+  it('uses a two-column mobile result tab bar with a token-based active state', () => {
+    const tabs = rule('.poster-app__result-tabs');
+    const tab = rule('.poster-app__result-tabs > button');
+    const active = rule('.poster-app__result-tabs > button.is-active');
+    const activeIndicator = rule('.poster-app__result-tabs > button.is-active::after');
+    const mobile = mediaRules('(max-width: 760px)');
 
-    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-history-hover']).toBe(
-      'var(--poster-fill-1)',
+    expect(tabs).toContain('display: flex;');
+    expect(tab).toContain('color: var(--poster-muted);');
+    expect(active).toContain('color: var(--poster-text);');
+    expect(activeIndicator).toContain('opacity: 1;');
+    expect(mobile).toMatch(
+      /\.poster-app__result-tabs\s*{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s,
     );
-    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-history-pressed']).toBe(
-      'var(--poster-fill-4)',
-    );
-    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-control-hover']).toBe(
-      'var(--poster-fill-3)',
-    );
-    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-control-pressed']).toBe(
-      'var(--poster-fill-4)',
-    );
-    expect(historyHover).toContain('background: var(--poster-history-hover);');
-    expect(historyPressed).toContain('background: var(--poster-history-pressed);');
-    expect(filterHover).toContain('background: var(--od-control-hover);');
   });
 
   it('opens large white poster menus below borderless triggers', () => {

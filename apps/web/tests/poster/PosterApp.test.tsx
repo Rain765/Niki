@@ -304,7 +304,10 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByRole('combobox', { name: '数量' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '比例' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '生成海报' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: '最新一批' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /最新一批/ }).getAttribute('aria-selected')).toBe('true');
+    const historyTab = screen.getByRole('tab', { name: /历史生成/ });
+    fireEvent.click(historyTab);
+    expect(screen.getByRole('tabpanel', { name: /历史生成/ }).textContent).toContain('暂无历史生成记录。');
     expect(screen.queryByText('Product')).toBeNull();
 
     const language = screen.getByRole('group', { name: '界面语言' });
@@ -318,7 +321,8 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Product' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Generate posters' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Latest batch' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Latest batch/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /History/ }).getAttribute('aria-selected')).toBe('true');
     expect(screen.queryByText('产品')).toBeNull();
   });
 
@@ -1207,32 +1211,40 @@ describe('PosterApp mobile-safe flow', () => {
 
     render(<PosterApp />);
 
-    const latestRegion = await screen.findByRole('region', { name: 'Latest batch' });
-    const newestImage = within(latestRegion).getByRole('img', {
+    const latestTab = await screen.findByRole('tab', { name: /Latest batch/ });
+    const historyTab = screen.getByRole('tab', { name: /History/ });
+    expect(latestTab.getAttribute('aria-selected')).toBe('true');
+    expect(historyTab.getAttribute('aria-selected')).toBe('false');
+    expect(within(latestTab).getByText('1:1 × 1')).toBeTruthy();
+    expect(within(historyTab).getByText('2')).toBeTruthy();
+
+    const latestPanel = screen.getByRole('tabpanel', { name: /Latest batch/ });
+    const newestImage = within(latestPanel).getByRole('img', {
       name: 'biumoney-poster-20260804-003.png',
     });
     expect(newestImage.getAttribute('loading')).toBe('eager');
     expect(newestImage.closest('button')?.className).toContain('is-square');
-    expect(within(latestRegion).getByText('1:1 × 1').className).toBe('poster-app__section-meta');
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
     expect(screen.queryByRole('img', {
       name: 'biumoney-poster-20260804-001.png',
     })).toBeNull();
 
-    const historyToggle = screen.getByRole('button', { name: 'Expand poster history' });
-    expect(historyToggle.querySelector('svg')).toBeTruthy();
-    expect(historyToggle.querySelector('.poster-app__history-toggle-icon')).toBeTruthy();
-    expect(within(historyToggle).getByText('Poster history').className).toBe('poster-app__section-title');
-    expect(within(historyToggle).getByText('(2)').className).toBe('poster-app__section-meta');
-    fireEvent.click(historyToggle);
-    expect(screen.getByRole('button', { name: 'Collapse poster history' })).toBeTruthy();
+    fireEvent.click(historyTab);
+    expect(historyTab.getAttribute('aria-selected')).toBe('true');
+    expect(latestTab.getAttribute('aria-selected')).toBe('false');
 
-    const historyRegion = screen.getByRole('region', { name: 'Poster history' });
-    const olderImage = within(historyRegion).getByRole('img', {
+    const historyPanel = screen.getByRole('tabpanel', { name: /History/ });
+    const olderImage = within(historyPanel).getByRole('img', {
       name: 'biumoney-poster-20260804-002.png',
     });
     expect(olderImage.getAttribute('loading')).toBe('lazy');
     expect(olderImage.closest('button')?.className).toContain('is-landscape');
+
+    fireEvent.keyDown(historyTab, { key: 'ArrowLeft' });
+    expect(latestTab.getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.keyDown(latestTab, { key: 'ArrowLeft' });
+    expect(historyTab.getAttribute('aria-selected')).toBe('true');
   });
 
   it('renders portrait batches without forcing a landscape card', async () => {
