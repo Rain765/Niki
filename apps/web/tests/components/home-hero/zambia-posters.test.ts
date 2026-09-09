@@ -682,16 +682,43 @@ describe('Zambia poster preset', () => {
     ))).toBe(true);
   });
 
-  it.each([
-    ['zamloan', '#D35430', '#46A93C'],
-    ['zamcash', '#D45330', '#43AA3E'],
-    ['zammoney', '#0B1D0B', '#0AB81C'],
-    ['fastako', '#24263F', '#0FCE65'],
-    ['yangaloan', '#FE5200', '#FE5200'],
-  ] as const)(
-    'appends logo-derived anti-fraud palettes for %s after the ten existing templates',
-    (brand, primaryColor, secondaryColor) => {
-      const firstAddedPrompt = buildLoanPosterScenePlans({
+  it.each(AUTO_POSTER_BRANDS)(
+    'scatters every non-neutral logo color into independent light-and-original palettes for %s',
+    (brand) => {
+      const logoColors = [
+        '#46A93C',
+        '#D35430',
+        '#43AA3E',
+        '#D45330',
+        '#DC5130',
+        '#0AB81C',
+        '#0B1D0B',
+        '#0FCE65',
+        '#24263F',
+        '#FE5200',
+      ];
+      const prompts = buildLoanPosterScenePlans({
+        count: 10,
+        aspectRatio: '3:4',
+        brand,
+        purpose: 'anti-fraud',
+        variationOffset: 10,
+      }).map((plan) => plan.prompt);
+
+      expect(prompts).toHaveLength(logoColors.length);
+      for (const [index, color] of logoColors.entries()) {
+        expect(prompts[index]).toContain('one isolated logo color');
+        expect(prompts[index]).toContain(`very pale low-saturation tint derived only from ${color}`);
+        expect(prompts[index]).toContain(`original saturated hue ${color}`);
+        expect(prompts[index]).not.toContain('logo-derived brand palette');
+      }
+    },
+  );
+
+  it.each(AUTO_POSTER_BRANDS.filter((brand) => brand !== 'biumoney'))(
+    'keeps the supplied %s logo on a near-white safe field instead of its saturated hue',
+    (brand) => {
+      const prompt = buildLoanPosterScenePlans({
         count: 1,
         aspectRatio: '3:4',
         brand,
@@ -699,23 +726,26 @@ describe('Zambia poster preset', () => {
         variationOffset: 10,
       })[0]?.prompt;
 
-      expect(firstAddedPrompt).toContain('logo-derived brand palette');
-      expect(firstAddedPrompt).toContain(primaryColor);
-      expect(firstAddedPrompt).toContain(secondaryColor);
+      expect(prompt).toContain('keep the complete top-left logo-safe row near-white');
+      expect(prompt).toContain('Never place the original saturated hue behind the supplied logo');
     },
   );
 
-  it('keeps BiuMoney on the existing palettes because no bundled logo exists', () => {
-    const prompt = buildLoanPosterScenePlans({
-      count: 1,
+  it('does not pair two different logo colors in one added palette', () => {
+    const prompts = buildLoanPosterScenePlans({
+      count: 10,
       aspectRatio: '3:4',
-      brand: 'biumoney',
+      brand: 'zamloan',
       purpose: 'anti-fraud',
       variationOffset: 10,
-    })[0]?.prompt;
+    }).map((plan) => plan.prompt);
 
-    expect(prompt).toContain('warm ivory (#f7ecd9)');
-    expect(prompt).not.toContain('logo-derived brand palette');
+    for (const prompt of prompts) {
+      const usedColors = AUTO_POSTER_BRANDS
+        .flatMap(autoPosterBrandColors)
+        .filter((color) => prompt.includes(color));
+      expect(new Set(usedColors).size).toBe(1);
+    }
   });
 
   it('rotates every creative dimension instead of restarting at scene one', () => {

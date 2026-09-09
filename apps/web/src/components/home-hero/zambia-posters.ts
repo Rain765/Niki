@@ -293,7 +293,7 @@ interface AntiFraudPosterPalette {
   copyField: string;
   sceneField: string;
   protectsSceneHue: boolean;
-  source?: 'logo';
+  source?: 'logo-color';
 }
 
 const ANTI_FRAUD_POSTER_PALETTES = [
@@ -349,67 +349,31 @@ const ANTI_FRAUD_POSTER_PALETTES = [
   },
 ] as const satisfies readonly AntiFraudPosterPalette[];
 
-const ANTI_FRAUD_LOGO_PALETTES: Partial<
-  Record<AutoPosterBrand, readonly AntiFraudPosterPalette[]>
-> = {
-  zamloan: [
-    {
-      copyField: 'a pale tint derived from Zamloan green (#46A93C)',
-      sceneField: 'Zamloan coral (#D35430)',
-      protectsSceneHue: false,
-      source: 'logo',
-    },
-    {
-      copyField: 'a pale tint derived from Zamloan coral (#D35430)',
-      sceneField: 'Zamloan green (#46A93C)',
-      protectsSceneHue: false,
-      source: 'logo',
-    },
-  ],
-  zamcash: [
-    {
-      copyField: 'a pale tint derived from ZamCash green (#43AA3E)',
-      sceneField: 'ZamCash orange-red (#D45330)',
-      protectsSceneHue: false,
-      source: 'logo',
-    },
-    {
-      copyField: 'a pale tint derived from ZamCash orange-red (#DC5130)',
-      sceneField: 'ZamCash green (#43AA3E)',
-      protectsSceneHue: false,
-      source: 'logo',
-    },
-  ],
-  zammoney: [
-    {
-      copyField: 'a pale tint derived from ZamMoney bright green (#0AB81C)',
-      sceneField: 'ZamMoney deep green (#0B1D0B)',
-      protectsSceneHue: false,
-      source: 'logo',
-    },
-  ],
-  fastako: [
-    {
-      copyField: 'a pale tint derived from Fastako bright green (#0FCE65)',
-      sceneField: 'Fastako deep navy (#24263F)',
-      protectsSceneHue: false,
-      source: 'logo',
-    },
-  ],
-  yangaloan: [
-    {
-      copyField: 'a very pale tint derived from Yangaloan orange (#FE5200)',
-      sceneField: 'Yangaloan orange (#FE5200)',
-      protectsSceneHue: false,
-      source: 'logo',
-    },
-  ],
-};
+const ANTI_FRAUD_LOGO_COLOR_SWATCHES = [
+  '#46A93C',
+  '#D35430',
+  '#43AA3E',
+  '#D45330',
+  '#DC5130',
+  '#0AB81C',
+  '#0B1D0B',
+  '#0FCE65',
+  '#24263F',
+  '#FE5200',
+] as const;
 
-function antiFraudPosterPalettes(brand: AutoPosterBrand): readonly AntiFraudPosterPalette[] {
+const ANTI_FRAUD_LOGO_COLOR_PALETTES: readonly AntiFraudPosterPalette[] =
+  ANTI_FRAUD_LOGO_COLOR_SWATCHES.map((color) => ({
+    copyField: `a very pale low-saturation tint derived only from ${color}`,
+    sceneField: `the original saturated hue ${color}`,
+    protectsSceneHue: false,
+    source: 'logo-color',
+  }));
+
+function antiFraudPosterPalettes(): readonly AntiFraudPosterPalette[] {
   return [
     ...ANTI_FRAUD_POSTER_PALETTES,
-    ...(ANTI_FRAUD_LOGO_PALETTES[brand] ?? []),
+    ...ANTI_FRAUD_LOGO_COLOR_PALETTES,
   ];
 }
 
@@ -513,7 +477,7 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
     const antiFraudPlan = ANTI_FRAUD_POSTER_SCENES[
       variationIndex % ANTI_FRAUD_POSTER_SCENES.length
     ]!;
-    const antiFraudPalettes = antiFraudPosterPalettes(brand);
+    const antiFraudPalettes = antiFraudPosterPalettes();
     const antiFraudPalette = antiFraudPalettes[
       variationIndex % antiFraudPalettes.length
     ]!;
@@ -545,14 +509,14 @@ export function buildLoanPosterScenePlans(options: AutoPosterOptions): LoanPoste
       const paletteProtection = antiFraudPalette.protectsSceneHue
         ? ` Do not replace the selected scene color with ${protectedBrandColor}; reserve brand colors for the supplied logo and the compact green phone shield only.`
         : '';
-      const logoPaletteDirection = antiFraudPalette.source === 'logo'
-        ? ` This is a logo-derived brand palette for ${brandLabel}; preserve the named hexadecimal hues in the background rather than replacing them with generic green, black, or white.`
+      const logoPaletteDirection = antiFraudPalette.source === 'logo-color'
+        ? ' This palette uses one isolated logo color rather than a brand-matched color scheme. Keep the pale and original fields within that single hue family; do not introduce or pair it with another sampled logo color.'
         : '';
       const brandBackground = brand === 'zamloan'
         ? 'Render one large low-opacity Z silhouette as an integrated background graphic. The Z must remain visually behind every model, phone, headline, and subtitle pixel.'
         : 'Do not render a letter Z, alphabetic background motif, logo-shaped watermark, or invented brand symbol. Preserve the same visual depth with restrained non-alphabetic tonal texture.';
       const logoSafeCopy = AUTO_POSTER_BRAND_CONFIG[brand].logo
-        ? `Keep the top-left logo-safe row completely blank and calm for the exact ${brandLabel} logo that will be composited later; do not render, redraw, or typeset a logo or brand name.`
+        ? `Keep the top-left logo-safe row completely blank and calm for the exact ${brandLabel} logo that will be composited later; keep the complete top-left logo-safe row near-white at no more than 8% color strength as a seamless part of the full pale copy field. Never place the original saturated hue behind the supplied logo. Do not add a separate logo patch, haze, shadow, glow, panel, or outline, and do not render, redraw, or typeset a logo or brand name.`
         : 'Keep the top-left brand-safe row completely blank and calm; do not render, redraw, or typeset a logo or brand name.';
       return {
         logoAnchor: 'left',
