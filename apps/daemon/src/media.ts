@@ -80,6 +80,10 @@ type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
 type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
 
+function isZamloanLogoAsset(image: ImageRef): boolean {
+  return path.parse(path.basename(image.path)).name.toLowerCase() === 'zamloan-logo';
+}
+
 const LAYERED_FOREGROUND_MATTE_INSTRUCTIONS = `
 CRITICAL COMPOSITING REQUIREMENT: Render the complete subject against one
 uniform chroma green background (#00FF00). The green field must fill every
@@ -728,13 +732,18 @@ CRITICAL PHONE-SCREEN RETRY: The previous image did not provide a usable screen 
 }
 
 /**
- * Add the exact Zamloan wordmark after image generation so the logo remains
+ * Add an exact supplied brand mark after image generation so it remains
  * legible and consistent instead of relying on model-rendered typography.
+ * Zamloan's white tagline may opt into local black/white contrast adaptation;
+ * every other brand must retain the source asset's original colors.
  */
 export async function overlayZamloanLogo(
   input: Buffer,
   logo: Buffer,
-  options: { anchor?: 'left' | 'right' } = {},
+  options: {
+    anchor?: 'left' | 'right';
+    adaptTaglineContrast?: boolean;
+  } = {},
 ): Promise<Buffer> {
   const metadata = await sharp(input).metadata();
   if (!metadata.width || !metadata.height) {
@@ -777,14 +786,16 @@ export async function overlayZamloanLogo(
     24,
     Math.round(metadata.height * (isSquareOrPortrait ? 0.035 : 0.05)),
   );
-  const adaptiveLogo = await adaptZamloanTaglineToBackground(
-    resizedLogo,
-    input,
-    { left: logoLeft, top: logoTop },
-  );
+  const compositedLogo = options.adaptTaglineContrast === false
+    ? resizedLogo
+    : await adaptZamloanTaglineToBackground(
+      resizedLogo,
+      input,
+      { left: logoLeft, top: logoTop },
+    );
 
   return sharp(input)
-    .composite([{ input: adaptiveLogo, left: logoLeft, top: logoTop }])
+    .composite([{ input: compositedLogo, left: logoLeft, top: logoTop }])
     .png()
     .toBuffer();
 }
@@ -1419,6 +1430,7 @@ export async function finalizeGeneratedPng(
     phoneScreen?: Buffer;
     overlayLogo?: Buffer;
     overlayLogoAnchor?: 'left' | 'right';
+    adaptZamloanTaglineContrast?: boolean;
   },
 ): Promise<Buffer> {
   let bytes = (
@@ -1459,7 +1471,10 @@ export async function finalizeGeneratedPng(
     bytes = await overlayZamloanLogo(
       bytes,
       options.overlayLogo,
-      options.overlayLogoAnchor ? { anchor: options.overlayLogoAnchor } : {},
+      {
+        ...(options.overlayLogoAnchor ? { anchor: options.overlayLogoAnchor } : {}),
+        adaptTaglineContrast: options.adaptZamloanTaglineContrast ?? true,
+      },
     );
   }
   return bytes;
@@ -2268,7 +2283,10 @@ export async function generateMedia(args: {
         ? { phoneScreen: await readFile(overlayPhoneScreenRef.abs) }
         : {}),
       ...(overlayLogoRef
-        ? { overlayLogo: await readFile(overlayLogoRef.abs) }
+        ? {
+          overlayLogo: await readFile(overlayLogoRef.abs),
+          adaptZamloanTaglineContrast: isZamloanLogoAsset(overlayLogoRef),
+        }
         : {}),
       ...(overlayLogoAnchor ? { overlayLogoAnchor } : {}),
     });
