@@ -203,6 +203,56 @@ describe('media brand overlay inputs', () => {
     ]).toEqual([24, 169, 87]);
   });
 
+  it('forces the Zamloan tagline black on anti-fraud posters', async () => {
+    const logoName = 'zamloan-logo.svg';
+    generatedPoster = await sharp({
+      create: {
+        width: 800,
+        height: 600,
+        channels: 4,
+        background: { r: 34, g: 39, b: 48, alpha: 1 },
+      },
+    }).png().toBuffer();
+    await writeFile(path.join(projectDir, logoName), `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 92">
+        <rect width="320" height="58" fill="#e4572e"/>
+        <rect y="58" width="320" height="34" fill="#ffffff"/>
+      </svg>
+    `);
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'poster-project',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'A dark anti-fraud poster with a reserved logo-safe area',
+      aspect: '4:3',
+      overlayLogo: logoName,
+      posterHeadline: 'Prevent Fraud',
+      posterSubtitle: 'Trust Only Official Customer Service',
+      posterTextAnchor: 'left',
+      posterCopyStyle: 'anti-fraud-message',
+      output: 'zamloan-anti-fraud-poster.png',
+    });
+
+    const output = await readFile(path.join(projectDir, result.name));
+    const { data, info } = await sharp(output)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const taglineOffset = (77 * info.width + 140) * info.channels;
+    expect([
+      data[taglineOffset],
+      data[taglineOffset + 1],
+      data[taglineOffset + 2],
+    ]).toEqual([0, 0, 0]);
+  });
+
   it('composites designed anti-fraud copy over a single generated scene plate', async () => {
     const phoneScreenName = 'zamloan-safe-screen.svg';
     const phoneScreen = Buffer.from(`

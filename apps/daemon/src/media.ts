@@ -668,7 +668,11 @@ function chooseZamloanTaglineTone(
 async function adaptZamloanTaglineToBackground(
   resizedLogo: Buffer,
   background: Buffer,
-  options: { left: number; top: number },
+  options: {
+    left: number;
+    top: number;
+    tone?: ZamloanTaglineTone;
+  },
 ): Promise<Buffer> {
   const { data: logoPixels, info: logoInfo } = await sharp(resizedLogo)
     .ensureAlpha()
@@ -679,20 +683,23 @@ async function adaptZamloanTaglineToBackground(
     Math.max(0, Math.floor(logoInfo.height * ZAMLOAN_TAGLINE_TOP_RATIO)),
   );
   const taglineHeight = logoInfo.height - taglineTop;
-  const { data: backgroundPixels, info: backgroundInfo } = await sharp(background)
-    .extract({
-      left: options.left,
-      top: options.top + taglineTop,
-      width: logoInfo.width,
-      height: taglineHeight,
-    })
-    .removeAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const tone = chooseZamloanTaglineTone(
-    backgroundPixels,
-    backgroundInfo.channels,
-  );
+  let tone = options.tone;
+  if (!tone) {
+    const { data: backgroundPixels, info: backgroundInfo } = await sharp(background)
+      .extract({
+        left: options.left,
+        top: options.top + taglineTop,
+        width: logoInfo.width,
+        height: taglineHeight,
+      })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    tone = chooseZamloanTaglineTone(
+      backgroundPixels,
+      backgroundInfo.channels,
+    );
+  }
   const channelValue = tone === 'black' ? 0 : 255;
 
   for (let y = taglineTop; y < logoInfo.height; y += 1) {
@@ -734,8 +741,10 @@ CRITICAL PHONE-SCREEN RETRY: The previous image did not provide a usable screen 
 /**
  * Add an exact supplied brand mark after image generation so it remains
  * legible and consistent instead of relying on model-rendered typography.
- * Zamloan's white tagline may opt into local black/white contrast adaptation;
- * every other brand must retain the source asset's original colors.
+ * Zamloan's white tagline may opt into local black/white contrast adaptation.
+ * Anti-fraud layouts may force the tagline black because their logo-safe area
+ * is always light by design.
+ * Every other brand must retain the source asset's original colors.
  */
 export async function overlayZamloanLogo(
   input: Buffer,
@@ -743,6 +752,7 @@ export async function overlayZamloanLogo(
   options: {
     anchor?: 'left' | 'right';
     adaptTaglineContrast?: boolean;
+    taglineTone?: ZamloanTaglineTone;
   } = {},
 ): Promise<Buffer> {
   const metadata = await sharp(input).metadata();
@@ -791,7 +801,11 @@ export async function overlayZamloanLogo(
     : await adaptZamloanTaglineToBackground(
       resizedLogo,
       input,
-      { left: logoLeft, top: logoTop },
+      {
+        left: logoLeft,
+        top: logoTop,
+        ...(options.taglineTone ? { tone: options.taglineTone } : {}),
+      },
     );
 
   return sharp(input)
@@ -1431,6 +1445,7 @@ export async function finalizeGeneratedPng(
     overlayLogo?: Buffer;
     overlayLogoAnchor?: 'left' | 'right';
     adaptZamloanTaglineContrast?: boolean;
+    zamloanTaglineTone?: ZamloanTaglineTone;
   },
 ): Promise<Buffer> {
   let bytes = (
@@ -1474,6 +1489,9 @@ export async function finalizeGeneratedPng(
       {
         ...(options.overlayLogoAnchor ? { anchor: options.overlayLogoAnchor } : {}),
         adaptTaglineContrast: options.adaptZamloanTaglineContrast ?? true,
+        ...(options.zamloanTaglineTone
+          ? { taglineTone: options.zamloanTaglineTone }
+          : {}),
       },
     );
   }
@@ -2286,6 +2304,11 @@ export async function generateMedia(args: {
         ? {
           overlayLogo: await readFile(overlayLogoRef.abs),
           adaptZamloanTaglineContrast: isZamloanLogoAsset(overlayLogoRef),
+          ...(isZamloanLogoAsset(overlayLogoRef)
+            && (posterCopyStyle === 'anti-fraud'
+              || posterCopyStyle === 'anti-fraud-message')
+            ? { zamloanTaglineTone: 'black' as const }
+            : {}),
         }
         : {}),
       ...(overlayLogoAnchor ? { overlayLogoAnchor } : {}),
