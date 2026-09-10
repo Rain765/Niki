@@ -195,13 +195,21 @@ describe('poster app image layout', () => {
     expect(accountMenu).toContain('background: var(--poster-fill-0);');
   });
 
-  it('keeps the floating status readable without blurring the page title', () => {
+  it('scopes translucent dark feedback to Niki while preserving shared toast defaults', () => {
     const status = controlRule('.od-toast');
+    const posterStatus = rule('.poster-app .od-toast');
 
     expect(status).toContain('background: var(--od-control-fill);');
     expect(status).toContain('box-shadow: 0 12px 32px');
     expect(status).not.toContain('backdrop-filter:');
-    expect(status).not.toContain('-webkit-backdrop-filter:');
+    expect(posterStatus).toContain('background: var(--poster-toast-bg);');
+    expect(posterStatus).toContain('color: var(--poster-toast-text);');
+    expect(posterStatus).toContain('-webkit-backdrop-filter: blur(12px);');
+    expect(posterStatus).toContain('backdrop-filter: blur(12px);');
+    expect(rule('.poster-app .od-toast-dismiss:hover:not(:disabled)'))
+      .toContain('color: var(--poster-toast-text);');
+    expect(rule('.poster-app .od-toast-dismiss:focus-visible'))
+      .toContain('outline: 2px solid var(--poster-toast-text);');
   });
 
   it('lets each card own its aspect ratio without cropping the image', () => {
@@ -338,7 +346,7 @@ describe('poster app image layout', () => {
 
   it('keeps generation feedback compact and readable', () => {
     const status = controlRule('.od-toast');
-    const posterStatus = rule('.poster-app__content > .od-toast');
+    const posterStatus = rule('.poster-app .od-toast');
     const message = controlRule('.od-toast-message');
 
     expect(status).toContain('align-items: start;');

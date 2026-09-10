@@ -1659,8 +1659,39 @@ button {
   white-space: nowrap;
 }
 
-.poster-app__content > .od-toast {
+.poster-app .od-toast {
   align-items: center;
+  background: var(--poster-toast-bg);
+  color: var(--poster-toast-text);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+.poster-app .od-toast--success {
+  --green: var(--poster-success);
+}
+
+.poster-app .od-toast--error {
+  --od-control-danger: var(--poster-toast-error);
+}
+
+.poster-app .od-toast-details,
+.poster-app .od-toast-dismiss {
+  color: var(--poster-toast-muted);
+}
+
+.poster-app .od-toast-code {
+  background: var(--poster-toast-hover);
+}
+
+.poster-app .od-toast-dismiss:hover:not(:disabled) {
+  background: var(--poster-toast-hover);
+  color: var(--poster-toast-text);
+}
+
+.poster-app .od-toast-dismiss:focus-visible {
+  outline: 2px solid var(--poster-toast-text);
+  outline-offset: 2px;
 }
 
 .poster-app__notice {
