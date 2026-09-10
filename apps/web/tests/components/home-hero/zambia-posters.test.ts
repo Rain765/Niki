@@ -481,7 +481,11 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => (
       prompt.includes('not extend toward the viewer')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('Turn the palm sideways'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('showing one-half to two-thirds of the palm surface'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('push with the broad palm surface'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Rotate the wrist in place'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('x=56% to 72%, y=55% to 70%'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('Turn the palm sideways'))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('rejecting hand remains closer to the torso')
     ))).toBe(true);

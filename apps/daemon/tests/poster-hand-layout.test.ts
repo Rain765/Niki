@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
 import { renderImageWithAntiFraudSafeZoneRetry, finalizeGeneratedPng } from '../src/media.js';
-import { placeAntiFraudMessage, type PosterHand, type PosterHandObservation } from '../src/poster-hand-layout.js';
+import { ANTI_FRAUD_HAND_RETRY, placeAntiFraudMessage, type PosterHand, type PosterHandObservation } from '../src/poster-hand-layout.js';
 
 function hand(left: number, top: number, right: number, bottom: number): PosterHand {
   return { points: Array.from({ length: 21 }, (_, i) => ({
@@ -16,6 +16,13 @@ const observation = (palm = hand(0.57, 0.60, 0.70, 0.69)): PosterHandObservation
 });
 
 describe('hand-relative anti-fraud message layout', () => {
+  it('retries with a visible palm surface rather than an edge-on chopping hand', () => {
+    expect(ANTI_FRAUD_HAND_RETRY).toContain('showing one-half to two-thirds of the palm surface');
+    expect(ANTI_FRAUD_HAND_RETRY).toContain('push with the broad palm surface');
+    expect(ANTI_FRAUD_HAND_RETRY).toContain('Rotate the wrist in place');
+    expect(ANTI_FRAUD_HAND_RETRY).toContain('x=56% to 72%, y=55% to 70%');
+    expect(ANTI_FRAUD_HAND_RETRY).not.toContain('Turn this palm sideways');
+  });
   it.each([[1086, 1448], [1024, 1024], [1536, 864]])('places the complete message below-right for %sx%s', (w, h) => {
     const p = placeAntiFraudMessage(w, h, observation());
     expect(p.top / h).toBeGreaterThanOrEqual(p.rejectingHand.bottom + 0.02);
