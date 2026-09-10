@@ -153,10 +153,10 @@ describe('media brand overlay inputs', () => {
   });
 
   it.each([
-    'zamcash-logo.svg',
-    'zammoney-logo.svg',
-    'fastako-logo.svg',
-    'yangaloan-logo.svg',
+    'mtv47ei2-zamcash-logo.svg',
+    'mtv47ei2-zammoney-logo.svg',
+    'mtv47ei2-fastako-logo.svg',
+    'mtv47ei2-yangaloan-logo.svg',
   ])('preserves the source colors of the %s brand mark', async (logoName) => {
     generatedPoster = await sharp({
       create: {
@@ -204,7 +204,7 @@ describe('media brand overlay inputs', () => {
   });
 
   it('forces the Zamloan tagline black on anti-fraud posters', async () => {
-    const logoName = 'zamloan-logo.svg';
+    const logoName = 'mtv47ei2-zamloan-logo.svg';
     generatedPoster = await sharp({
       create: {
         width: 800,

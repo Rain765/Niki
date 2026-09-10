@@ -81,7 +81,8 @@ type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl
 type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
 
 function isZamloanLogoAsset(image: ImageRef): boolean {
-  return path.parse(path.basename(image.path)).name.toLowerCase() === 'zamloan-logo';
+  const stem = path.parse(path.basename(image.path)).name.toLowerCase();
+  return /^(?:[a-z0-9]+-)?zamloan-logo$/u.test(stem);
 }
 
 const LAYERED_FOREGROUND_MATTE_INSTRUCTIONS = `
