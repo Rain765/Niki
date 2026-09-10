@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -7,9 +7,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateMedia } from '../src/media.js';
 
+const layoutFixture = vi.hoisted(() => ({ invalid: false }));
 vi.mock('../src/poster-hand-detector.js', () => ({
   createPosterHandDetector: async () => async () => ({
-    hands: [[0.30, 0.48, 0.45, 0.60], [0.64, 0.62, 0.76, 0.718]].map(([left, top, right, bottom]) => ({
+    hands: (layoutFixture.invalid ? [] : [[0.30, 0.48, 0.45, 0.60], [0.64, 0.62, 0.76, 0.718]]).map(([left, top, right, bottom]) => ({
       points: Array.from({ length: 21 }, (_, index) => ({
         x: left! + (right! - left!) * (index % 3) / 2,
         y: top! + (bottom! - top!) * Math.floor(index / 3) / 6,
@@ -32,6 +33,7 @@ describe('media brand overlay inputs', () => {
   const originalDataDir = process.env.OD_DATA_DIR;
 
   beforeEach(async () => {
+    layoutFixture.invalid = false;
     root = await mkdtemp(path.join(tmpdir(), 'od-media-overlay-logo-'));
     projectRoot = path.join(root, 'project-root');
     projectsRoot = path.join(projectRoot, '.od', 'projects');
@@ -70,6 +72,36 @@ describe('media brand overlay inputs', () => {
       process.env.OD_DATA_DIR = originalDataDir;
     }
     await rm(root, { recursive: true, force: true });
+  });
+
+  it('retains layout-rejected bases separately, without publishing a false success or overwriting drafts', async () => {
+    layoutFixture.invalid = true;
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(generateMedia({
+        projectRoot, projectsRoot, projectId: 'poster-project',
+        surface: 'image', model: 'gpt-image-2', prompt: 'Anti-fraud poster',
+        aspect: '3:4', loanPosterOutput: true,
+        posterHeadline: 'Prevent Fraud', posterSubtitle: 'Trust Only Official Customer Service',
+        posterTextAnchor: 'right',
+        posterCopyStyle: 'anti-fraud-message', output: 'poster.png',
+      })).rejects.toThrow('base image saved as .poster-layout-drafts/');
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    await expect(readFile(path.join(projectDir, 'poster.png'))).rejects.toThrow();
+    const draftRoot = path.join(projectDir, '.poster-layout-drafts');
+    const drafts = await readdir(draftRoot);
+    expect(drafts).toHaveLength(2);
+    for (const draft of drafts) {
+      expect(await readFile(path.join(draftRoot, draft, 'base.png'))).toEqual(generatedPoster);
+      const metadata = JSON.parse(await readFile(path.join(draftRoot, draft, 'layout.json'), 'utf8'));
+      expect(metadata).toMatchObject({ output: 'poster.png', width: 800, height: 600 });
+      expect(metadata.reason).toContain('exactly two');
+    }
   });
 
   it('accepts an SVG logo and exact raster Z overlay without provider redrawing', async () => {

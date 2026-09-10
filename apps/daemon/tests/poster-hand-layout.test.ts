@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
 import { renderImageWithAntiFraudSafeZoneRetry, finalizeGeneratedPng } from '../src/media.js';
-import { placeAntiFraudMessage, type PosterHand, type PosterHandObservation } from '../src/poster-hand-layout.js';
+import { antiFraudMessageSize, placeAntiFraudMessage, PosterHandLayoutError, type PosterHand, type PosterHandObservation } from '../src/poster-hand-layout.js';
 
 function hand(left: number, top: number, right: number, bottom: number): PosterHand {
   return { points: Array.from({ length: 21 }, (_, i) => ({
@@ -45,10 +45,46 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(() => placeAntiFraudMessage(1086, 1448, observation(hand(0.57, 0.8, 0.70, 0.92))))
       .toThrow('insufficient space');
   });
-  it('includes the red badge when checking the phone exclusion box', () => {
+  it.each([[1086, 1448], [1024, 1024], [1536, 864]])('recovers a right-shifted palm without shrinking the message for %sx%s', (w, h) => {
+    const scene = observation(hand(0.70, 0.60, 0.82, 0.69));
+    const p = placeAntiFraudMessage(w, h, scene);
+    expect({ width: p.width, height: p.height }).toEqual(antiFraudMessageSize(w, h));
+    expect((p.left + p.width / 2) / w).toBeGreaterThanOrEqual(0.78);
+    expect(p.top / h).toBeGreaterThanOrEqual(p.rejectingHand.bottom + 0.02);
+    expect((p.left + p.width) / w).toBeLessThanOrEqual(0.98);
+  });
+  it('searches around a phone instead of rejecting the first candidate', () => {
     const scene = observation();
     scene.phones = [{ left: 0.65, top: 0.72, right: 0.7, bottom: 0.86 }];
+    const p = placeAntiFraudMessage(1086, 1448, scene);
+    const overhang = Math.round(Math.round(p.height * 0.28) * 0.22);
+    expect((p.left - overhang) / 1086).toBeGreaterThanOrEqual(0.7);
+  });
+  it('includes the red badge and rejects a genuinely blocked safe region', () => {
+    const scene = observation();
+    scene.phones = [{ left: 0.5, top: 0.72, right: 0.99, bottom: 0.99 }];
     expect(() => placeAntiFraudMessage(1086, 1448, scene)).toThrow('overlap');
+  });
+
+  it('uses a small downward adjustment when the initial horizontal strip is blocked', () => {
+    const scene = observation();
+    scene.phones = [{ left: 0.5, top: 0.72, right: 0.99, bottom: 0.74 }];
+    const p = placeAntiFraudMessage(1086, 1448, scene);
+    expect(p.top / 1448).toBeGreaterThan(0.74);
+    expect(p.top / 1448).toBeLessThan(p.rejectingHand.bottom + 0.061);
+  });
+
+  it.each([[1086, 1448], [1024, 1024], [1536, 864]])('preserves clearance, size and direction throughout the search region for %sx%s', (w, h) => {
+    for (const x of [0.60, 0.70, 0.74, 0.76, 0.80, 0.82]) {
+      const scene = observation(hand(x - 0.05, 0.60, x + 0.05, 0.69));
+      const p = placeAntiFraudMessage(w, h, scene);
+      const badge = Math.round(p.height * 0.28);
+      expect(p.top / h).toBeGreaterThanOrEqual(p.rejectingHand.bottom + 0.02);
+      expect((p.left + p.width / 2) / w).toBeGreaterThanOrEqual(x + 0.02 - 1e-10);
+      expect((p.left + p.width) / w).toBeLessThanOrEqual(0.98);
+      expect((p.top + p.height + badge - Math.round(badge * 0.72)) / h).toBeLessThanOrEqual(0.98);
+      expect({ width: p.width, height: p.height }).toEqual(antiFraudMessageSize(w, h));
+    }
   });
 
   it('retries uncertain hands once and keeps the landmarks of the accepted image', async () => {
@@ -68,6 +104,27 @@ describe('hand-relative anti-fraud message layout', () => {
       detectHands: async () => ({ hands: [], phones: [] }),
     })).rejects.toThrow('exactly two');
     expect(render).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the selected base before reporting an exhausted layout retry', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const preserveLayoutDraft = vi.fn(async (_bytes: Buffer) => {});
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', async () => ({ bytes }), {
+      detectHands: async () => observation(hand(0.79, 0.70, 0.94, 0.80)),
+      preserveLayoutDraft,
+    })).rejects.toThrow('insufficient space');
+    expect(preserveLayoutDraft).toHaveBeenCalledTimes(1);
+    expect(preserveLayoutDraft.mock.calls[0]?.[0]).toEqual(bytes);
+  });
+
+  it('retains the layout-error classification if saving the draft fails', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const result = renderImageWithAntiFraudSafeZoneRetry('scene', async () => ({ bytes }), {
+      detectHands: async () => ({ hands: [], phones: [] }),
+      preserveLayoutDraft: async () => { throw new Error('disk full'); },
+    });
+    await expect(result).rejects.toBeInstanceOf(PosterHandLayoutError);
+    await expect(result).rejects.toThrow('could not preserve the layout draft');
   });
 
   it('composites below the hand and leaves all pixels above the clearance untouched', async () => {

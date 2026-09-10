@@ -545,6 +545,7 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
     anchor?: 'left' | 'right';
     maxRetries?: number;
     detectHands?: PosterHandDetector | undefined;
+    preserveLayoutDraft?: (bytes: Buffer, error: PosterHandLayoutError, observation?: PosterHandObservation) => Promise<void>;
   } = {},
 ): Promise<{
   result: T;
@@ -568,14 +569,15 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   let bestDiagonal = await analyzeAntiFraudDiagonalSplit(bestResult.bytes);
   const inspectHands = async (input: Buffer) => {
     if (!options.detectHands) return { observation: undefined, error: undefined };
+    let observation: PosterHandObservation | undefined;
     try {
-      const observation = await options.detectHands(input);
+      observation = await options.detectHands(input);
       const metadata = await sharp(input).metadata();
       placeAntiFraudMessage(metadata.width!, metadata.height!, observation);
       return { observation, error: undefined };
     } catch (error) {
       if (!(error instanceof PosterHandLayoutError)) throw error;
-      return { observation: undefined, error };
+      return { observation, error };
     }
   };
   let bestHands = await inspectHands(bestResult.bytes);
@@ -636,7 +638,15 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
     }
   }
 
-  if (bestHands.error) throw bestHands.error;
+  if (bestHands.error) {
+    try {
+      await options.preserveLayoutDraft?.(bestResult.bytes, bestHands.error, bestHands.observation);
+    } catch {
+      // A disk error must not turn a rejected layout into the generic stub fallback.
+      bestHands.error.message += '; could not preserve the layout draft';
+    }
+    throw bestHands.error;
+  }
   return {
     result: bestResult,
     attempts,
@@ -1986,6 +1996,21 @@ export async function generateMedia(args: {
     ? await createPosterHandDetector()
     : undefined;
   let posterHandObservation: PosterHandObservation | undefined;
+  const preserveLayoutDraft = async (input: Buffer, error: PosterHandLayoutError, observation?: PosterHandObservation) => {
+    // Drafts are not finished posters and must not overwrite the requested output
+    // or enter the successful-generation gallery. Keep provider bytes unchanged.
+    const draftRoot = path.join(dir, '.poster-layout-drafts');
+    await mkdir(draftRoot, { recursive: true, mode: 0o700 });
+    const draftDir = await mkdtemp(path.join(draftRoot, 'layout-'));
+    await writeFile(path.join(draftDir, 'base.png'), input, { flag: 'wx', mode: 0o600 });
+    const draftPath = path.relative(dir, path.join(draftDir, 'base.png'));
+    const reason = error.message;
+    const { width, height } = await sharp(input).metadata();
+    await writeFile(path.join(draftDir, 'layout.json'), JSON.stringify({
+      output: safeOut, reason, width, height, observation,
+    }, null, 2), { flag: 'wx', mode: 0o600 });
+    error.message = `Poster layout not accepted; base image saved as ${draftPath} (draft, not a finished poster). ${reason}`;
+  };
   const credentials = await resolveProviderConfig(projectRoot, def.provider);
   const customImageCredentials =
     surface === 'image' && def.provider === 'openai'
@@ -2035,6 +2060,7 @@ export async function generateMedia(args: {
           ),
           {
             detectHands: detectPosterHands,
+            preserveLayoutDraft,
             ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
           },
         )
@@ -2102,6 +2128,7 @@ export async function generateMedia(args: {
           ),
           {
             detectHands: detectPosterHands,
+            preserveLayoutDraft,
             ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
           },
         )

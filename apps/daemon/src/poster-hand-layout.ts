@@ -46,7 +46,10 @@ function overlaps(a: PosterBox, b: PosterBox): boolean {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-/** Never clamp a message back over the hand: recompose when the requested gap cannot fit. */
+/** Keep the full-size card below the hand, with its center to the right of the palm.
+ * Search rectangle boundaries for the nearest safe position; never move above
+ * the hand or shrink readable copy merely to make a candidate fit.
+ */
 export function placeAntiFraudMessage(
   width: number,
   height: number,
@@ -69,21 +72,46 @@ export function placeAntiFraudMessage(
   const badgeSize = Math.round(size.height * 0.28);
   const badgeOverhangX = Math.round(badgeSize * 0.22);
   const badgeOverhangY = badgeSize - Math.round(badgeSize * 0.72);
-  const left = Math.ceil((center + 0.02) * width) + badgeOverhangX;
-  const top = Math.ceil((hand.bottom + 0.02) * height);
-  const box = {
-    left: (left - badgeOverhangX) / width,
-    top: top / height,
-    right: (left + size.width) / width,
-    bottom: (top + size.height + badgeOverhangY) / height,
-  };
-  if (box.right > 0.98 || box.bottom > 0.98) {
+  const preferredLeft = Math.ceil((center + 0.02) * width) + badgeOverhangX;
+  const minLeft = Math.max(
+    Math.ceil(0.02 * width) + badgeOverhangX,
+    Math.ceil((center + 0.02) * width - size.width / 2),
+  );
+  const maxLeft = Math.floor(0.98 * width) - size.width;
+  const minTop = Math.ceil((hand.bottom + 0.02) * height);
+  // Stay near the gesture rather than drifting to the bottom of the poster.
+  const maxTop = Math.min(Math.floor(0.98 * height) - size.height - badgeOverhangY,
+    minTop + Math.floor(0.04 * height));
+  if (minLeft > maxLeft || minTop > maxTop) {
     throw new PosterHandLayoutError('insufficient space below-right of the palm; move the rejecting hand upward and inward');
   }
-  if ([...hands, ...observation.phones].some((obstacle) => overlaps(box, obstacle))) {
-    throw new PosterHandLayoutError('message or red badge would overlap a hand or phone');
+  const obstacles = [...hands, ...observation.phones];
+  // Any closest feasible position either keeps a preferred coordinate or touches
+  // a canvas/obstacle boundary. Include the badge in every candidate's footprint.
+  const xs = new Set([Math.min(preferredLeft, maxLeft), minLeft, maxLeft]);
+  const ys = new Set([minTop, maxTop]);
+  for (const obstacle of obstacles) {
+    xs.add(Math.ceil(obstacle.right * width) + badgeOverhangX + 1);
+    xs.add(Math.floor(obstacle.left * width) - size.width - 1);
+    ys.add(Math.ceil(obstacle.bottom * height) + 1);
+    ys.add(Math.floor(obstacle.top * height) - size.height - badgeOverhangY - 1);
   }
-  return { left, top, ...size, rejectingHand: hand };
+  let best: { left: number; top: number; score: number } | undefined;
+  for (const left of xs) {
+    for (const top of ys) {
+      if (left < minLeft || left > maxLeft || top < minTop || top > maxTop) continue;
+      const box = {
+        left: (left - badgeOverhangX) / width, top: top / height,
+        right: (left + size.width) / width,
+        bottom: (top + size.height + badgeOverhangY) / height,
+      };
+      if (obstacles.some((obstacle) => overlaps(box, obstacle))) continue;
+      const score = ((left - preferredLeft) / width) ** 2 + ((top - minTop) / height) ** 2;
+      if (!best || score < best.score) best = { left, top, score };
+    }
+  }
+  if (!best) throw new PosterHandLayoutError('message or red badge would overlap a hand or phone throughout the safe region');
+  return { left: best.left, top: best.top, ...size, rejectingHand: hand };
 }
 
 export const ANTI_FRAUD_HAND_RETRY = 'CRITICAL HAND-RELATIVE LAYOUT: show exactly one person with both complete hands clearly visible. Keep the phone and its holding hand on the inner-left side. Move the rejecting palm center to x=62% to 66%, with its lowest fingertip or wrist above y=70%. Turn this palm sideways and sweep toward the right and slightly downward in the image plane, never reaching forward toward the camera. Keep generous continuous background immediately below-right of the entire hand through x=97%, y=97%. This space must remain visually indistinguishable from the surrounding natural scene. Preserve the complete phone, title, subtitle and logo-safe area.';
