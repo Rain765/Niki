@@ -216,8 +216,6 @@ export function I18nProvider({
         role="status"
         aria-label="Niki"
       >
-        <img className="locale-bootstrap__logo" src="/logo.svg" alt="" />
-        <span className="locale-bootstrap__name">Niki</span>
         <span className="locale-bootstrap__spinner" aria-hidden="true" />
       </div>
     );

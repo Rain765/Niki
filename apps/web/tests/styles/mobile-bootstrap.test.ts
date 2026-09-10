@@ -26,7 +26,8 @@ describe('mobile bootstrap styles', () => {
   it('keeps a visible full-screen bootstrap surface while client code loads', () => {
     const bootstrapRule = indexCss.match(/\.locale-bootstrap\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(bootstrapRule).toContain('min-height: 100dvh;');
-    expect(bootstrapRule).toContain('display: flex;');
+    expect(bootstrapRule).toContain('display: grid;');
+    expect(bootstrapRule).toContain('place-items: center;');
     expect(bootstrapRule).toContain('background: var(--bg-app);');
   });
 
@@ -41,6 +42,12 @@ describe('mobile bootstrap styles', () => {
     );
     expect(rootLayout).toMatch(
       /:where\(\.niki-auth,\s*\.poster-app\)\s*\{[^}]*min-height:\s*100dvh/s,
+    );
+    expect(rootLayout).toMatch(
+      /:where\(\.locale-bootstrap\)\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*display:\s*grid;[^}]*place-items:\s*center;/s,
+    );
+    expect(rootLayout).toMatch(
+      /:where\(\.locale-bootstrap__spinner\)\s*\{[^}]*display:\s*inline-block;[^}]*animation:\s*niki-first-paint-spin 700ms linear infinite;/s,
     );
   });
 

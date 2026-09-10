@@ -54,6 +54,25 @@ const firstPaintStyle = `
   color: var(--poster-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+:where(.locale-bootstrap) {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--poster-bg);
+}
+:where(.locale-bootstrap__spinner) {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
+  border-top-color: var(--poster-accent);
+  border-radius: 50%;
+  animation: niki-first-paint-spin 700ms linear infinite;
+}
 :where(.niki-auth) {
   display: grid;
   place-items: center;

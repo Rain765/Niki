@@ -8,28 +8,15 @@
 .locale-bootstrap {
   min-height: 100vh;
   min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  display: grid;
+  place-items: center;
   background: var(--bg-app);
   color: var(--text-strong);
 }
 
-.locale-bootstrap__logo {
-  width: 32px;
-  height: 32px;
-}
-
-.locale-bootstrap__name {
-  font: 600 22px/1 var(--sans);
-  letter-spacing: -0.02em;
-}
-
 .locale-bootstrap__spinner {
-  width: 14px;
-  height: 14px;
-  margin-left: 4px;
+  width: 18px;
+  height: 18px;
   border: 2px solid color-mix(in srgb, var(--text-muted) 28%, transparent);
   border-top-color: var(--accent);
   border-radius: 50%;

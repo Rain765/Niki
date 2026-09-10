@@ -17,6 +17,10 @@ it('renders a locale-neutral bootstrap screen instead of English app content bef
   );
 
   expect(html).toContain('data-testid="locale-bootstrap"');
-  expect(html).toContain('Niki');
+  expect(html).toContain('aria-label="Niki"');
+  expect(html).toContain('locale-bootstrap__spinner');
+  expect(html).not.toContain('locale-bootstrap__logo');
+  expect(html).not.toContain('locale-bootstrap__name');
+  expect(html).not.toContain('<img');
   expect(html).not.toContain('New project');
 });
