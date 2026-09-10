@@ -143,4 +143,33 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(pixel[0]).toBeGreaterThan(180);
     expect((await sharp(output).removeAlpha().raw().toBuffer()).equals(await sharp(bytes).removeAlpha().raw().toBuffer())).toBe(false);
   });
+
+  it.each([[800, 1067], [800, 800], [960, 540]])('keeps every transformed pixel inside the checked envelope for %sx%s', async (width, height) => {
+    const input = await sharp({ create: { width, height, channels: 3, background: '#365943' } }).png().toBuffer();
+    const placement = placeAntiFraudMessage(width, height, observation());
+    const badge = Math.round(placement.height * 0.28);
+    const left = placement.left - Math.round(badge * 0.22);
+    const right = placement.left + placement.width;
+    const bottom = placement.top + placement.height + badge - Math.round(badge * 0.72);
+    const output = await finalizeGeneratedPng(input, {
+      loanPosterOutput: false, posterTextAnchor: 'right',
+      posterHeadline: 'Prevent Fraud', posterSubtitle: 'Trust Only Official Customer Service',
+      posterCopyStyle: 'anti-fraud-message', posterHandObservation: observation(),
+    });
+    const before = await sharp(input).removeAlpha().raw().toBuffer();
+    const after = await sharp(output).removeAlpha().raw().toBuffer();
+    let outsideChanges = 0;
+    let insideChanges = 0;
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 3;
+      if (before[i] === after[i] && before[i + 1] === after[i + 1] && before[i + 2] === after[i + 2]) continue;
+      if (x < left || x >= right || y < placement.top || y >= bottom) outsideChanges++;
+      else insideChanges++;
+    }
+    expect(outsideChanges).toBe(0);
+    expect(insideChanges).toBeGreaterThan(placement.width * placement.height * 0.7);
+    // The upper-right corner recedes; it must reveal the original scene, not a backplate.
+    const corner = (placement.top * width + right - 1) * 3;
+    expect(after.subarray(corner, corner + 3)).toEqual(before.subarray(corner, corner + 3));
+  });
 });

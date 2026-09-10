@@ -68,6 +68,7 @@ import {
 } from './hyperframes-binaries.js';
 import { resolveModelAlias, resolveProviderConfig } from './media-config.js';
 import { createPosterHandDetector, type PosterHandDetector } from './poster-hand-detector.js';
+import { warpAntiFraudMessage } from './poster-message-perspective.js';
 import {
   antiFraudMessageSize,
   placeAntiFraudMessage,
@@ -1199,8 +1200,14 @@ async function renderAntiFraudMessageOverlay(
   const widescreen = aspect >= 1.5;
   const square = !widescreen && aspect >= 0.9;
   const { width: messageWidth, height: messageHeight } = antiFraudMessageSize(width, height);
-  const messageLeft = placement.left;
-  const messageTop = placement.top;
+  const badgeSize = Math.round(messageHeight * 0.28);
+  const badgeOverhangX = Math.round(badgeSize * 0.22);
+  const badgeOverhangY = badgeSize - Math.round(badgeSize * 0.72);
+  const tileWidth = messageWidth + badgeOverhangX;
+  const tileHeight = messageHeight + badgeOverhangY;
+  // A transparent gutter captures outer strokes before the projective resample.
+  const messageLeft = badgeOverhangX + 2;
+  const messageTop = 2;
   const messageRadius = Math.round(messageHeight * 0.12);
   const messagePaddingX = Math.round(messageWidth * 0.052);
   const messagePaddingY = Math.round(messageHeight * 0.095);
@@ -1211,11 +1218,10 @@ async function renderAntiFraudMessageOverlay(
   const headerBaseline = messagePaddingY + Math.round(appIconSize * 0.72);
   const senderBaseline = Math.round(messageHeight * 0.49);
   const bodyBaseline = Math.round(messageHeight * 0.69);
-  const badgeSize = Math.round(messageHeight * 0.28);
   const badgeLeft = messageLeft - Math.round(badgeSize * 0.22);
   const badgeTop = messageTop + messageHeight - Math.round(badgeSize * 0.72);
-  return Buffer.from(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+  const flatTile = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${tileWidth + 4}" height="${tileHeight + 4}">
       <g transform="translate(${messageLeft} ${messageTop})">
         <rect width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#f4f5f6" fill-opacity="0.96" stroke="#c9cdd1" stroke-width="${Math.max(1, Math.round(width * 0.0013))}"/>
         <g transform="translate(${messagePaddingX} ${messagePaddingY})">
@@ -1239,6 +1245,12 @@ async function renderAntiFraudMessageOverlay(
       </g>
     </svg>
   `);
+  const tile = await warpAntiFraudMessage(flatTile, tileWidth, tileHeight);
+  // The transformed tile stays wholly inside the exact envelope already checked
+  // by placeAntiFraudMessage, including the red badge. Other pixels are untouched.
+  return sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: tile, left: placement.left - badgeOverhangX, top: placement.top }])
+    .png().toBuffer();
 }
 
 async function renderPosterCopy(
