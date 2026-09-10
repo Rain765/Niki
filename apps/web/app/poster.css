@@ -1663,16 +1663,17 @@ button {
   align-items: center;
   background: var(--poster-toast-bg);
   color: var(--poster-toast-text);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  box-shadow: none;
 }
 
-.poster-app .od-toast--success {
-  --green: var(--poster-success);
+.poster-app .od-toast-indicator.is-success {
+  color: var(--poster-success);
 }
 
-.poster-app .od-toast--error {
-  --od-control-danger: var(--poster-toast-error);
+.poster-app .od-toast-indicator.is-error {
+  color: var(--poster-toast-error);
 }
 
 .poster-app .od-toast-details,

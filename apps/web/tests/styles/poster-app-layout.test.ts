@@ -204,8 +204,17 @@ describe('poster app image layout', () => {
     expect(status).not.toContain('backdrop-filter:');
     expect(posterStatus).toContain('background: var(--poster-toast-bg);');
     expect(posterStatus).toContain('color: var(--poster-toast-text);');
-    expect(posterStatus).toContain('-webkit-backdrop-filter: blur(12px);');
-    expect(posterStatus).toContain('backdrop-filter: blur(12px);');
+    expect(posterStatus).toContain('-webkit-backdrop-filter: blur(2px);');
+    expect(posterStatus).toContain('backdrop-filter: blur(2px);');
+    expect(posterStatus).toContain('box-shadow: none;');
+    expect(NIKI_POSTER_COLOR_VARIABLES['--poster-toast-bg'])
+      .toBe('color-mix(in srgb, var(--poster-fill-7) 48%, transparent)');
+    expect(controlRule('.od-toast.has-indicator .od-toast-message'))
+      .toContain('grid-template-columns: 20px minmax(0, 1fr);');
+    expect(controlRule('.od-toast-indicator.is-loading'))
+      .toContain('animation: od-toast-spin 900ms linear infinite;');
+    expect(controlMediaRules('(prefers-reduced-motion: reduce)'))
+      .toMatch(/\.od-toast-indicator\.is-loading\s*{\s*animation: none;/);
     expect(rule('.poster-app .od-toast-dismiss:hover:not(:disabled)'))
       .toContain('color: var(--poster-toast-text);');
     expect(rule('.poster-app .od-toast-dismiss:focus-visible'))

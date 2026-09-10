@@ -11,6 +11,21 @@ afterEach(() => {
 });
 
 describe('Toast', () => {
+  it.each(['success', 'error', 'loading'] as const)('renders an opt-in %s indicator before the message', (indicator) => {
+    render(<Toast message="Status message" indicator={indicator} />);
+    const message = screen.getByText('Status message');
+    const icon = message.previousElementSibling;
+    expect(icon?.getAttribute('data-status')).toBe(indicator);
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.querySelector('svg')).not.toBeNull();
+  });
+
+  it('does not change ordinary toast presentation without opting in', () => {
+    const { container } = render(<Toast message="Existing toast" />);
+    expect(container.querySelector('.od-toast-indicator')).toBeNull();
+    expect(container.querySelector('.has-indicator')).toBeNull();
+  });
+
   it('renders the message and primary line by default', () => {
     render(<Toast message="Folder opened." />);
     expect(screen.getByText('Folder opened.')).not.toBeNull();

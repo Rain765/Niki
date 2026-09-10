@@ -20,6 +20,7 @@ export const NIKI_POSTER_COLOR_VALUES = {
   danger: '#c9353f',
   dangerSurface: '#fdf3f4',
   success: '#3dd43f',
+  antiFraudShield: '#00C853',
   pickerBlack: '#000000',
 } as const;
 
@@ -50,7 +51,7 @@ export const NIKI_POSTER_COLOR_VARIABLES = {
   '--poster-danger': NIKI_POSTER_COLOR_VALUES.danger,
   '--poster-danger-surface': NIKI_POSTER_COLOR_VALUES.dangerSurface,
   '--poster-success': NIKI_POSTER_COLOR_VALUES.success,
-  '--poster-toast-bg': 'color-mix(in srgb, var(--poster-fill-7) 85%, transparent)',
+  '--poster-toast-bg': 'color-mix(in srgb, var(--poster-fill-7) 48%, transparent)',
   '--poster-toast-text': 'var(--poster-text-inverse)',
   '--poster-toast-muted': 'var(--poster-fill-5)',
   '--poster-toast-hover': 'color-mix(in srgb, var(--poster-fill-0) 12%, transparent)',

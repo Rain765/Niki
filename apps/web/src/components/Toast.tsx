@@ -20,6 +20,8 @@ export interface ToastProps {
   ttlMs?: number;
   onDismiss?: () => void;
   tone?: ToastTone;
+  /** Opt-in leading status icon; existing callers retain their presentation. */
+  indicator?: 'success' | 'error' | 'loading';
   persistent?: boolean;
   dismissible?: boolean;
   dismissLabel?: string;
@@ -42,6 +44,7 @@ export function Toast({
   ttlMs,
   onDismiss,
   tone = 'info',
+  indicator,
   persistent = false,
   dismissible = false,
   dismissLabel = 'Dismiss',
@@ -63,14 +66,21 @@ export function Toast({
 
   return (
     <div
-      className={`od-toast od-toast--${tone}${persistent ? ' is-persistent' : ''}`}
+      className={`od-toast od-toast--${tone}${persistent ? ' is-persistent' : ''}${indicator ? ' has-indicator' : ''}`}
       role={role}
       aria-live={role === 'alert' ? 'assertive' : 'polite'}
       aria-atomic="true"
       data-testid={testId}
     >
       <div className="od-toast-content">
-        <div className="od-toast-message">{message}</div>
+        <div className="od-toast-message">
+          {indicator ? (
+            <span className={`od-toast-indicator is-${indicator}`} data-status={indicator} aria-hidden="true">
+              <Icon name={indicator === 'success' ? 'check' : indicator === 'error' ? 'close' : 'spinner'} size={20} />
+            </span>
+          ) : null}
+          <span>{message}</span>
+        </div>
         {details ? <div className="od-toast-details">{details}</div> : null}
         {code ? (
           <pre className="od-toast-code">{code}</pre>

@@ -25,6 +25,22 @@ import {
 } from '../../../src/components/home-hero/zambia-posters';
 
 describe('Zambia poster preset', () => {
+  it('locks anti-fraud phone shields to emerald across brands, ratios, palettes and both prompt paths', () => {
+    for (const brand of AUTO_POSTER_BRANDS) {
+      for (const aspectRatio of AUTO_POSTER_ASPECT_RATIOS) {
+        const options = { brand, aspectRatio, purpose: 'anti-fraud' as const, count: 10 };
+        const prompts = [buildLoanPosterPrompt(options), ...buildLoanPosterScenePrompts(options)];
+        for (const prompt of prompts) {
+          expect(prompt).toContain('fixed emerald green (#00C853)');
+          expect(prompt).toContain('independent of the brand, background, scene palette and lighting');
+          expect(prompt).not.toContain('reserve brand colors for the supplied logo and the compact green phone shield');
+        }
+        const acquisition = buildLoanPosterScenePrompts({ ...options, purpose: 'acquisition' });
+        expect(acquisition.every((prompt) => !prompt.includes('fixed emerald green (#00C853)'))).toBe(true);
+      }
+    }
+  });
+
   const additionalBrands = [
     { brand: 'zamcash' as const, label: 'ZamCash', logo: 'zamcash-logo.svg', domain: 'zamcash.com' },
     { brand: 'zammoney' as const, label: 'ZamMoney', logo: 'zammoney-logo.svg', domain: 'zammoney.com' },

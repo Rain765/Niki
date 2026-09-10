@@ -1063,6 +1063,7 @@ describe('PosterApp mobile-safe flow', () => {
 
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generating posters…')).toBeTruthy();
+    expect(generationStatus.querySelector('[data-status="loading"]')).toBeTruthy();
     expect(generationStatus.querySelector('.od-toast-message')).toBeTruthy();
     expect(generationStatus.querySelector('strong')).toBeNull();
     expect(generationStatus.querySelector('p')).toBeNull();
@@ -1075,6 +1076,7 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generation failed: Provider unavailable')).toBeTruthy();
+    expect(generationStatus.querySelector('[data-status="error"]')).toBeTruthy();
     expect(generationStatus.className).toContain('od-toast--error');
     fireEvent.click(within(generationStatus).getByRole('button', { name: 'Close status' }));
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();

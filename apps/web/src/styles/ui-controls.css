@@ -350,6 +350,38 @@
   font-weight: 700;
 }
 
+.od-toast.has-indicator .od-toast-message {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.od-toast-indicator {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.od-toast-indicator.is-loading {
+  animation: od-toast-spin 900ms linear infinite;
+}
+
+.od-toast-indicator > .icon-spin {
+  animation: none;
+}
+
+@keyframes od-toast-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .od-toast-indicator.is-loading {
+    animation: none;
+  }
+}
+
 .od-toast-details {
   margin-top: 3px;
   color: var(--od-control-muted);

@@ -1112,6 +1112,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       {generationFeedback && generationFeedbackKey && !statusDismissed ? (
         <Toast
           testId="poster-app-generation-status"
+          indicator={generationFeedback.state === 'complete' ? 'success' : generationFeedback.state === 'failed' ? 'error' : 'loading'}
           message={generationFeedback.message}
           tone={generationFeedback.state === 'complete'
             ? 'success'
@@ -1346,6 +1347,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             && !videoStatusDismissed ? (
             <Toast
               testId="poster-app-video-generation-status"
+              indicator={videoStatus.state === 'complete' ? 'success' : videoStatus.state === 'failed' ? 'error' : 'loading'}
               message={videoStatus.title}
               details={videoStatus.detail}
               tone={videoStatus.state === 'complete'
