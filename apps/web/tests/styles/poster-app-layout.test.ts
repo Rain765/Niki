@@ -338,10 +338,12 @@ describe('poster app image layout', () => {
 
   it('keeps generation feedback compact and readable', () => {
     const status = controlRule('.od-toast');
+    const posterStatus = rule('.poster-app__content > .od-toast');
     const message = controlRule('.od-toast-message');
 
     expect(status).toContain('align-items: start;');
     expect(status).toContain('width: min(560px, calc(100% - 32px));');
+    expect(posterStatus).toContain('align-items: center;');
     expect(message).toContain('font-weight: 700;');
   });
 });

@@ -1659,6 +1659,10 @@ button {
   white-space: nowrap;
 }
 
+.poster-app__content > .od-toast {
+  align-items: center;
+}
+
 .poster-app__notice {
   width: 100%;
   margin: var(--poster-space-4) 0 0;
