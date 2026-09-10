@@ -209,8 +209,8 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('one solid deep-charcoal color');
     expect(prompt).toContain('lower-right continuity zone');
     expect(prompt).toContain('surrounding base background must flow through it');
-    expect(prompt).toContain('forearm diagonally down-right');
-    expect(prompt).toContain('pushing an unseen threat down and out');
+    expect(prompt).toContain('sweep sideways across the image plane toward the bottom-right');
+    expect(prompt).toContain('not extend toward the viewer');
     expect(prompt).toContain('`--overlay-logo-anchor left`');
     expect(prompt).toContain('`--poster-text-anchor right`');
     expect(prompt).toContain('`--poster-copy-style anti-fraud-message`');
@@ -471,21 +471,21 @@ describe('Zambia poster preset', () => {
       prompt.includes('directly beneath the rejecting hand within 2 to 4% of the canvas height')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('rejecting hand directly above and slightly left')
+      prompt.includes('rejecting palm center at x=62% to 66%')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('forearm diagonally down-right'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('away from the phone'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('lowest fingertip or wrist above y=70%'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('separated from the phone hand'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('motion vector from wrist through fingertips directly at the center')
+      prompt.includes('sweep sideways across the image plane toward the bottom-right')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('must never point inward toward the phone')
+      prompt.includes('not extend toward the viewer')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('palm 25 to 40 degrees downward'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Turn the palm sideways'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('pushing an unseen threat down and out')
+      prompt.includes('rejecting hand remains closer to the torso')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('clear air gap'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('below-right of the whole rejecting hand with a 2% canvas-height gap'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('upright stop-sign palm'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('rejecting palm aimed toward the phone'))).toBe(true);
     expect(prompts.every((prompt) => (
@@ -496,7 +496,7 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => (
       prompt.includes('x=73% to 100% and y=72% to 90% of the canvas')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('lower-right continuity zone'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('ordinary background immediately below-right'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
     expect(prompts.every((prompt) => (

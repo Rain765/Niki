@@ -67,6 +67,15 @@ import {
   verifyHyperFramesBinaries,
 } from './hyperframes-binaries.js';
 import { resolveModelAlias, resolveProviderConfig } from './media-config.js';
+import { createPosterHandDetector, type PosterHandDetector } from './poster-hand-detector.js';
+import {
+  antiFraudMessageSize,
+  placeAntiFraudMessage,
+  PosterHandLayoutError,
+  ANTI_FRAUD_HAND_RETRY,
+  type PosterHandObservation,
+  type AntiFraudMessagePlacement,
+} from './poster-hand-layout.js';
 import {
   ensureProject,
   kindFor,
@@ -535,6 +544,7 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   options: {
     anchor?: 'left' | 'right';
     maxRetries?: number;
+    detectHands?: PosterHandDetector | undefined;
   } = {},
 ): Promise<{
   result: T;
@@ -542,6 +552,7 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   logoSafeZone: ZamloanLogoSafeZoneAnalysis;
   lowerRight: AntiFraudLowerRightContinuityAnalysis;
   diagonal: AntiFraudDiagonalSplitAnalysis;
+  handObservation?: PosterHandObservation | undefined;
 }> {
   const anchor = options.anchor ?? 'left';
   const maxRetries = Math.max(0, options.maxRetries ?? 1);
@@ -555,21 +566,36 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   });
   let bestLowerRight = await analyzeAntiFraudLowerRightContinuity(bestResult.bytes);
   let bestDiagonal = await analyzeAntiFraudDiagonalSplit(bestResult.bytes);
+  const inspectHands = async (input: Buffer) => {
+    if (!options.detectHands) return { observation: undefined, error: undefined };
+    try {
+      const observation = await options.detectHands(input);
+      const metadata = await sharp(input).metadata();
+      placeAntiFraudMessage(metadata.width!, metadata.height!, observation);
+      return { observation, error: undefined };
+    } catch (error) {
+      if (!(error instanceof PosterHandLayoutError)) throw error;
+      return { observation: undefined, error };
+    }
+  };
+  let bestHands = await inspectHands(bestResult.bytes);
   let bestScore = bestLogoSafeZone.score + bestLowerRight.score + bestDiagonal.score;
   let attempts = 1;
 
-  if (!bestLogoSafeZone.intrudes && !bestLowerRight.intrudes && !bestDiagonal.intrudes) {
+  if (!bestHands.error && !bestLogoSafeZone.intrudes && !bestLowerRight.intrudes && !bestDiagonal.intrudes) {
     return {
       result: bestResult,
       attempts,
       logoSafeZone: bestLogoSafeZone,
       lowerRight: bestLowerRight,
       diagonal: bestDiagonal,
+      handObservation: bestHands.observation,
     };
   }
 
   for (let retry = 0; retry < maxRetries; retry += 1) {
     const retryInstructions = [
+      bestHands.error ? ANTI_FRAUD_HAND_RETRY : '',
       bestLogoSafeZone.intrudes ? logoRules.retryInstruction(anchor) : '',
       bestLowerRight.intrudes
         ? await antiFraudLowerRightRetryInstruction(bestResult.bytes)
@@ -585,32 +611,39 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
     });
     const retryLowerRight = await analyzeAntiFraudLowerRightContinuity(retryResult.bytes);
     const retryDiagonal = await analyzeAntiFraudDiagonalSplit(retryResult.bytes);
+    const retryHands = await inspectHands(retryResult.bytes);
     const retryScore = retryLogoSafeZone.score + retryLowerRight.score + retryDiagonal.score;
     attempts += 1;
-    if (retryScore < bestScore) {
+    // Hand clearance is mandatory; background scores only rank equally valid layouts.
+    if ((bestHands.error && !retryHands.error)
+      || (Boolean(bestHands.error) === Boolean(retryHands.error) && retryScore < bestScore)) {
       bestResult = retryResult;
       bestLogoSafeZone = retryLogoSafeZone;
       bestLowerRight = retryLowerRight;
       bestDiagonal = retryDiagonal;
+      bestHands = retryHands;
       bestScore = retryScore;
     }
-    if (!retryLogoSafeZone.intrudes && !retryLowerRight.intrudes && !retryDiagonal.intrudes) {
+    if (!retryHands.error && !retryLogoSafeZone.intrudes && !retryLowerRight.intrudes && !retryDiagonal.intrudes) {
       return {
         result: retryResult,
         attempts,
         logoSafeZone: retryLogoSafeZone,
         lowerRight: retryLowerRight,
         diagonal: retryDiagonal,
+        handObservation: retryHands.observation,
       };
     }
   }
 
+  if (bestHands.error) throw bestHands.error;
   return {
     result: bestResult,
     attempts,
     logoSafeZone: bestLogoSafeZone,
     lowerRight: bestLowerRight,
     diagonal: bestDiagonal,
+    handObservation: bestHands.observation,
   };
 }
 
@@ -1150,14 +1183,14 @@ async function renderAntiFraudPosterCopy(
 async function renderAntiFraudMessageOverlay(
   width: number,
   height: number,
+  placement: AntiFraudMessagePlacement,
 ): Promise<Buffer> {
   const aspect = width / height;
   const widescreen = aspect >= 1.5;
   const square = !widescreen && aspect >= 0.9;
-  const messageWidth = Math.round(width * (widescreen ? 0.18 : square ? 0.24 : 0.22));
-  const messageHeight = Math.round(height * (widescreen ? 0.18 : square ? 0.15 : 0.105));
-  const messageLeft = width - messageWidth - Math.round(width * 0.030);
-  const messageTop = Math.round(height * (widescreen ? 0.70 : square ? 0.73 : 0.75));
+  const { width: messageWidth, height: messageHeight } = antiFraudMessageSize(width, height);
+  const messageLeft = placement.left;
+  const messageTop = placement.top;
   const messageRadius = Math.round(messageHeight * 0.12);
   const messagePaddingX = Math.round(messageWidth * 0.052);
   const messagePaddingY = Math.round(messageHeight * 0.095);
@@ -1203,13 +1236,15 @@ async function renderPosterCopy(
   height: number,
   options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'> & {
     copyStyle?: PosterCopyStyle;
+    messagePlacement?: AntiFraudMessagePlacement;
   },
 ): Promise<Buffer> {
   if (options.copyStyle === 'anti-fraud') {
     return renderAntiFraudPosterCopy(width, height, options);
   }
   if (options.copyStyle === 'anti-fraud-message') {
-    return renderAntiFraudMessageOverlay(width, height);
+    if (!options.messagePlacement) throw new PosterHandLayoutError('message placement is missing');
+    return renderAntiFraudMessageOverlay(width, height, options.messagePlacement);
   }
   return renderLoanPosterCopy(width, height, options);
 }
@@ -1218,13 +1253,20 @@ export async function overlayPosterCopy(
   input: Buffer,
   options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'> & {
     copyStyle?: PosterCopyStyle;
+    handObservation?: PosterHandObservation;
   },
 ): Promise<Buffer> {
   const metadata = await sharp(input).metadata();
   if (!metadata.width || !metadata.height) {
     throw new Error('poster image has no readable dimensions');
   }
-  const copy = await renderPosterCopy(metadata.width, metadata.height, options);
+  const observation = options.copyStyle === 'anti-fraud-message'
+    ? options.handObservation ?? await (await createPosterHandDetector())(input)
+    : undefined;
+  const copy = await renderPosterCopy(metadata.width, metadata.height, {
+    ...options,
+    ...(observation ? { messagePlacement: placeAntiFraudMessage(metadata.width, metadata.height, observation) } : {}),
+  });
   return sharp(input)
     .composite([{ input: copy, left: 0, top: 0 }])
     .png()
@@ -1442,6 +1484,7 @@ export async function finalizeGeneratedPng(
     posterSubtitle?: string;
     posterTextAnchor?: 'left' | 'right';
     posterCopyStyle?: PosterCopyStyle;
+    posterHandObservation?: PosterHandObservation;
     phoneScreen?: Buffer;
     overlayLogo?: Buffer;
     overlayLogoAnchor?: 'left' | 'right';
@@ -1478,6 +1521,7 @@ export async function finalizeGeneratedPng(
       subtitle: options.posterSubtitle,
       textAnchor: options.posterTextAnchor,
       ...(options.posterCopyStyle ? { copyStyle: options.posterCopyStyle } : {}),
+      ...(options.posterHandObservation ? { handObservation: options.posterHandObservation } : {}),
     });
   }
   if (options.phoneScreen) {
@@ -1938,6 +1982,10 @@ export async function generateMedia(args: {
     ...(args.signal ? { signal: args.signal } : {}),
   };
 
+  const detectPosterHands = surface === 'image' && posterCopyStyle === 'anti-fraud-message'
+    ? await createPosterHandDetector()
+    : undefined;
+  let posterHandObservation: PosterHandObservation | undefined;
   const credentials = await resolveProviderConfig(projectRoot, def.provider);
   const customImageCredentials =
     surface === 'image' && def.provider === 'openai'
@@ -1978,7 +2026,6 @@ export async function generateMedia(args: {
         : null;
       const antiFraudChecked = !phoneChecked
         && loanPosterOutput
-        && overlayLogoRef
         && posterCopyStyle === 'anti-fraud-message'
         ? await renderImageWithAntiFraudSafeZoneRetry(
           ctx.prompt,
@@ -1987,6 +2034,7 @@ export async function generateMedia(args: {
             customImageCredentials!,
           ),
           {
+            detectHands: detectPosterHands,
             ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
           },
         )
@@ -2013,6 +2061,7 @@ export async function generateMedia(args: {
         warnings.push(ANTI_FRAUD_DIAGONAL_WARNING);
       }
       bytes = result.bytes;
+      posterHandObservation = antiFraudChecked?.handObservation;
       if (layeredPosterRequested) {
         const renderedForeground = await renderLayeredForegroundWithMatteRetry(
           result.bytes,
@@ -2044,7 +2093,6 @@ export async function generateMedia(args: {
         : null;
       const antiFraudChecked = !phoneChecked
         && loanPosterOutput
-        && overlayLogoRef
         && posterCopyStyle === 'anti-fraud-message'
         ? await renderImageWithAntiFraudSafeZoneRetry(
           ctx.prompt,
@@ -2053,6 +2101,7 @@ export async function generateMedia(args: {
             credentials,
           ),
           {
+            detectHands: detectPosterHands,
             ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
           },
         )
@@ -2081,6 +2130,7 @@ export async function generateMedia(args: {
         warnings.push(ANTI_FRAUD_DIAGONAL_WARNING);
       }
       bytes = result.bytes;
+      posterHandObservation = antiFraudChecked?.handObservation;
       if (layeredPosterRequested) {
         const renderedForeground = await renderLayeredForegroundWithMatteRetry(
           result.bytes,
@@ -2233,7 +2283,7 @@ export async function generateMedia(args: {
     // Stub-disabled errors are intentional — propagate so the daemon
     // maps them to 503 and the CLI surfaces a clear "configure a real
     // provider" message rather than writing fake bytes.
-    if (err instanceof StubProviderDisabledError) {
+    if (err instanceof StubProviderDisabledError || err instanceof PosterHandLayoutError) {
       throw err;
     }
     // A real provider failed (network blip, 4xx, missing key, …). We
@@ -2298,6 +2348,7 @@ export async function generateMedia(args: {
       ...(posterSubtitle ? { posterSubtitle } : {}),
       ...(posterTextAnchor ? { posterTextAnchor } : {}),
       ...(posterCopyStyle ? { posterCopyStyle } : {}),
+      ...(posterHandObservation ? { posterHandObservation } : {}),
       ...(overlayPhoneScreenRef
         ? { phoneScreen: await readFile(overlayPhoneScreenRef.abs) }
         : {}),

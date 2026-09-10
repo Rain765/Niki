@@ -7,6 +7,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateMedia } from '../src/media.js';
 
+vi.mock('../src/poster-hand-detector.js', () => ({
+  createPosterHandDetector: async () => async () => ({
+    hands: [[0.30, 0.48, 0.45, 0.60], [0.64, 0.62, 0.76, 0.718]].map(([left, top, right, bottom]) => ({
+      points: Array.from({ length: 21 }, (_, index) => ({
+        x: left! + (right! - left!) * (index % 3) / 2,
+        y: top! + (bottom! - top!) * Math.floor(index / 3) / 6,
+        confidence: 0.99,
+      })),
+    })),
+    phones: [],
+  }),
+}));
+
 describe('media brand overlay inputs', () => {
   let root: string;
   let projectRoot: string;
@@ -384,7 +397,9 @@ describe('media brand overlay inputs', () => {
       output: 'anti-fraud-message-poster.png',
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // A flat fixture has no diagonal scene; anti-fraud validation retries once
+    // even without a supplied logo, then uses its valid hand-relative placement.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     const output = await readFile(path.join(projectDir, result.name));
     const { data, info } = await sharp(output)
       .raw()
