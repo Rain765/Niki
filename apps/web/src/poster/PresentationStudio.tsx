@@ -5,14 +5,10 @@ import {
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
   type FormEvent,
 } from 'react';
 import {
   PRESENTATION_LAYOUTS,
-  PRESENTATION_PAGE_COUNTS,
-  PRESENTATION_PALETTES,
-  PRESENTATION_RATIOS,
   type PresentationJob,
   type PresentationListResponse,
   type PresentationOptions,
@@ -20,6 +16,20 @@ import {
 } from '@open-design/contracts';
 import { useI18n } from '../i18n';
 import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
+import {
+  PanelsTopLeft,
+  PanelRight,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  ExternalLink,
+  FileText,
+  X,
+} from 'lucide-react';
+import { Button } from '../components/Button';
+import { SelectField } from '../components/SelectField';
+import { PresentationComposer } from './PresentationComposer';
+import { PresentationProgress } from './PresentationProgress';
 import './presentation-studio.css';
 
 const INITIAL_OPTIONS: PresentationOptions = {
@@ -69,28 +79,40 @@ export function PresentationStudio() {
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [dragging, setDragging] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [view, setView] = useState<'create' | 'deck' | 'history'>('create');
+  const [inspector, setInspector] = useState<'edit' | 'source'>('edit');
   const mounted = useRef(true);
-  const chooser = useRef<HTMLInputElement>(null);
+  const selection = useRef<string | null>(null);
+  const submittedProject = useRef<string | null>(null);
+  const userNavigated = useRef(false);
   const running = job?.status === 'generating' || job?.status === 'rendering';
   const refreshHistory = useCallback(async () => {
     const result =
       await request<PresentationListResponse>('/api/presentations');
-    if (mounted.current) setHistory(result.presentations);
+    if (mounted.current) {
+      setHistory(result.presentations);
+      setHistoryLoading(false);
+    }
     return result.presentations;
   }, []);
   useEffect(() => {
     mounted.current = true;
     void refreshHistory()
       .then((items) => {
-        if (mounted.current && items[0]) {
+        if (mounted.current && !userNavigated.current && items[0]) {
+          selection.current = items[0].projectId;
           setSelectedId(items[0].projectId);
           if (['generating', 'rendering'].includes(items[0].status))
             setView('deck');
         }
       })
       .catch((e: Error) => {
-        if (mounted.current) setError(e.message);
+        if (mounted.current) {
+          setError(e.message);
+          setHistoryLoading(false);
+        }
       });
     return () => {
       mounted.current = false;
@@ -107,13 +129,16 @@ export function PresentationStudio() {
         const next = await request<PresentationJob>(statusUrl(selectedId), {
           signal: controller.signal,
         });
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || selection.current !== selectedId)
+          return;
         setJob(next);
+        setError('');
         if (next.status === 'generating' || next.status === 'rendering')
           timer = setTimeout(() => void poll(), 2000);
         else void refreshHistory().catch(() => {});
       } catch (e) {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || selection.current !== selectedId)
+          return;
         setError((e as Error).message);
         timer = setTimeout(() => void poll(), 5000);
       }
@@ -124,8 +149,12 @@ export function PresentationStudio() {
       clearTimeout(timer);
     };
   }, [selectedId, refreshHistory]);
-  function chooseFile(next: File | undefined) {
-    if (!next) return;
+  function chooseFile(next: File | null) {
+    if (!next) {
+      setFile(null);
+      setError('');
+      return;
+    }
     if (
       !/\.(pdf|docx|md|txt)$/i.test(next.name) ||
       next.size > 10 * 1024 * 1024 ||
@@ -144,6 +173,8 @@ export function PresentationStudio() {
   async function start(event: FormEvent) {
     event.preventDefault();
     if (!file || busy || running || !!draft) return;
+    userNavigated.current = true;
+    selection.current = null;
     setBusy(true);
     setSelectedId(null);
     setJob(null);
@@ -159,6 +190,8 @@ export function PresentationStudio() {
       });
       if (!mounted.current) return;
       setJob(next);
+      selection.current = next.projectId;
+      submittedProject.current = next.projectId;
       setSelectedId(next.projectId);
       setIndex(0);
       void refreshHistory().catch(() => {});
@@ -218,19 +251,59 @@ export function PresentationStudio() {
       if (mounted.current) setSaving(false);
     }
   }
-  const [view, setView] = useState<'create' | 'deck' | 'history'>('create');
-  const [inspector, setInspector] = useState<'edit' | 'source'>('edit');
   const locked = busy || running || saving || !!draft;
   const current = job?.deck?.slides[index];
-  const pageLabel = (value: (typeof PRESENTATION_PAGE_COUNTS)[number]) =>
-    value === 'auto'
-      ? zh
-        ? '按内容自动'
-        : 'Fit content'
-      : `${value}${zh ? ' 页' : ' slides'}`;
+  // Only the selected job may render or publish poll results.
+  const visibleJob = job?.projectId === selectedId ? job : null;
+  useEffect(() => {
+    if (!draft) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [draft]);
+  useEffect(() => {
+    if (view !== 'deck' || !visibleJob?.deck || draft || saving || running)
+      return;
+    const count = visibleJob.deck.slides.length;
+    const navigate = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        (target instanceof Element &&
+          target.closest(
+            'input, textarea, select, [contenteditable], [role="combobox"], [role="listbox"], [role="menu"]',
+          ))
+      )
+        return;
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      setIndex((value) =>
+        Math.max(
+          0,
+          Math.min(count - 1, value + (event.key === 'ArrowRight' ? 1 : -1)),
+        ),
+      );
+    };
+    window.addEventListener('keydown', navigate);
+    return () => window.removeEventListener('keydown', navigate);
+  }, [view, visibleJob, draft, saving, running]);
   const label = (layout: PresentationSlide['layout']) =>
     zh ? LAYOUT_LABELS[layout] : layout;
   const openJob = (id: string) => {
+    userNavigated.current = true;
+    selection.current = id;
+    if (id !== selectedId) {
+      setJob(null);
+      setIndex(0);
+      setPanelOpen(false);
+    }
     setSelectedId(id);
     setView('deck');
     setError('');
@@ -241,19 +314,16 @@ export function PresentationStudio() {
   return (
     <section
       className="ppt-workbench"
-      style={
-        {
-          '--ppt-theme': `var(--presentation-${options.palette})`,
-        } as CSSProperties
-      }
       aria-label={zh ? 'PPT 创作工作台' : 'Presentation studio'}
     >
       <header className="ppt-workbench__bar">
         <div className="ppt-workbench__brand">
-          <span className="ppt-workbench__mark">P</span>
+          <span className="ppt-workbench__mark">
+            <PanelsTopLeft size={21} />
+          </span>
           <div>
             <strong>{zh ? '演示文稿' : 'Presentations'}</strong>
-            <span>PRESENTATION STUDIO</span>
+            <span>{zh ? '文档 → 演示文稿' : 'Document → Presentation'}</span>
           </div>
         </div>
         <nav aria-label={zh ? 'PPT 工作区' : 'Presentation workspace'}>
@@ -261,11 +331,14 @@ export function PresentationStudio() {
             type="button"
             aria-current={view === 'create' ? 'page' : undefined}
             disabled={locked}
-            onClick={() => setView('create')}
+            onClick={() => {
+              userNavigated.current = true;
+              setView('create');
+            }}
           >
             {zh ? '开始创作' : 'Create'}
           </button>
-          {job && (
+          {(selectedId || busy || job) && (
             <button
               type="button"
               aria-current={view === 'deck' ? 'page' : undefined}
@@ -279,6 +352,7 @@ export function PresentationStudio() {
             aria-current={view === 'history' ? 'page' : undefined}
             disabled={busy || saving || !!draft}
             onClick={() => {
+              userNavigated.current = true;
               setView('history');
               void refreshHistory().catch(() => {});
             }}
@@ -301,300 +375,26 @@ export function PresentationStudio() {
         </div>
       )}
       {view === 'create' && (
-        <>
-          <header className="ppt-workbench__intro">
-            <span>FROM DOCUMENT TO DESIGN</span>
-            <h1>
-              {zh ? (
-                <>
-                  信息完整，
-                  <br />
-                  表达有序。
-                </>
-              ) : (
-                <>
-                  Keep the detail.
-                  <br />
-                  Find the structure.
-                </>
-              )}
-            </h1>
-            <p>
-              {zh
-                ? '从一份文档出发，用清晰的版式讲清楚你的内容。'
-                : 'Give your document a clear structure and a considered visual language.'}
-            </p>
-            <div>
-              <span>01 / {zh ? '导入文档' : 'Import'}</span>
-              <span>02 / {zh ? '选择表达' : 'Design'}</span>
-              <span>03 / {zh ? '审阅与导出' : 'Review'}</span>
-            </div>
-          </header>
-          <form
-            className="ppt-workbench__composer"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (file && !locked) {
-                void start(e);
-                setView('deck');
-              }
-            }}
-          >
-            <div className="ppt-workbench__compose-main">
-              <section className="ppt-workbench__source-upload">
-                <div className="ppt-workbench__section-label">
-                  <span>01</span>
-                  <h2>{zh ? '你的内容' : 'Your source'}</h2>
-                  <small>PDF · DOCX · MD · TXT</small>
-                </div>
-                <input
-                  className="ppt-workbench__hidden"
-                  ref={chooser}
-                  type="file"
-                  accept=".pdf,.docx,.md,.txt"
-                  disabled={locked}
-                  onChange={(e) => chooseFile(e.target.files?.[0])}
-                />
-                <button
-                  type="button"
-                  className={`ppt-workbench__drop ${dragging ? 'is-dragging' : ''} ${file ? 'has-file' : ''}`}
-                  disabled={locked}
-                  onClick={() => chooser.current?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (!locked) setDragging(true);
-                  }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragging(false);
-                    if (!locked) chooseFile(e.dataTransfer.files[0]);
-                  }}
-                >
-                  <span className="ppt-workbench__file-symbol">↥</span>
-                  <strong>
-                    {file
-                      ? file.name
-                      : zh
-                        ? '拖入文档，或点击上传'
-                        : 'Drop a document, or browse'}
-                  </strong>
-                  <span>
-                    {file
-                      ? `${(file.size / 1024).toFixed(0)} KB · ${zh ? '点击替换' : 'Click to replace'}`
-                      : zh
-                        ? '最大 10 MB · 扫描件需先识别文字'
-                        : 'Up to 10 MB · Scans need OCR first'}
-                  </span>
-                </button>
-                <label className="ppt-workbench__brief">
-                  {zh
-                    ? '这份 PPT 要讲给谁听？'
-                    : 'Who is this presentation for?'}
-                  <span>{zh ? '选填' : 'Optional'}</span>
-                  <textarea
-                    rows={3}
-                    maxLength={2000}
-                    disabled={locked}
-                    value={options.prompt}
-                    onChange={(e) =>
-                      setOptions({ ...options, prompt: e.target.value })
-                    }
-                    placeholder={
-                      zh
-                        ? '例如：面向业务团队讲解方案，保留流程、关键数据和异常处理。'
-                        : 'For example: Explain the proposal to the team, retaining data, process and exceptions.'
-                    }
-                  />
-                </label>
-              </section>
-              <section>
-                <div className="ppt-workbench__section-label">
-                  <span>02</span>
-                  <h2>{zh ? '选择表达方式' : 'Choose a visual direction'}</h2>
-                </div>
-                <div className="ppt-workbench__styles">
-                  {(['swiss', 'editorial'] as const).map((style) => (
-                    <button
-                      className={`ppt-workbench__style ${style}`}
-                      type="button"
-                      key={style}
-                      disabled={locked}
-                      aria-pressed={(options.style ?? 'swiss') === style}
-                      onClick={() => setOptions({ ...options, style })}
-                    >
-                      <img
-                        src={`/api/presentations/styles/${style}?palette=${options.palette}`}
-                        alt={
-                          style === 'swiss'
-                            ? zh
-                              ? '瑞士网格版式示例'
-                              : 'Swiss grid layout sample'
-                            : zh
-                              ? '编辑式版式示例'
-                              : 'Editorial layout sample'
-                        }
-                      />
-                      <span>
-                        <strong>
-                          {style === 'swiss'
-                            ? zh
-                              ? '瑞士网格'
-                              : 'Swiss grid'
-                            : zh
-                              ? '编辑式报告'
-                              : 'Editorial report'}
-                        </strong>
-                        <i>
-                          {(options.style ?? 'swiss') === style ? '✓' : '○'}
-                        </i>
-                      </span>
-                      <small>
-                        {style === 'swiss'
-                          ? zh
-                            ? '清晰对齐 · 图形结构 · 数据表达'
-                            : 'Precise grids · Systems · Data'
-                          : zh
-                            ? '文字层次 · 完整论述 · 阅读节奏'
-                            : 'Typography · Detail · Reading rhythm'}
-                      </small>
-                    </button>
-                  ))}
-                </div>
-                <fieldset className="ppt-workbench__palette">
-                  <legend>
-                    {zh ? '主题色' : 'Color'}
-                    <span>
-                      {
-                        PRESENTATION_PALETTES[options.palette][
-                          zh ? 'zh' : 'name'
-                        ]
-                      }
-                    </span>
-                  </legend>
-                  <div>
-                    {Object.entries(PRESENTATION_PALETTES).map(
-                      ([key, value]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          aria-label={value[zh ? 'zh' : 'name']}
-                          title={value[zh ? 'zh' : 'name']}
-                          disabled={locked}
-                          aria-pressed={options.palette === key}
-                          onClick={() =>
-                            setOptions({
-                              ...options,
-                              palette: key as PresentationOptions['palette'],
-                            })
-                          }
-                          style={
-                            {
-                              '--ppt-swatch': `var(--presentation-${key})`,
-                            } as CSSProperties
-                          }
-                        >
-                          <span />
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </fieldset>
-              </section>
-            </div>
-            <footer className="ppt-workbench__settings">
-              <label>
-                {zh ? '画布比例' : 'Canvas'}
-                <select
-                  disabled={locked}
-                  value={options.ratio}
-                  onChange={(e) =>
-                    setOptions({
-                      ...options,
-                      ratio: e.target.value as PresentationOptions['ratio'],
-                    })
-                  }
-                >
-                  {PRESENTATION_RATIOS.map((x) => (
-                    <option key={x}>{x}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {zh ? '页数' : 'Length'}
-                <select
-                  disabled={locked}
-                  value={options.pageCount}
-                  onChange={(e) =>
-                    setOptions({
-                      ...options,
-                      pageCount:
-                        e.target.value === 'auto'
-                          ? 'auto'
-                          : (Number(
-                              e.target.value,
-                            ) as PresentationOptions['pageCount']),
-                    })
-                  }
-                >
-                  {PRESENTATION_PAGE_COUNTS.map((x) => (
-                    <option key={x} value={x}>
-                      {pageLabel(x)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                {zh ? '信息密度' : 'Content depth'}
-                <select
-                  disabled={locked}
-                  value={options.density ?? 'complete'}
-                  onChange={(e) =>
-                    setOptions({
-                      ...options,
-                      density: e.target.value as PresentationOptions['density'],
-                    })
-                  }
-                >
-                  <option value="complete">
-                    {zh ? '完整讲解' : 'Full detail'}
-                  </option>
-                  <option value="brief">
-                    {zh ? '重点摘要' : 'Brief summary'}
-                  </option>
-                </select>
-              </label>
-              <button
-                type="submit"
-                className="ppt-workbench__primary"
-                disabled={!file || locked}
-              >
-                {busy || running
-                  ? zh
-                    ? '生成中…'
-                    : 'Creating…'
-                  : zh
-                    ? '生成演示文稿'
-                    : 'Create presentation'}{' '}
-                <span>↗</span>
-              </button>
-            </footer>
-            <p className="ppt-workbench__footnote">
-              {options.pageCount === 'auto'
-                ? zh
-                  ? '按内容安排 5–30 页。默认保留重要论点、数据、条件与步骤，生成后可逐页对照原文。'
-                  : 'Automatically plans 5–30 slides. Review source passages alongside each slide.'
-                : zh
-                  ? '页数包含封面与结尾。长文档指定较少页数会压缩表达空间，建议选择「按内容自动」。'
-                  : 'Length includes cover and closing. Choose automatic length to give longer documents more room.'}
-            </p>
-          </form>
-        </>
+        <PresentationComposer
+          file={file}
+          options={options}
+          locked={locked}
+          busy={busy}
+          zh={zh}
+          onFile={chooseFile}
+          onOptions={setOptions}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (file && !locked) {
+              void start(event);
+              setView('deck');
+            }
+          }}
+        />
       )}
       {view === 'history' && (
         <div className="ppt-workbench__library">
           <header>
-            <span>YOUR COLLECTION</span>
             <h1>{zh ? '我的文稿' : 'My presentations'}</h1>
             <p>
               {zh
@@ -602,7 +402,11 @@ export function PresentationStudio() {
                 : 'Continue reviewing, editing or exporting your work.'}
             </p>
           </header>
-          {history.length ? (
+          {historyLoading ? (
+            <p role="status">
+              {zh ? '正在加载文稿…' : 'Loading presentations…'}
+            </p>
+          ) : history.length ? (
             <div>
               {history.map((item) => (
                 <button
@@ -610,7 +414,9 @@ export function PresentationStudio() {
                   key={item.projectId}
                   onClick={() => openJob(item.projectId)}
                 >
-                  <span className="ppt-workbench__history-icon">P</span>
+                  <span className="ppt-workbench__history-icon">
+                    <FileText size={27} strokeWidth={1.5} />
+                  </span>
                   <strong>{item.title}</strong>
                   <small>{item.sourceName}</small>
                   <footer>
@@ -647,49 +453,27 @@ export function PresentationStudio() {
       )}
       {view === 'deck' && (
         <>
-          {!job || busy || running || job.status === 'failed' ? (
-            <div className="ppt-workbench__progress">
-              <span className={running || busy ? 'is-working' : ''}>P</span>
-              <h1>
-                {job?.status === 'failed'
-                  ? zh
-                    ? '这次生成未完成'
-                    : 'Could not finish this deck'
-                  : zh
-                    ? '正在组织内容与版式'
-                    : 'Organizing content and layouts'}
-              </h1>
-              <p>
-                {job?.status === 'failed'
-                  ? job.error
-                  : zh
-                    ? '保留原文细节，编排页面，再生成可编辑文件。文档越长，需要的时间越多。'
-                    : 'Preserving detail, composing slides and building editable files. Longer documents take more time.'}
-              </p>
-              {job?.status === 'failed' && job.deck && (
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void retryLayout()}
-                >
-                  {saving
-                    ? zh
-                      ? '排版中…'
-                      : 'Rendering…'
-                    : zh
-                      ? '重试排版 · 不调用模型'
-                      : 'Retry layout · no model call'}
-                </button>
-              )}
-              {job?.status === 'failed' && (
-                <button type="button" onClick={() => setView('create')}>
-                  {zh ? '返回调整' : 'Back to settings'}
-                </button>
-              )}
-            </div>
+          {!visibleJob || busy || running || visibleJob.status === 'failed' ? (
+            <PresentationProgress
+              job={visibleJob}
+              busy={busy}
+              saving={saving}
+              fileName={busy ? file?.name : undefined}
+              loadError={!!error && !visibleJob && !busy}
+              zh={zh}
+              onRetry={() => void retryLayout()}
+              onBack={() => {
+                if (visibleJob?.status === 'failed') {
+                  setOptions(visibleJob.options);
+                  if (submittedProject.current !== visibleJob.projectId)
+                    setFile(null);
+                }
+                setView('create');
+              }}
+            />
           ) : (
             current &&
-            job.deck && (
+            job?.deck && (
               <>
                 <header className="ppt-workbench__document-bar">
                   <div>
@@ -703,21 +487,24 @@ export function PresentationStudio() {
                     </p>
                   </div>
                   <div>
-                    {job.html && (
+                    {job.html && !draft && !saving && (
                       <a
+                        className="od-button od-button--secondary od-button--default"
                         href={projectFileUrl(job.projectId, job.html)}
                         target="_blank"
                         rel="noreferrer"
                       >
-                        {zh ? '打开演示 ↗' : 'Present ↗'}
+                        <ExternalLink size={16} />
+                        {zh ? '演示' : 'Present'}
                       </a>
                     )}
-                    {job.pptx && (
+                    {job.pptx && !draft && !saving && (
                       <a
-                        className="ppt-workbench__primary"
+                        className="od-button od-button--primary od-button--default"
                         href={projectFileDownloadUrl(job.projectId, job.pptx)}
                       >
-                        {zh ? '下载 PPTX ↓' : 'Download PPTX ↓'}
+                        <Download size={16} />
+                        {zh ? '下载 PPTX' : 'Download PPTX'}
                       </a>
                     )}
                   </div>
@@ -731,7 +518,16 @@ export function PresentationStudio() {
                     ))}
                   </div>
                 )}
-                <div className="ppt-workbench__editor">
+                {draft && (
+                  <div className="ppt-workbench__draft-notice" role="status">
+                    {zh
+                      ? '本页有未保存的修改。保存或取消后，可以切换页面与导出。'
+                      : 'This slide has unsaved changes. Save or cancel before changing slides or exporting.'}
+                  </div>
+                )}
+                <div
+                  className={`ppt-workbench__editor ${panelOpen ? 'has-inspector' : ''}`}
+                >
                   <aside
                     className="ppt-workbench__filmstrip"
                     aria-label={zh ? '页面列表' : 'Slides'}
@@ -750,7 +546,7 @@ export function PresentationStudio() {
                             loading="lazy"
                             src={projectFileUrl(
                               job.projectId,
-                              job.previews![i]!,
+                              job.previews?.[i] ?? '',
                             )}
                             alt={s.title}
                           />
@@ -762,14 +558,24 @@ export function PresentationStudio() {
                   <div className="ppt-workbench__canvas">
                     <div className="ppt-workbench__canvas-toolbar">
                       <span>{label(current.layout)}</span>
+                      <Button
+                        size="compact"
+                        aria-pressed={panelOpen}
+                        aria-controls="ppt-inspector"
+                        disabled={saving || !!draft}
+                        onClick={() => setPanelOpen(!panelOpen)}
+                      >
+                        <PanelRight size={16} />
+                        {zh ? '编辑与原文' : 'Edit & source'}
+                      </Button>
                       <div>
                         <button
                           type="button"
-                          disabled={!!draft || index === 0}
+                          disabled={!!draft || saving || index === 0}
                           onClick={() => setPage(index - 1)}
                           aria-label={zh ? '上一页' : 'Previous'}
                         >
-                          ←
+                          <ChevronLeft size={18} />
                         </button>
                         <span>
                           {index + 1} / {job.deck.slides.length}
@@ -777,12 +583,14 @@ export function PresentationStudio() {
                         <button
                           type="button"
                           disabled={
-                            !!draft || index === job.deck.slides.length - 1
+                            !!draft ||
+                            saving ||
+                            index === job.deck.slides.length - 1
                           }
                           onClick={() => setPage(index + 1)}
                           aria-label={zh ? '下一页' : 'Next'}
                         >
-                          →
+                          <ChevronRight size={18} />
                         </button>
                       </div>
                     </div>
@@ -791,7 +599,7 @@ export function PresentationStudio() {
                         key={`${job.revision}-${index}`}
                         src={projectFileUrl(
                           job.projectId,
-                          job.previews![index]!,
+                          job.previews?.[index] ?? '',
                         )}
                         alt={current.title}
                       />
@@ -802,8 +610,13 @@ export function PresentationStudio() {
                         : 'Text, shapes and connections remain editable in PowerPoint.'}
                     </p>
                   </div>
-                  <aside className="ppt-workbench__inspector">
-                    <nav>
+                  <aside
+                    id="ppt-inspector"
+                    className="ppt-workbench__inspector"
+                    aria-label={zh ? '编辑与原文' : 'Edit and source'}
+                    hidden={!panelOpen}
+                  >
+                    <nav aria-label={zh ? '审阅面板' : 'Review panel'}>
                       <button
                         type="button"
                         aria-pressed={inspector === 'edit'}
@@ -818,6 +631,15 @@ export function PresentationStudio() {
                       >
                         {zh ? '对照原文' : 'Source'}
                       </button>
+                      <Button
+                        variant="ghost"
+                        size="compact"
+                        aria-label={zh ? '收起面板' : 'Close panel'}
+                        disabled={saving || !!draft}
+                        onClick={() => setPanelOpen(false)}
+                      >
+                        <X size={16} />
+                      </Button>
                     </nav>
                     {inspector === 'source' ? (
                       <div className="ppt-workbench__source-panel">
@@ -868,7 +690,7 @@ export function PresentationStudio() {
               </>
             )
           )}
-          {job?.usage && (
+          {visibleJob?.usage && job?.usage && (
             <p className="ppt-workbench__usage">
               {job.usage.model} · {job.usage.inputTokens.toLocaleString()}{' '}
               {zh ? '输入' : 'input'} /{' '}
@@ -914,30 +736,24 @@ function SlideEditor({
       <div className="ppt-workbench__edit-heading">
         <span>{zh ? '逐页审阅' : 'Review slide'}</span>
         {!editing && (
-          <button type="button" onClick={onEdit}>
+          <Button type="button" onClick={onEdit}>
             {zh ? '编辑本页' : 'Edit slide'} ↗
-          </button>
+          </Button>
         )}
       </div>
       <fieldset disabled={!editing || saving}>
-        <label>
-          {zh ? '版式' : 'Layout'}
-          <select
-            value={slide.layout}
-            onChange={(e) =>
-              onChange({
-                ...slide,
-                layout: e.target.value as PresentationSlide['layout'],
-              })
-            }
-          >
-            {PRESENTATION_LAYOUTS.map((x) => (
-              <option value={x} key={x}>
-                {zh ? LAYOUT_LABELS[x] : x}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectField
+          label={zh ? '版式' : 'Layout'}
+          value={slide.layout}
+          disabled={!editing || saving}
+          options={PRESENTATION_LAYOUTS.map((value) => ({
+            value,
+            label: zh ? LAYOUT_LABELS[value] : value,
+          }))}
+          onChange={(value) =>
+            onChange({ ...slide, layout: value as PresentationSlide['layout'] })
+          }
+        />
         <label>
           {zh ? '标题' : 'Title'}
           <textarea
@@ -991,7 +807,7 @@ function SlideEditor({
               />
             </label>
             {editing && (
-              <button
+              <Button
                 type="button"
                 onClick={() =>
                   onChange({
@@ -1004,12 +820,12 @@ function SlideEditor({
                 }
               >
                 {zh ? '移除内容块' : 'Remove block'}
-              </button>
+              </Button>
             )}
           </div>
         ))}
         {editing && (
-          <button
+          <Button
             type="button"
             disabled={slide.items.length >= 12}
             onClick={() =>
@@ -1027,7 +843,7 @@ function SlideEditor({
             }
           >
             ＋ {zh ? '添加内容块' : 'Add content block'}
-          </button>
+          </Button>
         )}
         <details>
           <summary>
@@ -1036,26 +852,26 @@ function SlideEditor({
           {slide.edges.map((edge, i) => (
             <div className="ppt-workbench__edge-form" key={i}>
               {(['from', 'to'] as const).map((k) => (
-                <label key={k}>
-                  {k === 'from' ? (zh ? '起点' : 'From') : zh ? '终点' : 'To'}
-                  <select
-                    value={edge[k]}
-                    onChange={(e) =>
-                      onChange({
-                        ...slide,
-                        edges: slide.edges.map((x, j) =>
-                          j === i ? { ...x, [k]: e.target.value } : x,
-                        ),
-                      })
-                    }
-                  >
-                    {slide.items.map((x) => (
-                      <option key={x.id} value={x.id}>
-                        {x.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <SelectField
+                  key={k}
+                  label={
+                    k === 'from' ? (zh ? '起点' : 'From') : zh ? '终点' : 'To'
+                  }
+                  disabled={!editing || saving}
+                  value={edge[k]}
+                  options={slide.items.map((item) => ({
+                    value: item.id,
+                    label: item.title,
+                  }))}
+                  onChange={(value) =>
+                    onChange({
+                      ...slide,
+                      edges: slide.edges.map((item, j) =>
+                        j === i ? { ...item, [k]: value } : item,
+                      ),
+                    })
+                  }
+                />
               ))}
               <input
                 aria-label={zh ? '连线说明' : 'Connection label'}
@@ -1071,7 +887,7 @@ function SlideEditor({
                 }
               />
               {editing && (
-                <button
+                <Button
                   type="button"
                   onClick={() =>
                     onChange({
@@ -1081,12 +897,12 @@ function SlideEditor({
                   }
                 >
                   {zh ? '移除连接' : 'Remove'}
-                </button>
+                </Button>
               )}
             </div>
           ))}
           {editing && (
-            <button
+            <Button
               type="button"
               disabled={slide.items.length < 2 || slide.edges.length >= 16}
               onClick={() =>
@@ -1104,7 +920,7 @@ function SlideEditor({
               }
             >
               ＋ {zh ? '添加连接' : 'Add connection'}
-            </button>
+            </Button>
           )}
         </details>
         <label>
@@ -1119,12 +935,13 @@ function SlideEditor({
       </fieldset>
       {editing && (
         <footer>
-          <button type="button" disabled={saving} onClick={onCancel}>
+          <Button type="button" disabled={saving} onClick={onCancel}>
             {zh ? '取消' : 'Cancel'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="ppt-workbench__primary"
+            variant="primary"
+            loading={saving}
             disabled={saving}
             onClick={onSave}
           >
@@ -1135,7 +952,7 @@ function SlideEditor({
               : zh
                 ? '保存并更新版式'
                 : 'Save changes'}
-          </button>
+          </Button>
         </footer>
       )}
     </div>

@@ -915,6 +915,7 @@ describe('PosterApp mobile-safe flow', () => {
       'Posters',
       'Videos',
       'Documents',
+      'PPT',
       'Logo',
       'Voice',
     ]);
