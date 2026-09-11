@@ -365,6 +365,7 @@ import { registerEnglishPracticeRoutes } from './english-practice-routes.js';
 import { registerLiveArtifactRoutes } from './live-artifact-routes.js';
 import { registerCanvasRoutes } from './canvas-routes.js';
 import { registerLogoRoutes } from './logo-routes.js';
+import { registerPresentationRoutes } from './presentation-routes.js';
 import { registerDesignSystemToolRoutes } from './design-system-tool-routes.js';
 import { registerDeployRoutes, registerDeploymentCheckRoutes } from './deploy-routes.js';
 import { registerMediaRoutes } from './media-routes.js';
@@ -4526,6 +4527,7 @@ export async function startServer({
   });
   registerDeviceBridgeRoutes(app, deviceBridge);
   registerCanvasRoutes(app, { db, http: httpDeps });
+  registerPresentationRoutes(app, { db, projectsRoot: PROJECTS_DIR, projectRoot: PROJECT_ROOT });
   registerLogoRoutes(app, {
     db,
     http: httpDeps,

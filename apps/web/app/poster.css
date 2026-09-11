@@ -328,7 +328,7 @@ button {
 
 .poster-app__primary-nav {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: stretch;
   width: 100%;
   min-width: 0;

@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatRunStatus } from './chat.js';
+import type { PresentationJob } from './presentations.js';
 import type {
   ProjectContextConnectorRef,
   ProjectContextMcpServerRef,
@@ -114,6 +115,7 @@ export interface DirectLoanPosterBatch {
 }
 
 export interface ProjectMetadata {
+  presentation?: PresentationJob;
   kind: ProjectKind;
   /** Saved deterministic page plan used by Niki's one-click business video flow. */
   loanVideoPreset?: {

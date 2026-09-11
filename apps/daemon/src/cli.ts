@@ -9,6 +9,7 @@ import { runDesignSystemsToolCli } from './tools-design-systems-cli.js';
 import { runLiveArtifactsToolCli } from './tools-live-artifacts-cli.js';
 import { splitResearchSubcommand } from './research/cli-args.js';
 import { resolveDaemonUrl } from './daemon-url.js';
+import { runPresentationCli } from './presentation-cli.js';
 
 const argv = process.argv.slice(2);
 const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -259,6 +260,7 @@ const PLUGIN_LIST_BOOLEAN_FLAGS = new Set([
 ]);
 
 const SUBCOMMAND_MAP = {
+  ppt: runPresentationCli,
   artifacts: runArtifacts,
   media: runMedia,
   canvas: runCanvas,
@@ -732,6 +734,9 @@ function printRootHelp() {
 
   od english <lessons|lesson|progress|vocabulary> [args]
       Read the same Daily English lessons, progress, and vocabulary as the web UI.
+
+  od ppt <generate|list|status|edit|download|preview> [args]
+      Turn uploaded documents into editable presentations. Run od ppt help for options.
 
   od plugin <list|info|install|uninstall|apply|doctor|replay|trust> [args]
       Discover, install, and apply plugins through the local daemon.

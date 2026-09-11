@@ -44,6 +44,7 @@ import {
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import { useI18n } from '../i18n';
 import { DocumentSearch } from './DocumentSearch';
+import { PresentationStudio } from './PresentationStudio';
 import { EnglishPractice } from './EnglishPractice';
 import {
   canSharePreparedImageFile,
@@ -58,7 +59,7 @@ import { useRuntimeReleaseRefresh } from './useRuntimeReleaseRefresh';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
-type CreationMode = 'poster' | 'video' | 'documents' | 'english' | 'logo';
+type CreationMode = 'poster' | 'video' | 'documents' | 'english' | 'logo' | 'ppt';
 type PosterResultTab = 'latest' | 'history';
 type GenerationFeedback = {
   id: number;
@@ -254,14 +255,14 @@ function initialCreationMode(): CreationMode {
   if (typeof window === 'undefined') return 'poster';
   if (window.location.pathname === '/logo') return 'logo';
   const mode = new URLSearchParams(window.location.search).get('mode');
-  return mode === 'video' || mode === 'documents' || mode === 'english' ? mode : 'poster';
+  return mode === 'video' || mode === 'documents' || mode === 'english' || mode === 'ppt' ? mode : 'poster';
 }
 
 function updateCreationModeUrl(mode: CreationMode): void {
   if (typeof window === 'undefined') return;
   const url = new URL(window.location.href);
   url.pathname = mode === 'logo' ? '/logo' : '/';
-  if (mode === 'video' || mode === 'documents' || mode === 'english') url.searchParams.set('mode', mode);
+  if (mode === 'video' || mode === 'documents' || mode === 'english' || mode === 'ppt') url.searchParams.set('mode', mode);
   else url.searchParams.delete('mode');
   window.history.replaceState(window.history.state, '', url);
 }
@@ -969,6 +970,9 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                 {t(label)}
               </button>
             ))}
+            <button type="button" className={creationMode === 'ppt' ? 'is-active' : undefined}
+              aria-current={creationMode === 'ppt' ? 'page' : undefined}
+              onClick={() => { setCreationMode('ppt'); updateCreationModeUrl('ppt'); }}>PPT</button>
             <button
               type="button"
               className={creationMode === 'logo' ? 'is-active' : undefined}
@@ -1488,6 +1492,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             </section>
           ) : null}
         </section>
+      ) : creationMode === 'ppt' ? (
+        <PresentationStudio />
       ) : creationMode === 'documents' ? (
         <DocumentSearch />
       ) : creationMode === 'english' ? (

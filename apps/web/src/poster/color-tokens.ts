@@ -5,6 +5,8 @@
  * only in this module so the critical first paint, authenticated UI, and
  * overlays cannot drift apart.
  */
+import { PRESENTATION_PALETTES } from '@open-design/contracts';
+
 export const NIKI_POSTER_COLOR_VALUES = {
   fill0: '#ffffff',
   fill1: '#f7f8fa',
@@ -30,6 +32,7 @@ export const NIKI_POSTER_LEGACY_ACCENT_COLORS = [
 ] as const;
 
 export const NIKI_POSTER_COLOR_VARIABLES = {
+  ...Object.fromEntries(Object.entries(PRESENTATION_PALETTES).map(([key, value]) => [`--presentation-${key}`, `#${value.accent}`])),
   '--poster-fill-0': NIKI_POSTER_COLOR_VALUES.fill0,
   '--poster-fill-1': NIKI_POSTER_COLOR_VALUES.fill1,
   '--poster-fill-3': NIKI_POSTER_COLOR_VALUES.fill3,

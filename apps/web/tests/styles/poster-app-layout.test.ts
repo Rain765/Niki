@@ -74,7 +74,7 @@ describe('poster app image layout', () => {
     expect(topbarInner).toContain('grid-template-columns: auto minmax(0, 1fr) auto;');
     expect(topbarInner).toContain('width: min(100%, var(--poster-shell-width));');
     expect(navigation).toContain('display: grid;');
-    expect(navigation).toContain('grid-template-columns: repeat(5, minmax(0, 1fr));');
+    expect(navigation).toContain('grid-template-columns: repeat(6, minmax(0, 1fr));');
     expect(navigation).toContain('width: 100%;');
     expect(content).toContain('width: min(100%, var(--poster-shell-width));');
     expect(css).not.toMatch(/\.poster-app\.is-(?:documents|english) \.poster-app__content\s*{/);

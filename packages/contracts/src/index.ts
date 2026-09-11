@@ -25,6 +25,7 @@ export * from './api/media.js';
 export * from './api/orbit.js';
 export * from './api/providerModels.js';
 export * from './api/projects.js';
+export * from './api/presentations.js';
 export * from './api/proxy.js';
 export * from './api/routines.js';
 export * from './api/registry.js';
