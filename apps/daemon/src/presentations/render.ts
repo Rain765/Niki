@@ -300,12 +300,46 @@ export function buildPresentationScene(
     slide.layout === 'steps'
   ) {
     const gap = slide.layout === 'architecture' ? (n >= 5 ? 4 : 13) : 0;
-    const rowHeight = (areaHeight - gap * (n - 1)) / Math.max(n, 1);
     const labelWidth =
       available * (slide.layout === 'architecture' ? 0.29 : 0.34);
+    const rowSpace = areaHeight - gap * (n - 1);
+    // Give each row the height its heading and body need at a shared font size.
+    // Equal-height rows waste space on short entries and clip longer ones.
+    let rowFont = 22;
+    const measureRows = () =>
+      slide.items.map(
+        (item) =>
+          Math.max(
+            29,
+            wrap(item.title, labelWidth - 78, rowFont + 1).length *
+              (rowFont + 1) *
+              1.32,
+            wrap(item.body, available - labelWidth - 54, rowFont).length *
+              rowFont *
+              1.32,
+          ) + 14,
+      );
+    let rowHeights = measureRows();
+    while (
+      rowHeights.reduce((sum, h) => sum + h, 0) > rowSpace &&
+      rowFont > 19
+    ) {
+      rowFont--;
+      rowHeights = measureRows();
+    }
+    const required = rowHeights.reduce((sum, h) => sum + h, 0);
+    if (required > rowSpace)
+      throw new PresentationError(
+        `Slide ${index + 1}: table rows need more space.`,
+        422,
+      );
+    const extra = (rowSpace - required) / Math.max(n, 1);
+    let nextY = top;
     const boxes: Box[] = [];
     slide.items.forEach((item, i) => {
-      const y = top + i * (rowHeight + gap);
+      const y = nextY;
+      const rowHeight = rowHeights[i]! + extra;
+      nextY += rowHeight + gap;
       const layer = slide.layout === 'architecture';
       const bx = layer ? margin + 22 : margin;
       const box = { x: bx, y, w: available - (layer ? 22 : 0), h: rowHeight };
@@ -324,7 +358,7 @@ export function buildPresentationScene(
       text(
         item.title,
         { x: bx + 66, y: y + 6, w: labelWidth - 78, h: rowHeight - 12 },
-        23,
+        rowFont + 1,
         ink,
         true,
       );
@@ -336,7 +370,7 @@ export function buildPresentationScene(
           w: available - labelWidth - 54,
           h: rowHeight - 12,
         },
-        22,
+        rowFont,
         body,
       );
     });

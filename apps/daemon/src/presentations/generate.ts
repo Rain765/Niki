@@ -10,7 +10,7 @@ import {
   PRESENTATION_SCHEMA,
   PresentationError,
 } from './content.js';
-import { buildPresentationScene } from './render.js';
+import { fitPresentationDeck } from './layout.js';
 import {
   presentationSourceBlocks,
   attachPresentationSources,
@@ -194,10 +194,10 @@ Each slide includes sourceRefs: an array of the source passage numbers used on t
           : slide,
       );
       await input.onDraft?.(attachPresentationSources(deck, blocks));
-      deck.slides.forEach((slide, index) =>
-        buildPresentationScene(slide, input.options, index, deck.slides.length),
+      return attachPresentationSources(
+        fitPresentationDeck(deck, input.options),
+        blocks,
       );
-      return attachPresentationSources(deck, blocks);
     } catch (error) {
       if (attempt === 1)
         throw new PresentationError(

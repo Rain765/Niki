@@ -23,6 +23,7 @@ import {
   attachPresentationSources,
 } from '../src/presentations/source.js';
 import { presentationUsage } from '../src/presentations/generate.js';
+import { fitPresentationDeck } from '../src/presentations/layout.js';
 
 export const options: PresentationOptions = {
   palette: 'emerald',
@@ -196,6 +197,75 @@ describe('native presentation rendering', () => {
 });
 
 describe('presentation detail retention and composition', () => {
+  it('recovers dense text layouts without dropping content and splits only automatic decks', () => {
+    const slide = fixtureSlide('comparison');
+    slide.items = slide.items
+      .slice(0, 2)
+      .map((item) => ({ ...item, body: '保留业务条件以及说明。'.repeat(32) }));
+    const deck = { title: '详细说明', slides: [slide] };
+    const fitted = fitPresentationDeck(deck, options);
+    expect(fitted.slides[0]!.layout).toBe('editorial');
+    expect(fitted.slides[0]!.items).toEqual(slide.items);
+    expect(slide.layout).toBe('comparison');
+    const dense = {
+      ...slide,
+      layout: 'table' as const,
+      sourceRefs: [1],
+      items: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i),
+        title: '完整规则',
+        body: '每笔业务保留来源、时间、单位、条件与异常处理，不得删除重要信息。'.repeat(
+          5,
+        ),
+      })),
+    };
+    const expanded = fitPresentationDeck(
+      { title: '详细说明', slides: [dense] },
+      { ...options, pageCount: 'auto' },
+    );
+    expect(expanded.slides.length).toBeGreaterThan(1);
+    expect(expanded.slides.flatMap((s) => s.items)).toEqual(dense.items);
+    expect(expanded.slides.every((s) => s.sourceRefs?.[0] === 1)).toBe(true);
+    expect(() =>
+      fitPresentationDeck({ title: '详细说明', slides: [dense] }, options),
+    ).toThrow();
+    expect(() =>
+      fitPresentationDeck(
+        {
+          title: '图形',
+          slides: [
+            {
+              ...dense,
+              layout: 'flow',
+              edges: [{ from: '0', to: '1', label: '' }],
+            },
+          ],
+        },
+        { ...options, pageCount: 'auto' },
+      ),
+    ).toThrow();
+  });
+  it('allocates table rows by content so one longer row does not fail the entire deck', () => {
+    const slide = fixtureSlide('table');
+    slide.subtitle = '保留市场条件、具体单位与核验信息，按材料逐项展示';
+    slide.items = Array.from({ length: 6 }, (_, i) => ({
+      id: String(i),
+      title: `资料 ${i + 1}`,
+      body:
+        i === 0
+          ? '每条记录都必须保留来源、单位、时间与适用条件。'.repeat(5)
+          : '保留资料中的具体条件。',
+    }));
+    const scene = buildPresentationScene(slide, options, 11, 16);
+    const texts = scene.elements.filter((e) => e.kind === 'text');
+    const first = texts.find(
+      (e) => e.kind === 'text' && e.lines.join('') === slide.items[0]!.body,
+    )!;
+    const second = texts.find(
+      (e) => e.kind === 'text' && e.lines.join('') === slide.items[1]!.body,
+    )!;
+    expect(first.h).toBeGreaterThan(second.h);
+  });
   it('retains paragraphs beyond the old 100-character cap in editable slides', async () => {
     const detail =
       '每一笔申请必须核验渠道来源、申请金额与有效期限。若资料不完整，保留申请记录并标明具体缺项，由客户经理补齐后重新提交。' +

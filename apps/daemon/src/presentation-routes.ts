@@ -39,6 +39,7 @@ import {
   renderPresentation,
 } from './presentations/render.js';
 import { attachPresentationSources } from './presentations/source.js';
+import { fitPresentationDeck } from './presentations/layout.js';
 
 interface Dependencies {
   db: Database.Database;
@@ -114,7 +115,8 @@ export function registerPresentationRoutes(
   const exportFiles = async (job: PresentationJob) => {
     if (!getProject(db, job.projectId))
       throw new PresentationError('Presentation not found', 404);
-    const result = await renderPresentation(job.deck!, job.options);
+    job.deck = fitPresentationDeck(job.deck!, job.options);
+    const result = await renderPresentation(job.deck, job.options);
     const user = currentNikiUser();
     if (user)
       await assertNikiStorageAllowed(

@@ -187,6 +187,12 @@ describe('document to PPT HTTP workflow', () => {
         .dailyGenerations,
     ).toBe(1);
     // Simulate persisted in-flight state from a previous process; no active job owns it now.
+    const denseSlide = completed.deck!.slides[1]!;
+    denseSlide.layout = 'comparison';
+    denseSlide.items = denseSlide.items.map((item) => ({
+      ...item,
+      body: '保留业务条件以及说明。'.repeat(32),
+    }));
     runAsNikiUser(owner, () =>
       updateProject(db, started.projectId, {
         metadata: {
@@ -214,6 +220,8 @@ describe('document to PPT HTTP workflow', () => {
     expect(repaired.error).toBeUndefined();
     expect(repaired.html).toMatch(/presentation\.html$/);
     expect(repaired.usage).toEqual(recovered.usage);
+    expect(repaired.deck!.slides[1]!.layout).toBe('editorial');
+    expect(repaired.deck!.slides[1]!.items).toEqual(denseSlide.items);
     expect(calls).toBe(1);
   });
 });
