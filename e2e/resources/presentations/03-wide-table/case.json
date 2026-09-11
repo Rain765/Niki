@@ -1,0 +1,367 @@
+{
+  "id": "03-wide-table",
+  "title": "企业服务能力比较",
+  "split": "reserved",
+  "provenance": "synthetic",
+  "tags": [
+    "wide-table",
+    "12-columns",
+    "special-values"
+  ],
+  "sourceSha256": "17c17cc989fbbbe54ecc8b6c71bb20e80912fde3036b7e6b4ce2e603da23abe7",
+  "brief": "将本文制作成可编辑 PPT。完整保留关键事实、数字、条件、例外和关系；按内容选择编排。容量不足请明确指出，不得用备注代替正文。",
+  "settings": {
+    "ratio": "16:10",
+    "palette": "purple",
+    "pageCount": 10,
+    "style": "swiss",
+    "density": "complete"
+  },
+  "checks": [
+    {
+      "id": "03-wide-table-C01",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "基础版完整保留核心配置。",
+      "evidence": [
+        "| 基础版 | 99 | 5 | 20 | 1000 | 10 | 否 | 7 | 每周 | 工作日 | 境内 | 已上线 |"
+      ],
+      "groups": [
+        [
+          "基础版"
+        ],
+        [
+          "99"
+        ],
+        [
+          "5"
+        ],
+        [
+          "20"
+        ],
+        [
+          "1000"
+        ],
+        [
+          "10"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C02",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "团队版完整保留核心配置。",
+      "evidence": [
+        "| 团队版 | 399 | 25 | 100 | 5000 | 50 | 否 | 30 | 每日 | 工作日 | 境内 | 已上线 |"
+      ],
+      "groups": [
+        [
+          "团队版"
+        ],
+        [
+          "399"
+        ],
+        [
+          "25"
+        ],
+        [
+          "100"
+        ],
+        [
+          "5000"
+        ],
+        [
+          "50"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C03",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "专业版完整保留核心配置。",
+      "evidence": [
+        "| 专业版 | 899 | 80 | 500 | 20000 | 100 | 是 | 90 | 每日 | 7×12 | 境内 | 已上线 |"
+      ],
+      "groups": [
+        [
+          "专业版"
+        ],
+        [
+          "899"
+        ],
+        [
+          "80"
+        ],
+        [
+          "500"
+        ],
+        [
+          "20000"
+        ],
+        [
+          "100"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C04",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "企业版完整保留核心配置。",
+      "evidence": [
+        "| 企业版 | 2999 | 300 | 2000 | 100000 | 500 | 是 | 180 | 每小时 | 7×24 | 境内 | 已上线 |"
+      ],
+      "groups": [
+        [
+          "企业版"
+        ],
+        [
+          "2999"
+        ],
+        [
+          "300"
+        ],
+        [
+          "2000"
+        ],
+        [
+          "100000"
+        ],
+        [
+          "500"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C05",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "教育版完整保留核心配置。",
+      "evidence": [
+        "| 教育版 | 199 | 100 | 200 | 3000 | 50 | 是 | 30 | 每日 | 工作日 | 境内 | 试点 |"
+      ],
+      "groups": [
+        [
+          "教育版"
+        ],
+        [
+          "199"
+        ],
+        [
+          "100"
+        ],
+        [
+          "200"
+        ],
+        [
+          "3000"
+        ],
+        [
+          "50"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C06",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "非营利版完整保留核心配置。",
+      "evidence": [
+        "| 非营利版 | 149 | 50 | 100 | 2000 | 20 | 否 | 30 | 每周 | 工作日 | 境内 | 申请制 |"
+      ],
+      "groups": [
+        [
+          "非营利版"
+        ],
+        [
+          "149"
+        ],
+        [
+          "50"
+        ],
+        [
+          "100"
+        ],
+        [
+          "2000"
+        ],
+        [
+          "20"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C07",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "国际试验版完整保留核心配置。",
+      "evidence": [
+        "| 国际试验版 | 699 | 40 | 300 | 8000 | 80 | 是 | 60 | 每日 | 7×12 | 境外 | 待审批 |"
+      ],
+      "groups": [
+        [
+          "国际试验版"
+        ],
+        [
+          "699"
+        ],
+        [
+          "40"
+        ],
+        [
+          "300"
+        ],
+        [
+          "8000"
+        ],
+        [
+          "80"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C08",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "私有部署完整保留核心配置。",
+      "evidence": [
+        "| 私有部署 | 另议 | 不限 | 自备 | 自定 | 自定 | 是 | 自定 | 客户负责 | 合同约定 | 客户选择 | 规划中 |"
+      ],
+      "groups": [
+        [
+          "私有部署"
+        ],
+        [
+          "另议"
+        ],
+        [
+          "不限"
+        ],
+        [
+          "自备"
+        ],
+        [
+          "自定"
+        ],
+        [
+          "自定"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C09",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "国际试验版的限制不能被省略。",
+      "evidence": [
+        "国际试验版尚未获批"
+      ],
+      "groups": [
+        [
+          "国际试验版"
+        ],
+        [
+          "待审批"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-C10",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "特殊值保留语义。",
+      "evidence": [
+        "| 私有部署 | 另议 | 不限 | 自备 | 自定 | 自定 | 是 | 自定 | 客户负责 | 合同约定 | 客户选择 | 规划中 |"
+      ],
+      "groups": [
+        [
+          "不限"
+        ],
+        [
+          "自备"
+        ],
+        [
+          "客户负责"
+        ],
+        [
+          "合同约定"
+        ]
+      ]
+    },
+    {
+      "id": "03-wide-table-V01",
+      "kind": "manual",
+      "critical": true,
+      "question": "8 行 × 12 列逐格对应；计费、安全、服务各组拆页后的方案身份一致。",
+      "evidence": [
+        "| 私有部署 | 另议 | 不限 | 自备 | 自定 | 自定 | 是 | 自定 | 客户负责 | 合同约定 | 客户选择 | 规划中 |"
+      ]
+    },
+    {
+      "id": "03-wide-table-V02",
+      "kind": "manual",
+      "critical": true,
+      "question": "存在总览与细节拆页，列名重复且特殊值没有变成数字 0。",
+      "evidence": [
+        "“不限”“自定”“另议”不是 0"
+      ]
+    },
+    {
+      "id": "03-wide-table-V03",
+      "kind": "manual",
+      "critical": true,
+      "question": "正文在实际渲染页可读，无重叠、裁切、超出画布；不能只依据可提取文字判定。",
+      "evidence": [
+        "# 企业服务能力比较"
+      ]
+    },
+    {
+      "id": "03-wide-table-V04",
+      "kind": "manual",
+      "critical": true,
+      "question": "整体采用专业简洁的排版；层级、留白、对齐一致，连续页面没有机械重复同一种卡片布局。",
+      "evidence": [
+        "# 企业服务能力比较"
+      ]
+    },
+    {
+      "id": "03-wide-table-V05",
+      "kind": "manual",
+      "critical": true,
+      "question": "关键内容出现在放映页；备注只能补充，不可代替表格、条件、例外与结论。",
+      "evidence": [
+        "# 企业服务能力比较"
+      ]
+    },
+    {
+      "id": "03-wide-table-V06",
+      "kind": "manual",
+      "critical": true,
+      "question": "主要文字、表格和图形可编辑；打开最终 PPTX 后与预览对照，无字体替换或错位。",
+      "evidence": [
+        "# 企业服务能力比较"
+      ]
+    },
+    {
+      "id": "03-wide-table-V07",
+      "kind": "manual",
+      "critical": true,
+      "question": "所选主题色、比例和页数策略得到遵守；容量不足时明确说明，不能删事实或无限缩小字号。",
+      "evidence": [
+        "# 企业服务能力比较"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "created": "2026-09-11",
+  "cases": [
+    "01-long-report",
+    "02-dense-table",
+    "03-wide-table",
+    "04-concept-training",
+    "05-procedure-training",
+    "06-architecture",
+    "07-branch-flow",
+    "08-mixed-capacity"
+  ],
+  "scope": "8 scenario families, not a measured percentage of production requests",
+  "notCovered": [
+    "扫描 PDF / OCR",
+    "DOCX 合并单元格和嵌入图表",
+    "数学公式和复杂公式编号",
+    "原图还原与图片版权",
+    "动画、音视频与演讲者模式",
+    "全部 11 个颜色主题的组合",
+    "PowerPoint / Keynote / WPS 跨软件渲染",
+    "真实用户输入分布与长尾",
+    "视觉质量已校准的人类评分",
+    "超过 30 页与超大文件"
+  ],
+  "comparators": [
+    "current-product",
+    "guizang-skill",
+    "built-in-html-ppt"
+  ],
+  "privacy": "Only synthetic sources are tracked. Private business cases and outputs stay outside Git."
+}

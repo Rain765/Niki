@@ -8,6 +8,7 @@ Follow the root `AGENTS.md` first. This package owns user-level end-to-end smoke
 - `tests/`: broader user-level end-to-end coverage and local hotspot checks that intentionally span app/package/resource boundaries. Prefer adding tests here when a repeated or high-risk local capability naturally falls out of a core spec. Do not build a speculative coverage matrix before the core spec needs it.
 - `ui/`: flat Playwright UI automation test files only. Keep helpers, resources, and non-Playwright harnesses out of this directory.
 - `resources/`: declarative resources for e2e suites, such as Playwright UI scenario lists.
+- `resources/presentations/`: frozen synthetic document-to-PPT evaluation inputs (`<case>/source.md`, `<case>/case.json`), `manifest.json`, `controls.json`, and `README.md`. This is the document-fixture exception to flat TypeScript resources; never add private business documents or generated decks here.
 - `lib/fake-agents.ts`: shared fake local agent CLI harness used by UI and pure-inspect daemon specs.
 - `lib/shared.ts`: tiny cross-suite shared helpers only.
 - `lib/vitest/`: Vitest-specific atomic helpers only. Helpers describe actions such as namespace lifecycle, mock servers, HTTP calls, tools-dev commands, inspect, logs, and reports; they should not hide core business scenario decisions.
@@ -15,6 +16,7 @@ Follow the root `AGENTS.md` first. This package owns user-level end-to-end smoke
 - `createSmokeSuite(...).with.*`: suite-owned lifecycle composition. Prefer this shape for namespace-bound resources such as `suite.with.toolsDev(...)` so specs keep business workflow code in the foreground.
 - `lib/playwright/`: Playwright-specific fixtures, resource accessors, route helpers, and UI actions.
 - `scripts/playwright.ts`: Playwright auxiliary subcommands such as artifact cleanup; it must not wrap `playwright test`.
+- `scripts/presentation-eval.ts`: offline corpus validation, answer-free input export, final PPTX inspection, and local HTML reports. It never calls model APIs; real provider runs are separate from mocked core e2e smoke. Outputs and private regression cases belong in ignored `.tmp/` directories outside `e2e/`.
 
 ## Spec and test model
 

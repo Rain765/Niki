@@ -21,6 +21,7 @@ const allowedE2eScripts = new Set([
   "e2e/scripts/playwright.ts",
   "e2e/scripts/release-smoke.ts",
   "e2e/scripts/visual-report.ts",
+  "e2e/scripts/presentation-eval.ts",
 ]);
 
 type GuardCheck = {
@@ -523,6 +524,10 @@ async function checkE2eLayout(): Promise<boolean> {
     }
 
     if (repositoryPath.startsWith("e2e/resources/")) {
+      // Document-to-deck regression inputs must remain actual documents with
+      // independently reviewable answer manifests, rather than executable TS.
+      const presentationFixture = /^e2e\/resources\/presentations\/(?:README\.md|manifest\.json|controls\.json|[a-z0-9-]+\/(?:source\.md|case\.json))$/.test(repositoryPath);
+      if (presentationFixture) continue;
       const relativePath = repositoryPath.slice("e2e/resources/".length);
       if (relativePath.includes("/") || !/\.ts$/.test(repositoryPath)) {
         violations.push(`${repositoryPath} -> e2e resources must be flat TypeScript files under resources/`);
