@@ -103,6 +103,9 @@ export const PRESENTATION_LAYOUTS = [
   'matrix',
   'cycle',
   'closing',
+  'editorial',
+  'table',
+  'metrics',
 ] as const;
 export type PresentationPalette = keyof typeof PRESENTATION_PALETTES;
 export type PresentationRatio = (typeof PRESENTATION_RATIOS)[number];
@@ -114,6 +117,9 @@ export interface PresentationOptions {
   ratio: PresentationRatio;
   pageCount: PresentationPageCount;
   prompt: string;
+  /** Omitted on older presentations. */
+  style?: 'swiss' | 'editorial';
+  density?: 'complete' | 'brief';
 }
 
 /** IDs are local to a slide. Edges describe actual source relationships. */
@@ -134,10 +140,14 @@ export interface PresentationSlide {
   items: PresentationItem[];
   edges: PresentationEdge[];
   notes: string;
+  sourceRefs?: number[];
 }
 export interface PresentationDeck {
   title: string;
   slides: PresentationSlide[];
+  /** Original text blocks, retained independently of generated summaries. */
+  sourceBlocks?: string[];
+  warnings?: string[];
 }
 export interface PresentationUsage {
   model: string;
@@ -162,6 +172,7 @@ export interface PresentationJob {
   error?: string;
   /** Relative project paths, served through the regular project file API. */
   pptx?: string;
+  html?: string;
   previews?: string[];
 }
 export type PresentationSummary = Pick<

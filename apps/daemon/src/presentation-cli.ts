@@ -8,11 +8,12 @@ import type {
 import { resolveDaemonUrl } from './daemon-url.js';
 
 const HELP = `od ppt generate --file document.pdf [--color emerald] [--ratio 16:9] [--pages auto|5|10|15|20]
+                [--style swiss|editorial] [--density complete|brief]
                 [--prompt-file path|-] [--wait] [--json]
 od ppt list [--json]
 od ppt status --project ID [--json]
 od ppt edit --project ID --page 1 --revision N --slide-file slide.json|- [--json]
-od ppt download --project ID --output deck.pptx [--json]
+od ppt download --project ID --output deck.pptx [--format pptx|html] [--json]
 od ppt preview --project ID --page 1 --output slide.svg [--json]
 All commands accept --daemon-url URL. Feishu instances use OD_NIKI_SESSION_TOKEN.
 Edit expects a PresentationSlide JSON object; get the current slide and revision with status.
@@ -39,12 +40,15 @@ export async function runPresentationCli(args: string[]): Promise<void> {
         color: { type: 'string' },
         ratio: { type: 'string' },
         pages: { type: 'string' },
+        style: { type: 'string' },
+        density: { type: 'string' },
         'prompt-file': { type: 'string' },
         project: { type: 'string' },
         page: { type: 'string' },
         revision: { type: 'string' },
         'slide-file': { type: 'string' },
         output: { type: 'string' },
+        format: { type: 'string' },
         'daemon-url': { type: 'string' },
         json: { type: 'boolean' },
         wait: { type: 'boolean' },
@@ -80,6 +84,8 @@ export async function runPresentationCli(args: string[]): Promise<void> {
         JSON.stringify({
           palette: values.color ?? 'emerald',
           ratio: values.ratio ?? '16:9',
+          style: values.style ?? 'swiss',
+          density: values.density ?? 'complete',
           pageCount:
             !values.pages || values.pages === 'auto'
               ? 'auto'
@@ -123,10 +129,14 @@ export async function runPresentationCli(args: string[]): Promise<void> {
     } else if (command === 'download' || command === 'preview') {
       if (!values.output) throw new Error('--output is required');
       const job = await request<PresentationJob>(jobUrl());
+      if (values.format && !['pptx', 'html'].includes(values.format))
+        throw new Error('--format must be pptx or html');
       const page = Number(values.page ?? 1);
       const file =
         command === 'download'
-          ? job.pptx
+          ? values.format === 'html'
+            ? job.html
+            : job.pptx
           : Number.isInteger(page)
             ? job.previews?.[page - 1]
             : undefined;

@@ -199,5 +199,21 @@ describe('document to PPT HTTP workflow', () => {
     expect(recovered.status).toBe('failed');
     expect(recovered.error).toContain('restarted');
     expect(recovered.usage?.outputTokens).toBe(456);
+    const repairedResponse = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        revision: recovered.revision,
+        slideIndex: 0,
+        slide: recovered.deck!.slides[0],
+      }),
+    });
+    expect(repairedResponse.status).toBe(200);
+    const repaired = (await repairedResponse.json()) as PresentationJob;
+    expect(repaired.status).toBe('complete');
+    expect(repaired.error).toBeUndefined();
+    expect(repaired.html).toMatch(/presentation\.html$/);
+    expect(repaired.usage).toEqual(recovered.usage);
+    expect(calls).toBe(1);
   });
 });

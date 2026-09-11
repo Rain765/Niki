@@ -37,6 +37,11 @@ function text(value: unknown, max: number, required = false): string {
     throw new PresentationError('Required text is empty');
   return result;
 }
+function choice<T extends string>(value: unknown, allowed: readonly T[]): T {
+  if (typeof value !== 'string' || !allowed.includes(value as T))
+    throw new PresentationError('Invalid presentation style or density');
+  return value as T;
+}
 export function parsePresentationOptions(value: unknown): PresentationOptions {
   const v = record(value);
   if (
@@ -54,6 +59,12 @@ export function parsePresentationOptions(value: unknown): PresentationOptions {
     ratio: v.ratio as PresentationOptions['ratio'],
     pageCount: v.pageCount as PresentationOptions['pageCount'],
     prompt: text(v.prompt ?? '', 2000),
+    style:
+      v.style === undefined ? 'swiss' : choice(v.style, ['swiss', 'editorial']),
+    density:
+      v.density === undefined
+        ? 'complete'
+        : choice(v.density, ['complete', 'brief']),
   };
 }
 
@@ -62,20 +73,20 @@ export function parsePresentationSlide(value: unknown): PresentationSlide {
   if (
     !PRESENTATION_LAYOUTS.includes(v.layout as PresentationSlide['layout']) ||
     !Array.isArray(v.items) ||
-    v.items.length > 6 ||
+    v.items.length > 12 ||
     !Array.isArray(v.edges) ||
-    v.edges.length > 8
+    v.edges.length > 16
   ) {
     throw new PresentationError(
-      'A slide supports up to 6 items and 8 connections',
+      'A slide supports up to 12 items and 16 connections',
     );
   }
   const items = v.items.map((raw) => {
     const item = record(raw);
     return {
       id: text(item.id, 20, true),
-      title: text(item.title, 32, true),
-      body: text(item.body, 100),
+      title: text(item.title, 80, true),
+      body: text(item.body, 600),
     };
   });
   const ids = new Set(items.map((item) => item.id));
@@ -85,26 +96,37 @@ export function parsePresentationSlide(value: unknown): PresentationSlide {
     const edge = record(raw);
     const from = text(edge.from, 20, true);
     const to = text(edge.to, 20, true);
-    if (!ids.has(from) || !ids.has(to) || from === to)
+    if (!ids.has(from) || !ids.has(to))
       throw new PresentationError('Invalid diagram connection');
-    return { from, to, label: text(edge.label, 4) };
+    return { from, to, label: text(edge.label, 12) };
   });
   const layout = v.layout as PresentationSlide['layout'];
-  if (!['cover', 'closing'].includes(layout) && items.length < 2)
+  if (layout === 'editorial' && items.length < 1)
+    throw new PresentationError('Editorial requires at least 1 item');
+  if (!['cover', 'closing', 'editorial'].includes(layout) && items.length < 2)
     throw new PresentationError('This layout requires at least 2 items');
   if (layout === 'matrix' && items.length !== 4)
     throw new PresentationError('Matrix requires 4 items');
   if (layout === 'comparison' && items.length > 4)
     throw new PresentationError('Comparison supports up to 4 items');
-  if (['architecture', 'flow', 'cycle'].includes(layout) && edges.length === 0)
+  if (['flow', 'cycle'].includes(layout) && edges.length === 0)
     throw new PresentationError('Diagram connections are required');
+  const sourceRefs = v.sourceRefs === undefined ? undefined : v.sourceRefs;
+  if (
+    sourceRefs !== undefined &&
+    (!Array.isArray(sourceRefs) ||
+      sourceRefs.length > 200 ||
+      sourceRefs.some((x: unknown) => !Number.isInteger(x) || Number(x) < 1))
+  )
+    throw new PresentationError('Invalid source references');
   return {
-    title: text(v.title, 64, true),
-    subtitle: text(v.subtitle, 160),
+    ...(sourceRefs === undefined ? {} : { sourceRefs: sourceRefs as number[] }),
+    title: text(v.title, 100, true),
+    subtitle: text(v.subtitle, 400),
     layout,
     items,
     edges,
-    notes: text(v.notes, 2400),
+    notes: text(v.notes, 6000),
   };
 }
 export function parsePresentationDeck(
@@ -115,7 +137,7 @@ export function parsePresentationDeck(
   if (
     !Array.isArray(v.slides) ||
     v.slides.length < 5 ||
-    v.slides.length > 20 ||
+    v.slides.length > 30 ||
     (options.pageCount !== 'auto' && v.slides.length !== options.pageCount)
   ) {
     throw new PresentationError(
@@ -211,6 +233,7 @@ export const PRESENTATION_SCHEMA = object({
         items: object({ from: string, to: string, label: string }),
       },
       notes: string,
+      sourceRefs: { type: 'array', items: { type: 'integer' } },
     }),
   },
 });

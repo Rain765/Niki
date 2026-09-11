@@ -936,7 +936,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   };
 
   return (
-    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}`}>
+    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}${creationMode === 'ppt' ? ' is-ppt' : ''}`}>
       <header className="poster-app__topbar">
         <div className="poster-app__topbar-inner">
           <button

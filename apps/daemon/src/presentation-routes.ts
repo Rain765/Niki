@@ -11,6 +11,7 @@ import type {
   PresentationSummary,
   PresentationUsage,
 } from '@open-design/contracts';
+import { PRESENTATION_PALETTES } from '@open-design/contracts';
 import {
   getProject,
   insertProject,
@@ -32,7 +33,12 @@ import {
   PresentationError,
 } from './presentations/content.js';
 import { generatePresentation } from './presentations/generate.js';
-import { renderPresentation } from './presentations/render.js';
+import {
+  buildPresentationScene,
+  presentationSceneSvg,
+  renderPresentation,
+} from './presentations/render.js';
+import { attachPresentationSources } from './presentations/source.js';
 
 interface Dependencies {
   db: Database.Database;
@@ -44,6 +50,7 @@ interface Dependencies {
     sourceName: string;
     options: PresentationOptions;
     onUsage: (usage: PresentationUsage) => Promise<void>;
+    onDraft?: (deck: PresentationDeck) => Promise<void>;
   }) => Promise<PresentationDeck>;
 }
 
@@ -115,6 +122,7 @@ export function registerPresentationRoutes(
         projectsRoot,
         user.id,
         result.pptx.length +
+          Buffer.byteLength(result.html) +
           result.previews.reduce((n, svg) => n + Buffer.byteLength(svg), 0),
       );
     const prefix = `presentation/revision-${job.revision}`;
@@ -130,9 +138,69 @@ export function registerPresentationRoutes(
       );
     const pptx = `${prefix}/presentation.pptx`;
     await writeProjectFile(projectsRoot, job.projectId, pptx, result.pptx);
-    return { pptx, previews };
+    const html = `${prefix}/presentation.html`;
+    await writeProjectFile(projectsRoot, job.projectId, html, result.html);
+    return { pptx, previews, html };
   };
 
+  app.get('/api/presentations/styles/:style', (req, res) => {
+    try {
+      if (!['swiss', 'editorial'].includes(req.params.style!))
+        throw new PresentationError('Unknown style', 404);
+      const style = req.params.style as 'swiss' | 'editorial';
+      const palette =
+        typeof req.query.palette === 'string' &&
+        Object.hasOwn(PRESENTATION_PALETTES, req.query.palette)
+          ? (req.query.palette as PresentationOptions['palette'])
+          : 'emerald';
+      const demo = {
+        title: style === 'swiss' ? '结构清晰，信息有序。' : '让内容成为主角。',
+        subtitle: '从原始材料，到完整而清晰的表达。',
+        layout:
+          style === 'swiss'
+            ? ('architecture' as const)
+            : ('editorial' as const),
+        items: [
+          {
+            id: '1',
+            title: '内容层 / CONTENT',
+            body: '保留事实、数据与重要条件。把复杂信息组织成有依据的清晰表达。',
+          },
+          {
+            id: '2',
+            title: '结构层 / STRUCTURE',
+            body: '按照主题与关系安排页面。为每一种内容选择适合的布局。',
+          },
+          ...(style === 'swiss'
+            ? [
+                {
+                  id: '3',
+                  title: '表达层 / DESIGN',
+                  body: '统一颜色与字号，用线条、层次和留白建立阅读顺序。',
+                },
+              ]
+            : []),
+        ],
+        edges: [],
+        notes: '',
+      };
+      res
+        .type('image/svg+xml')
+        .set('Cache-Control', 'private, max-age=3600')
+        .send(
+          presentationSceneSvg(
+            buildPresentationScene(
+              demo,
+              { style, palette, ratio: '16:9', pageCount: 5, prompt: '' },
+              1,
+              10,
+            ),
+          ),
+        );
+    } catch (error) {
+      errorResponse(res, error);
+    }
+  });
   app.get('/api/presentations', (_req, res) => {
     try {
       const presentations: PresentationSummary[] = listProjects(db)
@@ -163,12 +231,10 @@ export function registerPresentationRoutes(
   app.post('/api/presentations', (req: Request, res: Response) => {
     const owner = currentNikiUser()?.id ?? 'local';
     if (activeUsers.has(owner) || activeUsers.size >= 2)
-      return res
-        .status(429)
-        .json({
-          error:
-            'A presentation is already generating. Please wait for it to finish.',
-        });
+      return res.status(429).json({
+        error:
+          'A presentation is already generating. Please wait for it to finish.',
+      });
     // Reserve before receiving/parsing the document so simultaneous requests cannot bypass limits.
     activeUsers.add(owner);
     upload(
@@ -177,11 +243,9 @@ export function registerPresentationRoutes(
       AsyncResource.bind((uploadError: unknown) => {
         if (uploadError) {
           activeUsers.delete(owner);
-          return res
-            .status(413)
-            .json({
-              error: 'Upload one document up to 10 MB and valid options.',
-            });
+          return res.status(413).json({
+            error: 'Upload one document up to 10 MB and valid options.',
+          });
         }
         void (async () => {
           try {
@@ -259,6 +323,10 @@ export function registerPresentationRoutes(
                 document,
                 sourceName,
                 options,
+                onDraft: async (deck) => {
+                  job.deck = deck;
+                  save(job);
+                },
                 onUsage: async (usage) => {
                   job.usage = usage;
                   save(job);
@@ -298,7 +366,10 @@ export function registerPresentationRoutes(
     editing.add(id);
     try {
       const job = read(id);
-      if (job.status !== 'complete' || !job.deck)
+      if (
+        !(['complete', 'failed'] as string[]).includes(job.status) ||
+        !job.deck
+      )
         throw new PresentationError('Presentation is not ready to edit', 409);
       if (req.body?.revision !== job.revision)
         throw new PresentationError(
@@ -314,8 +385,15 @@ export function registerPresentationRoutes(
         throw new PresentationError('Invalid slide index');
       const next = structuredClone(job);
       next.deck!.slides[index] = parsePresentationSlide(req.body.slide);
+      if (next.deck!.sourceBlocks)
+        next.deck = attachPresentationSources(
+          next.deck!,
+          next.deck!.sourceBlocks,
+        );
       next.revision += 1;
       Object.assign(next, await exportFiles(next));
+      next.status = 'complete';
+      delete next.error;
       save(next);
       res.json(next);
     } catch (error) {

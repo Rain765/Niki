@@ -6,6 +6,7 @@ import {
   type PresentationSlide,
 } from '@open-design/contracts';
 import { PresentationError } from './content.js';
+import { DECK_SKELETON_HTML } from '../prompts/deck-framework.js';
 
 const NEUTRAL = {
   white: 'FFFFFF',
@@ -27,6 +28,7 @@ type Text = Box & {
   color: string;
   bold: boolean;
   align: 'left' | 'center' | 'right';
+  font: string;
 };
 type Shape = Box & {
   kind: 'rect' | 'ellipse';
@@ -55,9 +57,10 @@ function wrap(value: string, width: number, size: number): string[] {
   for (const paragraph of value.split('\n')) {
     let line = '';
     let used = 0;
-    for (const token of paragraph.match(/[\x20-\x7E]+|[^\x20-\x7E]/gu) ?? [
-      '',
-    ]) {
+    // Keep closing punctuation with its preceding CJK character while measuring.
+    for (const token of paragraph.match(
+      /[\x20-\x7E]+|[^\x20-\x7E][，。；：！？、）》」』】]*/gu,
+    ) ?? ['']) {
       for (const part of token.match(/\S+\s*|\s+/gu) ?? [token]) {
         const measure = (s: string) =>
           [...s].reduce(
@@ -108,7 +111,7 @@ export function buildPresentationScene(
     options.ratio === '4:3' ? 960 : options.ratio === '16:10' ? 1152 : 1280;
   const scene: PresentationScene = { width, height, elements: [] };
   const palette = PRESENTATION_PALETTES[options.palette];
-  const margin = 64;
+  const margin = 56;
   const available = width - 2 * margin;
   const rect = (
     box: Box,
@@ -152,7 +155,7 @@ export function buildPresentationScene(
     }
     if (lines.length * actual * 1.32 > box.h)
       throw new PresentationError(
-        `Slide ${index + 1}: text is too long for this layout. Shorten it or choose Overview.`,
+        `Slide ${index + 1}: text is too long for this layout. Choose editorial/table, fewer items per slide or more pages; preserve the source information.`,
         422,
       );
     scene.elements.push({
@@ -163,231 +166,467 @@ export function buildPresentationScene(
       color,
       bold,
       align,
+      font:
+        options.style === 'editorial' && size >= 40 ? 'Noto Serif SC' : FONT,
     });
   };
-  rect({ x: 0, y: 0, w: width, h: height }, NEUTRAL.white);
-  line(margin, 668, width - margin, 668, NEUTRAL.line, false, 1);
+  const editorial = options.style === 'editorial';
+  const ink = palette.dark;
+  const body = NEUTRAL.muted;
+  const dark = slide.layout === 'closing';
+  rect({ x: 0, y: 0, w: width, h: height }, dark ? ink : NEUTRAL.white);
+  const fg = dark ? NEUTRAL.white : ink;
+  line(
+    margin,
+    664,
+    width - margin,
+    664,
+    dark ? palette.accent : NEUTRAL.line,
+    false,
+    1,
+  );
   text(
     `${String(index + 1).padStart(2, '0')} / ${String(count).padStart(2, '0')}`,
-    { x: width - 154, y: 683, w: 90, h: 25 },
+    { x: width - 158, y: 680, w: 94, h: 25 },
     16,
-    NEUTRAL.muted,
+    dark ? NEUTRAL.white : body,
     false,
     'right',
   );
+  text(
+    editorial ? 'NIKI / FIELD NOTES' : 'NIKI / PRESENTATION',
+    { x: margin, y: 681, w: available - 160, h: 24 },
+    16,
+    dark ? NEUTRAL.white : body,
+  );
   if (slide.layout === 'cover' || slide.layout === 'closing') {
-    rect({ x: margin, y: 106, w: 64, h: 7 }, palette.accent);
+    text(
+      slide.layout === 'cover' ? 'DOCUMENT / INSIGHT' : 'TAKEAWAYS / NEXT',
+      { x: margin, y: 62, w: available, h: 28 },
+      19,
+      dark ? palette.light : body,
+    );
+    line(margin, 110, width - margin, 110, palette.accent, false, 3);
     text(
       slide.title,
-      { x: margin, y: 161, w: available * 0.92, h: 180 },
-      64,
-      palette.dark,
-      true,
+      { x: margin, y: 165, w: available * 0.76, h: 250 },
+      70,
+      fg,
+      !editorial,
+    );
+    rect({ x: width - margin - 126, y: 175, w: 126, h: 126 }, palette.accent);
+    rect(
+      { x: width - margin - 84, y: 322, w: 84, h: 84 },
+      dark ? palette.light : palette.light,
     );
     text(
       slide.subtitle,
-      { x: margin, y: 367, w: available * 0.85, h: 116 },
-      29,
-      NEUTRAL.muted,
+      { x: margin, y: 430, w: available * 0.84, h: 124 },
+      27,
+      dark ? NEUTRAL.white : body,
     );
-    // Cover/closing items stay visible as short supporting lines, never discarded.
     if (slide.items.length)
       text(
-        slide.items
-          .map((item) => `${item.title}${item.body ? `: ${item.body}` : ''}`)
-          .join('\n'),
-        { x: margin, y: 505, w: available, h: 132 },
-        23,
-        NEUTRAL.muted,
+        slide.items.map((i) => `${i.title}: ${i.body}`).join('\n'),
+        { x: margin, y: 564, w: available, h: 85 },
+        20,
+        fg,
       );
     return scene;
   }
-  rect({ x: margin, y: 47, w: 36, h: 5 }, palette.accent);
+  text(
+    `${String(index + 1).padStart(2, '0')} / ${slide.layout.toUpperCase()}`,
+    { x: margin, y: 35, w: available, h: 28 },
+    16,
+    body,
+  );
+  rect({ x: width - margin - 36, y: 35, w: 36, h: 9 }, palette.accent);
   text(
     slide.title,
-    { x: margin, y: 69, w: available, h: 112 },
-    44,
-    palette.dark,
-    true,
+    { x: margin, y: 65, w: available, h: 88 },
+    43,
+    ink,
+    !editorial,
   );
-  text(
-    slide.subtitle,
-    { x: margin, y: 185, w: available, h: 70 },
-    23,
-    NEUTRAL.muted,
-  );
-  const top = 278;
-  const bottom = 636;
+  const titleElement = scene.elements.at(-1) as Text;
+  const leadY =
+    titleElement.y + titleElement.lines.length * titleElement.size * 1.32 + 16;
+  text(slide.subtitle, { x: margin, y: leadY, w: available, h: 105 }, 21, body);
+  const lead = scene.elements.at(-1) as Text;
+  let top = lead.y + lead.lines.length * lead.size * 1.32 + 26;
+  if (slide.layout === 'architecture') {
+    const labels = slide.edges
+      .filter((e) => e.label)
+      .map(
+        (e) =>
+          `${slide.items.findIndex((i) => i.id === e.from) + 1}→${slide.items.findIndex((i) => i.id === e.to) + 1} ${e.label}`,
+      );
+    if (labels.length) {
+      const legend = labels.join('   ·   ');
+      const legendHeight = wrap(legend, available, 16).length * 16 * 1.32;
+      text(
+        legend,
+        { x: margin, y: top - 10, w: available, h: legendHeight + 1 },
+        16,
+        body,
+      );
+      top += legendHeight + 8;
+    }
+  }
+  const bottom = 644;
   const areaHeight = bottom - top;
   const n = slide.items.length;
-
-  if (['flow', 'architecture', 'cycle'].includes(slide.layout)) {
-    const cols = n <= 3 ? n : 3;
-    const rows = Math.ceil(n / cols);
-    const gapX = 54;
-    const gapY = 66;
-    const bw = (available - gapX * (cols - 1)) / cols;
-    const bh = rows === 1 ? 190 : 146;
-    const startY = top + (areaHeight - (rows * bh + (rows - 1) * gapY)) / 2;
-    const boxes = slide.items.map((_, i) => {
-      const row = Math.floor(i / cols);
-      const col = row % 2 ? cols - 1 - (i % cols) : i % cols;
-      return {
-        x: margin + col * (bw + gapX),
-        y: startY + row * (bh + gapY),
-        w: bw,
-        h: bh,
-      };
-    });
-    const ids = new Map(slide.items.map((item, i) => [item.id, i]));
-    // Manhattan routes use the clear gutters surrounding nodes. All connections are source-defined.
-    const usedRoutes: Point[][] = [];
-    for (const edge of slide.edges) {
-      const a = boxes[ids.get(edge.from)!]!;
-      const b = boxes[ids.get(edge.to)!]!;
-      const route = routeConnection(a, b, boxes, usedRoutes);
-      usedRoutes.push(route);
-      route
-        .slice(1)
-        .forEach((point, i) =>
-          line(
-            route[i]!.x,
-            route[i]!.y,
-            point.x,
-            point.y,
-            palette.accent,
-            i === route.length - 2,
-          ),
-        );
-      if (edge.label) {
-        const middle = route
-          .slice(1)
-          .map((point, i) => ({
-            i,
-            length:
-              Math.abs(point.x - route[i]!.x) + Math.abs(point.y - route[i]!.y),
-          }))
-          .sort((a, b) => b.length - a.length)[0]!.i;
-        const p = route[middle]!;
-        const q = route[middle + 1]!;
-        const labelWidth = Math.max(40, edge.label.length * 20 + 8);
-        const labelBox = {
-          x: (p.x + q.x) / 2 - labelWidth / 2,
-          y: (p.y + q.y) / 2 - 13,
-          w: labelWidth,
-          h: 26,
-        };
-        rect(labelBox, NEUTRAL.white);
-        text(edge.label, labelBox, 19, palette.dark, false, 'center');
-      }
-    }
-    boxes.forEach((box, i) => {
-      const item = slide.items[i]!;
-      rect(
-        box,
-        i === 0 ? palette.light : NEUTRAL.fill,
-        i === 0 ? palette.accent : NEUTRAL.line,
-      );
-      text(
-        item.title,
-        { x: box.x + 18, y: box.y + 17, w: box.w - 36, h: 57 },
-        26,
-        palette.dark,
-        true,
-      );
-      text(
-        item.body,
-        { x: box.x + 18, y: box.y + 79, w: box.w - 36, h: box.h - 88 },
-        21,
-        NEUTRAL.muted,
-      );
-    });
-  } else if (slide.layout === 'timeline' || slide.layout === 'steps') {
-    const rows = n > 4 ? 2 : 1;
-    const cols = Math.ceil(n / rows);
-    const gap = 30;
-    const bw = (available - gap * (cols - 1)) / cols;
-    const bh = areaHeight / rows - 20;
+  const itemText = (
+    item: PresentationSlide['items'][number],
+    box: Box,
+    titleSize = 25,
+    fill = body,
+  ) => {
+    const headingHeight = Math.max(
+      titleSize * 1.32,
+      wrap(item.title, box.w, titleSize).length * titleSize * 1.32,
+    );
+    text(item.title, { ...box, h: headingHeight + 2 }, titleSize, ink, true);
+    text(
+      item.body,
+      { ...box, y: box.y + headingHeight + 15, h: box.h - headingHeight - 15 },
+      23,
+      fill,
+    );
+  };
+  if (
+    slide.layout === 'architecture' ||
+    slide.layout === 'table' ||
+    slide.layout === 'steps'
+  ) {
+    const gap = slide.layout === 'architecture' ? (n >= 5 ? 4 : 13) : 0;
+    const rowHeight = (areaHeight - gap * (n - 1)) / Math.max(n, 1);
+    const labelWidth =
+      available * (slide.layout === 'architecture' ? 0.29 : 0.34);
+    const boxes: Box[] = [];
     slide.items.forEach((item, i) => {
-      const x = margin + (i % cols) * (bw + gap);
-      const y = top + Math.floor(i / cols) * (bh + 20);
-      if (i % cols < cols - 1 && i < n - 1)
-        line(
-          x + 45,
-          y + 23,
-          x + bw + gap - 8,
-          y + 23,
-          NEUTRAL.line,
-          slide.layout === 'steps',
-        );
-      rect({ x, y, w: 46, h: 46 }, palette.light, undefined, 'ellipse');
+      const y = top + i * (rowHeight + gap);
+      const layer = slide.layout === 'architecture';
+      const bx = layer ? margin + 22 : margin;
+      const box = { x: bx, y, w: available - (layer ? 22 : 0), h: rowHeight };
+      boxes.push(box);
+      if (layer) {
+        rect(box, i % 2 ? palette.air : NEUTRAL.fill);
+        rect({ x: bx, y, w: 4, h: rowHeight }, palette.accent);
+      } else line(margin, y, width - margin, y, NEUTRAL.line, false, 1);
       text(
         String(i + 1).padStart(2, '0'),
-        { x: x + 2, y: y + 8, w: 42, h: 30 },
-        21,
-        palette.dark,
-        true,
-        'center',
-      );
-      text(
-        item.title,
-        { x, y: y + 64, w: bw, h: rows === 1 ? 85 : 55 },
-        28,
-        palette.dark,
+        { x: bx + 14, y: y + 6, w: 38, h: 29 },
+        19,
+        palette.accent,
         true,
       );
       text(
-        item.body,
-        { x, y: y + (rows === 1 ? 167 : 124), w: bw, h: rows === 1 ? 170 : 39 },
-        24,
-        NEUTRAL.muted,
-      );
-    });
-  } else {
-    const cols =
-      slide.layout === 'comparison'
-        ? n
-        : slide.layout === 'matrix'
-          ? 2
-          : n <= 3
-            ? n
-            : 3;
-    const rows = Math.ceil(n / cols);
-    const gap = 38;
-    const bw = (available - gap * (cols - 1)) / cols;
-    const bh = (areaHeight - 30 * (rows - 1)) / rows;
-    slide.items.forEach((item, i) => {
-      const x = margin + (i % cols) * (bw + gap);
-      const y = top + Math.floor(i / cols) * (bh + 30);
-      if (slide.layout === 'matrix')
-        rect({ x, y, w: bw, h: bh }, i % 2 ? NEUTRAL.fill : palette.air);
-      const pad = slide.layout === 'matrix' ? 20 : 0;
-      line(
-        x + pad,
-        y + 3,
-        x + bw - pad,
-        y + 3,
-        i === 0 ? palette.accent : NEUTRAL.line,
-        false,
-        i === 0 ? 3 : 1,
-      );
-      text(
         item.title,
-        { x: x + pad, y: y + 24, w: bw - pad * 2, h: rows === 1 ? 102 : 60 },
-        30,
-        palette.dark,
+        { x: bx + 66, y: y + 6, w: labelWidth - 78, h: rowHeight - 12 },
+        23,
+        ink,
         true,
       );
       text(
         item.body,
         {
-          x: x + pad,
-          y: y + (rows === 1 ? 143 : 91),
-          w: bw - pad * 2,
-          h: bh - (rows === 1 ? 143 : 98),
+          x: bx + labelWidth + 18,
+          y: y + 6,
+          w: available - labelWidth - 54,
+          h: rowHeight - 12,
         },
-        25,
-        NEUTRAL.muted,
+        22,
+        body,
+      );
+    });
+    if (slide.layout === 'architecture') {
+      // Explicit source relations run along the layer rail; no invented dependencies.
+      slide.edges.forEach((edge, i) => {
+        const a = slide.items.findIndex((x) => x.id === edge.from),
+          b = slide.items.findIndex((x) => x.id === edge.to);
+        if (a < 0 || b < 0) return;
+        const x = margin + 6 - (i % 3) * 6;
+        const ya = boxes[a]!.y + boxes[a]!.h / 2,
+          yb = boxes[b]!.y + boxes[b]!.h / 2;
+        line(margin + 20, ya, x, ya);
+        line(x, ya, x, yb);
+        line(x, yb, margin + 20, yb, palette.accent, true);
+      });
+    }
+  } else if (slide.layout === 'flow' || slide.layout === 'cycle') {
+    const cols = n <= 3 ? n : Math.ceil(n / 2);
+    const rows = Math.ceil(n / cols);
+    const gapX = 48;
+    const legends: Array<{ text: string; x: number; row: number; w: number }> =
+      [];
+    let legendX = 0,
+      legendRow = 0;
+    slide.edges.forEach((edge, i) => {
+      if (!edge.label) return;
+      const caption = `${i + 1} / ${edge.label}`;
+      const w = Math.min(available, caption.length * 14 + 12);
+      if (legendX + w > available) {
+        legendRow++;
+        legendX = 0;
+      }
+      legends.push({ text: caption, x: legendX, row: legendRow, w });
+      legendX += w + 10;
+    });
+    const legendHeight = legends.length ? (legendRow + 1) * 26 : 0;
+    const gapY = Math.max(68, legendHeight + 24);
+    const bw = (available - gapX * (cols - 1)) / Math.max(cols, 1);
+    const bh = rows === 1 ? 240 : (areaHeight - gapY) / 2;
+    const cycle = slide.layout === 'cycle';
+    const boxes = slide.items.map((_, i) => {
+      const row = Math.floor(i / cols),
+        col = row % 2 ? cols - 1 - (i % cols) : i % cols;
+      return {
+        x: margin + col * (bw + gapX),
+        y:
+          top +
+          row * (bh + gapY) +
+          (rows === 1
+            ? (areaHeight - bh) / 2
+            : cycle && col > 0 && col < cols - 1
+              ? row
+                ? 12
+                : -12
+              : 0),
+        w: bw,
+        h: bh,
+      };
+    });
+    const ids = new Map(slide.items.map((item, i) => [item.id, i]));
+    const usedRoutes: Point[][] = [];
+    const labelBoxes: Box[] = [];
+    const legendY =
+      rows === 1 ? bottom - legendHeight : top + bh + (gapY - legendHeight) / 2;
+    const legendBoxes = legends.map((caption) => ({
+      x: margin + caption.x,
+      y: legendY + caption.row * 26,
+      w: caption.w,
+      h: 24,
+    }));
+    for (const [edgeIndex, edge] of slide.edges.entries()) {
+      const a = boxes[ids.get(edge.from)!],
+        b = boxes[ids.get(edge.to)!];
+      if (!a || !b) continue;
+      const route = routeConnection(a, b, boxes, usedRoutes);
+      usedRoutes.push(route);
+      route
+        .slice(1)
+        .forEach((p, i) =>
+          line(
+            route[i]!.x,
+            route[i]!.y,
+            p.x,
+            p.y,
+            palette.accent,
+            i === route.length - 2,
+          ),
+        );
+      if (edge.label) {
+        const segments = route
+          .slice(1)
+          .map((q, i) => ({
+            p: route[i]!,
+            q,
+            length: Math.abs(q.x - route[i]!.x) + Math.abs(q.y - route[i]!.y),
+          }))
+          .sort((a, b) => b.length - a.length);
+        let placement: Box | undefined;
+        let labelAnchor: Point | undefined;
+        const overlaps = (a: Box, b: Box) =>
+          a.x < b.x + b.w + 2 &&
+          a.x + a.w > b.x - 2 &&
+          a.y < b.y + b.h + 2 &&
+          a.y + a.h > b.y - 2;
+        for (const { p, q, length } of segments) {
+          for (const candidateWidth of [24]) {
+            const lw =
+              p.y === q.y
+                ? Math.min(candidateWidth, length - 8)
+                : candidateWidth;
+            if (lw < 24) continue;
+            const lh = 24;
+            if (p.x === q.x && lh > length - 6) continue;
+            for (const fraction of [0.5, 0.25, 0.75]) {
+              for (const offset of [
+                0, -14, 14, -26, 26, -38, 38, -60, 60, -88, 88, -128, 128,
+              ]) {
+                const anchor = {
+                  x: p.x + (q.x - p.x) * fraction,
+                  y: p.y + (q.y - p.y) * fraction,
+                };
+                const candidate = {
+                  x: anchor.x - lw / 2 + (p.x === q.x ? offset : 0),
+                  y: anchor.y - lh / 2 + (p.y === q.y ? offset : 0),
+                  w: lw,
+                  h: lh,
+                };
+                if (
+                  candidate.x < 0 ||
+                  candidate.y < top - 26 ||
+                  candidate.x + lw > width ||
+                  candidate.y + lh > 658
+                )
+                  continue;
+                if (
+                  [...boxes, ...labelBoxes, ...legendBoxes].some((box) =>
+                    overlaps(candidate, box),
+                  )
+                )
+                  continue;
+                placement = candidate;
+                labelAnchor = anchor;
+                break;
+              }
+              if (placement) break;
+            }
+            if (placement) break;
+          }
+          if (placement) break;
+        }
+        if (!placement)
+          throw new PresentationError(
+            `Slide ${index + 1}: connection labels need more room; use fewer edges or split the process.`,
+            422,
+          );
+        labelBoxes.push(placement);
+        if (labelAnchor)
+          line(
+            labelAnchor.x,
+            labelAnchor.y,
+            placement.x + placement.w / 2,
+            placement.y + placement.h / 2,
+            NEUTRAL.line,
+            false,
+            1,
+          );
+        rect(placement, NEUTRAL.white);
+        text(
+          String(edgeIndex + 1),
+          { ...placement, x: placement.x + 2, w: placement.w - 4 },
+          14,
+          ink,
+          false,
+          'center',
+        );
+      }
+    }
+    for (const [i, caption] of legends.entries()) {
+      const box = legendBoxes[i]!;
+      rect(box, NEUTRAL.white);
+      text(caption.text, box, 14, body);
+    }
+    boxes.forEach((box, i) => {
+      rect(
+        box,
+        i === 0 ? palette.light : NEUTRAL.white,
+        i === 0 ? palette.accent : NEUTRAL.line,
+        cycle ? 'ellipse' : 'rect',
+      );
+      const inset = cycle ? 26 : 18;
+      itemText(
+        slide.items[i]!,
+        {
+          x: box.x + inset,
+          y: box.y + 16,
+          w: box.w - inset * 2,
+          h: box.h - 32,
+        },
+        23,
+      );
+    });
+  } else if (slide.layout === 'timeline') {
+    const gap = 24,
+      bw = (available - gap * (n - 1)) / Math.max(n, 1);
+    line(margin, top + 35, width - margin, top + 35, palette.accent, false, 2);
+    slide.items.forEach((item, i) => {
+      const x = margin + i * (bw + gap);
+      rect(
+        { x, y: top + 28, w: 14, h: 14 },
+        palette.accent,
+        undefined,
+        'ellipse',
+      );
+      text(
+        String(i + 1).padStart(2, '0'),
+        { x, y: top - 2, w: bw, h: 26 },
+        19,
+        ink,
+      );
+      itemText(item, { x, y: top + 66, w: bw, h: areaHeight - 66 }, 25);
+    });
+  } else if (slide.layout === 'metrics') {
+    const bw = available / Math.max(n, 1);
+    slide.items.forEach((item, i) => {
+      const x = margin + i * bw;
+      if (i) line(x - 16, top, x - 16, bottom, NEUTRAL.line, false, 1);
+      text(
+        item.title,
+        { x, y: top + 10, w: bw - 34, h: 148 },
+        66,
+        i === 0 ? palette.accent : ink,
+        false,
+      );
+      text(
+        item.body,
+        { x, y: top + 175, w: bw - 34, h: areaHeight - 175 },
+        23,
+        body,
+      );
+    });
+  } else if (slide.layout === 'editorial' && n > 2) {
+    // A document ledger keeps complete paragraphs when multiple small cards would overflow.
+    const copy = slide.items
+      .map(
+        (item, i) =>
+          `${String(i + 1).padStart(2, '0')} / ${item.title} — ${item.body}`,
+      )
+      .join('\n');
+    rect({ x: margin, y: top, w: 4, h: areaHeight }, palette.accent);
+    text(
+      copy,
+      { x: margin + 25, y: top, w: available - 25, h: areaHeight },
+      23,
+      body,
+    );
+  } else {
+    const isMatrix = slide.layout === 'matrix';
+    const dense = slide.layout === 'editorial';
+    const cols = dense
+      ? Math.min(2, n)
+      : isMatrix
+        ? 2
+        : n > 3
+          ? 2
+          : Math.min(n, 3);
+    const rows = Math.ceil(n / Math.max(cols, 1));
+    const gap = dense ? 54 : 34;
+    const bw = (available - gap * (cols - 1)) / Math.max(cols, 1);
+    const bh = (areaHeight - 24 * (rows - 1)) / rows;
+    slide.items.forEach((item, i) => {
+      const x = margin + (i % cols) * (bw + gap),
+        y = top + Math.floor(i / cols) * (bh + 24);
+      const comparison = slide.layout === 'comparison';
+      const pad = isMatrix || comparison ? 22 : 0;
+      if (isMatrix || comparison)
+        rect({ x, y, w: bw, h: bh }, i % 2 ? NEUTRAL.fill : palette.air);
+      line(
+        x + pad,
+        y + (pad || 2),
+        x + bw - pad,
+        y + (pad || 2),
+        i === 0 ? palette.accent : NEUTRAL.line,
+        false,
+        i === 0 ? 3 : 1,
+      );
+      itemText(
+        item,
+        { x: x + pad, y: y + pad + 23, w: bw - pad * 2, h: bh - pad * 2 - 23 },
+        dense ? 27 : 25,
       );
     });
   }
@@ -401,6 +640,14 @@ function routeConnection(
   boxes: Box[],
   usedRoutes: Point[][],
 ): Point[] {
+  if (a === b)
+    return [
+      { x: a.x + a.w, y: a.y + a.h / 2 },
+      { x: a.x + a.w + 24, y: a.y + a.h / 2 },
+      { x: a.x + a.w + 24, y: a.y - 24 },
+      { x: a.x + a.w / 2, y: a.y - 24 },
+      { x: a.x + a.w / 2, y: a.y },
+    ];
   const ports = (box: Box) => [
     { x: box.x + box.w / 2, y: box.y },
     { x: box.x + box.w / 2, y: box.y + box.h },
@@ -498,7 +745,7 @@ export function presentationSceneSvg(scene: PresentationScene): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${scene.width}" height="${scene.height}" viewBox="0 0 ${scene.width} ${scene.height}"><defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse"><path d="M0 0L7 3.5L0 7Z" fill="context-stroke"/></marker></defs>${scene.elements
     .map((e) => {
       if (e.kind === 'text')
-        return `<text fill="#${e.color}" font-family="${FONT},PingFang SC,Noto Sans CJK SC,sans-serif" font-size="${e.size}" font-weight="${e.bold ? 600 : 400}" text-anchor="${e.align === 'center' ? 'middle' : e.align === 'right' ? 'end' : 'start'}">${e.lines.map((t, i) => `<tspan x="${e.x + (e.align === 'center' ? e.w / 2 : e.align === 'right' ? e.w : 0)}" y="${e.y + e.size + i * e.size * 1.32}">${xml(t)}</tspan>`).join('')}</text>`;
+        return `<text fill="#${e.color}" font-family="${e.font},PingFang SC,Noto Sans CJK SC,sans-serif" font-size="${e.size}" font-weight="${e.bold ? 600 : 400}" text-anchor="${e.align === 'center' ? 'middle' : e.align === 'right' ? 'end' : 'start'}">${e.lines.map((t, i) => `<tspan x="${e.x + (e.align === 'center' ? e.w / 2 : e.align === 'right' ? e.w : 0)}" y="${e.y + e.size + i * e.size * 1.32}">${xml(t)}</tspan>`).join('')}</text>`;
       if (e.kind === 'line')
         return `<line x1="${e.x}" y1="${e.y}" x2="${e.x2}" y2="${e.y2}" stroke="#${e.color}" stroke-width="${e.width}"${e.arrow ? ' marker-end="url(#arrow)"' : ''}/>`;
       const style = `fill="#${e.fill}" stroke="${e.stroke ? `#${e.stroke}` : 'none'}" stroke-width="1"`;
@@ -512,7 +759,7 @@ export function presentationSceneSvg(scene: PresentationScene): string {
 export async function renderPresentation(
   deck: PresentationDeck,
   options: PresentationOptions,
-): Promise<{ pptx: Buffer; previews: string[] }> {
+): Promise<{ pptx: Buffer; previews: string[]; html: string }> {
   const scenes = deck.slides.map((slide, i) =>
     buildPresentationScene(slide, options, i, deck.slides.length),
   );
@@ -537,7 +784,7 @@ export async function renderPresentation(
           y: e.y / 96,
           w: e.w / 96,
           h: e.h / 96,
-          fontFace: FONT,
+          fontFace: e.font,
           fontSize: e.size * 0.75,
           bold: e.bold,
           color: e.color,
@@ -577,7 +824,26 @@ export async function renderPresentation(
           },
         );
     }
-    slide.addNotes(deck.slides[i]!.notes);
+    const item = deck.slides[i]!;
+    const relations = item.edges
+      .map(
+        (e) =>
+          `${item.items.find((i) => i.id === e.from)?.title} → ${item.items.find((i) => i.id === e.to)?.title}${e.label ? ': ' + e.label : ''}`,
+      )
+      .join('\n');
+    slide.addNotes(
+      [
+        item.notes,
+        relations,
+        ...(item.sourceRefs ?? []).map((ref) =>
+          deck.sourceBlocks?.[ref - 1]
+            ? `[原文 / Source ${ref}]\n${deck.sourceBlocks[ref - 1]}`
+            : '',
+        ),
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    );
   });
   return {
     pptx: (await pptx.write({
@@ -585,5 +851,28 @@ export async function renderPresentation(
       compression: true,
     })) as Buffer,
     previews: scenes.map(presentationSceneSvg),
+    html: presentationHtml(deck, scenes),
   };
+}
+
+/** Reuse the repository's tested deck runtime for keyboard, fullscreen-scale and PDF printing. */
+function presentationHtml(
+  deck: PresentationDeck,
+  scenes: PresentationScene[],
+): string {
+  const framework = DECK_SKELETON_HTML.replaceAll(
+    '1920',
+    String(scenes[0]!.width),
+  ).replaceAll('1080', String(scenes[0]!.height));
+  const start = framework.indexOf('      <!-- SLOT: slides');
+  const end = framework.indexOf('    </div>\n  </div>', start);
+  const sections = scenes
+    .map(
+      (scene, i) =>
+        `<section class="slide${i ? '' : ' active'}" data-screen-label="${xml(deck.slides[i]!.title)}"><div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">${presentationSceneSvg(scene).replace('<svg ', '<svg style="width:100%;height:100%;object-fit:contain" ')}</div></section>`,
+    )
+    .join('\n');
+  return (framework.slice(0, start) + sections + '\n' + framework.slice(end))
+    .replace('<!-- SLOT: deck title -->', xml(deck.title))
+    .replace('</head>', '<link rel="icon" href="data:,"></head>');
 }
