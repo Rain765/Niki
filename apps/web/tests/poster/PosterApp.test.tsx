@@ -307,6 +307,9 @@ describe('PosterApp mobile-safe flow', () => {
     expect(within(navigation).getByRole('button', { name: '文档' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '品牌' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '语音' })).toBeTruthy();
+    expect(Array.from(navigation.children).map((item) => item.textContent)).toEqual([
+      '海报', '视频', 'PPT', '品牌', '文档', '语音',
+    ]);
     expect(screen.getByRole('region', { name: '海报生成设置' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '产品' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '类型' }).textContent).toContain('防欺诈');
@@ -914,9 +917,9 @@ describe('PosterApp mobile-safe flow', () => {
     expect(Array.from(navigation.children).map((item) => item.textContent)).toEqual([
       'Posters',
       'Videos',
-      'Documents',
       'PPT',
       'Logo',
+      'Documents',
       'Voice',
     ]);
     selectWorkspace('Logo');
