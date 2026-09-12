@@ -1,3 +1,4 @@
+import { NativePresentationPreview } from './NativePresentationPreview';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { APP_CHROME_FILE_ACTIONS_ID } from './AppChromeHeader';
@@ -599,6 +600,7 @@ interface Props {
   liveHtml?: string;
   filesRefreshKey?: number;
   isDeck?: boolean;
+  externalHtmlPreview?: boolean;
   onExportAsPptx?: ((fileName: string) => void) | undefined;
   streaming?: boolean;
   previewComments?: PreviewComment[];
@@ -615,6 +617,7 @@ export function FileViewer({
   liveHtml,
   filesRefreshKey = 0,
   isDeck,
+  externalHtmlPreview = false,
   onExportAsPptx,
   streaming,
   previewComments = [],
@@ -652,6 +655,7 @@ export function FileViewer({
         liveHtml={liveHtml}
         filesRefreshKey={filesRefreshKey}
         isDeck={rendererMatch.renderer.id === 'deck-html'}
+        externalHtmlPreview={externalHtmlPreview}
         onExportAsPptx={onExportAsPptx}
         streaming={Boolean(streaming)}
         previewComments={previewComments}
@@ -3381,6 +3385,7 @@ function HtmlViewer({
   liveHtml,
   filesRefreshKey = 0,
   isDeck,
+  externalHtmlPreview = false,
   onExportAsPptx,
   streaming,
   previewComments = [],
@@ -3395,6 +3400,7 @@ function HtmlViewer({
   liveHtml?: string;
   filesRefreshKey?: number;
   isDeck: boolean;
+  externalHtmlPreview?: boolean;
   onExportAsPptx?: ((fileName: string) => void) | undefined;
   streaming: boolean;
   previewComments?: PreviewComment[];
@@ -5443,8 +5449,8 @@ function HtmlViewer({
     if (state === 'failed') return t('fileViewer.deployLinkFailed');
     return t('fileViewer.deployLinkPreparingLabel');
   };
-  const boardAvailable = mode === 'preview' && source !== null;
-  const showPreviewToolbarControls = mode === 'preview';
+  const boardAvailable = !externalHtmlPreview && mode === 'preview' && source !== null;
+  const showPreviewToolbarControls = !externalHtmlPreview && mode === 'preview';
 
   return (
     <div className="viewer html-viewer">
@@ -6034,6 +6040,8 @@ function HtmlViewer({
       <div className="viewer-body" ref={previewBodyRef}>
         {source === null ? (
           <div className="viewer-empty">{t('fileViewer.loading')}</div>
+        ) : mode === 'preview' && externalHtmlPreview ? (
+          <NativePresentationPreview projectId={projectId} name={file.name} />
         ) : mode === 'preview' ? (
           <div
             className={`${manualEditMode ? 'manual-edit-workspace' : 'comment-preview-layer'} preview-viewport preview-viewport-${previewViewport}`}

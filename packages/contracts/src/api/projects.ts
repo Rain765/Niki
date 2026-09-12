@@ -1,3 +1,4 @@
+import type { NativePresentationMetadata } from './native-presentations.js';
 import type { ChatMessage, ChatRunStatus } from './chat.js';
 import type { PresentationJob } from './presentations.js';
 import type {
@@ -115,6 +116,7 @@ export interface DirectLoanPosterBatch {
 }
 
 export interface ProjectMetadata {
+  nativePresentation?: NativePresentationMetadata;
   presentation?: PresentationJob;
   kind: ProjectKind;
   /** Saved deterministic page plan used by Niki's one-click business video flow. */

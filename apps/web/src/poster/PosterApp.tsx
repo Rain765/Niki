@@ -44,7 +44,7 @@ import {
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import { useI18n } from '../i18n';
 import { DocumentSearch } from './DocumentSearch';
-import { PresentationStudio } from './PresentationStudio';
+import { NativePresentationStudio } from './NativePresentationStudio';
 import { EnglishPractice } from './EnglishPractice';
 import {
   canSharePreparedImageFile,
@@ -1505,7 +1505,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           ) : null}
         </section>
       ) : creationMode === 'ppt' ? (
-        <PresentationStudio onNavigationLockChange={setPresentationLocked} />
+        <NativePresentationStudio onNavigationLockChange={setPresentationLocked} />
       ) : creationMode === 'documents' ? (
         <DocumentSearch />
       ) : creationMode === 'english' ? (

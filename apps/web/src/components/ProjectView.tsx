@@ -3988,6 +3988,7 @@ export function ProjectView({
           />
         ) : null}
         <FileWorkspace
+          externalHtmlPreview={Boolean(project.metadata?.nativePresentation)}
           projectId={project.id}
           projectKind={projectKindToTracking(project.metadata?.kind) ?? 'prototype'}
           files={projectFiles}

@@ -369,7 +369,7 @@ import { registerPresentationRoutes } from './presentation-routes.js';
 import { registerDesignSystemToolRoutes } from './design-system-tool-routes.js';
 import { registerDeployRoutes, registerDeploymentCheckRoutes } from './deploy-routes.js';
 import { registerMediaRoutes } from './media-routes.js';
-import { registerProjectRoutes, registerProjectArtifactRoutes, registerProjectFileRoutes, registerProjectUploadRoutes } from './project-routes.js';
+import { shouldResolveDefaultScenarioPlugin, registerProjectRoutes, registerProjectArtifactRoutes, registerProjectFileRoutes, registerProjectUploadRoutes } from './project-routes.js';
 import { registerFinalizeRoutes, registerImportRoutes, registerProjectExportRoutes } from './import-export-routes.js';
 import { registerHandoffRoutes } from './handoff-routes.js';
 import { EmptyTranscriptError, synthesizeHandoffPrompt } from './handoff-design.js';
@@ -10689,7 +10689,7 @@ export async function startServer({
         const hasPin =
           typeof projectRow?.appliedPluginSnapshotId === 'string'
           && projectRow.appliedPluginSnapshotId.length > 0;
-        if (!hasPin) {
+        if (!hasPin && shouldResolveDefaultScenarioPlugin(projectRow?.metadata)) {
           const fallbackPluginId = defaultScenarioPluginIdForKind(
             projectRow?.metadata?.kind,
           );

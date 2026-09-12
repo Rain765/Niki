@@ -2620,3 +2620,17 @@ describe('LiveArtifactRefreshHistoryPanel', () => {
     expect(markup).not.toContain('>Never<');
   });
 });
+
+it('opens native presentations outside the sandbox without changing their source', async () => {
+  const source = '<html><body><script>localStorage.setItem("presenter", "ready")</script><h1>Original deck</h1></body></html>';
+  vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith('/raw/index.html')) return new Response(source);
+    return new Response('{}', { status: 404 });
+  }));
+  const { container } = render(<FileViewer projectId="deck-1" projectKind="slide_deck" file={baseFile({name:'index.html', path:'index.html', kind:'html', mime:'text/html'})} externalHtmlPreview />);
+  await screen.findByTestId('native-presentation-preview');
+  const link = container.querySelector<HTMLAnchorElement>('a[target="_blank"][href="/api/projects/deck-1/raw/index.html"]');
+  expect(link).not.toBeNull();
+  expect(container.querySelector('iframe')).toBeNull();
+});

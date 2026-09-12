@@ -34,11 +34,17 @@ export interface RegisterProjectRoutesDeps extends RouteDeps<'db' | 'design' | '
 }
 
 /**
- * Direct media jobs already carry complete provider inputs and must not pay
- * the cost of resolving a scenario plugin snapshot during project creation.
+ * Workflows that already own their execution plan must not acquire a generic
+ * scenario plugin at creation or first run. Explicit plugin choices still win.
  */
 export function shouldResolveDefaultScenarioPlugin(metadata: unknown): boolean {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return true;
+  const native = (metadata as { kind?: unknown; nativePresentation?: { version?: unknown; workflow?: unknown } }).nativePresentation;
+  if (
+    (metadata as { kind?: unknown }).kind === 'deck'
+    && native?.version === 1
+    && (native.workflow === 'html-ppt' || native.workflow === 'guizang-ppt-skill')
+  ) return false;
   const directGeneration = (metadata as {
     directGeneration?: unknown;
   }).directGeneration;

@@ -144,8 +144,12 @@ export function buildPath(route: Route): string {
 // `window.location` directly so we can fan the change out to any
 // `useRoute()` subscriber via a custom event.
 export function navigate(route: Route, opts: { replace?: boolean } = {}): void {
-  const target = buildPath(route);
-  const current = window.location.pathname;
+  const projectPath = buildPath(route);
+  const inPptWorkspace = window.location.pathname === '/ppt-workspace' || window.location.pathname === '/ppt-workspace/';
+  const target = inPptWorkspace && route.kind === 'project'
+    ? `/ppt-workspace?path=${encodeURIComponent(projectPath)}`
+    : projectPath;
+  const current = window.location.pathname + (inPptWorkspace ? window.location.search : '');
   if (target === current) return;
   if (opts.replace) {
     window.history.replaceState(null, '', target);
@@ -164,7 +168,11 @@ export function useRoute(): Route {
   // the page and breaks locale/project loading and click handlers.
   const [route, setRoute] = useState<Route>(() => parseRoute('/'));
   useEffect(() => {
-    const onPop = () => setRoute(parseRoute(window.location.pathname));
+    const onPop = () => {
+      const inPptWorkspace = /^\/ppt-workspace\/?$/.test(window.location.pathname);
+      const path = inPptWorkspace ? new URLSearchParams(window.location.search).get('path') : null;
+      setRoute(parseRoute(path?.startsWith('/projects/') ? path : window.location.pathname));
+    };
     onPop();
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);

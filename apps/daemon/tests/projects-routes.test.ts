@@ -29,6 +29,12 @@ describe('default scenario plugin resolution', () => {
     })).toBe(false);
   });
 
+  it('does not layer a generic deck plugin over an explicitly selected native workflow', () => {
+    expect(shouldResolveDefaultScenarioPlugin({ kind: 'deck', nativePresentation: { version: 1, workflow: 'html-ppt' } })).toBe(false);
+    expect(shouldResolveDefaultScenarioPlugin({ kind: 'deck', nativePresentation: { version: 1, workflow: 'guizang-ppt-skill' } })).toBe(false);
+    expect(shouldResolveDefaultScenarioPlugin({ kind: 'deck' })).toBe(true);
+  });
+
   it('keeps the existing default plugin behavior for ordinary projects', () => {
     expect(shouldResolveDefaultScenarioPlugin({ kind: 'image' })).toBe(true);
     expect(shouldResolveDefaultScenarioPlugin(null)).toBe(true);

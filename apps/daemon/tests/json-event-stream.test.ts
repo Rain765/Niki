@@ -495,3 +495,14 @@ test('codex json stream still treats real errors as fatal after reconnect warnin
     { type: 'error', message: 'Authentication failed: invalid API key' },
   ]);
 });
+
+test('Codex 0.149 skill budget notice without a percentage is recoverable', () => {
+  const { events, handler } = collectEvents('codex');
+  const message = 'Skill descriptions were shortened to fit the skills context budget. Codex can still see every skill, but some descriptions are shorter. Disable unused skills or plugins to leave more room for the rest.';
+  handler.feed(JSON.stringify({ type: 'item.completed', item: { id: 'notice', type: 'error', message } }) + '\n');
+  handler.feed(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 5, output_tokens: 2 } }) + '\n');
+  assert.equal(events.some((event) => event.type === 'error'), false);
+  assert.deepEqual(events[0], { type: 'status', label: message });
+  handler.feed(JSON.stringify({ type: 'error', message: 'Authentication failed: invalid API key' }) + '\n');
+  assert.equal(events.at(-1)?.type, 'error');
+});

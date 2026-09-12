@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { NATIVE_PRESENTATION_RESOURCES, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project } from '@open-design/contracts';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -7,7 +9,11 @@ import type {
 } from '@open-design/contracts';
 import { resolveDaemonUrl } from './daemon-url.js';
 
-const HELP = `od ppt generate --file document.pdf [--color emerald] [--ratio 16:9] [--pages auto|5|10|15|20]
+const HELP = `od ppt native --workflow html-ppt|guizang-ppt-skill --prompt-file brief.md|- [--file source.pdf]
+              [--agent codex] [--model ID] [--json]
+Creates an original-skill project. With --agent, starts its native conversation;
+without --agent, saves the brief for the web workspace. Use od run watch <id> to follow.
+od ppt generate --file document.pdf [--color emerald] [--ratio 16:9] [--pages auto|5|10|15|20]
                 [--style swiss|editorial] [--density complete|brief]
                 [--model ID] [--fallback-model ID] [--review-plan] [--family swiss|editorial|technical]
                 [--prompt-file path|-] [--wait] [--json]
@@ -43,6 +49,8 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       strict: true,
       options: {
         file: { type: 'string' },
+        workflow: { type: 'string' },
+        agent: { type: 'string' },
         model: { type: 'string' },
         'fallback-model': { type: 'string' },
         family: { type: 'string' },
@@ -81,7 +89,43 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       return `/api/projects/${encodeURIComponent(id)}/presentation`;
     };
     let result: unknown;
-    if (command === 'models' || command === 'templates')
+    if (command === 'native') {
+      const workflow = values.workflow as NativePresentationWorkflow | undefined;
+      if (!workflow || !Object.hasOwn(NATIVE_PRESENTATION_RESOURCES, workflow)) throw new Error('--workflow must be html-ppt or guizang-ppt-skill');
+      if (!values['prompt-file']) throw new Error('--prompt-file is required');
+      if (values.wait) throw new Error('Use od run watch <runId> for native runs; they may pause for design decisions.');
+      const brief = await readInput(values['prompt-file']);
+      if (!brief.trim()) throw new Error('Brief must not be empty');
+      const registry = workflow === 'html-ppt' ? 'design-templates' : 'skills';
+      await request(`/api/${registry}/${workflow}`);
+      // Read input before creating the project; a missing file cannot leave an orphan draft.
+      const bytes = values.file ? await readFile(values.file) : null;
+      const metadata = { kind: 'deck' as const, nativePresentation: {
+        version: 1 as const, workflow, resourceVersion: NATIVE_PRESENTATION_RESOURCES[workflow], brief,
+      } };
+      const created = await request<{ project: Project; conversationId: string }>('/api/projects', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: randomUUID(), name: brief.trim().split('\n')[0]!.slice(0, 70), skillId: workflow, designSystemId: null, metadata }),
+      });
+      const projectId = created.project.id;
+      let sourceName: string | undefined;
+      if (bytes && values.file) {
+        const form = new FormData();
+        form.append('file', new Blob([bytes]), path.basename(values.file));
+        const uploaded = await request<{ file: { name: string } }>(`/api/projects/${projectId}/files`, { method: 'POST', body: form });
+        sourceName = uploaded.file.name;
+      }
+      const prompt = sourceName ? `${brief}\n\nRead the complete original project file ${JSON.stringify(sourceName)}; preserve its facts, tables and constraints.` : brief;
+      await request(`/api/projects/${projectId}`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pendingPrompt: prompt, metadata: { ...metadata, nativePresentation: { ...metadata.nativePresentation, brief: prompt, sourceFileName: sourceName } } }),
+      });
+      const run = values.agent ? await request('/api/runs', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ projectId, conversationId: created.conversationId, clientRequestId: randomUUID(), assistantMessageId: randomUUID(), skillId: workflow, agentId: values.agent, model: values.model, message: prompt }),
+      }) : null;
+      result = { projectId, conversationId: created.conversationId, workflow, workspacePath: nativePresentationWorkspaceUrl(projectId), run };
+    } else if (command === 'models' || command === 'templates')
       result = await request(`/api/presentations/${command}`);
     else if (['continue', 'repair', 'check', 'review'].includes(command)) {
       if (!values.revision) throw new Error('--revision is required');

@@ -1,3 +1,4 @@
+import { NativePresentationPreview } from './NativePresentationPreview';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from '../analytics/provider';
 import { trackFileManagerClick } from '../analytics/events';
@@ -42,6 +43,7 @@ function opensDirectlyOnSingleTap(file: ProjectFile): boolean {
 }
 
 interface Props {
+  externalHtmlPreview?: boolean;
   projectId: string;
   files: ProjectFile[];
   liveArtifacts: LiveArtifactWorkspaceEntry[];
@@ -103,6 +105,7 @@ const MODIFIED_SECTION_LABEL_KEY: Record<ModifiedSection, keyof Dict> = {
  * preview pane. Triggered as a sticky first tab in FileWorkspace.
  */
 export function DesignFilesPanel({
+  externalHtmlPreview = false,
   projectId,
   files,
   liveArtifacts,
@@ -1300,6 +1303,7 @@ export function DesignFilesPanel({
         // file's contents — only the `src` prop changes but the iframe
         // never actually navigates.
         <DfPreview
+          externalHtmlPreview={externalHtmlPreview}
           key={previewFile.name}
           projectId={projectId}
           file={previewFile}
@@ -1422,6 +1426,7 @@ export function DesignFilesPanel({
 }
 
 function DfPreview({
+  externalHtmlPreview,
   projectId,
   file,
   onOpen,
@@ -1431,6 +1436,7 @@ function DfPreview({
   onDelete,
   simplifiedImageActions,
 }: {
+  externalHtmlPreview: boolean;
   projectId: string;
   file: ProjectFile;
   onOpen: () => void;
@@ -1451,6 +1457,8 @@ function DfPreview({
           <SketchPreview projectId={projectId} file={file} />
         ) : file.kind === 'image' || file.kind === 'sketch' ? (
           <img src={`${url}?v=${Math.round(file.mtime)}`} alt={file.name} />
+        ) : file.kind === 'html' && externalHtmlPreview ? (
+          <NativePresentationPreview projectId={projectId} name={file.name} />
         ) : file.kind === 'html' ? (
           <iframe title={file.name} src={url} sandbox="allow-scripts" />
         ) : file.kind === 'video' ? (
