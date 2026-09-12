@@ -735,7 +735,7 @@ function printRootHelp() {
   od english <lessons|lesson|progress|vocabulary> [args]
       Read the same Daily English lessons, progress, and vocabulary as the web UI.
 
-  od ppt <generate|list|status|edit|download|preview> [args]
+  od ppt <models|templates|generate|continue|repair|check|review|list|status|edit|download|preview> [args]
       Turn uploaded documents into editable presentations. Run od ppt help for options.
 
   od plugin <list|info|install|uninstall|apply|doctor|replay|trust> [args]

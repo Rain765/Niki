@@ -408,6 +408,7 @@ function useVideoElapsed(running: boolean, requestedAt: number | null): string {
 }
 
 export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) {
+  const [presentationLocked, setPresentationLocked] = useState(false);
   const { user, logout } = useNikiAuth();
   const { locale, setLocale, t } = useI18n();
   const copy = POSTER_COPY[locale === 'zh-CN' ? 'zh' : 'en'];
@@ -533,7 +534,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     setNotice({ message: copy.refreshingVersion, tone: 'info' });
   }, [copy.refreshingVersion]);
   useRuntimeReleaseRefresh({
-    blocked: generating || videoWorking,
+    blocked: generating || videoWorking || presentationLocked,
     onReloading: showRuntimeReloading,
   });
   const videoElapsed = useVideoElapsed(videoWorking, videoGeneration.state.requestedAt);
@@ -939,7 +940,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}${creationMode === 'ppt' ? ' is-ppt' : ''}`}>
       <header className="poster-app__topbar">
         <div className="poster-app__topbar-inner">
-          <button
+          <button disabled={presentationLocked}
             type="button"
             className="poster-app__brand"
             aria-label={t('app.brand')}
@@ -957,7 +958,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               ['video', 'posterNav.video'],
               ['documents', 'posterNav.documents'],
             ] as const).map(([mode, label]) => (
-              <button
+              <button disabled={presentationLocked}
                 key={mode}
                 type="button"
                 className={creationMode === mode ? 'is-active' : undefined}
@@ -970,10 +971,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                 {t(label)}
               </button>
             ))}
-            <button type="button" className={creationMode === 'ppt' ? 'is-active' : undefined}
+            <button disabled={presentationLocked} type="button" className={creationMode === 'ppt' ? 'is-active' : undefined}
               aria-current={creationMode === 'ppt' ? 'page' : undefined}
               onClick={() => { setCreationMode('ppt'); updateCreationModeUrl('ppt'); }}>PPT</button>
-            <button
+            <button disabled={presentationLocked}
               type="button"
               className={creationMode === 'logo' ? 'is-active' : undefined}
               aria-current={creationMode === 'logo' ? 'page' : undefined}
@@ -984,7 +985,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             >
               {t('posterNav.logo')}
             </button>
-            <button
+            <button disabled={presentationLocked}
               type="button"
               className={creationMode === 'english' ? 'is-active' : undefined}
               aria-current={creationMode === 'english' ? 'page' : undefined}
@@ -1051,6 +1052,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                   role="menuitem"
                   tabIndex={accountMenuOpen ? 0 : -1}
                   className="is-danger"
+                  disabled={presentationLocked}
                   onClick={() => {
                     setAccountMenuOpen(false);
                     void logout();
@@ -1493,7 +1495,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           ) : null}
         </section>
       ) : creationMode === 'ppt' ? (
-        <PresentationStudio />
+        <PresentationStudio onNavigationLockChange={setPresentationLocked} />
       ) : creationMode === 'documents' ? (
         <DocumentSearch />
       ) : creationMode === 'english' ? (

@@ -1,12 +1,19 @@
 'use client';
 
-import { useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type FormEvent,
+} from 'react';
 import { ArrowRight, Check, FileText, Upload, X } from 'lucide-react';
 import {
   PRESENTATION_PAGE_COUNTS,
   PRESENTATION_PALETTES,
   PRESENTATION_RATIOS,
   type PresentationOptions,
+  type PresentationTemplate,
 } from '@open-design/contracts';
 import { Button } from '../components/Button';
 import { SelectField } from '../components/SelectField';
@@ -34,6 +41,39 @@ export function PresentationComposer({
   const [dragging, setDragging] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
   const style = options.style ?? 'swiss';
+  const [templates, setTemplates] = useState<PresentationTemplate[]>([]);
+  const [sample, setSample] = useState('S17');
+  const [models, setModels] = useState<string[]>([]);
+  const [modelMessage, setModelMessage] = useState('');
+  useEffect(() => {
+    setSample(style === 'swiss' ? 'S17' : 'E-report');
+  }, [style]);
+  useEffect(() => {
+    let live = true;
+    void Promise.allSettled([
+      fetch('/api/presentations/templates').then((r) =>
+        r.ok ? r.json() : Promise.reject(),
+      ),
+      fetch('/api/presentations/models').then((r) =>
+        r.ok ? r.json() : Promise.reject(),
+      ),
+    ]).then(([t, m]) => {
+      if (!live) return;
+      if (t.status === 'fulfilled') setTemplates(t.value.templates ?? []);
+      if (m.status === 'fulfilled') {
+        setModels(m.value.models ?? []);
+        setModelMessage(m.value.message ?? '');
+      } else
+        setModelMessage(
+          zh
+            ? '暂时无法读取模型列表，可填写现有模型 ID。'
+            : 'Model listing is unavailable. Enter a model ID.',
+        );
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
   return (
     <>
       <header className="ppt-workbench__intro">
@@ -210,7 +250,7 @@ export function PresentationComposer({
             </div>
             <div className="ppt-workbench__style-preview">
               <img
-                src={`/api/presentations/styles/${style}?palette=${options.palette}`}
+                src={`/api/presentations/styles/${style}?palette=${options.palette}&ratio=${encodeURIComponent(options.ratio)}&template=${encodeURIComponent(sample)}`}
                 alt={
                   zh
                     ? '所选风格的版式示例'
@@ -223,6 +263,15 @@ export function PresentationComposer({
                   : 'Layout sample · not generated content'}
               </span>
             </div>
+            <SelectField
+              label={zh ? '查看版式' : 'Explore compositions'}
+              value={sample}
+              options={templates.map((t) => ({
+                value: t.id,
+                label: `${t.name} · ${t.id}`,
+              }))}
+              onChange={setSample}
+            />
             <div
               className="ppt-workbench__styles"
               role="group"
@@ -300,6 +349,93 @@ export function PresentationComposer({
             </fieldset>
           </section>
         </div>
+        <details className="ppt-model-settings">
+          <summary>{zh ? '模型与生成方式' : 'Model and workflow'}</summary>
+          <div className="od-generation-toolbar od-filter-grid">
+            <SelectField
+              label={zh ? '生成模型' : 'Generation model'}
+              value={options.model ?? ''}
+              options={[
+                {
+                  value: '',
+                  label: zh
+                    ? '默认 · gpt-5.6-terra'
+                    : 'Default · gpt-5.6-terra',
+                },
+                ...models.map((id) => ({ value: id, label: id })),
+              ]}
+              onChange={(model) => onOptions({ ...options, model })}
+            />
+            <SelectField
+              label={zh ? '备用模型' : 'Fallback model'}
+              value={options.fallbackModel ?? ''}
+              options={[
+                { value: '', label: zh ? '不启用' : 'Disabled' },
+                ...models.map((id) => ({ value: id, label: id })),
+              ]}
+              onChange={(fallbackModel) =>
+                onOptions({ ...options, fallbackModel })
+              }
+            />
+            <SelectField
+              label={zh ? '生成流程' : 'Workflow'}
+              value={options.reviewPlan === false ? 'direct' : 'review'}
+              options={[
+                {
+                  value: 'review',
+                  label: zh ? '先确认逐页计划' : 'Review page plan first',
+                },
+                {
+                  value: 'direct',
+                  label: zh ? '直接生成并检查' : 'Generate and review',
+                },
+              ]}
+              onChange={(value) =>
+                onOptions({ ...options, reviewPlan: value === 'review' })
+              }
+            />
+            <SelectField
+              label={zh ? '内容编排' : 'Composition family'}
+              value={options.templateFamily ?? style}
+              options={[
+                {
+                  value: 'swiss',
+                  label: zh ? '瑞士信息设计' : 'Swiss information design',
+                },
+                {
+                  value: 'editorial',
+                  label: zh ? '编辑式阅读' : 'Editorial reading',
+                },
+                {
+                  value: 'technical',
+                  label: zh ? '技术与培训' : 'Technical and training',
+                },
+              ]}
+              onChange={(value) =>
+                onOptions({
+                  ...options,
+                  templateFamily:
+                    value as PresentationOptions['templateFamily'],
+                })
+              }
+            />
+            {!models.length && (
+              <label>
+                模型 ID
+                <input
+                  value={options.model ?? ''}
+                  placeholder="填写当前 API 的模型 ID"
+                  onChange={(e) =>
+                    onOptions({ ...options, model: e.target.value })
+                  }
+                />
+              </label>
+            )}
+            {modelMessage && (
+              <p className="od-filter-grid__meta">{modelMessage}</p>
+            )}
+          </div>
+        </details>
         <footer className="ppt-workbench__settings od-generation-toolbar od-filter-grid">
           <SelectField
             className="od-filter-grid__item"

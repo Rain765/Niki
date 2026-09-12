@@ -26,13 +26,22 @@ import {
 } from './niki-quota.js';
 import { writeProjectFile } from './projects.js';
 import {
-  extractPresentationDocument,
   MAX_PRESENTATION_FILE_BYTES,
   parsePresentationOptions,
   parsePresentationSlide,
   PresentationError,
 } from './presentations/content.js';
-import { generatePresentation } from './presentations/generate.js';
+import {
+  planPresentation,
+  generatePresentationV2,
+  generatePlannedSlide,
+  withPresentationImage,
+} from './presentations/pipeline.js';
+import { extractPresentationSource } from './presentations/extract.js';
+import { presentationTemplates } from './presentations/templates.js';
+import { presentationModels } from './presentations/provider.js';
+import { checkPresentationQuality } from './presentations/quality.js';
+import { reviewPresentation } from './presentations/review.js';
 import {
   buildPresentationScene,
   presentationSceneSvg,
@@ -45,6 +54,8 @@ interface Dependencies {
   db: Database.Database;
   projectsRoot: string;
   projectRoot: string;
+  plan?: typeof planPresentation;
+  review?: typeof reviewPresentation;
   generate?: (input: {
     projectRoot: string;
     document: string;
@@ -102,7 +113,9 @@ export function registerPresentationRoutes(
     if (!job || job.projectId !== id)
       throw new PresentationError('Presentation not found', 404);
     if (
-      ['generating', 'rendering'].includes(job.status) &&
+      ['planning', 'generating', 'rendering', 'checking'].includes(
+        job.status,
+      ) &&
       !activeProjects.has(id)
     ) {
       job.status = 'failed';
@@ -115,7 +128,21 @@ export function registerPresentationRoutes(
   const exportFiles = async (job: PresentationJob) => {
     if (!getProject(db, job.projectId))
       throw new PresentationError('Presentation not found', 404);
-    job.deck = fitPresentationDeck(job.deck!, job.options);
+    job.deck = fitPresentationDeck(
+      {
+        ...job.deck!,
+        slides: job.deck!.slides.map((slide) =>
+          withPresentationImage(slide, job.source),
+        ),
+      },
+      job.options,
+    );
+    if (job.source)
+      job.quality = await checkPresentationQuality(
+        job.deck,
+        job.options,
+        job.source,
+      );
     const result = await renderPresentation(job.deck, job.options);
     const user = currentNikiUser();
     if (user)
@@ -142,67 +169,196 @@ export function registerPresentationRoutes(
     await writeProjectFile(projectsRoot, job.projectId, pptx, result.pptx);
     const html = `${prefix}/presentation.html`;
     await writeProjectFile(projectsRoot, job.projectId, html, result.html);
+    job.deck = {
+      ...job.deck!,
+      slides: job.deck!.slides.map((slide) =>
+        slide.image
+          ? {
+              ...slide,
+              image: {
+                assetId: slide.image.assetId,
+                caption: slide.image.caption,
+              },
+            }
+          : slide,
+      ),
+    };
     return { pptx, previews, html };
   };
 
+  app.get('/api/presentations/templates', (_req, res) =>
+    res.json({ version: '2.0.0', templates: presentationTemplates }),
+  );
+  app.get('/api/presentations/models', async (_req, res) => {
+    try {
+      res.json(await presentationModels(projectRoot));
+    } catch (error) {
+      errorResponse(res, error);
+    }
+  });
   app.get('/api/presentations/styles/:style', (req, res) => {
     try {
-      if (!['swiss', 'editorial'].includes(req.params.style!))
+      const style = req.params.style;
+      if (style !== 'swiss' && style !== 'editorial')
         throw new PresentationError('Unknown style', 404);
-      const style = req.params.style as 'swiss' | 'editorial';
-      const palette =
-        typeof req.query.palette === 'string' &&
-        Object.hasOwn(PRESENTATION_PALETTES, req.query.palette)
-          ? (req.query.palette as PresentationOptions['palette'])
-          : 'emerald';
-      const demo = {
-        title: style === 'swiss' ? '结构清晰，信息有序。' : '让内容成为主角。',
-        subtitle: '从原始材料，到完整而清晰的表达。',
-        layout:
-          style === 'swiss'
-            ? ('architecture' as const)
-            : ('editorial' as const),
-        items: [
-          {
-            id: '1',
-            title: '内容层 / CONTENT',
-            body: '保留事实、数据与重要条件。把复杂信息组织成有依据的清晰表达。',
-          },
-          {
-            id: '2',
-            title: '结构层 / STRUCTURE',
-            body: '按照主题与关系安排页面。为每一种内容选择适合的布局。',
-          },
-          ...(style === 'swiss'
-            ? [
-                {
-                  id: '3',
-                  title: '表达层 / DESIGN',
-                  body: '统一颜色与字号，用线条、层次和留白建立阅读顺序。',
-                },
-              ]
-            : []),
-        ],
-        edges: [],
-        notes: '',
-      };
+      const options = parsePresentationOptions({
+        style,
+        palette: req.query.palette ?? 'emerald',
+        ratio: req.query.ratio ?? '16:9',
+        pageCount: 5,
+        prompt: '',
+      });
+      const template =
+        presentationTemplates.find((t) => t.id === req.query.template) ??
+        presentationTemplates.find(
+          (t) => t.id === (style === 'swiss' ? 'S17' : 'E-report'),
+        )!;
       res
         .type('image/svg+xml')
-        .set('Cache-Control', 'private, max-age=3600')
+        .set('Cache-Control', 'private, no-cache')
         .send(
           presentationSceneSvg(
-            buildPresentationScene(
-              demo,
-              { style, palette, ratio: '16:9', pageCount: 5, prompt: '' },
-              1,
-              10,
-            ),
+            buildPresentationScene(template.sample, options, 1, 10),
           ),
         );
     } catch (error) {
       errorResponse(res, error);
     }
   });
+  const context = (job: PresentationJob) => ({
+    projectRoot,
+    document: job.source!.blocks.join('\n\n'),
+    sourceName: job.sourceName,
+    options: job.options,
+    source: job.source!,
+    onUsage: async (usage: PresentationUsage) => {
+      const old = job.usage;
+      job.usage = old
+        ? {
+            ...usage,
+            model: [...new Set([...old.model.split(', '), usage.model])].join(
+              ', ',
+            ),
+            inputTokens: old.inputTokens + usage.inputTokens,
+            outputTokens: old.outputTokens + usage.outputTokens,
+            cachedInputTokens: old.cachedInputTokens + usage.cachedInputTokens,
+            reasoningTokens: old.reasoningTokens + usage.reasoningTokens,
+            estimatedUsd:
+              old.estimatedUsd === null || usage.estimatedUsd === null
+                ? null
+                : old.estimatedUsd + usage.estimatedUsd,
+          }
+        : usage;
+      save(job);
+    },
+    pageDrafts: job.pageDrafts ?? {},
+    onPage: async (
+      index: number,
+      slide: PresentationDeck['slides'][number],
+    ) => {
+      job.pageDrafts = { ...job.pageDrafts, [String(index)]: slide };
+      job.completedPages = Object.keys(job.pageDrafts).length;
+      save(job);
+    },
+    onPlan: async (plan: PresentationDeck) => {
+      job.plan = plan;
+      save(job);
+    },
+    onDraft: async (deck: PresentationDeck) => {
+      job.deck = deck;
+      save(job);
+    },
+    onStage: async (stage: string, completed: number) => {
+      job.stage = stage;
+      job.completedPages = completed;
+      save(job);
+    },
+  });
+  const finish = async (job: PresentationJob, review = true) => {
+    job.status = 'rendering';
+    save(job);
+    Object.assign(job, await exportFiles(job));
+    if (job.source && job.quality && review) {
+      job.status = 'checking';
+      job.stage = '正在核对原文事实与页面渲染';
+      save(job);
+      job.quality = await (deps.review ?? reviewPresentation)({
+        projectRoot,
+        deck: job.deck!,
+        options: job.options,
+        source: job.source!,
+        quality: job.quality,
+        onUsage: context(job).onUsage,
+      });
+      if (!deps.generate && job.quality.status === 'blocked') {
+        const targets = [
+          ...new Set(
+            job.quality.issues
+              .filter((issue) => issue.severity === 'error')
+              .map((issue) =>
+                issue.page
+                  ? issue.page - 1
+                  : job.deck!.slides.findIndex(
+                      (slide) =>
+                        issue.factId && slide.factIds?.includes(issue.factId),
+                    ),
+              )
+              .filter((index) => index >= 0),
+          ),
+        ].slice(0, 3);
+        for (const index of targets) {
+          job.stage = `正在修复第 ${index + 1} 页`;
+          save(job);
+          const defects = job.quality.issues
+            .filter(
+              (issue) =>
+                issue.page === index + 1 ||
+                (issue.factId &&
+                  job.deck!.slides[index]!.factIds?.includes(issue.factId)),
+            )
+            .map((issue) => issue.message)
+            .join('\n');
+          try {
+            job.deck!.slides[index] = await generatePlannedSlide(
+              context(job),
+              job.deck!.slides[index]!,
+              index,
+              job.deck!.slides.length,
+              defects,
+            );
+          } catch (error) {
+            job.quality.issues.push({
+              code: 'repair-failed',
+              severity: 'error',
+              page: index + 1,
+              message: error instanceof Error ? error.message : '页面修复失败',
+            });
+          }
+        }
+        if (targets.length) {
+          const repairFailures = job.quality.issues.filter(
+            (issue) => issue.code === 'repair-failed',
+          );
+          Object.assign(job, await exportFiles(job));
+          job.quality = await (deps.review ?? reviewPresentation)({
+            projectRoot,
+            deck: job.deck!,
+            options: job.options,
+            source: job.source!,
+            quality: job.quality!,
+            onUsage: context(job).onUsage,
+          });
+          job.quality.issues.push(...repairFailures);
+          if (repairFailures.length) job.quality.status = 'blocked';
+        }
+      }
+    }
+    job.status = 'complete';
+    delete job.error;
+    delete job.stage;
+    delete job.pageDrafts;
+    save(job);
+  };
   app.get('/api/presentations', (_req, res) => {
     try {
       const presentations: PresentationSummary[] = listProjects(db)
@@ -216,6 +372,7 @@ export function registerPresentationRoutes(
             createdAt: job.createdAt,
             status: job.status,
             title: job.deck?.title || job.sourceName,
+            ...(job.quality ? { qualityStatus: job.quality.status } : {}),
           };
         });
       res.json({ presentations });
@@ -271,7 +428,7 @@ export function registerPresentationRoutes(
               )
               .replace(/[\x00-\x1F]/g, '')
               .slice(0, 150);
-            const document = await extractPresentationDocument(
+            const { document, source } = await extractPresentationSource(
               sourceName,
               req.file.buffer,
             );
@@ -290,7 +447,12 @@ export function registerPresentationRoutes(
             const job: PresentationJob = {
               projectId: id,
               revision: 1,
-              status: 'generating',
+              status:
+                options.reviewPlan && (!!deps.plan || !deps.generate)
+                  ? 'planning'
+                  : 'generating',
+              source,
+              pipelineVersion: '2.0.0',
               sourceName,
               createdAt: now,
               updatedAt: now,
@@ -320,26 +482,17 @@ export function registerPresentationRoutes(
             }
             res.status(202).json(job);
             try {
-              const deck = await (deps.generate ?? generatePresentation)({
-                projectRoot,
-                document,
-                sourceName,
-                options,
-                onDraft: async (deck) => {
-                  job.deck = deck;
-                  save(job);
-                },
-                onUsage: async (usage) => {
-                  job.usage = usage;
-                  save(job);
-                },
-              });
-              job.deck = deck;
-              job.status = 'rendering';
-              save(job);
-              Object.assign(job, await exportFiles(job));
-              job.status = 'complete';
-              save(job);
+              if (options.reviewPlan && (!!deps.plan || !deps.generate)) {
+                job.plan = await (deps.plan ?? planPresentation)(context(job));
+                job.status = 'awaiting-plan';
+                save(job);
+              } else {
+                job.deck = await (deps.generate ?? generatePresentationV2)({
+                  ...context(job),
+                  document,
+                });
+                await finish(job, !deps.generate);
+              }
             } catch (error) {
               job.status = 'failed';
               job.error =
@@ -358,6 +511,139 @@ export function registerPresentationRoutes(
         })();
       }),
     );
+  });
+  app.post('/api/projects/:id/presentation/action', async (req, res) => {
+    const id = req.params.id!,
+      owner = currentNikiUser()?.id ?? 'local';
+    try {
+      const job = read(id);
+      if (req.body?.revision !== job.revision)
+        throw new PresentationError('文稿已更新，请重新加载。', 409);
+      if (activeProjects.has(id) || editing.has(id))
+        throw new PresentationError('文稿正在处理中。', 409);
+      const action = req.body.action;
+      const completed =
+        job.status === 'failed' && !req.body.plan ? job.deck : undefined;
+      if (action === 'accept-review') {
+        if (
+          !job.quality ||
+          job.quality.issues.some((i) => i.severity === 'error')
+        )
+          throw new PresentationError('请先修复阻断问题，再确认验收。', 409);
+        if (
+          typeof req.body.note !== 'string' ||
+          req.body.note.trim().length < 3 ||
+          req.body.note.length > 2000
+        )
+          throw new PresentationError('请填写验收依据。');
+        job.quality.humanReview = {
+          verdict: 'accepted',
+          note: req.body.note.trim(),
+          reviewedAt: Date.now(),
+        };
+        job.quality.status = 'passed';
+        job.revision++;
+        save(job);
+        return res.json(job);
+      }
+      if (!['continue', 'repair', 'check'].includes(action))
+        throw new PresentationError('Unknown presentation action');
+      if (!job.source)
+        throw new PresentationError(
+          '此历史文稿缺少结构化原文，请重新上传。',
+          409,
+        );
+      if (activeUsers.has(owner) || activeUsers.size >= 2)
+        throw new PresentationError('请等待当前生成完成。', 429);
+      if (
+        action === 'continue' &&
+        (!job.plan || !['awaiting-plan', 'failed'].includes(job.status))
+      )
+        throw new PresentationError('没有待确认的页面计划。', 409);
+      if (action !== 'continue' && (!job.deck || job.status !== 'complete'))
+        throw new PresentationError('文稿尚未完成。', 409);
+      const page = req.body.slideIndex;
+      if (
+        action === 'repair' &&
+        (!Number.isInteger(page) || page < 0 || page >= job.deck!.slides.length)
+      )
+        throw new PresentationError('Invalid page');
+      if (req.body.plan) {
+        delete job.pageDrafts;
+        if (
+          action !== 'continue' ||
+          !Array.isArray(req.body.plan.slides) ||
+          req.body.plan.slides.length !== job.plan!.slides.length
+        )
+          throw new PresentationError('Invalid page plan');
+        job.plan!.slides = job.plan!.slides.map((old, i) => {
+          const next = req.body.plan.slides[i],
+            template = presentationTemplates.find(
+              (t) => t.id === next.templateId,
+            );
+          if (
+            typeof next.title !== 'string' ||
+            !next.title.trim() ||
+            next.title.length > 100 ||
+            !template ||
+            (old.table && template.layout !== 'table')
+          )
+            throw new PresentationError('Invalid planned title or template');
+          return {
+            ...old,
+            title: next.title.trim(),
+            templateId: template.id,
+            layout: template.layout,
+          };
+        });
+      }
+      const user = currentNikiUser();
+      if (user) await assertNikiGenerationAllowed(db, projectsRoot, user.id);
+      activeUsers.add(owner);
+      activeProjects.add(id);
+      job.revision++;
+      job.status = action === 'check' ? 'checking' : 'generating';
+      delete job.error;
+      save(job);
+      res.status(202).json(job);
+      try {
+        if (action === 'continue')
+          job.deck = await (deps.generate ?? generatePresentationV2)({
+            ...context(job),
+            ...(!deps.generate
+              ? { plan: job.plan!, ...(completed ? { completed } : {}) }
+              : {}),
+          });
+        if (action === 'repair') {
+          const note =
+            typeof req.body.note === 'string'
+              ? req.body.note.slice(0, 2000)
+              : '';
+          const defects =
+            job.quality?.issues
+              .filter((i) => i.page === page + 1)
+              .map((i) => i.message)
+              .join('\n') ?? '';
+          job.deck!.slides[page] = await generatePlannedSlide(
+            context(job),
+            job.deck!.slides[page]!,
+            page,
+            job.deck!.slides.length,
+            defects + '\n' + note,
+          );
+        }
+        await finish(job);
+      } catch (error) {
+        job.status = 'failed';
+        job.error = error instanceof Error ? error.message : '处理失败';
+        save(job);
+      } finally {
+        activeUsers.delete(owner);
+        activeProjects.delete(id);
+      }
+    } catch (error) {
+      if (!res.headersSent) errorResponse(res, error);
+    }
   });
   app.patch('/api/projects/:id/presentation', async (req, res) => {
     const id = req.params.id!;
@@ -385,6 +671,8 @@ export function registerPresentationRoutes(
         index >= job.deck.slides.length
       )
         throw new PresentationError('Invalid slide index');
+      if (job.plan && job.deck.slides.length !== job.plan.slides.length)
+        throw new PresentationError('部分页面尚未生成，请继续原计划。', 409);
       const next = structuredClone(job);
       next.deck!.slides[index] = parsePresentationSlide(req.body.slide);
       if (next.deck!.sourceBlocks)
@@ -395,6 +683,7 @@ export function registerPresentationRoutes(
       next.revision += 1;
       Object.assign(next, await exportFiles(next));
       next.status = 'complete';
+      delete next.pageDrafts;
       delete next.error;
       save(next);
       res.json(next);

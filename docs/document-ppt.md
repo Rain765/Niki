@@ -1,43 +1,50 @@
 # Document → PPT studio
 
-Niki's PPT mode (`/?mode=ppt`) uses the existing application navigation with a rebuilt creation, review and library workspace. It accepts PDF, DOCX, Markdown and UTF-8 TXT (10 MB / 80,000 extracted characters). Scanned PDFs require OCR. The eleven original color palettes and 16:9 / 4:3 / 16:10 formats remain available. Explicit page counts are 5, 10, 15 or 20 including cover and closing; automatic length supports 5–30 pages.
+PPT mode is part of Niki at `/?mode=ppt`. Creation, the page plan, actual slide review, structured editing and the library share the existing product navigation and color tokens. The eleven supplied palettes, 16:9 / 4:3 / 16:10 ratios and automatic / 5 / 10 / 15 / 20 pages remain available. Automatic length is bounded to 5–30 pages. Uploads accept text PDFs, DOCX, Markdown and UTF-8 TXT, up to 10 MB and 80,000 extracted characters.
 
-## Design comparison and decision
+## Generation pipeline v2
 
-The user supplied `guizang-ppt-skill-main.zip`. Its skill is larger and materially different from the repository's existing `design-templates/guizang-ppt`: it adds a Swiss direction with 22 registered body layouts, expanded presenter controls and rendered layout validators. It describes two visual directions, magazine and Swiss, and explicitly cautions against dense training material. The archive LICENSE identifies AGPLv3; the existing bundled version identifies MIT. No files, executable scripts, CSS or artwork from the archive are vendored in this change.
+1. Extract source passages, a source-derived fact ledger, table cells and bounded embedded Word images. The source document is data, never authority to change system instructions or call tools.
+2. Plan every page's purpose, source references, facts and registered composition. The UI defaults to confirming this plan. Users can change titles and choose compatible compositions before generation; direct generation is an explicit option.
+3. Generate at most three pages concurrently. Each page is persisted independently. Retry a failed phase without paying to generate already completed pages again. Native table chunks are copied from source cells, with repeated headers and identifying columns; the model does not rewrite those cells.
+4. Compose readable text, native diagrams, tables, numeric charts and original images on a shared scene. Preview, HTML and editable PPTX use this scene. Graph layouts cannot silently turn into paragraphs. Capacity failures retain the draft and explain the constraint; explicit page counts are not silently exceeded.
+5. Check actual visible content against source facts, exact table cells and chart source values. Rasterize every scene, check bounds, then request semantic and visual model review. A bounded repair pass can regenerate up to three affected pages and recheck. Remaining errors block normal download; the source, draft and issue list remain accessible.
+6. Review the report, jump to affected pages, edit native content or request page repair. Human acceptance is recorded explicitly and invalidated by any subsequent edit. A model review or lexical match is never presented as calibrated accuracy.
 
-The existing `design-templates/html-ppt` contains 36 themes, 31 single-page layouts and 15 complete-deck examples. It has broader information-layout coverage; it is not an automatically editable PPTX converter. The previous workbench's editable export sends an agent another conversion task.
+The default model is `gpt-5.6-terra`. `/models` is queried from the user's configured API; another model and an explicit fallback can be selected. Listing a model does not prove structured-output or vision compatibility. Network failures receive a bounded retry; fallback is limited to the selected alternative. Usage accumulates planning, generation, retries and review, including reasoning tokens already included in output. The previous dated tariff is retained only for its exact model at the official endpoint; unknown models and other gateways show tokens without inventing a price. Manual editing and deterministic export do not call the model.
 
-The studio combines independently implemented Swiss/editorial composition with the existing `DECK_SKELETON_HTML` runtime for HTML presentation navigation and printing. It retains native PPTX generation so text, shapes and arrows stay editable. It does not claim to execute the uploaded skill or expose all 31/22 source layouts. Thirteen supported compositions are available, including dense editorial, specification tables, source-backed metrics, architecture layers, graph flows, cycles, timeline, comparison and matrix. Style thumbnails are rendered by the actual export renderer through `GET /api/presentations/styles/:style?palette=...`.
+## Reference design migration
 
-## Content and limits
+The uploaded guizang archive describes a plan → registered layout → visual validation → iteration workflow. The repository's HTML PPT catalogue provides broader technical, report and training compositions. This implementation brings those workflow stages into Niki's controls and adds 33 native composition profiles: 22 Swiss-inspired profiles plus technical/training/editorial profiles. The gallery uses the real renderer and selected ratio and palette.
 
-Full-detail generation is the default; brief summaries are an explicit choice. Prompts preserve arguments, values, units, conditions, exceptions and process steps on slides. The model supplies source-passage references; the original extracted passages remain available in the review panel and referenced passages are included in PPTX speaker notes. Coverage warnings flag passages without a reference. Reference coverage is not semantic completeness: a citation cannot prove every fact is represented, and the UI says so.
-
-The renderer wraps CJK and Latin text without silently truncating it. Table, step and architecture rows allocate height by measured content. Text slides that overflow first fall back to editorial composition without a model call. Automatic-length decks may split content blocks across slides up to 30 pages; explicit page counts stay fixed. Graphs retain their relationships and are not flattened into prose. If deterministic recovery cannot fit the content, generation may make its bounded model retry. The same recovery runs when saving or retrying a persisted failed draft, and the saved deck reflects the actual layout and page count. Font metrics can vary by viewer. Editorial display text uses Noto Serif SC when installed, with normal viewer fallback; body text uses Microsoft YaHei/PingFang-compatible metrics. WebGL effects and rasterized full-slide exports are not part of this implementation.
-
-Generation uses the configured OpenAI provider with `gpt-5.6-terra`, medium reasoning, strict structured output, `store: false`, and at most one automatic retry. Uploaded content is treated as untrusted data, not instructions. Full original documents and source passages stay within the owning project. The product uses the existing Niki authentication, storage and generation quotas, owner checks and one-active-job-per-user limit.
+These are independently implemented editable adaptations, not execution of the original skill or a pixel-identical import of its CSS, animation or all 31 built-in HTML layouts. The uploaded archive identifies AGPLv3; no archive code, CSS or artwork is vendored. Advanced presenter effects and full-slide bitmap exports are not part of this native PPTX path. The retained HTML deck runtime supports presentation navigation and printing.
 
 ## API and CLI
 
-- `POST /api/presentations`: multipart file + JSON options (`palette`, `ratio`, `pageCount`, `style`, `density`, `prompt`), returns a job and generates asynchronously.
-- `GET /api/presentations`: owned history.
-- `GET /api/projects/:id/presentation`: status, usage, deck, source blocks, warnings and output paths.
-- `PATCH /api/projects/:id/presentation`: `{revision, slideIndex, slide}`; re-exports without a model call. Revision checks prevent stale overwrites; failed writes preserve the old revision.
-- Style defaults are `swiss` and `complete`; older jobs without these fields remain readable. Older jobs lack the new source references/HTML export until regenerated or saved.
+Both surfaces call the same daemon endpoints and shared contracts:
+
+- `GET /api/presentations/templates`, `GET /api/presentations/models` and `GET /api/presentations/styles/:style?template=...&ratio=...&palette=...`.
+- `POST /api/presentations`: multipart file and options; returns an owned asynchronous job.
+- `GET /api/presentations` and `GET /api/projects/:id/presentation`: history, progress, saved plan, source evidence, quality, usage and artifact paths.
+- `POST /api/projects/:id/presentation/action`: revision-checked `continue`, `repair`, `check`, `accept-review` actions. Continuing may include the edited plan; repair includes a zero-based page index and optional note.
+- `PATCH /api/projects/:id/presentation`: revision-checked native slide editing and re-export. Completed quality acceptance is cleared.
 
 ```bash
-od ppt generate --file architecture.docx --style swiss --density complete --color emerald --ratio 16:9 --pages auto --prompt-file brief.md --wait --json
-od ppt list --json
-od ppt status --project PROJECT_ID --json
-od ppt edit --project PROJECT_ID --page 3 --revision N --slide-file revised-slide.json --json
-od ppt preview --project PROJECT_ID --page 3 --output slide.svg --json
+od ppt models --json
+od ppt templates --json
+od ppt generate --file source.docx --model gpt-5.6-terra --review-plan --family technical --pages auto --prompt-file brief.md --wait --json
+od ppt continue --project PROJECT_ID --revision N --plan-file plan.json --wait --json
+od ppt repair --project PROJECT_ID --revision N --page 3 --prompt-file correction.md --wait --json
+od ppt check --project PROJECT_ID --revision N --wait --json
+od ppt review --project PROJECT_ID --revision N --prompt-file acceptance.md --json
+od ppt edit --project PROJECT_ID --page 3 --revision N --slide-file slide.json --json
 od ppt download --project PROJECT_ID --output presentation.pptx --json
-od ppt download --project PROJECT_ID --format html --output presentation.html --json
 ```
 
-Token usage includes reasoning and retries, with reasoning already counted in output tokens. Displayed USD cost uses the recorded standard input/cached/output prices; a nonstandard gateway suppresses that estimate. Parsing, storage and server operation are separate from model pricing. Manual editing has no model-token charge.
+## Evaluation and acceptance
 
-## Validation
+The frozen corpus and answer-free generation input exporter live under `e2e/resources/presentations`. `e2e/scripts/presentation-benchmark.ts` makes real API calls through production HTTP endpoints in an isolated instance and records every failure, source hash, configuration, job, output, candidate checks and token usage. It does not give rubric answers to the generator. `presentation-acceptance.ts` evaluates an explicit case × engine × repetition manifest, including missing runs; it requires two distinct reviewers with evidence and matching source, rubric and artifact hashes. Unreviewed checks and disagreements remain blocked.
 
-Tests cover extraction, references and missing-passage warnings, detailed text beyond the former 100-character cap, native PPTX text/notes/arrows, three ratios, shared HTML deck navigation, distinct architecture/flow composition, return-arrow labels, ownership, admission, revision conflicts and interrupted jobs. Browser verification must include creation, actual generation, source comparison, editing, download, reloading history and mobile layout; green unit tests alone do not establish presentation quality.
+Tests cover native extraction/retention, layout capacity, 33 profiles at three ratios, source-proof limitations, plan confirmation, owner isolation, admission, revision conflicts, interrupted work and acceptance invalidation. Browser verification and actual Office rendering are separate from unit tests. Private outputs and screenshots stay in ignored `.tmp/` directories; reports identify their exact renderer and source revision.
+
+The eight synthetic cases do not establish production coverage or a calibrated aesthetic score. Independent human gold-standard review, three-flow comparisons and repeated runs are evidence requirements, not results that can be inferred from green tests. Merged Word tables, image meaning, scanned PDFs/OCR, embedded Office charts/formulas and font substitution across PowerPoint/Keynote still require explicit checking. The product surfaces extraction warnings; it cannot promise identical display across viewers without those viewers being tested.

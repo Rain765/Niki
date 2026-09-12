@@ -61,6 +61,20 @@ export function parsePresentationOptions(value: unknown): PresentationOptions {
     prompt: text(v.prompt ?? '', 2000),
     style:
       v.style === undefined ? 'swiss' : choice(v.style, ['swiss', 'editorial']),
+    ...(v.model ? { model: parseModel(v.model) } : {}),
+    ...(v.fallbackModel ? { fallbackModel: parseModel(v.fallbackModel) } : {}),
+    ...(v.reviewPlan === undefined
+      ? {}
+      : { reviewPlan: v.reviewPlan === true }),
+    ...(v.templateFamily
+      ? {
+          templateFamily: choice(v.templateFamily, [
+            'swiss',
+            'editorial',
+            'technical',
+          ]),
+        }
+      : {}),
     density:
       v.density === undefined
         ? 'complete'
@@ -87,6 +101,7 @@ export function parsePresentationSlide(value: unknown): PresentationSlide {
       id: text(item.id, 20, true),
       title: text(item.title, 80, true),
       body: text(item.body, 600),
+      ...(item.group ? { group: text(item.group, 40) } : {}),
     };
   });
   const ids = new Set(items.map((item) => item.id));
@@ -101,11 +116,47 @@ export function parsePresentationSlide(value: unknown): PresentationSlide {
     return { from, to, label: text(edge.label, 12) };
   });
   const layout = v.layout as PresentationSlide['layout'];
-  if (layout === 'editorial' && items.length < 1)
+  if (
+    v.templateId &&
+    edges.length &&
+    !['architecture', 'flow', 'cycle'].includes(layout)
+  )
+    throw new PresentationError(
+      'Directed connections require a diagram layout.',
+    );
+  const evidence = parsePresentationEvidence(v);
+  if (evidence.groups?.length && !['architecture', 'flow'].includes(layout))
+    throw new PresentationError(
+      'Groups require an architecture or flow layout.',
+    );
+  if (
+    items.some(
+      (item) =>
+        item.group && !evidence.groups?.some((g) => g.id === item.group),
+    )
+  )
+    throw new PresentationError('Diagram item references an unknown group.');
+  if (
+    (v.table && layout !== 'table') ||
+    (v.chart && layout !== 'metrics') ||
+    (v.image && layout !== 'editorial')
+  )
+    throw new PresentationError(
+      'Structured tables, charts and images must use their compatible visible layout.',
+    );
+  if ([v.table, v.chart, v.image].filter(Boolean).length > 1)
+    throw new PresentationError('Use one primary evidence type per slide.');
+  if (layout === 'editorial' && !v.image && items.length < 1)
     throw new PresentationError('Editorial requires at least 1 item');
-  if (!['cover', 'closing', 'editorial'].includes(layout) && items.length < 2)
+  if (
+    !v.table &&
+    !v.chart &&
+    !v.image &&
+    !['cover', 'closing', 'editorial'].includes(layout) &&
+    items.length < 2
+  )
     throw new PresentationError('This layout requires at least 2 items');
-  if (layout === 'matrix' && items.length !== 4)
+  if (layout === 'matrix' && !v.templateId && items.length !== 4)
     throw new PresentationError('Matrix requires 4 items');
   if (layout === 'comparison' && items.length > 4)
     throw new PresentationError('Comparison supports up to 4 items');
@@ -120,6 +171,7 @@ export function parsePresentationSlide(value: unknown): PresentationSlide {
   )
     throw new PresentationError('Invalid source references');
   return {
+    ...evidence,
     ...(sourceRefs === undefined ? {} : { sourceRefs: sourceRefs as number[] }),
     title: text(v.title, 100, true),
     subtitle: text(v.subtitle, 400),
@@ -237,3 +289,85 @@ export const PRESENTATION_SCHEMA = object({
     }),
   },
 });
+
+export function parseModel(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{0,119}$/.test(value)
+  )
+    throw new PresentationError('Invalid model ID');
+  return value;
+}
+function parsePresentationEvidence(
+  v: Record<string, unknown>,
+): Partial<PresentationSlide> {
+  const result: Partial<PresentationSlide> = {};
+  if (v.templateId) result.templateId = text(v.templateId, 50);
+  if (v.purpose) result.purpose = text(v.purpose, 250);
+  if (v.factIds) {
+    if (!Array.isArray(v.factIds) || v.factIds.length > 300)
+      throw new PresentationError('Invalid fact references');
+    result.factIds = v.factIds.map((x) => text(x, 20, true));
+  }
+  if (v.groups) {
+    if (!Array.isArray(v.groups) || v.groups.length > 4)
+      throw new PresentationError('Use at most four diagram groups');
+    result.groups = v.groups.map((raw) => {
+      const g = record(raw);
+      return { id: text(g.id, 40, true), title: text(g.title, 50, true) };
+    });
+    if (new Set(result.groups.map((g) => g.id)).size !== result.groups.length)
+      throw new PresentationError('Duplicate group IDs');
+  }
+  if (v.table) {
+    const t = record(v.table);
+    if (
+      !Array.isArray(t.headers) ||
+      !Array.isArray(t.rows) ||
+      t.headers.length < 2 ||
+      t.headers.length > 20 ||
+      t.rows.length > 200
+    )
+      throw new PresentationError('Invalid table size');
+    const headers = t.headers.map((x) => text(x, 120, true));
+    const rows = t.rows.map((raw) => {
+      if (!Array.isArray(raw) || raw.length !== headers.length)
+        throw new PresentationError('Table columns do not match');
+      return raw.map((x) => text(x, 600));
+    });
+    result.table = {
+      headers,
+      rows,
+      ...(t.sourceId ? { sourceId: text(t.sourceId, 40) } : {}),
+    };
+  }
+  if (v.chart) {
+    const c = record(v.chart);
+    if (
+      !Array.isArray(c.labels) ||
+      !Array.isArray(c.values) ||
+      c.labels.length !== c.values.length ||
+      c.values.length < 2 ||
+      c.values.length > 12 ||
+      c.values.some((x) => typeof x !== 'number' || !Number.isFinite(x))
+    )
+      throw new PresentationError('Invalid chart data');
+    if (!Number.isInteger(c.sourceRef) || Number(c.sourceRef) < 1)
+      throw new PresentationError('Chart requires its source passage');
+    result.chart = {
+      type: choice(c.type, ['bar', 'line']),
+      labels: c.labels.map((x) => text(x, 70, true)),
+      values: c.values as number[],
+      unit: text(c.unit, 80),
+      sourceRef: Number(c.sourceRef),
+    };
+  }
+  if (v.image) {
+    const img = record(v.image);
+    result.image = {
+      assetId: text(img.assetId, 80, true),
+      caption: text(img.caption, 600),
+    };
+  }
+  return result;
+}

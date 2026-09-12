@@ -10,10 +10,15 @@ import {
 import {
   PRESENTATION_LAYOUTS,
   type PresentationJob,
+  type PresentationDeck,
+  type PresentationTemplate,
   type PresentationListResponse,
   type PresentationOptions,
   type PresentationSlide,
 } from '@open-design/contracts';
+import { PresentationEvidenceEditor } from './PresentationEvidenceEditor';
+import { PresentationPlan } from './PresentationPlan';
+import { PresentationQuality } from './PresentationQuality';
 import { useI18n } from '../i18n';
 import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
 import {
@@ -39,6 +44,7 @@ const INITIAL_OPTIONS: PresentationOptions = {
   prompt: '',
   style: 'swiss',
   density: 'complete',
+  reviewPlan: true,
 };
 const LAYOUT_LABELS = {
   cover: '封面',
@@ -63,8 +69,25 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 const statusUrl = (id: string) =>
   `/api/projects/${encodeURIComponent(id)}/presentation`;
+const LAYOUT_TEMPLATES: Record<PresentationSlide['layout'], string> = {
+  cover: 'S01',
+  closing: 'S09',
+  editorial: 'E-report',
+  overview: 'S05',
+  table: 'H-table',
+  metrics: 'S20',
+  architecture: 'S17',
+  flow: 'H-flow',
+  cycle: 'S14',
+  steps: 'H-roadmap',
+  timeline: 'S11',
+  comparison: 'S08',
+  matrix: 'S15',
+};
 
-export function PresentationStudio() {
+export function PresentationStudio({
+  onNavigationLockChange,
+}: { onNavigationLockChange?: (locked: boolean) => void } = {}) {
   const { locale } = useI18n();
   const zh = locale.startsWith('zh');
   const [options, setOptions] = useState<PresentationOptions>(INITIAL_OPTIONS);
@@ -78,6 +101,9 @@ export function PresentationStudio() {
   const [draft, setDraft] = useState<PresentationSlide | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [templates, setTemplates] = useState<PresentationTemplate[]>([]);
+  const [planDirty, setPlanDirty] = useState(false);
+  const [pollEpoch, setPollEpoch] = useState(0);
   const [error, setError] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -87,7 +113,22 @@ export function PresentationStudio() {
   const selection = useRef<string | null>(null);
   const submittedProject = useRef<string | null>(null);
   const userNavigated = useRef(false);
-  const running = job?.status === 'generating' || job?.status === 'rendering';
+  const running =
+    !!job &&
+    ['planning', 'generating', 'rendering', 'checking'].includes(job.status);
+  useEffect(() => {
+    void request<{ templates: PresentationTemplate[] }>(
+      '/api/presentations/templates',
+    )
+      .then((r) => setTemplates(r.templates ?? []))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    onNavigationLockChange?.(
+      !!draft || planDirty || busy || saving || (view === 'create' && !!file),
+    );
+    return () => onNavigationLockChange?.(false);
+  }, [draft, planDirty, busy, saving, view, file, onNavigationLockChange]);
   const refreshHistory = useCallback(async () => {
     const result =
       await request<PresentationListResponse>('/api/presentations');
@@ -104,7 +145,15 @@ export function PresentationStudio() {
         if (mounted.current && !userNavigated.current && items[0]) {
           selection.current = items[0].projectId;
           setSelectedId(items[0].projectId);
-          if (['generating', 'rendering'].includes(items[0].status))
+          if (
+            [
+              'planning',
+              'generating',
+              'rendering',
+              'checking',
+              'awaiting-plan',
+            ].includes(items[0].status)
+          )
             setView('deck');
         }
       })
@@ -133,7 +182,11 @@ export function PresentationStudio() {
           return;
         setJob(next);
         setError('');
-        if (next.status === 'generating' || next.status === 'rendering')
+        if (
+          ['planning', 'generating', 'rendering', 'checking'].includes(
+            next.status,
+          )
+        )
           timer = setTimeout(() => void poll(), 2000);
         else void refreshHistory().catch(() => {});
       } catch (e) {
@@ -148,7 +201,7 @@ export function PresentationStudio() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [selectedId, refreshHistory]);
+  }, [selectedId, refreshHistory, pollEpoch]);
   function chooseFile(next: File | null) {
     if (!next) {
       setFile(null);
@@ -204,7 +257,44 @@ export function PresentationStudio() {
       if (mounted.current) setBusy(false);
     }
   }
+  async function performAction(
+    action: string,
+    slideIndex?: number,
+    note?: string,
+    plan?: PresentationDeck,
+  ) {
+    if (!job || saving || draft) return;
+    setSaving(true);
+    setError('');
+    try {
+      const next = await request<PresentationJob>(
+        `${statusUrl(job.projectId)}/action`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action,
+            revision: job.revision,
+            slideIndex,
+            note,
+            plan,
+          }),
+        },
+      );
+      setJob(next);
+      setPlanDirty(false);
+      setPollEpoch((n) => n + 1);
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
   async function retryLayout() {
+    if (job?.plan && job.status === 'failed') {
+      await performAction('continue');
+      return;
+    }
     if (!job?.deck?.slides[0] || saving) return;
     setSaving(true);
     setError('');
@@ -251,19 +341,19 @@ export function PresentationStudio() {
       if (mounted.current) setSaving(false);
     }
   }
-  const locked = busy || running || saving || !!draft;
+  const locked = busy || running || saving || !!draft || planDirty;
   const current = job?.deck?.slides[index];
   // Only the selected job may render or publish poll results.
   const visibleJob = job?.projectId === selectedId ? job : null;
   useEffect(() => {
-    if (!draft) return;
+    if (!draft && !planDirty && !(view === 'create' && file)) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [draft]);
+  }, [draft, planDirty, view, file]);
   useEffect(() => {
     if (view !== 'deck' || !visibleJob?.deck || draft || saving || running)
       return;
@@ -350,7 +440,7 @@ export function PresentationStudio() {
           <button
             type="button"
             aria-current={view === 'history' ? 'page' : undefined}
-            disabled={busy || saving || !!draft}
+            disabled={busy || saving || !!draft || planDirty}
             onClick={() => {
               userNavigated.current = true;
               setView('history');
@@ -426,17 +516,30 @@ export function PresentationStudio() {
                       )}
                     </time>
                     <span>
-                      {item.status === 'complete'
+                      {item.status === 'awaiting-plan'
                         ? zh
-                          ? '打开文稿 ↗'
-                          : 'Open ↗'
-                        : item.status === 'failed'
+                          ? '待确认计划'
+                          : 'Review plan'
+                        : item.qualityStatus === 'blocked'
                           ? zh
-                            ? '生成未完成'
-                            : 'Failed'
-                          : zh
-                            ? '生成中'
-                            : 'Generating'}
+                            ? '需要修订'
+                            : 'Needs revision'
+                          : item.status === 'complete' &&
+                              item.qualityStatus === 'needs-review'
+                            ? zh
+                              ? '待核对 · 打开文稿 ↗'
+                              : 'Review · Open ↗'
+                            : item.status === 'complete'
+                              ? zh
+                                ? '打开文稿 ↗'
+                                : 'Open ↗'
+                              : item.status === 'failed'
+                                ? zh
+                                  ? '生成未完成'
+                                  : 'Failed'
+                                : zh
+                                  ? '生成中'
+                                  : 'Generating'}
                     </span>
                   </footer>
                 </button>
@@ -471,10 +574,30 @@ export function PresentationStudio() {
                 setView('create');
               }}
             />
+          ) : visibleJob.status === 'awaiting-plan' && visibleJob.plan ? (
+            <PresentationPlan
+              job={visibleJob}
+              templates={templates}
+              saving={saving}
+              onDirty={setPlanDirty}
+              onContinue={(plan) =>
+                void performAction('continue', undefined, undefined, plan)
+              }
+            />
           ) : (
             current &&
             job?.deck && (
               <>
+                <PresentationQuality
+                  job={job}
+                  busy={saving || !!draft}
+                  onAction={(action, page, note) =>
+                    void performAction(action, page, note)
+                  }
+                  onPage={(page) => {
+                    if (!draft) setIndex(page);
+                  }}
+                />
                 <header className="ppt-workbench__document-bar">
                   <div>
                     <h1>{job.deck.title}</h1>
@@ -487,26 +610,32 @@ export function PresentationStudio() {
                     </p>
                   </div>
                   <div>
-                    {job.html && !draft && !saving && (
-                      <a
-                        className="od-button od-button--secondary od-button--default"
-                        href={projectFileUrl(job.projectId, job.html)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <ExternalLink size={16} />
-                        {zh ? '演示' : 'Present'}
-                      </a>
-                    )}
-                    {job.pptx && !draft && !saving && (
-                      <a
-                        className="od-button od-button--primary od-button--default"
-                        href={projectFileDownloadUrl(job.projectId, job.pptx)}
-                      >
-                        <Download size={16} />
-                        {zh ? '下载 PPTX' : 'Download PPTX'}
-                      </a>
-                    )}
+                    {job.html &&
+                      !draft &&
+                      !saving &&
+                      job.quality?.status !== 'blocked' && (
+                        <a
+                          className="od-button od-button--secondary od-button--default"
+                          href={projectFileUrl(job.projectId, job.html)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <ExternalLink size={16} />
+                          {zh ? '演示' : 'Present'}
+                        </a>
+                      )}
+                    {job.pptx &&
+                      !draft &&
+                      !saving &&
+                      job.quality?.status !== 'blocked' && (
+                        <a
+                          className="od-button od-button--primary od-button--default"
+                          href={projectFileDownloadUrl(job.projectId, job.pptx)}
+                        >
+                          <Download size={16} />
+                          {zh ? '下载 PPTX' : 'Download PPTX'}
+                        </a>
+                      )}
                   </div>
                 </header>
                 {!!job.deck.warnings?.length && (
@@ -746,12 +875,29 @@ function SlideEditor({
           label={zh ? '版式' : 'Layout'}
           value={slide.layout}
           disabled={!editing || saving}
-          options={PRESENTATION_LAYOUTS.map((value) => ({
+          options={PRESENTATION_LAYOUTS.filter((value) =>
+            slide.table
+              ? value === 'table'
+              : slide.chart
+                ? value === 'metrics'
+                : slide.image
+                  ? value === 'editorial'
+                  : slide.groups?.length
+                    ? ['architecture', 'flow'].includes(value)
+                    : slide.edges.length
+                      ? ['architecture', 'flow', 'cycle'].includes(value)
+                      : true,
+          ).map((value) => ({
             value,
             label: zh ? LAYOUT_LABELS[value] : value,
           }))}
           onChange={(value) =>
-            onChange({ ...slide, layout: value as PresentationSlide['layout'] })
+            onChange({
+              ...slide,
+              layout: value as PresentationSlide['layout'],
+              templateId:
+                LAYOUT_TEMPLATES[value as PresentationSlide['layout']],
+            })
           }
         />
         <label>
@@ -772,58 +918,61 @@ function SlideEditor({
             onChange={(e) => onChange({ ...slide, subtitle: e.target.value })}
           />
         </label>
-        {slide.items.map((item, i) => (
-          <div className="ppt-workbench__item-form" key={item.id}>
-            <span>{String(i + 1).padStart(2, '0')}</span>
-            <label>
-              {zh ? '小标题' : 'Heading'}
-              <input
-                maxLength={80}
-                value={item.title}
-                onChange={(e) =>
-                  onChange({
-                    ...slide,
-                    items: slide.items.map((x, j) =>
-                      j === i ? { ...x, title: e.target.value } : x,
-                    ),
-                  })
-                }
-              />
-            </label>
-            <label>
-              {zh ? '完整说明' : 'Description'}
-              <textarea
-                rows={5}
-                maxLength={600}
-                value={item.body}
-                onChange={(e) =>
-                  onChange({
-                    ...slide,
-                    items: slide.items.map((x, j) =>
-                      j === i ? { ...x, body: e.target.value } : x,
-                    ),
-                  })
-                }
-              />
-            </label>
-            {editing && (
-              <Button
-                type="button"
-                onClick={() =>
-                  onChange({
-                    ...slide,
-                    items: slide.items.filter((_, j) => j !== i),
-                    edges: slide.edges.filter(
-                      (e) => e.from !== item.id && e.to !== item.id,
-                    ),
-                  })
-                }
-              >
-                {zh ? '移除内容块' : 'Remove block'}
-              </Button>
-            )}
-          </div>
-        ))}
+        <PresentationEvidenceEditor slide={slide} onChange={onChange} />
+        {(!slide.table && !slide.chart && !slide.image ? slide.items : []).map(
+          (item, i) => (
+            <div className="ppt-workbench__item-form" key={item.id}>
+              <span>{String(i + 1).padStart(2, '0')}</span>
+              <label>
+                {zh ? '小标题' : 'Heading'}
+                <input
+                  maxLength={80}
+                  value={item.title}
+                  onChange={(e) =>
+                    onChange({
+                      ...slide,
+                      items: slide.items.map((x, j) =>
+                        j === i ? { ...x, title: e.target.value } : x,
+                      ),
+                    })
+                  }
+                />
+              </label>
+              <label>
+                {zh ? '完整说明' : 'Description'}
+                <textarea
+                  rows={5}
+                  maxLength={600}
+                  value={item.body}
+                  onChange={(e) =>
+                    onChange({
+                      ...slide,
+                      items: slide.items.map((x, j) =>
+                        j === i ? { ...x, body: e.target.value } : x,
+                      ),
+                    })
+                  }
+                />
+              </label>
+              {editing && (
+                <Button
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      ...slide,
+                      items: slide.items.filter((_, j) => j !== i),
+                      edges: slide.edges.filter(
+                        (e) => e.from !== item.id && e.to !== item.id,
+                      ),
+                    })
+                  }
+                >
+                  {zh ? '移除内容块' : 'Remove block'}
+                </Button>
+              )}
+            </div>
+          ),
+        )}
         {editing && (
           <Button
             type="button"

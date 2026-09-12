@@ -16,12 +16,72 @@ export function fitPresentationDeck(
     slide: PresentationSlide,
     index: number,
   ): PresentationSlide[] => {
+    if (slide.table && slide.templateId) {
+      const table = slide.table;
+      if (table.headers.length > 7) {
+        if (options.pageCount !== 'auto')
+          throw new PresentationError(
+            `Slide ${index + 1}: wide table needs additional pages; choose automatic length.`,
+            422,
+          );
+        const result: PresentationSlide[] = [];
+        for (let col = 1; col < table.headers.length; col += 6) {
+          const columns = [
+            0,
+            ...Array.from(
+              { length: Math.min(6, table.headers.length - col) },
+              (_, i) => col + i,
+            ),
+          ];
+          result.push(
+            ...fit(
+              {
+                ...slide,
+                title: `${slide.title} · ${Math.ceil(col / 6)}`,
+                table: {
+                  ...table,
+                  headers: columns.map((c) => table.headers[c]!),
+                  rows: table.rows.map((row) => columns.map((c) => row[c]!)),
+                },
+              },
+              index + result.length,
+            ),
+          );
+        }
+        return result;
+      }
+    }
     try {
       buildPresentationScene(slide, options, index, deck.slides.length);
       return [slide];
     } catch (error) {
       if (!(error instanceof PresentationError) || error.status !== 422)
         throw error;
+      if (slide.table && slide.templateId) {
+        if (options.pageCount !== 'auto' || slide.table.rows.length < 2)
+          throw error;
+        const middle = Math.ceil(slide.table.rows.length / 2);
+        return [
+          ...fit(
+            {
+              ...slide,
+              table: {
+                ...slide.table,
+                rows: slide.table.rows.slice(0, middle),
+              },
+            },
+            index,
+          ),
+          ...fit(
+            {
+              ...slide,
+              title: `${slide.title} · 续`,
+              table: { ...slide.table, rows: slide.table.rows.slice(middle) },
+            },
+            index + 1,
+          ),
+        ];
+      }
       // A text layout cannot faithfully replace a graph or a cover.
       if (
         ['cover', 'closing', 'architecture', 'flow', 'cycle'].includes(
@@ -30,7 +90,11 @@ export function fitPresentationDeck(
         slide.edges.length
       )
         throw error;
-      const editorial: PresentationSlide = { ...slide, layout: 'editorial' };
+      const editorial: PresentationSlide = {
+        ...slide,
+        layout: 'editorial',
+        ...(slide.templateId ? { templateId: 'E-report' } : {}),
+      };
       try {
         buildPresentationScene(editorial, options, index, deck.slides.length);
         return [editorial];

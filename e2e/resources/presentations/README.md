@@ -78,3 +78,21 @@ pnpm exec tsx scripts/presentation-eval.ts evaluate --case 01-long-report --pptx
 当前产品、上传的 guizang skill、内置 HTML PPT 模板分别使用同一文档、简报、比例和页数策略，记录各自默认模型与能力，再在可行时做同模型对照。保留源文事实、最终 PPTX、渲染页、成本与耗时。全页图片方案不得与原生可编辑方案混为同一产物类别。
 
 本次交付的是固定材料、检查清单、评测器控制与私有历史基线入口。8 个合成案例在三个生成流程上均**尚未实跑**；真实质量通过率、稳定性和流程优劣均待验证。后续实跑目录独立保存，不覆盖本次“未运行”目录报告。
+
+## v2 产品真实运行与验收工具
+
+以下入口会调用隔离实例配置的真实模型 API，产生费用。与上面的离线入口分开运行：
+
+```bash
+pnpm exec tsx scripts/presentation-benchmark.ts --url http://127.0.0.1:17956 --out ../.tmp/ppt-run-new --model gpt-5.6-terra --source-version COMMIT
+```
+
+默认六个开发案例；`--cases` 可选案例，`--repeats 3` 保留每次重复，冻结候选后才使用 `--allow-reserved`。实际结果见输出目录的 `index.html`，包括失败、逐页 SVG、最终 PPTX、原文、配置、用量和待填写评审记录。SVG 是产品场景预览，不能冒充 Office 渲染。以前目录中的“未运行”报告是历史快照，不会被新结果覆盖。
+
+验收入口读取完整的预期矩阵，缺失运行保留在分母中：
+
+```bash
+pnpm exec tsx scripts/presentation-acceptance.ts --manifest /absolute/comparison.json --out /new/acceptance-directory
+```
+
+`comparison.json` 结构为 `{cases: [caseId], engines: ["current-product", "guizang-skill", "built-in-html-ppt"], repetitions: 3, runs: [{caseId, engine, repetition: 1, result: "result.json", reviews: ["review-A.json", "review-B.json"]}]}`。路径相对 manifest。两份独立评审必须填写不同 reviewer、逐项 pass/fail、页码、证据和理由，绑定相同原文/答案/成品哈希。缺失、失败、未评、分歧或配置不匹配均返回非零退出码。这个门槛可以阻止未经验证的质量声明，不能替代评审者或产生尚不存在的金标准。

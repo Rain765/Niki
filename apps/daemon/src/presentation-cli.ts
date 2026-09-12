@@ -9,7 +9,13 @@ import { resolveDaemonUrl } from './daemon-url.js';
 
 const HELP = `od ppt generate --file document.pdf [--color emerald] [--ratio 16:9] [--pages auto|5|10|15|20]
                 [--style swiss|editorial] [--density complete|brief]
+                [--model ID] [--fallback-model ID] [--review-plan] [--family swiss|editorial|technical]
                 [--prompt-file path|-] [--wait] [--json]
+od ppt models|templates [--json]
+od ppt continue --project ID --revision N [--plan-file plan.json] [--wait] [--json]
+od ppt repair --project ID --revision N --page 1 [--prompt-file path|-] [--wait] [--json]
+od ppt check --project ID --revision N [--wait] [--json]
+od ppt review --project ID --revision N --prompt-file note.txt|- [--json]
 od ppt list [--json]
 od ppt status --project ID [--json]
 od ppt edit --project ID --page 1 --revision N --slide-file slide.json|- [--json]
@@ -37,6 +43,11 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       strict: true,
       options: {
         file: { type: 'string' },
+        model: { type: 'string' },
+        'fallback-model': { type: 'string' },
+        family: { type: 'string' },
+        'plan-file': { type: 'string' },
+        'review-plan': { type: 'boolean' },
         color: { type: 'string' },
         ratio: { type: 'string' },
         pages: { type: 'string' },
@@ -70,7 +81,41 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       return `/api/projects/${encodeURIComponent(id)}/presentation`;
     };
     let result: unknown;
-    if (command === 'list')
+    if (command === 'models' || command === 'templates')
+      result = await request(`/api/presentations/${command}`);
+    else if (['continue', 'repair', 'check', 'review'].includes(command)) {
+      if (!values.revision) throw new Error('--revision is required');
+      result = await request<PresentationJob>(`${jobUrl()}/action`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: command === 'review' ? 'accept-review' : command,
+          revision: Number(values.revision),
+          slideIndex: values.page ? Number(values.page) - 1 : undefined,
+          note: values['prompt-file']
+            ? await readInput(values['prompt-file'])
+            : undefined,
+          plan: values['plan-file']
+            ? JSON.parse(await readInput(values['plan-file']))
+            : undefined,
+        }),
+      });
+      if (values.wait) {
+        const deadline = Date.now() + 30 * 60_000;
+        while (
+          ['planning', 'generating', 'rendering', 'checking'].includes(
+            (result as PresentationJob).status,
+          )
+        ) {
+          if (Date.now() > deadline)
+            throw new Error('Still running; use status to resume monitoring.');
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          result = await request<PresentationJob>(jobUrl());
+        }
+        if ((result as PresentationJob).status === 'failed')
+          process.exitCode = 1;
+      }
+    } else if (command === 'list')
       result = await request<PresentationListResponse>('/api/presentations');
     else if (command === 'status')
       result = await request<PresentationJob>(jobUrl());
@@ -83,6 +128,10 @@ export async function runPresentationCli(args: string[]): Promise<void> {
         'options',
         JSON.stringify({
           palette: values.color ?? 'emerald',
+          model: values.model,
+          fallbackModel: values['fallback-model'],
+          reviewPlan: values['review-plan'] ?? false,
+          templateFamily: values.family,
           ratio: values.ratio ?? '16:9',
           style: values.style ?? 'swiss',
           density: values.density ?? 'complete',
@@ -100,8 +149,12 @@ export async function runPresentationCli(args: string[]): Promise<void> {
         body: form,
       });
       if (values.wait) {
-        const deadline = Date.now() + 12 * 60_000;
-        while (job.status === 'generating' || job.status === 'rendering') {
+        const deadline = Date.now() + 30 * 60_000;
+        while (
+          ['planning', 'generating', 'rendering', 'checking'].includes(
+            job.status,
+          )
+        ) {
           if (Date.now() > deadline)
             throw new Error(
               `Still generating. Check with od ppt status --project ${job.projectId}`,
@@ -140,6 +193,10 @@ export async function runPresentationCli(args: string[]): Promise<void> {
           : Number.isInteger(page)
             ? job.previews?.[page - 1]
             : undefined;
+      if (command === 'download' && job.quality?.status === 'blocked')
+        throw new Error(
+          'Quality checks found blocking issues. Inspect status and repair affected pages before download.',
+        );
       if (job.status !== 'complete' || !file)
         throw new Error('The requested presentation or slide is not ready');
       const response = await fetch(

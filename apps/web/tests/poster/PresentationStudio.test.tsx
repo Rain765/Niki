@@ -36,10 +36,10 @@ const deck = (projectId: string): PresentationJob => ({
     })),
   },
 });
-function mount() {
+function mount(onNavigationLockChange?: (locked: boolean) => void) {
   return render(
     <I18nProvider initial="zh-CN">
-      <PresentationStudio />
+      <PresentationStudio onNavigationLockChange={onNavigationLockChange} />
     </I18nProvider>,
   );
 }
@@ -160,4 +160,68 @@ it('protects unsaved edits and only uses arrow navigation outside editable contr
       .disabled,
   ).toBe(true);
   expect(screen.queryByRole('link', { name: /下载 PPTX/ })).toBeNull();
+});
+
+it('protects uploaded files and editable page plans across the global navigation boundary', async () => {
+  const locked = vi.fn();
+  const first = mount(locked);
+  upload(first.container);
+  await waitFor(() => expect(locked).toHaveBeenLastCalledWith(true));
+  fireEvent.click(screen.getByRole('button', { name: '移除文档' }));
+  await waitFor(() => expect(locked).toHaveBeenLastCalledWith(false));
+  first.unmount();
+  const job = {
+    ...deck('planned'),
+    status: 'awaiting-plan' as const,
+    plan: deck('planned').deck,
+  };
+  vi.mocked(fetch).mockImplementation(async (url) =>
+    String(url) === '/api/presentations'
+      ? json({ presentations: [{ ...job, title: 'planned' }] })
+      : json(job),
+  );
+  mount(locked);
+  await screen.findByRole('heading', { name: '先确认每一页要讲什么' });
+  fireEvent.change(screen.getByRole('textbox', { name: '页面标题' }), {
+    target: { value: 'Revised planned title' },
+  });
+  await waitFor(() => expect(locked).toHaveBeenLastCalledWith(true));
+  expect(
+    (screen.getByRole('button', { name: /我的文稿/ }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: '恢复原计划' }));
+  await waitFor(() => expect(locked).toHaveBeenLastCalledWith(false));
+});
+
+it('blocks normal export for unresolved source errors and offers targeted repair', async () => {
+  const job: PresentationJob = {
+    ...deck('blocked'),
+    quality: {
+      version: '2',
+      status: 'blocked',
+      checkedAt: 1,
+      renderedPages: 2,
+      facts: { total: 1, candidates: 0, missing: 1 },
+      issues: [
+        {
+          code: 'semantic-contradicted',
+          severity: 'error',
+          page: 2,
+          message: 'Wrong amount',
+        },
+      ],
+    },
+  };
+  vi.mocked(fetch).mockImplementation(async (url) =>
+    String(url) === '/api/presentations'
+      ? json({ presentations: [{ ...job, title: 'blocked' }] })
+      : json(job),
+  );
+  mount();
+  fireEvent.click(await screen.findByRole('button', { name: '当前文稿' }));
+  expect(await screen.findByText('Wrong amount')).toBeTruthy();
+  expect(screen.queryByRole('link', { name: /下载 PPTX/ })).toBeNull();
+  expect(screen.getByRole('button', { name: '修复第 2 页' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '记录人工验收' })).toBeNull();
 });

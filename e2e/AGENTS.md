@@ -18,6 +18,9 @@ Follow the root `AGENTS.md` first. This package owns user-level end-to-end smoke
 - `scripts/playwright.ts`: Playwright auxiliary subcommands such as artifact cleanup; it must not wrap `playwright test`.
 - `scripts/presentation-eval.ts`: offline corpus validation, answer-free input export, final PPTX inspection, and local HTML reports. It never calls model APIs; real provider runs are separate from mocked core e2e smoke. Outputs and private regression cases belong in ignored `.tmp/` directories outside `e2e/`.
 
+- `scripts/presentation-benchmark.ts`: opt-in paid provider evaluation via production HTTP APIs against an explicitly selected isolated instance. It records failures and usage; never include it in default mocked CI.
+- `scripts/presentation-acceptance.ts`: offline review and comparison-matrix gate; missing runs and unresolved artifact-bound reviews fail closed.
+
 ## Spec and test model
 
 - Start from `specs/`: define orthogonal long-form core capabilities first, then let supporting `tests/` and `lib/` grow from those chains.

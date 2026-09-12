@@ -120,6 +120,11 @@ export interface PresentationOptions {
   /** Omitted on older presentations. */
   style?: 'swiss' | 'editorial';
   density?: 'complete' | 'brief';
+  model?: string;
+  fallbackModel?: string;
+  /** Pause after generating a source-backed plan for user review. */
+  reviewPlan?: boolean;
+  templateFamily?: 'swiss' | 'editorial' | 'technical';
 }
 
 /** IDs are local to a slide. Edges describe actual source relationships. */
@@ -127,6 +132,7 @@ export interface PresentationItem {
   id: string;
   title: string;
   body: string;
+  group?: string;
 }
 export interface PresentationEdge {
   from: string;
@@ -141,6 +147,72 @@ export interface PresentationSlide {
   edges: PresentationEdge[];
   notes: string;
   sourceRefs?: number[];
+  templateId?: string;
+  purpose?: string;
+  factIds?: string[];
+  table?: { headers: string[]; rows: string[][]; sourceId?: string };
+  chart?: {
+    type: 'bar' | 'line';
+    labels: string[];
+    values: number[];
+    unit: string;
+    sourceRef: number;
+  };
+  groups?: { id: string; title: string }[];
+  image?: { assetId: string; caption: string };
+}
+export interface PresentationFact {
+  id: string;
+  sourceRef: number;
+  quote: string;
+  critical: boolean;
+}
+export interface PresentationSource {
+  blocks: string[];
+  facts: PresentationFact[];
+  tables: {
+    id: string;
+    sourceRef: number;
+    headers: string[];
+    rows: string[][];
+  }[];
+  assets?: { id: string; name: string; data: string }[];
+  recommendedPages: number;
+  warnings: string[];
+}
+export interface PresentationQualityIssue {
+  code: string;
+  severity: 'error' | 'warning';
+  message: string;
+  page?: number;
+  factId?: string;
+}
+export interface PresentationQuality {
+  version: string;
+  status: 'passed' | 'needs-review' | 'blocked';
+  checkedAt: number;
+  issues: PresentationQualityIssue[];
+  facts: { total: number; candidates: number; missing: number };
+  renderedPages: number;
+  visualReview?: {
+    model: string;
+    issues: PresentationQualityIssue[];
+    status: 'reviewed' | 'unavailable';
+  };
+  humanReview?: {
+    verdict: 'accepted' | 'changes-requested';
+    note: string;
+    reviewedAt: number;
+  };
+}
+export interface PresentationTemplate {
+  id: string;
+  name: string;
+  family: 'swiss' | 'editorial' | 'technical';
+  layout: PresentationLayout;
+  description: string;
+  reference: string;
+  sample: PresentationSlide;
 }
 export interface PresentationDeck {
   title: string;
@@ -162,7 +234,14 @@ export interface PresentationUsage {
 export interface PresentationJob {
   projectId: string;
   revision: number;
-  status: 'generating' | 'rendering' | 'complete' | 'failed';
+  status:
+    | 'generating'
+    | 'rendering'
+    | 'complete'
+    | 'failed'
+    | 'planning'
+    | 'awaiting-plan'
+    | 'checking';
   sourceName: string;
   createdAt: number;
   updatedAt: number;
@@ -174,11 +253,18 @@ export interface PresentationJob {
   pptx?: string;
   html?: string;
   previews?: string[];
+  source?: PresentationSource;
+  quality?: PresentationQuality;
+  stage?: string;
+  completedPages?: number;
+  pipelineVersion?: string;
+  plan?: PresentationDeck;
+  pageDrafts?: Record<string, PresentationSlide>;
 }
 export type PresentationSummary = Pick<
   PresentationJob,
   'projectId' | 'status' | 'sourceName' | 'createdAt'
-> & { title: string };
+> & { title: string; qualityStatus?: PresentationQuality['status'] };
 export interface PresentationEditRequest {
   revision: number;
   slideIndex: number;
@@ -187,4 +273,20 @@ export interface PresentationEditRequest {
 /** POST /api/presentations: multipart file + JSON options; returns PresentationJob. */
 export interface PresentationListResponse {
   presentations: PresentationSummary[];
+}
+export interface PresentationActionRequest {
+  action: 'continue' | 'repair' | 'check' | 'accept-review';
+  revision: number;
+  slideIndex?: number;
+  note?: string;
+  plan?: PresentationDeck;
+}
+export interface PresentationModelsResponse {
+  models: string[];
+  verified: boolean;
+  message?: string;
+}
+export interface PresentationTemplatesResponse {
+  version: string;
+  templates: PresentationTemplate[];
 }

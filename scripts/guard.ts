@@ -22,6 +22,8 @@ const allowedE2eScripts = new Set([
   "e2e/scripts/release-smoke.ts",
   "e2e/scripts/visual-report.ts",
   "e2e/scripts/presentation-eval.ts",
+  "e2e/scripts/presentation-benchmark.ts",
+  "e2e/scripts/presentation-acceptance.ts",
 ]);
 
 type GuardCheck = {

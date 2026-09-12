@@ -1,4 +1,6 @@
 import { createRequire } from 'node:module';
+import sharp from 'sharp';
+import JSZip from 'jszip';
 import {
   PRESENTATION_PALETTES,
   type PresentationDeck,
@@ -6,6 +8,7 @@ import {
   type PresentationSlide,
 } from '@open-design/contracts';
 import { PresentationError } from './content.js';
+import { composePresentation, evidenceSvg } from './composition.js';
 import { DECK_SKELETON_HTML } from '../prompts/deck-framework.js';
 
 const NEUTRAL = {
@@ -20,7 +23,7 @@ const FONT = 'Microsoft YaHei';
 const PptxGenJS = createRequire(import.meta.url)(
   'pptxgenjs',
 ) as typeof import('pptxgenjs').default;
-type Box = { x: number; y: number; w: number; h: number };
+export type Box = { x: number; y: number; w: number; h: number };
 type Text = Box & {
   kind: 'text';
   lines: string[];
@@ -48,11 +51,30 @@ type Line = {
 export type PresentationScene = {
   width: number;
   height: number;
-  elements: Array<Text | Shape | Line>;
+  elements: Array<
+    | Text
+    | Shape
+    | Line
+    | (Box & {
+        kind: 'table';
+        headers: string[];
+        rows: string[][];
+        columnWidths: number[];
+        rowHeights: number[];
+        color: string;
+      })
+    | (Box & {
+        kind: 'chart';
+        orientation?: 'vertical' | 'horizontal';
+        chart: NonNullable<PresentationSlide['chart']>;
+        color: string;
+      })
+    | (Box & { kind: 'image'; data: string })
+  >;
 };
 
 /** Conservative CJK-aware wrapping shared by SVG and PPTX, without silently dropping words. */
-function wrap(value: string, width: number, size: number): string[] {
+export function wrap(value: string, width: number, size: number): string[] {
   const lines: string[] = [];
   for (const paragraph of value.split('\n')) {
     let line = '';
@@ -106,6 +128,8 @@ export function buildPresentationScene(
   index: number,
   count: number,
 ): PresentationScene {
+  if (slide.templateId)
+    return composePresentation(slide, options, index, count);
   const height = 720;
   const width =
     options.ratio === '4:3' ? 960 : options.ratio === '16:10' ? 1152 : 1280;
@@ -289,7 +313,11 @@ export function buildPresentationScene(
     text(item.title, { ...box, h: headingHeight + 2 }, titleSize, ink, true);
     text(
       item.body,
-      { ...box, y: box.y + headingHeight + 15, h: box.h - headingHeight - 15 },
+      {
+        ...box,
+        y: box.y + headingHeight + 15,
+        h: box.h - headingHeight - 15,
+      },
       23,
       fill,
     );
@@ -342,7 +370,12 @@ export function buildPresentationScene(
       nextY += rowHeight + gap;
       const layer = slide.layout === 'architecture';
       const bx = layer ? margin + 22 : margin;
-      const box = { x: bx, y, w: available - (layer ? 22 : 0), h: rowHeight };
+      const box = {
+        x: bx,
+        y,
+        w: available - (layer ? 22 : 0),
+        h: rowHeight,
+      };
       boxes.push(box);
       if (layer) {
         rect(box, i % 2 ? palette.air : NEUTRAL.fill);
@@ -392,8 +425,12 @@ export function buildPresentationScene(
     const cols = n <= 3 ? n : Math.ceil(n / 2);
     const rows = Math.ceil(n / cols);
     const gapX = 48;
-    const legends: Array<{ text: string; x: number; row: number; w: number }> =
-      [];
+    const legends: Array<{
+      text: string;
+      x: number;
+      row: number;
+      w: number;
+    }> = [];
     let legendX = 0,
       legendRow = 0;
     slide.edges.forEach((edge, i) => {
@@ -659,7 +696,12 @@ export function buildPresentationScene(
       );
       itemText(
         item,
-        { x: x + pad, y: y + pad + 23, w: bw - pad * 2, h: bh - pad * 2 - 23 },
+        {
+          x: x + pad,
+          y: y + pad + 23,
+          w: bw - pad * 2,
+          h: bh - pad * 2 - 23,
+        },
         dense ? 27 : 25,
       );
     });
@@ -668,7 +710,7 @@ export function buildPresentationScene(
 }
 
 type Point = { x: number; y: number };
-function routeConnection(
+export function routeConnection(
   a: Box,
   b: Box,
   boxes: Box[],
@@ -782,6 +824,8 @@ export function presentationSceneSvg(scene: PresentationScene): string {
         return `<text fill="#${e.color}" font-family="${e.font},PingFang SC,Noto Sans CJK SC,sans-serif" font-size="${e.size}" font-weight="${e.bold ? 600 : 400}" text-anchor="${e.align === 'center' ? 'middle' : e.align === 'right' ? 'end' : 'start'}">${e.lines.map((t, i) => `<tspan x="${e.x + (e.align === 'center' ? e.w / 2 : e.align === 'right' ? e.w : 0)}" y="${e.y + e.size + i * e.size * 1.32}">${xml(t)}</tspan>`).join('')}</text>`;
       if (e.kind === 'line')
         return `<line x1="${e.x}" y1="${e.y}" x2="${e.x2}" y2="${e.y2}" stroke="#${e.color}" stroke-width="${e.width}"${e.arrow ? ' marker-end="url(#arrow)"' : ''}/>`;
+      if (e.kind === 'table' || e.kind === 'chart' || e.kind === 'image')
+        return evidenceSvg(e);
       const style = `fill="#${e.fill}" stroke="${e.stroke ? `#${e.stroke}` : 'none'}" stroke-width="1"`;
       return e.kind === 'ellipse'
         ? `<ellipse cx="${e.x + e.w / 2}" cy="${e.y + e.h / 2}" rx="${e.w / 2}" ry="${e.h / 2}" ${style}/>`
@@ -798,6 +842,20 @@ export async function renderPresentation(
     buildPresentationScene(slide, options, i, deck.slides.length),
   );
   const pptx = new PptxGenJS();
+  const imageSizes = new Map<string, { width: number; height: number }>();
+  for (const scene of scenes)
+    for (const element of scene.elements) {
+      if (element.kind !== 'image' || imageSizes.has(element.data)) continue;
+      const metadata = await sharp(
+        Buffer.from(element.data.split(',')[1] ?? '', 'base64'),
+      ).metadata();
+      if (!metadata.width || !metadata.height)
+        throw new PresentationError('无法读取原文图片尺寸。', 422);
+      imageSizes.set(element.data, {
+        width: metadata.width,
+        height: metadata.height,
+      });
+    }
   pptx.defineLayout({
     name: 'NIKI',
     width: scenes[0]!.width / 96,
@@ -845,6 +903,82 @@ export async function renderPresentation(
             endArrowType: e.arrow ? 'triangle' : 'none',
           },
         });
+      else if (e.kind === 'image') {
+        const size = imageSizes.get(e.data)!;
+        const scale = Math.min(e.w / size.width, e.h / size.height);
+        slide.addImage({
+          data: e.data,
+          x: (e.x + (e.w - size.width * scale) / 2) / 96,
+          y: (e.y + (e.h - size.height * scale) / 2) / 96,
+          w: (size.width * scale) / 96,
+          h: (size.height * scale) / 96,
+        });
+      } else if (e.kind === 'table')
+        slide.addTable(
+          [
+            e.headers.map((text) => ({
+              text,
+              options: {
+                bold: true,
+                fill: { color: e.color },
+                color: 'FFFFFF',
+              },
+            })),
+            ...e.rows.map((row, i) =>
+              row.map((text) => ({
+                text,
+                options: {
+                  fill: { color: i % 2 ? NEUTRAL.fill : NEUTRAL.white },
+                },
+              })),
+            ),
+          ],
+          {
+            x: e.x / 96,
+            y: e.y / 96,
+            w: e.w / 96,
+            h: e.h / 96,
+            fontFace: FONT,
+            fontSize: 16.5,
+            color: NEUTRAL.ink,
+            border: { color: NEUTRAL.line, pt: 0.4 },
+            margin: 0.07,
+            rowH: e.rowHeights.map((height) => height / 96),
+            colW: e.columnWidths.map((width) => width / 96),
+            valign: 'middle',
+            autoPage: false,
+          },
+        );
+      else if (e.kind === 'chart')
+        slide.addChart(
+          e.chart.type === 'line' ? pptx.ChartType.line : pptx.ChartType.bar,
+          [
+            {
+              name: e.chart.unit,
+              labels: e.chart.labels,
+              values: e.chart.values,
+            },
+          ],
+          {
+            x: e.x / 96,
+            y: e.y / 96,
+            w: e.w / 96,
+            h: e.h / 96,
+            catAxisLabelFontFace: FONT,
+            catAxisLabelFontSize: 14,
+            valAxisLabelFontSize: 12,
+            showValue: true,
+            dataLabelFormatCode: '#,##0.########',
+            showValAxisTitle: true,
+            valAxisTitle: e.chart.unit,
+            valAxisTitleFontFace: FONT,
+            valAxisTitleFontSize: 12,
+            showLegend: false,
+            showTitle: false,
+            chartColors: [e.color],
+            barDir: e.orientation === 'vertical' ? 'col' : 'bar',
+          },
+        );
       else
         slide.addShape(
           e.kind === 'ellipse' ? pptx.ShapeType.ellipse : pptx.ShapeType.rect,
@@ -854,7 +988,10 @@ export async function renderPresentation(
             w: e.w / 96,
             h: e.h / 96,
             fill: { color: e.fill },
-            line: { color: e.stroke ?? e.fill, width: e.stroke ? 0.75 : 0 },
+            line: {
+              color: e.stroke ?? e.fill,
+              width: e.stroke ? 0.75 : 0,
+            },
           },
         );
     }
@@ -880,13 +1017,65 @@ export async function renderPresentation(
     );
   });
   return {
-    pptx: (await pptx.write({
-      outputType: 'nodebuffer',
-      compression: true,
-    })) as Buffer,
+    pptx: await normalizePresentationPackage(
+      (await pptx.write({
+        outputType: 'nodebuffer',
+        compression: true,
+      })) as Buffer,
+    ),
     previews: scenes.map(presentationSceneSvg),
     html: presentationHtml(deck, scenes),
   };
+}
+
+/** PptxGenJS 4 declares one master per slide but writes a single shared master.
+ * Remove only those nonexistent master declarations; real parts and relationships stay intact.
+ */
+async function normalizePresentationPackage(buffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  const entry = zip.file('[Content_Types].xml');
+  if (!entry) throw new PresentationError('Missing PPTX content types', 422);
+  const types = await entry.async('string');
+  const normalized = types.replace(/<Override\b[^>]*\/>/g, (declaration) => {
+    const part = declaration.match(
+      /PartName="\/(ppt\/slideMasters\/slideMaster\d+\.xml)"/,
+    )?.[1];
+    return part && !zip.file(part) ? '' : declaration;
+  });
+  let changed = types !== normalized;
+  zip.file('[Content_Types].xml', normalized);
+  // A single category level uses strRef for portability; keep its workbook formula and cached labels.
+  for (const [name, entry] of Object.entries(zip.files)) {
+    if (!/^ppt\/charts\/chart\d+\.xml$/.test(name)) continue;
+    const chart = await entry.async('string');
+    const portable = chart
+      .replace(
+        /(<a:latin\b[^>]*\/>)(?!\s*<a:ea\b)/g,
+        '$1<a:ea typeface="Microsoft YaHei"/>',
+      )
+      .replace(
+        /<c:multiLvlStrRef>([\s\S]*?)<\/c:multiLvlStrRef>/g,
+        (original, contents: string) => {
+          if ((contents.match(/<c:lvl>/g) ?? []).length !== 1) return original;
+          return (
+            '<c:strRef>' +
+            contents
+              .replace(/multiLvlStrCache/g, 'strCache')
+              .replace(/<\/?c:lvl>/g, '') +
+            '</c:strRef>'
+          );
+        },
+      );
+    if (portable !== chart) {
+      zip.file(name, portable);
+      changed = true;
+    }
+  }
+  if (!changed) return buffer;
+  return zip.generateAsync({
+    type: 'nodebuffer',
+    compression: 'DEFLATE',
+  });
 }
 
 /** Reuse the repository's tested deck runtime for keyboard, fullscreen-scale and PDF printing. */

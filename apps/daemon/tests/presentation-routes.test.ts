@@ -224,4 +224,124 @@ describe('document to PPT HTTP workflow', () => {
     expect(repaired.deck!.slides[1]!.items).toEqual(denseSlide.items);
     expect(calls).toBe(1);
   });
+  it('requires plan confirmation, rejects stale actions and clears acceptance after editing', async () => {
+    root = await mkdtemp(path.join(tmpdir(), 'niki-ppt-plan-'));
+    const db = openDatabase(root, { dataDir: root });
+    const owner = upsertFeishuUser(db, {
+      tenantKey: 'test',
+      openId: 'planner',
+      name: 'Planner',
+    });
+    const app = express();
+    app.use(express.json());
+    app.use((_req, _res, next) => runAsNikiUser(owner, next));
+    const deck: PresentationDeck = {
+      title: 'Plan',
+      slides: Array.from({ length: 5 }, (_, index) => ({
+        title: `Page ${index + 1}`,
+        subtitle: '',
+        layout: index ? 'editorial' : 'cover',
+        templateId: index ? 'E-report' : 'S01',
+        items: [
+          {
+            id: 'a',
+            title: 'Cost',
+            body: 'The fee is 45 USD per month. Approval is mandatory before delivery.',
+          },
+        ],
+        edges: [],
+        notes: '',
+        sourceRefs: [1],
+        factIds: ['F1'],
+      })),
+    };
+    let generations = 0;
+    registerPresentationRoutes(app, {
+      db,
+      projectRoot: root,
+      projectsRoot: path.join(root, 'projects'),
+      plan: async () => deck,
+      generate: async () => {
+        generations++;
+        return structuredClone(deck);
+      },
+      review: async ({ quality }) => quality,
+    });
+    server = createServer(app);
+    await new Promise<void>((resolve) =>
+      server!.listen(0, '127.0.0.1', resolve),
+    );
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('No address');
+    const base = `http://127.0.0.1:${address.port}`;
+    const form = new FormData();
+    form.append(
+      'file',
+      new Blob([
+        'The fee is 45 USD per month. Approval is mandatory before delivery.',
+      ]),
+      'plan.md',
+    );
+    form.append(
+      'options',
+      JSON.stringify({
+        palette: 'blue',
+        ratio: '16:9',
+        pageCount: 5,
+        reviewPlan: true,
+        prompt: '',
+      }),
+    );
+    const started = (await (
+      await fetch(base + '/api/presentations', { method: 'POST', body: form })
+    ).json()) as PresentationJob;
+    const url = `${base}/api/projects/${started.projectId}/presentation`;
+    const read = async () =>
+      (await (await fetch(url)).json()) as PresentationJob;
+    await expect.poll(async () => (await read()).status).toBe('awaiting-plan');
+    expect(generations).toBe(0);
+    const act = (body: object) =>
+      fetch(url + '/action', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    expect((await act({ action: 'continue', revision: 0 })).status).toBe(409);
+    expect(
+      (await act({ action: 'continue', revision: 1, plan: { slides: [] } }))
+        .status,
+    ).toBe(400);
+    expect((await act({ action: 'continue', revision: 1 })).status).toBe(202);
+    await expect
+      .poll(async () => (await read()).status, { timeout: 15000 })
+      .toBe('complete');
+    const complete = await read();
+    expect(generations).toBe(1);
+    expect(complete.quality?.status).toBe('needs-review');
+    expect(
+      (
+        await act({
+          action: 'accept-review',
+          revision: complete.revision,
+          note: 'Checked source and rendered pages.',
+        })
+      ).status,
+    ).toBe(200);
+    const accepted = await read();
+    expect(accepted.quality?.humanReview?.verdict).toBe('accepted');
+    const edited = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        revision: accepted.revision,
+        slideIndex: 1,
+        slide: { ...accepted.deck!.slides[1], title: 'Revised title' },
+      }),
+    });
+    expect(edited.status).toBe(200);
+    const result = (await edited.json()) as PresentationJob;
+    expect(result.quality?.status).toBe('needs-review');
+    expect(result.quality?.humanReview).toBeUndefined();
+    expect(result.pageDrafts).toBeUndefined();
+  }, 30000);
 });

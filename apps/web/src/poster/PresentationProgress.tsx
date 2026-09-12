@@ -23,7 +23,8 @@ export function PresentationProgress({
 }) {
   const failed = job?.status === 'failed';
   const opening = !job && !busy;
-  const rendering = job?.status === 'rendering' || saving;
+  const rendering =
+    job?.status === 'rendering' || job?.status === 'checking' || saving;
   const stage = busy ? 0 : rendering ? 2 : 1;
   const title = failed
     ? zh
@@ -65,16 +66,27 @@ export function PresentationProgress({
             <LoaderCircle className="is-working" size={25} />
           )}
         </span>
-        <h1>{title}</h1>
+        <h1>
+          {job?.status === 'checking'
+            ? zh
+              ? '正在核对内容与版式'
+              : 'Reviewing content and design'
+            : title}
+        </h1>
+        {job?.stage && <p>{job.stage}</p>}
         <p>
           {failed
-            ? job.deck
+            ? job.plan
               ? zh
-                ? '内容草稿已保留，可以直接重试排版，无需重新生成内容。'
-                : 'Your draft is saved. Retry the layout without generating the content again.'
-              : zh
-                ? '请查看错误详情，再调整文档或设置后重试。'
-                : 'Review the error details, then adjust your document or settings and retry.'
+                ? `已保存计划和 ${job.completedPages ?? job.deck?.slides.length ?? 0} 页草稿，继续时会补齐未完成页面并重新检查，会产生模型用量。`
+                : 'Your plan and completed pages are saved. Continuing generates missing pages and reviews the deck, using the model API.'
+              : job.deck
+                ? zh
+                  ? '内容草稿已保留，可以直接重试排版，无需重新生成内容。'
+                  : 'Your draft is saved. Retry the layout without generating the content again.'
+                : zh
+                  ? '请查看错误详情，再调整文档或设置后重试。'
+                  : 'Review the error details, then adjust your document or settings and retry.'
             : opening
               ? loadError
                 ? zh
@@ -141,14 +153,16 @@ export function PresentationProgress({
       {failed && (
         <>
           <div className="ppt-workbench__recovery-actions">
-            {job.deck && (
+            {(job.deck || job.plan) && (
               <Button variant="primary" loading={saving} onClick={onRetry}>
                 {saving
                   ? zh
                     ? '正在重试排版…'
                     : 'Retrying…'
                   : zh
-                    ? '重试排版'
+                    ? job.plan
+                      ? '继续页面计划'
+                      : '重试排版'
                     : 'Retry layout'}
               </Button>
             )}
