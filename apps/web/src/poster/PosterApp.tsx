@@ -955,7 +955,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             {([
               ['poster', 'posterNav.poster'],
               ['video', 'posterNav.video'],
-              ['documents', 'posterNav.documents'],
             ] as const).map(([mode, label]) => (
               <button
                 key={mode}
@@ -983,6 +982,17 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               }}
             >
               {t('posterNav.logo')}
+            </button>
+            <button
+              type="button"
+              className={creationMode === 'documents' ? 'is-active' : undefined}
+              aria-current={creationMode === 'documents' ? 'page' : undefined}
+              onClick={() => {
+                setCreationMode('documents');
+                updateCreationModeUrl('documents');
+              }}
+            >
+              {t('posterNav.documents')}
             </button>
             <button
               type="button"
