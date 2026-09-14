@@ -97,14 +97,68 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(result.handObservation).toEqual(observation());
   });
 
-  it('retries uncertain arm connections once and never delivers a repeatedly rejected pose', async () => {
+  it('automatically switches to a simpler pose when the correction still fails', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn(async (_prompt: string) => ({ bytes }));
+    const preserveLayoutDraft = vi.fn();
+    const detectHands = vi.fn()
+      .mockRejectedValueOnce(new PosterHandLayoutError('arm connection is uncertain'))
+      .mockRejectedValueOnce(new PosterHandLayoutError('arm connection is uncertain'))
+      .mockResolvedValueOnce(observation());
+    const result = await renderImageWithAntiFraudSafeZoneRetry('original branded scene', render, { detectHands, preserveLayoutDraft });
+    expect(result.attempts).toBe(3);
+    expect(result.handObservation).toEqual(observation());
+    expect(render.mock.calls[1]![0]).not.toContain('SIMPLIFIED POSE RECOVERY');
+    expect(render.mock.calls[2]![0]).toContain('SIMPLIFIED POSE RECOVERY');
+    expect(render.mock.calls[2]![0]).toContain('original branded scene');
+    expect(preserveLayoutDraft).not.toHaveBeenCalled();
+  });
+
+  it('honors an explicit no-retry budget', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn(async () => ({ bytes }));
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, {
+      maxRetries: 0, detectHands: async () => ({ hands: [], phones: [] }),
+    })).rejects.toThrow('exactly two');
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([100, Infinity, NaN])('caps a retry budget of %s at three total renders', async (maxRetries) => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn(async () => ({ bytes }));
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, {
+      maxRetries, detectHands: async () => ({ hands: [], phones: [] }),
+    })).rejects.toBeInstanceOf(PosterHandLayoutError);
+    expect(render).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not buy another image when the detector is unavailable', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn(async () => ({ bytes }));
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, {
+      detectHands: async () => { throw new PosterHandLayoutError('detector unavailable', false); },
+    })).rejects.toThrow('detector unavailable');
+    expect(render).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not use simpler-pose recovery for cosmetic issues when a valid pose exists', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn(async () => ({ bytes }));
+    const result = await renderImageWithAntiFraudSafeZoneRetry('scene', render, {
+      detectHands: async () => observation(),
+    });
+    expect(result.handObservation).toEqual(observation());
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops after correction and simpler-pose recovery, never delivering a rejected pose', async () => {
     const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
     const render = vi.fn(async () => ({ bytes }));
     const preserveLayoutDraft = vi.fn();
     const detectHands = vi.fn().mockRejectedValue(new PosterHandLayoutError('arm connection is uncertain'));
     await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, { detectHands, preserveLayoutDraft }))
       .rejects.toThrow('arm connection');
-    expect(render).toHaveBeenCalledTimes(2);
+    expect(render).toHaveBeenCalledTimes(3);
     expect(preserveLayoutDraft).toHaveBeenCalledOnce();
   });
 
@@ -130,7 +184,7 @@ describe('hand-relative anti-fraud message layout', () => {
     await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, {
       detectHands: async () => ({ hands: [], phones: [] }),
     })).rejects.toThrow('exactly two');
-    expect(render).toHaveBeenCalledTimes(2);
+    expect(render).toHaveBeenCalledTimes(3);
   });
 
   it('preserves the selected base before reporting an exhausted layout retry', async () => {

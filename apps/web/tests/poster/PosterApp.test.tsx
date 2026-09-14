@@ -1086,6 +1086,21 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
   });
 
+  it('does not expose internal hand-layout errors or draft paths after recovery is exhausted', async () => {
+    startDirectLoanPosterProjectMock.mockRejectedValue(new Error(
+      'Poster layout not accepted; base image saved as .poster-layout-drafts/layout-123/base.png. Anti-fraud hand layout: arm connection is uncertain',
+    ));
+    render(<PosterApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    const generationStatus = await screen.findByTestId('poster-app-generation-status');
+    await waitFor(() => expect(within(generationStatus).getByText(
+      'We could not complete this poster. Please generate again; completed posters are kept.',
+    )).toBeTruthy());
+    expect(generationStatus.textContent).not.toContain('arm connection');
+    expect(generationStatus.textContent).not.toContain('.poster-layout-drafts');
+    expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(false);
+  });
+
   it('shows and automatically dismisses a successful generation after 3 seconds', async () => {
     const completedProject = {
       ...project,

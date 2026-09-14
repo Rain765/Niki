@@ -74,6 +74,7 @@ import {
   placeAntiFraudMessage,
   PosterHandLayoutError,
   ANTI_FRAUD_HAND_RETRY,
+  ANTI_FRAUD_SIMPLE_POSE_RECOVERY,
   type PosterHandObservation,
   type AntiFraudMessagePlacement,
 } from './poster-hand-layout.js';
@@ -557,7 +558,11 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   handObservation?: PosterHandObservation | undefined;
 }> {
   const anchor = options.anchor ?? 'left';
-  const maxRetries = Math.max(0, options.maxRetries ?? 1);
+  // One correction, then one simpler-pose recovery only if the hands still fail.
+  // An explicit smaller budget is honored; callers cannot create an unbounded loop.
+  const requestedRetries = options.maxRetries ?? 2;
+  const maxRetries = Number.isFinite(requestedRetries)
+    ? Math.min(2, Math.max(0, Math.floor(requestedRetries))) : 2;
   let bestResult = await render(prompt);
   const logoRules = await antiFraudLogoSafeZoneRules(bestResult.bytes);
   let bestLogoSafeZone = await analyzeZamloanLogoSafeZone(bestResult.bytes, {
@@ -577,7 +582,7 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
       placeAntiFraudMessage(metadata.width!, metadata.height!, observation);
       return { observation, error: undefined };
     } catch (error) {
-      if (!(error instanceof PosterHandLayoutError)) throw error;
+      if (!(error instanceof PosterHandLayoutError) || !error.recoverable) throw error;
       return { observation, error };
     }
   };
@@ -597,8 +602,12 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
   }
 
   for (let retry = 0; retry < maxRetries; retry += 1) {
+    // Cosmetic background checks retain their existing one-retry budget.
+    if (retry > 0 && !bestHands.error) break;
     const retryInstructions = [
-      bestHands.error ? ANTI_FRAUD_HAND_RETRY : '',
+      bestHands.error
+        ? retry === 0 ? ANTI_FRAUD_HAND_RETRY : ANTI_FRAUD_SIMPLE_POSE_RECOVERY
+        : '',
       bestLogoSafeZone.intrudes ? logoRules.retryInstruction(anchor) : '',
       bestLowerRight.intrudes
         ? await antiFraudLowerRightRetryInstruction(bestResult.bytes)

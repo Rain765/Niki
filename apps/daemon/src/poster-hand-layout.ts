@@ -14,7 +14,7 @@ export interface AntiFraudMessagePlacement {
 }
 
 export class PosterHandLayoutError extends Error {
-  constructor(message: string) {
+  constructor(message: string, readonly recoverable = true) {
     super(`Anti-fraud hand layout: ${message}`);
     this.name = 'PosterHandLayoutError';
   }
@@ -121,3 +121,6 @@ export function placeAntiFraudMessage(
 }
 
 export const ANTI_FRAUD_HAND_RETRY = 'CRITICAL HAND-RELATIVE LAYOUT: show exactly one person with both complete hands clearly visible. Keep the phone and its holding hand on the inner-left side. Move the rejecting palm center to x=62% to 66%, with its lowest fingertip or wrist above y=70%. Turn this palm sideways and sweep toward the right and slightly downward in the image plane, never reaching forward toward the camera. Keep generous continuous background immediately below-right of the entire hand through x=97%, y=97%. This space must remain visually indistinguishable from the surrounding natural scene. Preserve the complete phone, title, subtitle and logo-safe area. Keep both arm chains separate and easy to trace from shoulder through elbow and wrist to hand. No crossed arms, folded arms, forearm resting across the chest or waist, tucked hand, hidden extra hand, or overlapping sleeves. Use exactly two arms for the only two actions: holding the phone and pushing outward.';
+
+/** Last bounded recovery changes only the pose, not brand, copy or design. */
+export const ANTI_FRAUD_SIMPLE_POSE_RECOVERY = 'SIMPLIFIED POSE RECOVERY: replace any earlier complex arm choreography with this simpler two-arm pose. Keep the same single person, brand, exact headline/subtitle, phone screen, logo-safe band, palette and scene. Frame both shoulders, elbows, wrists and hands without cropping. Keep the upper arms separated beside the torso, never crossing the chest or each other. The image-left arm holds the phone upright, screen facing the viewer. The image-right elbow stays beside the torso; its forearm extends gently to image-right, with the open palm facing partly toward the viewer and angled slightly down-right, not edge-on, not pointing at the phone, and not thrust toward the camera. Keep this palm center at x=64%, y=62% and the entire hand above y=70%, leaving the natural scene below-right unobstructed for later message compositing. Do not draw a message, placeholder, extra arm, tucked hand or crossed sleeve. Preserve text size and the original poster composition; only simplify the arm pose.';

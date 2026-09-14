@@ -56,6 +56,7 @@ import {
 import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
 import type { Project, ProjectFile } from '../types';
 import { useRuntimeReleaseRefresh } from './useRuntimeReleaseRefresh';
+import { posterLayoutFailureCopy } from './generation-failure-copy';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
@@ -97,7 +98,8 @@ const POSTER_COPY = {
     generatePosters: 'Generate posters',
     generatingPosters: 'Generating posters…',
     generated: (count: number) => `${count} ${count === 1 ? 'poster' : 'posters'} generated`,
-    generationFailed: (detail?: string) => `Generation failed${detail ? `: ${detail}` : ''}`,
+    generationFailed: (detail?: string) => posterLayoutFailureCopy(detail, 'en')
+      ?? `Generation failed${detail ? `: ${detail}` : ''}`,
     generationSubmitFailed: 'Could not submit the generation task',
     refreshingVersion: 'A new version is available. Refreshing…',
     readyToGenerate: 'Ready to generate',
@@ -178,7 +180,8 @@ const POSTER_COPY = {
     generatePosters: '生成海报',
     generatingPosters: '正在生成海报…',
     generated: (count: number) => `已生成 ${count} 张海报`,
-    generationFailed: (detail?: string) => `生成失败${detail ? `：${detail}` : ''}`,
+    generationFailed: (detail?: string) => posterLayoutFailureCopy(detail, 'zh')
+      ?? `生成失败${detail ? `：${detail}` : ''}`,
     generationSubmitFailed: '无法提交生成任务',
     refreshingVersion: '发现新版本，正在更新…',
     readyToGenerate: '可以开始生成',
@@ -317,7 +320,7 @@ function generationCopy(batch: DirectPosterBatchView | null, copy: PosterCopy): 
     return {
       state: 'failed',
       title: copy.batchFailed,
-      detail: batch.lastError ?? copy.batchFailedDetail,
+      detail: batch.lastError ? copy.generationFailed(batch.lastError) : copy.batchFailedDetail,
     };
   }
   if (batch.status === 'complete') {

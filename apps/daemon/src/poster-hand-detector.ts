@@ -117,7 +117,7 @@ function parseObservation(raw: string): PosterHandObservation {
     || !Array.isArray(value.phones) || value.phones.length > 30
     || !value.phones.every((b) => [b.left, b.top, b.right, b.bottom].every((n) => Number.isFinite(n) && n >= 0 && n <= 1)
       && b.left < b.right && b.top < b.bottom)) {
-    throw new PosterHandLayoutError('detector returned invalid landmarks; hand wrists and body arm chains are required');
+    throw new PosterHandLayoutError('detector returned invalid landmarks; hand wrists and body arm chains are required', false);
   }
   return value;
 }
@@ -150,7 +150,7 @@ export async function createPosterHandDetector(): Promise<PosterHandDetector> {
       return observation;
     } catch (error) {
       if (error instanceof PosterHandLayoutError) throw error;
-      throw new PosterHandLayoutError('hand recognition failed or timed out; no message was composited');
+      throw new PosterHandLayoutError('hand recognition failed or timed out; no message was composited', false);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }

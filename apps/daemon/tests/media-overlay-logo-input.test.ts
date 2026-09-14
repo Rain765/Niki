@@ -91,7 +91,7 @@ describe('media brand overlay inputs', () => {
         posterCopyStyle: 'anti-fraud-message', output: 'poster.png',
       })).rejects.toThrow('base image saved as .poster-layout-drafts/');
     }
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     await expect(readFile(path.join(projectDir, 'poster.png'))).rejects.toThrow();
     const draftRoot = path.join(projectDir, '.poster-layout-drafts');
     const drafts = await readdir(draftRoot);
