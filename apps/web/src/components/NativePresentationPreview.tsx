@@ -1,13 +1,14 @@
+import { useState } from 'react';
 import { useI18n } from '../i18n';
 import { projectFileUrl } from '../providers/registry';
+import { NativePresentationEditor } from './NativePresentationEditor';
 
-/** Original presentation runtimes use storage and popup windows, unlike sandbox previews. */
 export function NativePresentationPreview({ projectId, name }: { projectId: string; name: string }) {
-  const { locale } = useI18n();
-  const zh = locale.startsWith('zh');
+  const { locale } = useI18n(); const zh = locale.startsWith('zh');
+  const [editing, setEditing] = useState(false);
+  if (editing) return <NativePresentationEditor projectId={projectId} name={name} onClose={() => setEditing(false)} />;
   return <div className="native-ppt-open" data-testid="native-presentation-preview">
     <strong>{name}</strong>
-    <p>{zh ? '在独立窗口打开完整演示稿，保留原始布局、动效、备注和演讲者模式。修改内容后重新打开即可查看。' : 'Open the complete deck in a separate window, preserving its layout, motion, notes and presenter mode. Reopen after editing to see changes.'}</p>
-    <a href={projectFileUrl(projectId, name)} target="_blank" rel="noopener noreferrer">{zh ? '打开原生演示 ↗' : 'Open original presentation ↗'}</a>
+    <div className="native-ppt-open__actions"><button onClick={() => setEditing(true)}>{zh ? '编辑文案' : 'Edit text'}</button><a href={projectFileUrl(projectId, name)} target="_blank" rel="noopener noreferrer">{zh ? '演示 ↗' : 'Present ↗'}</a></div>
   </div>;
 }

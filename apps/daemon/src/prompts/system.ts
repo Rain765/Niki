@@ -347,6 +347,7 @@ export function composeSystemPrompt({
   // turn 1", "branch on brand on turn 2", "TodoWrite on turn 3", run
   // checklist + critique before <artifact>) win precedence over softer
   // wording later in the official base prompt.
+  const nativePresentation = Boolean(skillBody?.trim()) && (skillName === 'html-ppt' || skillName === 'guizang-ppt-skill');
   const parts: string[] = [];
   const activeDesignSystemBody = designSystemBody?.trim();
 
@@ -369,9 +370,9 @@ export function composeSystemPrompt({
   }
 
   parts.push(
-    DISCOVERY_AND_PHILOSOPHY,
+    nativePresentation ? 'Use the active native presentation workflow for requirement discovery, template selection, authoring, preview and revision. Preserve its original interaction and rendering rules.' : DISCOVERY_AND_PHILOSOPHY,
     '\n\n---\n\n# Identity and workflow charter (background)\n\n',
-    BASE_SYSTEM_PROMPT,
+    nativePresentation ? BASE_SYSTEM_PROMPT.replace(/^For decks, the host injects[^\n]+/m, 'For this native presentation workflow, copy the selected original skill template and preserve its CSS and runtime. The generic deck framework does not apply.') : BASE_SYSTEM_PROMPT,
   );
 
   if (memoryBody && memoryBody.trim().length > 0) {
@@ -456,7 +457,7 @@ export function composeSystemPrompt({
   }
 
   if (skillBody && skillBody.trim().length > 0) {
-    const preflight = derivePreflight(skillBody);
+    const preflight = nativePresentation ? '' : derivePreflight(skillBody);
     parts.push(
       `\n\n## Active skill${skillName ? ` — ${skillName}` : ''}\n\nFollow this skill's workflow exactly.${preflight}\n\n${skillBody.trim()}`,
     );
@@ -508,7 +509,7 @@ export function composeSystemPrompt({
   const isDeckProject = skillMode === 'deck' || metadata?.kind === 'deck';
   const isFreeformProject = !skillMode && (!metadata || metadata.kind === 'other');
   const hasSkillSeed =
-    !!skillBody && /assets\/template\.html/.test(skillBody);
+    nativePresentation || (!!skillBody && /assets\/template\.html/.test(skillBody));
   if (isDeckProject && !hasSkillSeed) {
     parts.push(`\n\n---\n\n${DECK_FRAMEWORK_DIRECTIVE}`);
   } else if (isFreeformProject && !hasSkillSeed) {

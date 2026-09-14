@@ -5774,6 +5774,7 @@ function HtmlViewer({
             <span>Inspect</span>
           </button>
           <button
+            hidden={externalHtmlPreview}
             className={`viewer-action${manualEditMode ? ' active' : ''}`}
             type="button"
             data-testid="manual-edit-mode-toggle"

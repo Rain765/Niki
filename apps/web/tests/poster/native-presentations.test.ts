@@ -31,3 +31,12 @@ describe('original document handoff', () => {
     expect(patch.metadata?.nativePresentation?.brief).toBe(patch.pendingPrompt);
   });
 });
+
+it('uses original template files and preserves original background rhythm', async () => {
+  const { nativePresentationPrompt } = await import('../../src/poster/native-presentations');
+  const prompt = nativePresentationPrompt({...brief,skill:'html-ppt',style:'tech-sharing'});
+  expect(prompt).toContain('templates/full-decks/tech-sharing/index.html');
+  expect(prompt).toContain('不统一背景');
+  expect(prompt).toContain('浅底与深底');
+  expect(nativePresentationPrompt({...brief,style:'B · 瑞士国际主义'})).toContain('assets/template-swiss.html');
+});

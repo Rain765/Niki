@@ -488,3 +488,22 @@ describe('composeSystemPrompt', () => {
     });
   });
 });
+
+it('keeps HTML PPT original templates authoritative without a generic skeleton', () => {
+  const body = 'Use templates/full-decks/weekly-report/index.html and assets/runtime.js. Ask the original three questions.';
+  const prompt = composeSystemPrompt({ skillName: 'html-ppt', skillMode: 'deck', metadata: { kind: 'deck' }, skillBody: body });
+  expect(prompt).toContain(body);
+  expect(prompt).not.toContain('Slide deck — fixed framework');
+  expect(prompt).not.toContain('copy the deck framework verbatim');
+  expect(prompt).toContain('native presentation workflow');
+});
+it('lets Guizang choose its own A/B preflight and background rhythm', () => {
+  const body = 'A assets/template.html; B assets/template-swiss.html. 原规则：深浅背景交替。';
+  const prompt = composeSystemPrompt({ skillName: 'guizang-ppt-skill', skillBody: body, metadata: { kind: 'deck' } });
+  expect(prompt).toContain(body);
+  expect(prompt).not.toContain('Read `assets/template.html`');
+  expect(prompt).not.toContain('Slide deck — fixed framework');
+});
+it('keeps the fallback skeleton for a deck without a native skill', () => {
+  expect(composeSystemPrompt({ metadata: { kind: 'deck' } })).toContain('Slide deck — fixed framework');
+});

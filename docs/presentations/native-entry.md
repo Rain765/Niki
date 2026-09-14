@@ -10,7 +10,7 @@ The PPT page now launches the complete `html-ppt` or `guizang-ppt-skill` workflo
 - Original `ProjectView`, conversation, editing and run APIs remain the workspace. Native HTML preview uses an explicit separate-window link, because guizang requires localStorage and popup synchronization that the normal opaque preview sandbox cannot provide. The source editor stays available; the sandbox is not weakened. The static `/ppt-workspace?path=...` shell preserves conversation/file navigation and works in both static and server builds. Outer-page styles do not flow into the embedded workspace or the generated document.
 - Model execution uses a local tool-capable agent. The workspace exposes agent/model/reasoning selection; when no model has been chosen it retains the source and waits. It does not silently substitute a fallback generator.
 - Updated the existing recoverable Codex skill-budget notice matcher for the 0.149 wording (without a percentage); real runtime failures remain fatal.
-- “Legacy studio” retains previous generated documents and the previous generator. The new workflow returns actual generated artifacts; HTML presenter capability is not a promise of equivalent editable PPTX export.
+- The legacy studio entry has been removed from the PPT page. Existing legacy projects are not automatically deleted for other users. The new workflow returns actual generated artifacts; HTML presenter capability is not a promise of equivalent editable PPTX export.
 
 ## Frozen resources
 
@@ -37,3 +37,11 @@ Omit `--agent` to save a project and open the returned workspace path for native
 Resource hashes, request checks, upload integrity and passing builds establish preservation of the invocation path. They do not establish visual quality. Use public synthetic content for automated provider runs. Do not send private source documents without authorization for the actual processing destination.
 
 For visual acceptance, inspect the produced files, compare them against the original templates at the same viewport, verify every factual number and relation, test audience/presenter views and refresh the actual deployed entry. Do not accept an SVG-only preview or a manually constructed PPTX as evidence that this workflow produced the same result. Archive the exact output and review evidence, including incomplete or failed runs.
+
+## Original workflow precedence
+
+Native `html-ppt` and `guizang-ppt-skill` runs use their own discovery and preflight rules. They do not receive the generic fixed deck framework or the generic discovery form. The previous seed detector only recognized `assets/template.html`; it missed HTML PPT's `templates/full-decks/*` and `templates/deck.html`, so a supposedly native run was told to replace its original renderer. Guizang preflight also must not unconditionally pick style A's template when the user selected style B. Regression tests now inspect the composed prompt, not just resource hashes.
+
+The UI selects original full-deck templates and previews their original HTML with relative CSS/JS dependencies via `/api/native-presentation-resources/:workflow/*`. This endpoint permits only the two native workflows, limits files to assets/templates, and rejects traversal and escaping symlinks. `od ppt native-templates --json` lists the same catalog; `od ppt native --template weekly-report --prompt-file brief.md` carries the selected template into the original workflow.
+
+Native text editing operates on individual text nodes within slides and retains nested emphasis, SVG labels, scripts and styles. A local HTML wrapper can point at its same-project deck. The editor re-reads before saving to avoid overwriting an agent's intervening change; it uses the existing file endpoint. This is a pre-save conflict check, not an atomic database compare-and-swap. Full layout edits remain available through the original conversation and source editor. The original deep/light rhythm is retained; readability fixes change text styling, not background alternation.

@@ -1,4 +1,4 @@
-import { NATIVE_PRESENTATION_RESOURCES } from '@open-design/contracts';
+import { NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions } from '@open-design/contracts';
 import { createProject, patchProject } from '../state/projects';
 import { uploadProjectFile } from '../providers/registry';
 import type { Project } from '../types';
@@ -31,6 +31,7 @@ export function nativePresentationPrompt(brief: NativePptBrief, sourceName?: str
     brief.duration ? `分享时长：${brief.duration} 分钟。` : '',
     `风格：${brief.style || '请从原始模板中推荐并与我确认'}。`,
     `主题：${brief.theme || '保留模板原主题，先推荐并与我确认'}。`,
+    nativePresentationDesignInstructions(brief.skill, brief.style),
     '按原流程确认需求、大纲与视觉方向，再生成和检查。保留原模板的字体、布局、资源、交互与演讲者模式。',
     '保留原文中的事实、数据、限制条件及表格；内容过多时提出拆页方案。缺失的素材和数据先说明，不要编造。',
     '交付完整 HTML 及依赖资源；若有其他真实生成的文件可同时交付。',

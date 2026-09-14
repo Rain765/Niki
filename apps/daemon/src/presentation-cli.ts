@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { NATIVE_PRESENTATION_RESOURCES, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project } from '@open-design/contracts';
+import { NATIVE_HTML_TEMPLATES, NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project } from '@open-design/contracts';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -9,8 +9,8 @@ import type {
 } from '@open-design/contracts';
 import { resolveDaemonUrl } from './daemon-url.js';
 
-const HELP = `od ppt native --workflow html-ppt|guizang-ppt-skill --prompt-file brief.md|- [--file source.pdf]
-              [--agent codex] [--model ID] [--json]
+const HELP = `od ppt native-templates --json\nod ppt native --workflow html-ppt|guizang-ppt-skill --prompt-file brief.md|- [--file source.pdf]
+              [--template ID] [--agent codex] [--model ID] [--json]
 Creates an original-skill project. With --agent, starts its native conversation;
 without --agent, saves the brief for the web workspace. Use od run watch <id> to follow.
 od ppt generate --file document.pdf [--color emerald] [--ratio 16:9] [--pages auto|5|10|15|20]
@@ -50,6 +50,7 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       options: {
         file: { type: 'string' },
         workflow: { type: 'string' },
+        template: { type: 'string' },
         agent: { type: 'string' },
         model: { type: 'string' },
         'fallback-model': { type: 'string' },
@@ -89,12 +90,17 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       return `/api/projects/${encodeURIComponent(id)}/presentation`;
     };
     let result: unknown;
-    if (command === 'native') {
+    if (command === 'native-templates') {
+      result = await request('/api/native-presentation-templates');
+    } else if (command === 'native') {
       const workflow = values.workflow as NativePresentationWorkflow | undefined;
       if (!workflow || !Object.hasOwn(NATIVE_PRESENTATION_RESOURCES, workflow)) throw new Error('--workflow must be html-ppt or guizang-ppt-skill');
       if (!values['prompt-file']) throw new Error('--prompt-file is required');
       if (values.wait) throw new Error('Use od run watch <runId> for native runs; they may pause for design decisions.');
-      const brief = await readInput(values['prompt-file']);
+      const inputBrief = await readInput(values['prompt-file']);
+      if (!inputBrief.trim()) throw new Error('Brief must not be empty');
+      if (values.template && workflow === 'html-ppt' && !NATIVE_HTML_TEMPLATES.some(id => id === values.template)) throw new Error('Unknown native template; use od ppt native-templates --json');
+      const brief = `${inputBrief}\n\n${nativePresentationDesignInstructions(workflow, values.template ?? (workflow === 'html-ppt' ? 'weekly-report' : 'B'))}`;
       if (!brief.trim()) throw new Error('Brief must not be empty');
       const registry = workflow === 'html-ppt' ? 'design-templates' : 'skills';
       await request(`/api/${registry}/${workflow}`);

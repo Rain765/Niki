@@ -1,3 +1,4 @@
+import { NATIVE_HTML_TEMPLATES } from '@open-design/contracts';
 import type { Express } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -55,6 +56,24 @@ export function registerStaticResourceRoutes(app: Express, ctx: RegisterStaticRe
     sendApiError(res, 403, 'FORBIDDEN', 'local origin required');
     return false;
   };
+
+  app.get('/api/native-presentation-templates', (_req, res) => {
+    res.json({ html: NATIVE_HTML_TEMPLATES, guizang: ['A · 电子杂志', 'B · 瑞士国际主义'] });
+  });
+  // Serve the original resource tree so its relative CSS/JS URLs stay intact.
+  app.get('/api/native-presentation-resources/:workflow/*', async (req, res) => {
+    try {
+      if (!['html-ppt', 'guizang-ppt-skill'].includes(req.params.workflow)) return res.sendStatus(404);
+      const entry = findSkillById(await listAllSkillLikeEntries(), req.params.workflow);
+      if (!entry) return res.sendStatus(404);
+      const relative = String((req.params as any)[0] ?? '');
+      if (!/^(assets|templates)\//.test(relative) || relative.split('/').some(p => p.startsWith('.'))) return res.sendStatus(400);
+      const root = await fs.promises.realpath(entry.dir);
+      const target = await fs.promises.realpath(path.resolve(root, relative));
+      if (!target.startsWith(root + path.sep)) return res.sendStatus(400);
+      res.type(mimeFor(target)).sendFile(target);
+    } catch { res.sendStatus(404); }
+  });
 
   app.get('/api/agents', async (_req, res) => {
     try {

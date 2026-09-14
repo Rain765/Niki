@@ -13,3 +13,12 @@
 .native-ppt-open p { font-size: 13px; line-height: 1.7; color: var(--poster-muted); }
 .native-ppt-open a { display: inline-block; padding: 12px 16px; border-radius: 8px; background: var(--poster-text); color: var(--poster-text-inverse); text-decoration: none; font-size: 13px; }
 .native-ppt-workspace .df-preview-thumb:has(.native-ppt-open) { height: auto; aspect-ratio: auto; }
+.native-ppt-open__actions { display: flex; gap: 12px; margin-top: 16px; }
+.native-ppt-open button, .native-ppt-text-editor button { padding: 10px 14px; border: 1px solid var(--poster-border); border-radius: 8px; background: var(--poster-panel); color: var(--poster-text); cursor: pointer; }
+.native-ppt-text-editor { width: 100%; padding: 18px; min-width: 0; }
+.native-ppt-text-editor__bar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+.native-ppt-text-editor__bar select { margin-right: auto; min-width: 0; }
+.native-ppt-text-editor__fields { max-height: 60dvh; overflow: auto; }
+.native-ppt-text-editor textarea { display: block; width: 100%; padding: 10px; margin-bottom: 10px; color: var(--poster-text); background: var(--poster-panel); border: 1px solid var(--poster-border); border-radius: 6px; resize: vertical; font: inherit; }
+.native-ppt-text-editor button:disabled { opacity: .5; cursor: default; }
+.native-ppt-workspace .df-preview-thumb:has(.native-ppt-text-editor) { height: auto; aspect-ratio: auto; }
