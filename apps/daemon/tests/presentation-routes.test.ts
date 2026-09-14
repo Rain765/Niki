@@ -8,8 +8,9 @@ import type {
   PresentationDeck,
   PresentationJob,
   PresentationListResponse,
+  NativePresentationInspectionJob,
 } from '@open-design/contracts';
-import { closeDatabase, openDatabase, updateProject } from '../src/db.js';
+import { closeDatabase, openDatabase, insertProject, updateProject } from '../src/db.js';
 import { runAsNikiUser } from '../src/niki-auth-context.js';
 import { upsertFeishuUser } from '../src/niki-auth.js';
 import { getNikiQuotaStatus } from '../src/niki-quota.js';
@@ -24,6 +25,37 @@ describe('document to PPT HTTP workflow', () => {
       await new Promise<void>((resolve) => server!.close(() => resolve()));
     closeDatabase();
     if (root) await rm(root, { recursive: true, force: true });
+  });
+  it('returns an owned async native inspection job before rendering completes and persists its report', async () => {
+    root = await mkdtemp(path.join(tmpdir(), 'niki-native-inspect-http-'));
+    const db = openDatabase(root, { dataDir: root });
+    const owner = upsertFeishuUser(db, {tenantKey:'test',openId:'owner',name:'Owner'});
+    const other = upsertFeishuUser(db, {tenantKey:'test',openId:'other',name:'Other'});
+    runAsNikiUser(owner, () => insertProject(db, {id:'deck',name:'Public deck',skillId:'html-ppt',createdAt:1,updatedAt:1}));
+    const app=express(); app.use(express.json());
+    app.use((req,_res,next)=>runAsNikiUser(req.headers['x-test-user']==='other'?other:owner,next));
+    let release!:()=>void;
+    const gate=new Promise<void>(resolve=>{release=resolve;});
+    registerPresentationRoutes(app, {db,projectRoot:root,projectsRoot:path.join(root,'projects'),inspectNative:async ({save})=>{
+      await gate;
+      const report={version:1 as const,entry:'index.html',sourceHash:'abc',resourceHashes:{},stale:false,viewport:{width:1280,height:720},reportFile:'native-review/report.json',visualReviewRequired:true as const,slides:[],blockedResources:[],failedResources:[]};
+      await save(report.reportFile,Buffer.from(JSON.stringify(report)));
+      return report;
+    }});
+    server=createServer(app);
+    await new Promise<void>(resolve=>server!.listen(0,'127.0.0.1',resolve));
+    const base=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
+    const start=()=>fetch(`${base}/api/projects/deck/native-presentation/inspect`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:'index.html'})});
+    const response=await start(); expect(response.status).toBe(202);
+    const job=await response.json() as NativePresentationInspectionJob;
+    expect(job.status).toBe('running');
+    const url=`${base}/api/projects/deck/native-presentation/inspections/${job.id}`;
+    expect((await fetch(url,{headers:{'x-test-user':'other'}})).status).toBe(404);
+    expect((await start()).status).toBe(409);
+    release();
+    await expect.poll(async()=>((await (await fetch(url)).json()) as NativePresentationInspectionJob).status).toBe('completed');
+    const saved=JSON.parse(await readFile(path.join(root,'projects/deck/native-review/report.json'),'utf8'));
+    expect(saved.visualReviewRequired).toBe(true);
   });
   it('persists an owned job, prevents duplicate generation, saves revisions and recovers interrupted work', async () => {
     root = await mkdtemp(path.join(tmpdir(), 'niki-ppt-http-'));

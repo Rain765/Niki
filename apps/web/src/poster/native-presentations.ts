@@ -31,7 +31,7 @@ export function nativePresentationPrompt(brief: NativePptBrief, sourceName?: str
     brief.duration ? `分享时长：${brief.duration} 分钟。` : '',
     `风格：${brief.style || '请从原始模板中推荐并与我确认'}。`,
     `主题：${brief.theme || '保留模板原主题，先推荐并与我确认'}。`,
-    nativePresentationDesignInstructions(brief.skill, brief.style),
+    nativePresentationDesignInstructions(brief.skill, brief.style, brief.theme),
     '按原流程确认需求、大纲与视觉方向，再生成和检查。保留原模板的字体、布局、资源、交互与演讲者模式。',
     '保留原文中的事实、数据、限制条件及表格；内容过多时提出拆页方案。缺失的素材和数据先说明，不要编造。',
     '交付完整 HTML 及依赖资源；若有其他真实生成的文件可同时交付。',
@@ -45,14 +45,14 @@ export async function prepareNativePresentation(brief: NativePptBrief, file: Fil
     name: brief.topic.trim().slice(0, 70) || file?.name.replace(/\.[^.]+$/, '') || '演示文稿',
     skillId: brief.skill,
     designSystemId: null,
-    metadata: { kind: 'deck', nativePresentation: { version: 1, workflow: brief.skill, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief) } },
+    metadata: { kind: 'deck', nativePresentation: { version: 1, workflow: brief.skill, selection: { template: brief.style, theme: brief.theme }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief) } },
   });
   if (!created) throw new Error('无法创建文稿，请重试。 / Could not create presentation.');
   const uploaded = file ? await uploadProjectFile(created.project.id, file) : null;
   if (file && !uploaded) throw new Error('原文件上传失败，尚未开始生成。可从我的文稿打开草稿重新上传。 / Upload failed; generation has not started.');
   const project = await patchProject(created.project.id, {
     pendingPrompt: nativePresentationPrompt(brief, uploaded?.name),
-    metadata: { ...created.project.metadata!, nativePresentation: { version: 1, workflow: brief.skill, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief, uploaded?.name), sourceFileName: uploaded?.name } },
+    metadata: { ...created.project.metadata!, nativePresentation: { version: 1, workflow: brief.skill, selection: { template: brief.style, theme: brief.theme }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief, uploaded?.name), sourceFileName: uploaded?.name } },
   });
   if (!project) throw new Error('资料已保存，需求保存失败。可从我的文稿继续。 / Brief could not be saved.');
   return project;

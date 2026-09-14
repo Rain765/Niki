@@ -32,6 +32,7 @@
 import { OFFICIAL_DESIGNER_PROMPT } from './official-system.js';
 import { DISCOVERY_AND_PHILOSOPHY } from './discovery.js';
 import { DECK_FRAMEWORK_DIRECTIVE } from './deck-framework.js';
+import { NATIVE_PRESENTATION_HOST_PROMPT } from './native-presentation.js';
 import { MEDIA_GENERATION_CONTRACT } from './media-contract.js';
 import { IMAGE_MODELS } from '../media-models.js';
 import { renderPanelPrompt } from './panel.js';
@@ -370,9 +371,9 @@ export function composeSystemPrompt({
   }
 
   parts.push(
-    nativePresentation ? 'Use the active native presentation workflow for requirement discovery, template selection, authoring, preview and revision. Preserve its original interaction and rendering rules.' : DISCOVERY_AND_PHILOSOPHY,
+    nativePresentation ? '' : DISCOVERY_AND_PHILOSOPHY,
     '\n\n---\n\n# Identity and workflow charter (background)\n\n',
-    nativePresentation ? BASE_SYSTEM_PROMPT.replace(/^For decks, the host injects[^\n]+/m, 'For this native presentation workflow, copy the selected original skill template and preserve its CSS and runtime. The generic deck framework does not apply.') : BASE_SYSTEM_PROMPT,
+    nativePresentation ? NATIVE_PRESENTATION_HOST_PROMPT : BASE_SYSTEM_PROMPT,
   );
 
   if (memoryBody && memoryBody.trim().length > 0) {
@@ -487,7 +488,7 @@ export function composeSystemPrompt({
     }
   }
 
-  const metaBlock = renderMetadataBlock(metadata, template, audioVoiceOptions, audioVoiceOptionsError);
+  const metaBlock = renderMetadataBlock(metadata, template, audioVoiceOptions, audioVoiceOptionsError, nativePresentation);
   if (metaBlock) parts.push(metaBlock);
 
   // Decks have a load-bearing framework (nav, counter, scroll JS, print
@@ -577,7 +578,9 @@ export function composeSystemPrompt({
   // `<question-form>` flow defined in DISCOVERY_AND_PHILOSOPHY; this only
   // covers follow-ups where the next action depends on a small set of
   // choices the user can pick quickly.
-  if (agentId === 'claude') {
+  if (agentId === 'claude' && nativePresentation) {
+    parts.push('\n\nWhen the original workflow needs finite choices, use AskUserQuestion and wait for its answer. Do not duplicate the questions as prose. The original skill determines when clarification is needed.');
+  } else if (agentId === 'claude') {
     parts.push(
       "\n\n---\n\n## Clarifying questions\n\nWhen you need a mid-conversation clarification AND the natural answer is one of a small finite set of choices (2-4 options per question), call the `AskUserQuestion` tool instead of writing a bulleted list in markdown. The host chat renders the tool call as inline choice buttons; a markdown list renders as plain text and forces the user to type a reply. Skip the tool when the answer is naturally free-form text, when the answer needs more than ~4 options, or when you only have one yes/no choice to ask. First-turn discovery still uses the `<question-form id=\"discovery\">` workflow described earlier; `AskUserQuestion` is for follow-ups only.\n\n**When you call `AskUserQuestion`, that tool call is the entire response.** Do NOT also write the same questions or options as markdown text alongside it, do NOT add a trailing prose paragraph like \"what sounds right?\", do NOT hedge by listing the options twice. Emit the tool call and stop generating tokens. The host is waiting on the tool's `tool_result` and will resume your turn the moment the user answers. Anything you write before, between, or after the tool call in the same message just duplicates what the card already shows and confuses the user.",
     );
@@ -746,12 +749,15 @@ function renderMetadataBlock(
   template: ProjectTemplate | undefined,
   audioVoiceOptions: AudioVoiceOption[] | undefined,
   audioVoiceOptionsError: string | undefined,
+  nativePresentation = false,
 ): string {
   if (!metadata) return '';
   const lines: string[] = [];
   lines.push('\n\n## Project metadata');
   lines.push(
-    'These are the structured choices the user made (or skipped) when creating this project. Treat known fields as authoritative; for any field marked "(unknown — ask)" you MUST include a matching question in your turn-1 discovery form.',
+    nativePresentation
+      ? 'These are explicit project choices. Use the original presentation workflow and the user brief for any choices not specified here.'
+      : 'These are the structured choices the user made (or skipped) when creating this project. Treat known fields as authoritative; for any field marked "(unknown — ask)" you MUST include a matching question in your turn-1 discovery form.',
   );
   lines.push('');
   lines.push(`- **kind**: ${metadata.kind}`);
@@ -817,7 +823,7 @@ function renderMetadataBlock(
       `- **fidelity**: ${metadata.fidelity ?? '(unknown — ask: wireframe vs high-fidelity)'}`,
     );
   }
-  if (metadata.kind === 'deck') {
+  if (metadata.kind === 'deck' && (!nativePresentation || typeof metadata.speakerNotes === 'boolean')) {
     lines.push(
       `- **speakerNotes**: ${typeof metadata.speakerNotes === 'boolean' ? metadata.speakerNotes : '(unknown — ask: include speaker notes?)'}`,
     );

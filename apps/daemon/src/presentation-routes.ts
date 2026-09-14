@@ -10,6 +10,7 @@ import type {
   PresentationOptions,
   PresentationSummary,
   PresentationUsage,
+  NativePresentationInspectionJob,
 } from '@open-design/contracts';
 import { PRESENTATION_PALETTES } from '@open-design/contracts';
 import {
@@ -24,7 +25,8 @@ import {
   assertNikiStorageAllowed,
   NikiQuotaExceededError,
 } from './niki-quota.js';
-import { writeProjectFile } from './projects.js';
+import { resolveProjectDir, writeProjectFile } from './projects.js';
+import { inspectNativePresentation, nativeInspectionIsStale } from './presentations/native-inspection.js';
 import {
   MAX_PRESENTATION_FILE_BYTES,
   parsePresentationOptions,
@@ -55,6 +57,7 @@ interface Dependencies {
   projectsRoot: string;
   projectRoot: string;
   plan?: typeof planPresentation;
+  inspectNative?: typeof inspectNativePresentation;
   review?: typeof reviewPresentation;
   generate?: (input: {
     projectRoot: string;
@@ -74,6 +77,45 @@ export function registerPresentationRoutes(
   const activeProjects = new Set<string>();
   const activeUsers = new Set<string>();
   const editing = new Set<string>();
+  const inspecting = new Set<string>();
+  const inspections = new Map<string, NativePresentationInspectionJob>();
+  app.get('/api/projects/:id/native-presentation/inspections/:inspectionId', async (req, res) => {
+    const project = getProject(db, req.params.id);
+    const job = inspections.get(req.params.inspectionId);
+    if (!project || !job || job.projectId !== project.id) return res.status(404).json({ error: 'Inspection unavailable; run it again' });
+    if (job.report) {
+      const stale = await nativeInspectionIsStale(resolveProjectDir(projectsRoot, project.id, project.metadata), job.report);
+      return res.json({...job, report: {...job.report, stale}});
+    }
+    return res.json(job);
+  });
+  app.post('/api/projects/:id/native-presentation/inspect', async (req, res) => {
+    const project = getProject(db, req.params.id);
+    if (!project || !['html-ppt', 'guizang-ppt-skill'].includes(project.skillId ?? '')) return res.status(404).json({ error: 'Native presentation not found' });
+    if (typeof req.body?.entry !== 'string' || !/\.html?$/i.test(req.body.entry)) return res.status(400).json({ error: 'Select an HTML presentation' });
+    if (inspecting.has(project.id)) return res.status(409).json({ error: 'This presentation is already being inspected' });
+    inspecting.add(project.id);
+    const job: NativePresentationInspectionJob = {id:randomUUID(),projectId:project.id,status:'running'};
+    // Completed reports live in project files; retain only the latest in-memory job per project.
+    for (const [id, previous] of inspections) if (previous.projectId === project.id) inspections.delete(id);
+    inspections.set(job.id, job);
+    res.status(202).json(job);
+    void (async () => { try {
+      job.report = await (deps.inspectNative ?? inspectNativePresentation)({
+        projectDir: resolveProjectDir(projectsRoot, project.id, project.metadata), entry: req.body.entry,
+        save: async (name, bytes) => {
+          const user = currentNikiUser();
+          if (user) await assertNikiStorageAllowed(db, projectsRoot, user.id, bytes.length);
+          await writeProjectFile(projectsRoot, project.id, name, bytes, {}, project.metadata);
+        },
+      });
+      job.status = 'completed';
+    } catch (error) {
+      job.error = error instanceof Error ? error.message : 'Native inspection failed';
+      job.status = 'failed';
+    } finally { inspecting.delete(project.id); }
+    })();
+  });
   // Busboy emits partsLimit when reaching the limit, including the closing boundary.
   const upload = multer({
     storage: multer.memoryStorage(),

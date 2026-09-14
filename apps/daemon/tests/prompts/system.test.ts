@@ -507,3 +507,10 @@ it('lets Guizang choose its own A/B preflight and background rhythm', () => {
 it('keeps the fallback skeleton for a deck without a native skill', () => {
   expect(composeSystemPrompt({ metadata: { kind: 'deck' } })).toContain('Slide deck — fixed framework');
 });
+
+it.each(['html-ppt', 'guizang-ppt-skill'])('does not constrain %s with generic designer rules', skillName => {
+  const skillBody = 'Original complete workflow: use its fonts, component library and rendering runtime.';
+  const prompt = composeSystemPrompt({ skillName, skillBody, metadata: { kind: 'deck' } });
+  expect(prompt).toContain(skillBody);
+  for (const conflict of ['1000 lines', 'never smaller than 24px', 'overused fonts', 'rounded boxes with a left-border', 'inline all CSS', 'Always confirm: starting context', 'unknown — ask', 'turn-1 discovery form']) expect(prompt).not.toContain(conflict);
+});

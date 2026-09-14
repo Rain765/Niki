@@ -1,4 +1,4 @@
-import { NATIVE_HTML_TEMPLATES } from '@open-design/contracts';
+import { NATIVE_HTML_TEMPLATES, NATIVE_HTML_THEMES, NATIVE_GUIZANG_THEMES } from '@open-design/contracts';
 import type { Express } from 'express';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -58,7 +58,7 @@ export function registerStaticResourceRoutes(app: Express, ctx: RegisterStaticRe
   };
 
   app.get('/api/native-presentation-templates', (_req, res) => {
-    res.json({ html: NATIVE_HTML_TEMPLATES, guizang: ['A · 电子杂志', 'B · 瑞士国际主义'] });
+    res.json({ html: NATIVE_HTML_TEMPLATES, guizang: ['A · 电子杂志', 'B · 瑞士国际主义'], htmlThemes: NATIVE_HTML_THEMES, guizangThemes: NATIVE_GUIZANG_THEMES, htmlStartingPoints: ['auto', 'custom'] });
   });
   // Serve the original resource tree so its relative CSS/JS URLs stay intact.
   app.get('/api/native-presentation-resources/:workflow/*', async (req, res) => {

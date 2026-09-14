@@ -5,12 +5,38 @@ export const NATIVE_PRESENTATION_RESOURCES = {
 } as const;
 
 export type NativePresentationWorkflow = keyof typeof NATIVE_PRESENTATION_RESOURCES;
+export interface NativePresentationInspection {
+  version: 1;
+  entry: string;
+  sourceHash: string;
+  resourceHashes: Record<string, string>;
+  stale: boolean;
+  viewport: { width: number; height: number };
+  reportFile: string;
+  visualReviewRequired: true;
+  slides: Array<{
+    page: number;
+    screenshot: string;
+    text: string;
+    issues: Array<{ kind: 'dim-text' | 'low-contrast' | 'overflow' | 'missing-image' | 'pipeline-markup'; text: string }>;
+  }>;
+  blockedResources: string[];
+  failedResources: string[];
+}
+export interface NativePresentationInspectionJob {
+  id: string;
+  projectId: string;
+  status: 'running' | 'completed' | 'failed';
+  report?: NativePresentationInspection;
+  error?: string;
+}
 export interface NativePresentationMetadata {
   version: 1;
   workflow: NativePresentationWorkflow;
   resourceVersion: string;
   brief: string;
   sourceFileName?: string;
+  selection?: { template: string; theme: string };
 }
 
 export function nativePresentationWorkspaceUrl(projectId: string): string {
@@ -23,14 +49,29 @@ export const NATIVE_HTML_TEMPLATES = [
   'hermes-cyber-terminal', 'obsidian-claude-gradient', 'testing-safety-alert', 'xhs-pastel-card', 'dir-key-nav-minimal',
 ] as const;
 
-export function nativePresentationDesignInstructions(workflow: NativePresentationWorkflow, template: string): string {
-  const origin = workflow === 'html-ppt'
-    ? `templates/full-decks/${template || 'weekly-report'}/index.html 及同目录 style.css`
-    : template.startsWith('A') ? 'assets/template.html 和 references/layouts.md' : 'assets/template-swiss.html 和 references/layouts-swiss.md';
+export const NATIVE_HTML_THEMES = ['minimal-white', 'editorial-serif', 'soft-pastel', 'sharp-mono', 'arctic-cool', 'sunset-warm', 'catppuccin-latte', 'catppuccin-mocha', 'dracula', 'tokyo-night', 'nord', 'solarized-light', 'gruvbox-dark', 'rose-pine', 'neo-brutalism', 'glassmorphism', 'bauhaus', 'swiss-grid', 'terminal-green', 'xiaohongshu-white', 'rainbow-gradient', 'aurora', 'blueprint', 'memphis-pop', 'cyberpunk-neon', 'y2k-chrome', 'retro-tv', 'japanese-minimal', 'vaporwave', 'midcentury', 'corporate-clean', 'academic-paper', 'news-broadcast', 'pitch-deck-vc', 'magazine-bold', 'engineering-whiteprint'] as const;
+export const NATIVE_GUIZANG_THEMES = {
+  A: ['Monocle', 'Indigo Porcelain', 'Forest Ink', 'Kraft Paper', 'Dune'],
+  B: ['IKB', 'Lemon', 'Lemon Green', 'Safety Orange'],
+} as const;
+
+export function nativePresentationDesignInstructions(workflow: NativePresentationWorkflow, template: string, theme = ''): string {
+  if (workflow === 'html-ppt') {
+    const start = !template ? '起点尚未选择，按原流程推荐整稿模板或自由编排，并与用户确认。'
+      : template === 'custom' ? '用户选择自由编排，从 templates/deck.html 与 templates/single-page/ 按原流程组织页面。'
+      : `用户选择整稿模板 templates/full-decks/${template}/index.html 及同目录 style.css。`;
+    return [
+      start,
+      theme ? `用户选择主题 assets/themes/${theme}.css。按 references/themes.md 和 references/authoring-guide.md 应用，检查最终计算样式确实使用该主题。` : '主题尚未选择，按原流程推荐或确认保留模板默认主题。',
+      '完整使用 html-ppt 的模板、主题、布局、图形与动效能力。背景跟随选定模板与主题的实际样式，不另加模板未提供的背景轮换规则。按原流程保留完整依赖及演讲者运行时。',
+    ].join('\n');
+  }
+  const style = template.startsWith('A') ? 'A' : template.startsWith('B') ? 'B' : '';
+  if (!style) return '按 guizang-ppt-skill 原流程先确认 A/B 风格和对应主题，再读取该风格的模板与参考文件。';
   return [
-    `用户选定的原模板：${origin}。先完整读取并复制原模板和依赖，再替换内容；保持原有网格、字号层级、组件和运行脚本，不另写一套样式。`,
-    '严格沿用原 Skill 的深浅背景节奏、主题 token 和版式规则，不统一背景、不另造视觉规范。浅底与深底下的正文、标题、注释颜色必须分别使用原模板配套的 token；遇到文字不清晰，修正文案颜色、透明度和字号，不改变背景节奏。',
-    '内容按原版式容量拆页，不删减重要事实、表格或限制条件，不压缩正文到难以阅读。输出前逐页检查文字和背景配对、字号、溢出、图形关系及页码。以原模板的文字层级和配色为准；没有实际渲染检查时不得声称已通过。',
-    '保留 HTML 可编辑文字、表格和 SVG 图形，不把整页转成图片。后续修改只改指定页面的内容或样式，保留未指定页面、主题及原运行时。',
+    style === 'A' ? '用户选择 Guizang A：assets/template.html、references/layouts.md、references/themes.md。'
+      : '用户选择 Guizang B：assets/template-swiss.html、references/swiss-layout-lock.md、references/layouts-swiss.md、references/themes-swiss.md。',
+    theme ? `选定主题：${theme}。` : '主题按所选风格原流程推荐并确认。',
+    '完整沿用所选风格的原规则、主题节奏、字体、版式、图片和动效流程，A/B 分别使用自己的参考文件。按原流程运行校验器，并对照原始效果参考逐页检查。',
   ].join('\n');
 }

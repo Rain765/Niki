@@ -13,8 +13,8 @@ import { isNativePresentation, prepareNativePresentation, type NativePptBrief, t
 import './native-presentation-studio.css';
 
 const INITIAL: Record<NativePptSkill, NativePptBrief> = {
-  'html-ppt': { skill: 'html-ppt', topic: '', audience: '', pages: 'auto', style: 'weekly-report', theme: '', duration: '' },
-  'guizang-ppt-skill': { skill: 'guizang-ppt-skill', topic: '', audience: '', pages: 'auto', style: 'B · 瑞士国际主义', theme: '', duration: '' },
+  'html-ppt': { skill: 'html-ppt', topic: '', audience: '', pages: 'auto', style: '', theme: '', duration: '' },
+  'guizang-ppt-skill': { skill: 'guizang-ppt-skill', topic: '', audience: '', pages: 'auto', style: '', theme: '', duration: '' },
 };
 export function NativePresentationStudio({ onNavigationLockChange }: { onNavigationLockChange?: (locked: boolean) => void }) {
   const { locale } = useI18n();

@@ -34,3 +34,6 @@
 .native-ppt__history small { color: var(--poster-muted); }
 .native-ppt__error { color: var(--poster-danger); }
 @media (max-width: 760px) { .native-ppt { padding: 12px 16px 32px; } .native-ppt__compose { grid-template-columns: 1fr; gap: 24px; } .native-ppt__templates { grid-row: 1; } .native-ppt__switch { margin: 20px auto; } }
+
+.native-ppt__templates .od-field { margin-bottom: 20px; }
+.native-ppt__original-showcase { width: 100%; height: auto; display: block; }

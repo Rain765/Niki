@@ -5,6 +5,14 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { runPresentationCli } from '../src/presentation-cli.js';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); process.exitCode = 0; });
+it('uses the same project-local inspection API as the native preview', async () => {
+  vi.spyOn(console, 'log').mockImplementation(() => {});
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({id:'r1',projectId:'p1',status:'completed',report:{visualReviewRequired:true,slides:[],stale:false}}));
+  vi.stubGlobal('fetch', fetchMock);
+  await runPresentationCli(['inspect-native','--project','p1','--file','slides/index.html','--json','--daemon-url','http://127.0.0.1:12345']);
+  expect(fetchMock).toHaveBeenCalledWith('http://127.0.0.1:12345/api/projects/p1/native-presentation/inspect', expect.objectContaining({method:'POST',body:JSON.stringify({entry:'slides/index.html'})}));
+  expect(process.exitCode ?? 0).toBe(0);
+});
 it('uses original project, file and run APIs without calling the restricted presentation generator', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'native-ppt-cli-'));
   try {
@@ -32,5 +40,45 @@ it('uses original project, file and run APIs without calling the restricted pres
     expect(run.message).toContain('"source-2.md"');
     expect(run.skillId).toBe('guizang-ppt-skill');
     expect(calls.every((call) => !call.url.includes('/api/presentations'))).toBe(true);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+it.each([
+  ['html-ppt', 'weekly-report', 'arctic-cool', 'assets/themes/arctic-cool.css'],
+  ['html-ppt', 'auto', 'arctic-cool', '起点尚未选择'],
+  ['guizang-ppt-skill', 'A', 'Monocle', 'references/layouts.md'],
+  ['guizang-ppt-skill', 'B', 'IKB', 'references/swiss-layout-lock.md'],
+])('keeps %s template and theme selections through the project and run APIs', async (workflow, template, theme, reference) => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'native-ppt-selection-'));
+  try {
+    await writeFile(path.join(dir, 'brief.md'), 'Confirmed public demo brief.');
+    const bodies: Record<string, any> = {};
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.body) bodies[`${init.method} ${new URL(url).pathname}`] = JSON.parse(init.body as string);
+      if (url.endsWith('/api/projects')) return Response.json({ project: { id: 'p1' }, conversationId: 'c1' });
+      return Response.json({ runId: 'r1' });
+    }));
+    await runPresentationCli(['native', '--workflow', workflow!, '--template', template!, '--theme', theme!, '--prompt-file', path.join(dir, 'brief.md'), '--agent', 'codex', '--json', '--daemon-url', 'http://127.0.0.1:12345']);
+    expect(process.exitCode ?? 0).toBe(0);
+    for (const key of ['POST /api/projects', 'PATCH /api/projects/p1']) {
+      expect(bodies[key].metadata.nativePresentation.selection).toEqual({ template: template === 'auto' ? '' : template, theme });
+      expect(bodies[key].metadata.nativePresentation.brief).toContain(reference);
+    }
+    expect(bodies['POST /api/runs'].message).toContain(reference);
+    expect(bodies['POST /api/runs'].message).toContain(theme);
+    if (workflow === 'html-ppt') expect(bodies['POST /api/runs'].message).not.toMatch(/guizang|深浅/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+it('rejects a theme from another workflow before creating a project', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'native-ppt-invalid-theme-'));
+  try {
+    await writeFile(path.join(dir, 'brief.md'), 'Confirmed public demo brief.');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock);
+    await runPresentationCli(['native', '--workflow', 'html-ppt', '--theme', 'IKB', '--prompt-file', path.join(dir, 'brief.md'), '--daemon-url', 'http://127.0.0.1:12345']);
+    expect(process.exitCode).toBe(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
