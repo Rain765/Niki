@@ -118,6 +118,16 @@ const POSTER_COPY = {
     posterResults: 'Poster results',
     posterHistory: 'History',
     noPosterHistory: 'No previous generations yet.',
+    noPostersYet: 'No posters yet',
+    latestFailedEmpty: 'No posters were completed in this batch',
+    latestFailedEmptyDetail: 'This batch stopped before any poster was ready. You can generate again or view previous posters.',
+    latestUnavailable: 'No posters available in this batch',
+    latestUnavailableDetail: 'The batch record exists, but no matching images are available. Refresh to check again, or generate a new batch.',
+    generateFirst: 'Generate first poster',
+    generateAgainAction: 'Generate again',
+    viewHistory: 'View history',
+    refreshPage: 'Refresh page',
+    loadPostersRetry: 'We could not retrieve your posters. Refresh the page to try again.',
     close: 'Close',
     share: 'Share',
     sharing: 'Sharing…',
@@ -200,6 +210,16 @@ const POSTER_COPY = {
     posterResults: '海报结果',
     posterHistory: '历史生成',
     noPosterHistory: '暂无历史生成记录。',
+    noPostersYet: '暂无海报',
+    latestFailedEmpty: '本批尚未生成可用海报',
+    latestFailedEmptyDetail: '本次任务在图片完成前已结束，可以重新生成或查看历史海报。',
+    latestUnavailable: '本批暂无可显示的海报',
+    latestUnavailableDetail: '批次记录存在，但暂未找到对应图片。可刷新重试，或生成新的一批。',
+    generateFirst: '生成第一张海报',
+    generateAgainAction: '重新生成',
+    viewHistory: '查看历史海报',
+    refreshPage: '刷新页面',
+    loadPostersRetry: '暂时无法读取海报，请刷新页面重试。',
     close: '关闭',
     share: '分享',
     sharing: '正在分享…',
@@ -311,7 +331,7 @@ function generationCopy(batch: DirectPosterBatchView | null, copy: PosterCopy): 
   state: 'idle' | 'working' | 'complete' | 'failed';
   title: string;
 } {
-  if (!batch) {
+  if (!batch || (!batch.status && batch.files.length === 0)) {
     return { state: 'idle', title: copy.readyToGenerate, detail: copy.readyPosterDetail };
   }
   const fileCount = batch.files.length;
@@ -432,6 +452,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [projectId, setProjectId] = useState<string | null>(null);
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<ProjectFile[]>([]);
+  const [posterLoadState, setPosterLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [generating, setGenerating] = useState(false);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -489,7 +510,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   );
   const latestBatch = batches.at(-1) ?? null;
   const latestBatchAspectRatio = latestBatch?.aspectRatio ?? aspectRatio;
-  const latestBatchCount = latestBatch?.files.length ?? count;
+  const latestBatchCount = latestBatch?.files.length ?? 0;
   const historyBatches = useMemo(
     () => batches.slice(0, -1).reverse(),
     [batches],
@@ -520,6 +541,13 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     && failedPreviewKey !== previewFileKey;
   const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
   const status = generationCopy(latestBatch, copy);
+  const posterIsWorking = generating || status.state === 'working';
+  const latestEmptyTitle = posterLoadState === 'failed' ? copy.loadPostersFailed
+    : status.state === 'failed' ? copy.latestFailedEmpty
+      : status.state === 'complete' ? copy.latestUnavailable : copy.noPostersYet;
+  const latestEmptyDetail = posterLoadState === 'failed' ? copy.loadPostersRetry
+    : status.state === 'failed' ? copy.latestFailedEmptyDetail
+      : status.state === 'complete' ? copy.latestUnavailableDetail : copy.readyPosterDetail;
   const generationFeedbackKey = generationFeedback
     ? `${generationFeedback.id}:${generationFeedback.state}:${generationFeedback.message}`
     : null;
@@ -637,9 +665,13 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         fetchPosterProject(id),
         fetchPosterFiles(id),
       ]);
-      if (!nextProject) return;
+      if (!nextProject) {
+        setPosterLoadState('failed');
+        return;
+      }
       setProject(nextProject);
       setFiles(nextFiles);
+      setPosterLoadState('ready');
     } catch (error) {
       if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
         window.location.reload();
@@ -651,6 +683,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           tone: 'error',
         });
       }
+      setPosterLoadState('failed');
     }
   }, [copy.loadPostersFailed]);
 
@@ -658,6 +691,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     if (creationMode !== 'poster') return undefined;
     if (restoredPosterUserRef.current === user.id) return undefined;
     let cancelled = false;
+    setPosterLoadState('loading');
     void (async () => {
       try {
         const restoredProject = await resolveDirectLoanPosterProject(user.id);
@@ -667,6 +701,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           setProjectId(null);
           setProject(null);
           setFiles([]);
+          setPosterLoadState('ready');
           return;
         }
         setProjectId(restoredProject.id);
@@ -675,6 +710,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         if (!cancelled) {
           restoredPosterUserRef.current = user.id;
           setFiles(restoredFiles);
+          setPosterLoadState('ready');
         }
       } catch (error) {
         if (cancelled) return;
@@ -682,6 +718,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           window.location.reload();
           return;
         }
+        setPosterLoadState('failed');
       }
     })();
     return () => {
@@ -1201,7 +1238,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             eager: true,
             index,
           }))}
-          {status.state === 'working' ? (
+          {posterIsWorking ? (
             <div className={`poster-app__poster-skeleton${latestBatchAspectRatio === '1:1'
               ? ' is-square'
               : latestBatchAspectRatio === '3:4'
@@ -1211,6 +1248,33 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             </div>
           ) : null}
         </div>
+        {latestBatchCount === 0 && !posterIsWorking && posterLoadState === 'loading' ? (
+          <div className="poster-app__history-empty" role="status">{copy.loadingRecentPosters}</div>
+        ) : null}
+        {latestBatchCount === 0 && !posterIsWorking && posterLoadState !== 'loading' ? (
+          <div className="poster-app__latest-empty" data-testid="poster-app-latest-empty">
+            <h3>{latestEmptyTitle}</h3>
+            <p>{latestEmptyDetail}</p>
+            <div className="poster-app__latest-empty-actions">
+              {posterLoadState === 'failed' ? (
+                <Button variant="secondary" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
+              ) : (
+                <Button variant="secondary" onClick={() => void generate()}>
+                  {status.state === 'idle' ? copy.generateFirst : copy.generateAgainAction}
+                </Button>
+              )}
+              {posterLoadState !== 'failed' && status.state === 'complete' ? (
+                <Button variant="ghost" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
+              ) : null}
+              {historyFiles.length > 0 ? (
+                <Button variant="ghost" onClick={() => {
+                  setPosterResultTab('history');
+                  document.getElementById('poster-result-tab-history')?.focus();
+                }}>{copy.viewHistory}</Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section

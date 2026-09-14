@@ -985,7 +985,7 @@ describe('PosterApp mobile-safe flow', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(() => undefined));
     render(<PosterApp />);
 
-    expect(screen.queryByText('Loading recent posters…')).toBeNull();
+    expect(screen.getByText('Loading recent posters…')).toBeTruthy();
     expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
   });
 
@@ -1056,6 +1056,74 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByText('Restore unavailable')).toBeNull();
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
     expect(document.querySelector('.poster-app__notice')).toBeNull();
+  });
+
+  it('shows a zero-count first-use empty state instead of the selected quantity', async () => {
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(null);
+    render(<PosterApp />);
+    const empty = await screen.findByTestId('poster-app-latest-empty');
+    expect(within(empty).getByText('No posters yet')).toBeTruthy();
+    expect(within(screen.getByRole('tab', { name: /^Latest batch/ })).getByText('3:4 × 0')).toBeTruthy();
+    expect(within(empty).getByRole('button', { name: 'Generate first poster' })).toBeTruthy();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
+    fireEvent.click(within(empty).getByRole('button', { name: 'Generate first poster' }));
+    await waitFor(() => expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce());
+  });
+
+  it.each([
+    ['failed', 'No posters were completed in this batch'],
+    ['interrupted', 'No posters were completed in this batch'],
+    ['complete', 'No posters available in this batch'],
+  ] as const)('explains an empty %s batch without triggering an old error toast', async (status, title) => {
+    const emptyProject = { ...project, metadata: { kind: 'image' as const, directGeneration: {
+      kind: 'loan-poster' as const, status, expectedOutputs: 1,
+      batches: [{ id: 'empty-batch', status, requestedAt: 10, expectedOutputs: 1,
+        outputNames: ['zamloan-poster-20260914-001.png'], aspectRatio: '3:4' as const,
+        lastError: 'Anti-fraud hand layout: internal coordinates',
+      }],
+    } } };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(emptyProject);
+    render(<PosterApp />);
+    const empty = await screen.findByTestId('poster-app-latest-empty');
+    expect(within(empty).getByText(title)).toBeTruthy();
+    expect(within(empty).getByRole('button', { name: 'Generate again' })).toBeTruthy();
+    fireEvent.click(within(empty).getByRole('button', { name: 'View history' }));
+    expect(screen.getByRole('tab', { name: /^History/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.queryByText('Anti-fraud hand layout: internal coordinates')).toBeNull();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+  });
+
+  it('shows a loading state until restoration finishes, not an empty or failed batch', async () => {
+    let resolveRestore!: (value: null) => void;
+    resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(resolve => { resolveRestore = resolve; }));
+    render(<PosterApp />);
+    expect(screen.getByText('Loading recent posters…')).toBeTruthy();
+    expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
+    await act(async () => resolveRestore(null));
+    expect(await screen.findByText('No posters yet')).toBeTruthy();
+  });
+
+  it('shows an inline load-failure state with refresh, without an unsolicited toast', async () => {
+    resolveDirectLoanPosterProjectMock.mockRejectedValue(new Error('Restore unavailable'));
+    render(<PosterApp />);
+    const empty = await screen.findByTestId('poster-app-latest-empty');
+    expect(within(empty).getByText('Could not load posters')).toBeTruthy();
+    expect(within(empty).getByRole('button', { name: 'Refresh page' })).toBeTruthy();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+  });
+
+  it.each(['preparing', 'queued'] as const)('keeps a zero-output %s batch in progress instead of showing empty actions', async (status) => {
+    resolveDirectLoanPosterProjectMock.mockResolvedValue({
+      ...project, metadata: { kind: 'image', directGeneration: {
+        kind: 'loan-poster', status, expectedOutputs: 1,
+        batches: [{ id: 'pending', status, requestedAt: 10, expectedOutputs: 1, outputNames: ['zamloan-poster-pending.png'] }],
+      } },
+    });
+    render(<PosterApp />);
+    expect(await screen.findByText('Generating image…')).toBeTruthy();
+    expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
   });
 
   it('shows a one-line generation status only after clicking generate', async () => {

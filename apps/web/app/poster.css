@@ -1841,6 +1841,40 @@ button {
   font-size: 14px;
 }
 
+.poster-app__latest-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 240px;
+  padding: 32px 20px;
+  border-radius: 16px;
+  background: var(--poster-panel);
+  text-align: center;
+}
+
+.poster-app__latest-empty h3 {
+  margin: 0;
+  color: var(--poster-text);
+  font-size: 18px;
+}
+
+.poster-app__latest-empty p {
+  max-width: 480px;
+  margin: 0;
+  color: var(--poster-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.poster-app__latest-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 .poster-app__history-toggle {
   display: flex;
   align-items: center;
