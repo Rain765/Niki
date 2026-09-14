@@ -97,6 +97,17 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(result.handObservation).toEqual(observation());
   });
 
+  it('retries uncertain arm connections once and never delivers a repeatedly rejected pose', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn(async () => ({ bytes }));
+    const preserveLayoutDraft = vi.fn();
+    const detectHands = vi.fn().mockRejectedValue(new PosterHandLayoutError('arm connection is uncertain'));
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, { detectHands, preserveLayoutDraft }))
+      .rejects.toThrow('arm connection');
+    expect(render).toHaveBeenCalledTimes(2);
+    expect(preserveLayoutDraft).toHaveBeenCalledOnce();
+  });
+
   it('accepts a verified phone when the holding hand is partly occluded', () => {
     const scene: PosterHandObservation = {
       hands: [hand(0.57, 0.60, 0.70, 0.69)],

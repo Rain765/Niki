@@ -6,6 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { PosterHandLayoutError, type PosterHandObservation } from './poster-hand-layout.js';
+import { assertPosterArmIntegrity } from './poster-arm-integrity.js';
 
 const execFile = promisify(execFileCallback);
 export type PosterHandDetector = (input: Buffer) => Promise<PosterHandObservation>;
@@ -13,12 +14,16 @@ export type PosterHandDetector = (input: Buffer) => Promise<PosterHandObservatio
 // TypeScript owns the bridge; this generated native helper only exposes Apple's
 // local Vision landmarks. Images never leave the machine. Other hosts can supply
 // the same JSON protocol using OD_POSTER_HAND_DETECTOR (executable, not a shell).
+// The protocol requires hands[].wrist and bodies[].arms (shoulder/elbow/wrist),
+// each point {x,y,confidence} in normalized top-left coordinates. Count-only
+// custom detectors must be upgraded; missing body evidence is not accepted.
 const VISION_BRIDGE = String.raw`
 import Foundation
 import Vision
 let handler = VNImageRequestHandler(url: URL(fileURLWithPath: CommandLine.arguments[1]))
 let hands = VNDetectHumanHandPoseRequest()
 hands.maximumHandCount = 3
+let bodies = VNDetectHumanBodyPoseRequest()
 let rectangles = VNDetectRectanglesRequest()
 rectangles.maximumObservations = 20
 rectangles.minimumSize = 0.05
@@ -28,7 +33,7 @@ rectangles.maximumAspectRatio = 0.85
 let text = VNRecognizeTextRequest()
 text.recognitionLevel = .accurate
 text.recognitionLanguages = ["en-US"]
-try handler.perform([hands, rectangles, text])
+try handler.perform([hands, bodies, rectangles, text])
 let domains = (text.results ?? []).filter {
   ($0.topCandidates(1).first?.string.lowercased() ?? "").contains(".com")
 }
@@ -54,7 +59,21 @@ let result: [String: Any] = [
     let points = try hand.recognizedPoints(.all).values.map { point in
       ["x": Double(point.location.x), "y": 1-Double(point.location.y), "confidence": Double(point.confidence)]
     }
-    return ["points": points]
+    let wrist = try hand.recognizedPoint(.wrist)
+    return ["points": points, "wrist": ["x": Double(wrist.location.x), "y": 1-Double(wrist.location.y), "confidence": Double(wrist.confidence)]]
+  },
+  "bodies": try (bodies.results ?? []).map { body -> [String: Any] in
+    let joints: [[VNHumanBodyPoseObservation.JointName]] = [
+      [.leftShoulder, .leftElbow, .leftWrist], [.rightShoulder, .rightElbow, .rightWrist]
+    ]
+    let arms = try joints.map { names -> [String: Any] in
+      let points = try names.map { name -> [String: Double] in
+        let p = try body.recognizedPoint(name)
+        return ["x": Double(p.location.x), "y": 1-Double(p.location.y), "confidence": Double(p.confidence)]
+      }
+      return ["shoulder": points[0], "elbow": points[1], "wrist": points[2]]
+    }
+    return ["arms": arms]
   },
   "phones": phones
 ]
@@ -84,13 +103,21 @@ async function prepareNativeDetector(): Promise<string> {
 
 function parseObservation(raw: string): PosterHandObservation {
   const value = JSON.parse(raw) as PosterHandObservation;
+  const point = (p: unknown) => {
+    if (!p || typeof p !== 'object') return false;
+    const q = p as Record<string, unknown>;
+    return [q.x, q.y, q.confidence].every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1);
+  };
   if (!value || !Array.isArray(value.hands) || value.hands.length > 3
-    || !value.hands.every((h) => Array.isArray(h.points) && h.points.length <= 30
+    || !value.hands.every((h) => h && point(h.wrist) && Array.isArray(h.points) && h.points.length <= 30
       && h.points.every((p) => p && [p.x, p.y, p.confidence].every((n) => Number.isFinite(n) && n >= 0 && n <= 1)))
+    || !Array.isArray(value.bodies) || value.bodies.length > 10
+    || !value.bodies.every(b => b && Array.isArray(b.arms) && b.arms.length === 2
+      && b.arms.every(a => a && point(a.shoulder) && point(a.elbow) && point(a.wrist)))
     || !Array.isArray(value.phones) || value.phones.length > 30
     || !value.phones.every((b) => [b.left, b.top, b.right, b.bottom].every((n) => Number.isFinite(n) && n >= 0 && n <= 1)
       && b.left < b.right && b.top < b.bottom)) {
-    throw new PosterHandLayoutError('detector returned invalid landmarks');
+    throw new PosterHandLayoutError('detector returned invalid landmarks; hand wrists and body arm chains are required');
   }
   return value;
 }
@@ -118,7 +145,9 @@ export async function createPosterHandDetector(): Promise<PosterHandDetector> {
       await sharp(input).resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
         .png().toFile(imagePath);
       const { stdout } = await execFile(binary, [imagePath], { timeout: 30_000, maxBuffer: 128 * 1024 });
-      return parseObservation(stdout);
+      const observation = parseObservation(stdout);
+      assertPosterArmIntegrity(observation);
+      return observation;
     } catch (error) {
       if (error instanceof PosterHandLayoutError) throw error;
       throw new PosterHandLayoutError('hand recognition failed or timed out; no message was composited');

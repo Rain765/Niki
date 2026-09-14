@@ -499,6 +499,7 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('ordinary background immediately below-right'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('No crossed arms, folded arms'))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('both arms visibly and anatomically connected to that same person')
     ))).toBe(true);

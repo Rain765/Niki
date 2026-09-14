@@ -1,8 +1,10 @@
 /** Normalized top-left image coordinates, independent of output resolution. */
 export interface PosterPoint { x: number; y: number; confidence: number }
-export interface PosterHand { points: PosterPoint[] }
+export interface PosterHand { points: PosterPoint[]; wrist?: PosterPoint }
+export interface PosterArm { shoulder: PosterPoint; elbow: PosterPoint; wrist: PosterPoint }
+export interface PosterBody { arms: PosterArm[] }
 export interface PosterBox { left: number; top: number; right: number; bottom: number }
-export interface PosterHandObservation { hands: PosterHand[]; phones: PosterBox[] }
+export interface PosterHandObservation { hands: PosterHand[]; phones: PosterBox[]; bodies?: PosterBody[] }
 export interface AntiFraudMessagePlacement {
   left: number;
   top: number;
@@ -118,4 +120,4 @@ export function placeAntiFraudMessage(
   return { left: best.left, top: best.top, ...size, rejectingHand: hand };
 }
 
-export const ANTI_FRAUD_HAND_RETRY = 'CRITICAL HAND-RELATIVE LAYOUT: show exactly one person with both complete hands clearly visible. Keep the phone and its holding hand on the inner-left side. Move the rejecting palm center to x=62% to 66%, with its lowest fingertip or wrist above y=70%. Turn this palm sideways and sweep toward the right and slightly downward in the image plane, never reaching forward toward the camera. Keep generous continuous background immediately below-right of the entire hand through x=97%, y=97%. This space must remain visually indistinguishable from the surrounding natural scene. Preserve the complete phone, title, subtitle and logo-safe area.';
+export const ANTI_FRAUD_HAND_RETRY = 'CRITICAL HAND-RELATIVE LAYOUT: show exactly one person with both complete hands clearly visible. Keep the phone and its holding hand on the inner-left side. Move the rejecting palm center to x=62% to 66%, with its lowest fingertip or wrist above y=70%. Turn this palm sideways and sweep toward the right and slightly downward in the image plane, never reaching forward toward the camera. Keep generous continuous background immediately below-right of the entire hand through x=97%, y=97%. This space must remain visually indistinguishable from the surrounding natural scene. Preserve the complete phone, title, subtitle and logo-safe area. Keep both arm chains separate and easy to trace from shoulder through elbow and wrist to hand. No crossed arms, folded arms, forearm resting across the chest or waist, tucked hand, hidden extra hand, or overlapping sleeves. Use exactly two arms for the only two actions: holding the phone and pushing outward.';
