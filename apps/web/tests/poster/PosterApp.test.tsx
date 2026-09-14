@@ -1062,6 +1062,8 @@ describe('PosterApp mobile-safe flow', () => {
     resolveDirectLoanPosterProjectMock.mockResolvedValue(null);
     render(<PosterApp />);
     const empty = await screen.findByTestId('poster-app-latest-empty');
+    expect(empty.querySelector('.poster-app__empty-icon svg')).toBeTruthy();
+    expect(within(empty).getByRole('button', { name: 'Generate first poster' }).className).toContain('od-button--primary');
     expect(within(empty).getByText('No posters yet')).toBeTruthy();
     expect(within(screen.getByRole('tab', { name: /^Latest batch/ })).getByText('3:4 × 0')).toBeTruthy();
     expect(within(empty).getByRole('button', { name: 'Generate first poster' })).toBeTruthy();
@@ -1088,6 +1090,9 @@ describe('PosterApp mobile-safe flow', () => {
     const empty = await screen.findByTestId('poster-app-latest-empty');
     expect(within(empty).getByText(title)).toBeTruthy();
     expect(within(empty).getByRole('button', { name: 'Generate again' })).toBeTruthy();
+    expect(within(empty).getAllByRole('button')).toHaveLength(2);
+    expect(within(empty).getByRole('button', { name: 'Generate again' }).className).toContain('od-button--primary');
+    expect(within(empty).getByRole('button', { name: 'View history' }).className).toContain('od-button--secondary');
     fireEvent.click(within(empty).getByRole('button', { name: 'View history' }));
     expect(screen.getByRole('tab', { name: /^History/ }).getAttribute('aria-selected')).toBe('true');
     expect(screen.queryByText('Anti-fraud hand layout: internal coordinates')).toBeNull();
@@ -1139,6 +1144,33 @@ describe('PosterApp mobile-safe flow', () => {
     expect(generationStatus.querySelector('.od-toast-message')).toBeTruthy();
     expect(generationStatus.querySelector('strong')).toBeNull();
     expect(generationStatus.querySelector('p')).toBeNull();
+  });
+
+  it.each([
+    ['image:retrying', 'The image request was interrupted. Retrying automatically…'],
+    ['image:slow', 'Generation is taking longer, but is still processing…'],
+  ])('shows live %s progress without allowing a duplicate batch', async (marker, message) => {
+    render(<PosterApp />);
+    await screen.findByRole('button', { name: 'Generate posters' });
+    const queuedProject = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', activeBatchId: 'recovery', expectedOutputs: 1,
+      batches: [{ id: 'recovery', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: ['zamloan-poster-new.png'] }],
+    } } };
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: [] } : { project: queuedProject },
+    ), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    startDirectLoanPosterProjectMock.mockImplementation(async (_options, onCreated) => {
+      onCreated(queuedProject);
+      return { projectId: 'project-1' };
+    });
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:recovery:0', status: 'running', progress: [marker] }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    await waitFor(() => expect(within(screen.getByTestId('poster-app-generation-status')).getByText(message)).toBeTruthy());
+    const button = screen.getByRole('button', { name: 'Generate posters' });
+    expect(button.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(button);
+    expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
   });
 
   it('keeps a generation failure visible until the user dismisses it', async () => {

@@ -16,6 +16,26 @@ const observation = (palm = hand(0.57, 0.60, 0.70, 0.69)): PosterHandObservation
 });
 
 describe('hand-relative anti-fraud message layout', () => {
+  it.each(['image_request_timeout', 'image_recovery_exhausted'])('keeps valid hands when cosmetic recovery fails: %s', async (code) => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn().mockResolvedValueOnce({ bytes }).mockRejectedValue(Object.assign(new Error('recovery failed'), { code, status: 504 }));
+    const result = await renderImageWithAntiFraudSafeZoneRetry('scene', render, { detectHands: async () => observation() });
+    expect(result.result.bytes).toBe(bytes);
+    expect(result.handObservation).toEqual(observation());
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+  it('does not deliver invalid hands when a correction times out', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const failure = Object.assign(new Error('timeout'), { code: 'image_request_timeout', status: 504 });
+    const render = vi.fn().mockResolvedValueOnce({ bytes }).mockRejectedValue(failure);
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, { detectHands: async () => ({ hands: [], phones: [] }) })).rejects.toBe(failure);
+  });
+  it('does not suppress explicit cancellation even with valid hands', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const failure = new DOMException('cancelled', 'AbortError');
+    const render = vi.fn().mockResolvedValueOnce({ bytes }).mockRejectedValue(failure);
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, { detectHands: async () => observation() })).rejects.toBe(failure);
+  });
   it.each([[1086, 1448], [1024, 1024], [1536, 864]])('places the complete message below-right for %sx%s', (w, h) => {
     const p = placeAntiFraudMessage(w, h, observation());
     expect(p.top / h).toBeGreaterThanOrEqual(p.rejectingHand.bottom + 0.02);

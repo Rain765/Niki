@@ -47,6 +47,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { EnvHttpProxyAgent } from 'undici';
+import { createImageRequestRecovery, imageRequestTimeoutMs, isRecoverableImageRequestError } from './image-request-recovery.js';
 import type { PosterCopyStyle } from '@open-design/contracts';
 import {
   AUDIO_DURATIONS_SEC,
@@ -302,9 +303,13 @@ export async function renderImageWithLogoSafeZoneRetry<T extends { bytes: Buffer
   }
 
   for (let retry = 0; retry < maxRetries; retry += 1) {
-    const retryResult = await render(
-      `${prompt}\n\n${logoSafeZoneRetryInstruction(anchor)}`,
-    );
+    let retryResult: T;
+    try {
+      retryResult = await render(`${prompt}\n\n${logoSafeZoneRetryInstruction(anchor)}`);
+    } catch (error) {
+      if (isRecoverableImageRequestError(error)) break;
+      throw error;
+    }
     const retrySafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, { anchor });
     attempts += 1;
     if (retrySafeZone.score < bestSafeZone.score) {
@@ -614,7 +619,15 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
         : '',
       bestDiagonal.intrudes ? antiFraudDiagonalRetryInstruction() : '',
     ].filter(Boolean).join('\n\n');
-    const retryResult = await render(`${prompt}\n\n${retryInstructions}`);
+    let retryResult: T;
+    try {
+      retryResult = await render(`${prompt}\n\n${retryInstructions}`);
+    } catch (error) {
+      // A cosmetic refinement cannot discard a usable, hand-validated image.
+      // Invalid hands and explicit cancellation must still fail closed.
+      if (!bestHands.error && isRecoverableImageRequestError(error)) break;
+      throw error;
+    }
     const retryLogoSafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, {
       anchor,
       bottomRatio: logoRules.bottomRatio,
@@ -1614,6 +1627,7 @@ type MediaContext = {
   compositionDir: string | null;
   imageRef: ImageRef | null;
   signal?: AbortSignal;
+  imageRecovery?: ReturnType<typeof createImageRequestRecovery>;
 };
 type RenderResult = { bytes: Buffer; providerNote: string; suggestedExt?: string };
 type JsonRecord = Record<string, unknown>;
@@ -2010,6 +2024,9 @@ export async function generateMedia(args: {
     // Resolved reference image for i2v / image-edit flows. `null` when
     // the agent didn't pass --image. See resolveProjectImage below.
     imageRef,
+    ...(surface === 'image' && def.provider === 'openai'
+      ? { imageRecovery: createImageRequestRecovery({ signal: args.signal, onProgress: args.onProgress, poster: loanPosterOutput === true }) }
+      : {}),
     ...(args.signal ? { signal: args.signal } : {}),
   };
 
@@ -2478,8 +2495,8 @@ function defaultAspectFor(surface: MediaSurface): string | undefined {
 
 const AZURE_DEFAULT_API_VERSION = '2024-02-01';
 const OPENAI_CONNECT_TIMEOUT_MS = 3_000;
-const OPENAI_HEADERS_TIMEOUT_MS = 3 * 60 * 1000;
-const OPENAI_BODY_TIMEOUT_MS = 3 * 60 * 1000;
+const OPENAI_HEADERS_TIMEOUT_MS = imageRequestTimeoutMs();
+const OPENAI_BODY_TIMEOUT_MS = imageRequestTimeoutMs();
 // Honor HTTP(S)_PROXY / NO_PROXY from the daemon's environment. Users in
 // regions that can only reach api.openai.com through a local proxy (e.g.
 // Clash) otherwise hit a connection timeout here — the chat agent has its own
@@ -2491,17 +2508,6 @@ const openAIHttpDispatcher = new EnvHttpProxyAgent({
   headersTimeout: OPENAI_HEADERS_TIMEOUT_MS,
   bodyTimeout: OPENAI_BODY_TIMEOUT_MS,
 });
-
-function openAIImageRequestTimeoutMs(): number {
-  const configured = Number(process.env.OD_OPENAI_IMAGE_TIMEOUT_MS);
-  if (!Number.isFinite(configured)) return 3 * 60 * 1000;
-  return Math.min(10 * 60 * 1000, Math.max(30_000, Math.floor(configured)));
-}
-
-function openAIImageRequestSignal(signal?: AbortSignal): AbortSignal {
-  const timeout = AbortSignal.timeout(openAIImageRequestTimeoutMs());
-  return signal ? AbortSignal.any([signal, timeout]) : timeout;
-}
 
 function openAISpeechRequestTimeoutMs(): number {
   const configured = Number(process.env.OD_OPENAI_TTS_TIMEOUT_MS);
@@ -2515,6 +2521,11 @@ function openAISpeechRequestSignal(signal?: AbortSignal): AbortSignal {
 }
 
 async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
+  const recovery = ctx.imageRecovery ?? createImageRequestRecovery({ signal: ctx.signal, poster: false });
+  return recovery.run((signal, stage) => renderOpenAIImageRequest({ ...ctx, signal }, credentials, stage));
+}
+
+async function renderOpenAIImageRequest(ctx: MediaContext, credentials: ProviderConfig, stage: (name: string) => void): Promise<RenderResult> {
   if (!credentials.apiKey) {
     throw new Error('no OpenAI credential — configure an API key in Settings, set OPENAI_API_KEY, or refresh Codex/Hermes OAuth');
   }
@@ -2557,19 +2568,21 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     // headers, so this is harmless on the standard endpoint too.
     headers['api-key'] = credentials.apiKey;
   }
-  const signal = openAIImageRequestSignal(ctx.signal);
+  const signal = ctx.signal;
 
   const resp = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
-    signal,
+    signal: signal ?? null,
     dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
   });
+  stage('response-headers');
   const text = await resp.text();
+  stage('response-body');
   if (!resp.ok) {
     const tag = azure ? 'azure-openai' : 'openai';
-    throw new Error(`${tag} ${resp.status}: ${truncate(text, 240)}`);
+    throw imageProviderResponseError(resp, `${tag} ${resp.status}: ${truncate(text, 240)}`);
   }
   let data: any;
   try {
@@ -2583,11 +2596,12 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
   if (entry.b64_json) {
     bytes = Buffer.from(entry.b64_json, 'base64');
   } else if (entry.url) {
+    stage('image-download');
     const imgResp = await fetch(entry.url, {
-      signal,
+      signal: signal ?? null,
       dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
     });
-    if (!imgResp.ok) throw new Error(`openai image fetch ${imgResp.status}`);
+    if (!imgResp.ok) throw imageProviderResponseError(imgResp, `openai image fetch ${imgResp.status}`);
     const arr = await imgResp.arrayBuffer();
     bytes = Buffer.from(arr);
   } else {
@@ -2600,6 +2614,14 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     providerNote: `${tag}/${ctx.wireModel} · ${ctx.aspect} · ${bytes.length} bytes`,
     suggestedExt: '.png',
   };
+}
+
+function imageProviderResponseError(response: Response, message: string): Error {
+  const value = response.headers.get('retry-after');
+  const seconds = value ? Number(value) : NaN;
+  const retryAfterMs = Number.isFinite(seconds) ? seconds * 1_000
+    : value ? Math.max(0, Date.parse(value) - Date.now()) : undefined;
+  return Object.assign(new Error(message), { status: response.status, retryAfterMs });
 }
 
 async function renderImageRouterImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
@@ -2673,6 +2695,13 @@ async function renderImageRouterVideo(ctx: MediaContext, credentials: ProviderCo
 }
 
 async function renderCustomOpenAIImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
+  if (ctx.imageRecovery) {
+    return ctx.imageRecovery.run((signal, stage) => renderCustomOpenAIImageRequest({ ...ctx, signal }, credentials, stage));
+  }
+  return renderCustomOpenAIImageRequest(ctx, credentials);
+}
+
+async function renderCustomOpenAIImageRequest(ctx: MediaContext, credentials: ProviderConfig, stage: (name: string) => void = () => {}): Promise<RenderResult> {
   const baseUrl = (credentials.baseUrl || '').trim();
   if (!baseUrl) {
     throw new Error(
@@ -2705,9 +2734,17 @@ async function renderCustomOpenAIImage(ctx: MediaContext, credentials: ProviderC
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal: ctx.signal ?? null,
+    ...(ctx.imageRecovery ? { dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']> } : {}),
   });
+  stage('response-headers');
+  if (!resp.ok && ctx.imageRecovery) {
+    await resp.body?.cancel();
+    throw imageProviderResponseError(resp, `custom image ${resp.status}`);
+  }
   const data = await parseOpenAICompatibleJson(resp, 'custom image');
-  const bytes = await bytesFromOpenAICompatibleData(data, 'custom image');
+  stage('response-body');
+  const bytes = await bytesFromOpenAICompatibleData(data, 'custom image', ctx.signal, stage);
   return {
     bytes,
     providerNote: `custom-image/${wireModel} · ${body.size} · ${bytes.length} bytes`,
@@ -2737,7 +2774,7 @@ async function parseOpenAICompatibleJson(resp: Response, providerTag: string): P
   }
 }
 
-async function bytesFromOpenAICompatibleData(data: any, providerTag: string): Promise<Buffer> {
+async function bytesFromOpenAICompatibleData(data: any, providerTag: string, signal?: AbortSignal, stage: (name: string) => void = () => {}): Promise<Buffer> {
   const entry = data && Array.isArray(data.data) ? data.data[0] : null;
   if (!entry) throw new Error(`${providerTag} response had no data[0]`);
   if (typeof entry.b64_json === 'string' && entry.b64_json) {
@@ -2747,9 +2784,10 @@ async function bytesFromOpenAICompatibleData(data: any, providerTag: string): Pr
     return Buffer.from(raw, 'base64');
   }
   if (typeof entry.url === 'string' && entry.url) {
-    const mediaResp = await fetch(entry.url);
+    stage('image-download');
+    const mediaResp = await fetch(entry.url, signal ? { signal, dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']> } : undefined);
     if (!mediaResp.ok) {
-      throw new Error(`${providerTag} media fetch ${mediaResp.status}`);
+      throw imageProviderResponseError(mediaResp, `${providerTag} media fetch ${mediaResp.status}`);
     }
     const arr = await mediaResp.arrayBuffer();
     return Buffer.from(arr);

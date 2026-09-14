@@ -56,7 +56,8 @@ import {
 import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
 import type { Project, ProjectFile } from '../types';
 import { useRuntimeReleaseRefresh } from './useRuntimeReleaseRefresh';
-import { posterLayoutFailureCopy } from './generation-failure-copy';
+import { posterLayoutFailureCopy, posterRequestProgress } from './generation-failure-copy';
+import { listProjectMediaTasks } from '../providers/media';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
@@ -454,6 +455,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [posterLoadState, setPosterLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [generating, setGenerating] = useState(false);
+  const [requestProgress, setRequestProgress] = useState<{ batchId: string; message: string | null } | null>(null);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [previewNotice, setPreviewNotice] = useState<Notice | null>(null);
@@ -548,8 +550,11 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const latestEmptyDetail = posterLoadState === 'failed' ? copy.loadPostersRetry
     : status.state === 'failed' ? copy.latestFailedEmptyDetail
       : status.state === 'complete' ? copy.latestUnavailableDetail : copy.readyPosterDetail;
+  const progressMessage = requestProgress?.batchId === latestBatch?.id ? requestProgress?.message : null;
+  const feedbackMessage = generationFeedback?.state === 'working' && generationFeedback.batchId === requestProgress?.batchId
+    ? progressMessage ?? generationFeedback.message : generationFeedback?.message;
   const generationFeedbackKey = generationFeedback
-    ? `${generationFeedback.id}:${generationFeedback.state}:${generationFeedback.message}`
+    ? `${generationFeedback.id}:${generationFeedback.state}:${feedbackMessage}`
     : null;
   const statusDismissed = generationFeedbackKey !== null
     && dismissedStatusKey === generationFeedbackKey;
@@ -672,6 +677,14 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       setProject(nextProject);
       setFiles(nextFiles);
       setPosterLoadState('ready');
+      const lifecycle = nextProject.metadata?.directGeneration;
+      if (lifecycle?.activeBatchId && lifecycle.status === 'queued') {
+        const snapshot = await listProjectMediaTasks(id, false).catch(() => null);
+        if (snapshot) setRequestProgress({
+          batchId: lifecycle.activeBatchId,
+          message: posterRequestProgress(snapshot.tasks, lifecycle.activeBatchId, copy === POSTER_COPY.zh ? 'zh' : 'en'),
+        });
+      }
     } catch (error) {
       if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
         window.location.reload();
@@ -685,7 +698,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       }
       setPosterLoadState('failed');
     }
-  }, [copy.loadPostersFailed]);
+  }, [copy]);
 
   useEffect(() => {
     if (creationMode !== 'poster') return undefined;
@@ -751,11 +764,12 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   }, [creationMode, projectId, refreshProject, status.state]);
 
   const generate = async () => {
-    if (generating) return;
+    if (posterIsWorking) return;
     const feedbackId = generationFeedbackIdRef.current + 1;
     generationFeedbackIdRef.current = feedbackId;
     setPosterResultTab('latest');
     setGenerating(true);
+    setRequestProgress(null);
     setNotice(null);
     setDismissedStatusKey(null);
     setGenerationFeedback({
@@ -1159,6 +1173,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         <Button
           variant="primary"
           loading={generating}
+          disabled={posterIsWorking}
           onClick={() => void generate()}
         >
           {generating ? copy.submitting : copy.generatePosters}
@@ -1169,7 +1184,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         <Toast
           testId="poster-app-generation-status"
           indicator={generationFeedback.state === 'complete' ? 'success' : generationFeedback.state === 'failed' ? 'error' : 'loading'}
-          message={generationFeedback.message}
+          message={feedbackMessage ?? generationFeedback.message}
           tone={generationFeedback.state === 'complete'
             ? 'success'
             : generationFeedback.state === 'failed'
@@ -1244,7 +1259,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               : latestBatchAspectRatio === '3:4'
                 ? ' is-portrait'
                 : ''}`}>
-              <span>{copy.generatingImage}</span>
+              <span role="status">{progressMessage ?? copy.generatingImage}</span>
             </div>
           ) : null}
         </div>
@@ -1253,21 +1268,22 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         ) : null}
         {latestBatchCount === 0 && !posterIsWorking && posterLoadState !== 'loading' ? (
           <div className="poster-app__latest-empty" data-testid="poster-app-latest-empty">
+            <div className="poster-app__empty-icon" aria-hidden="true"><Icon name="image" size={88} /></div>
             <h3>{latestEmptyTitle}</h3>
             <p>{latestEmptyDetail}</p>
             <div className="poster-app__latest-empty-actions">
               {posterLoadState === 'failed' ? (
-                <Button variant="secondary" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
+                <Button variant="primary" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
               ) : (
-                <Button variant="secondary" onClick={() => void generate()}>
+                <Button variant="primary" disabled={posterIsWorking} onClick={() => void generate()}>
                   {status.state === 'idle' ? copy.generateFirst : copy.generateAgainAction}
                 </Button>
               )}
-              {posterLoadState !== 'failed' && status.state === 'complete' ? (
-                <Button variant="ghost" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
+              {historyFiles.length === 0 && posterLoadState !== 'failed' && status.state === 'complete' ? (
+                <Button variant="secondary" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
               ) : null}
               {historyFiles.length > 0 ? (
-                <Button variant="ghost" onClick={() => {
+                <Button variant="secondary" onClick={() => {
                   setPosterResultTab('history');
                   document.getElementById('poster-result-tab-history')?.focus();
                 }}>{copy.viewHistory}</Button>

@@ -131,6 +131,13 @@ export interface MediaTaskError {
   code?: string;
 }
 
+/** Stable markers carried by the existing task progress stream (UI and CLI). */
+export const IMAGE_GENERATION_PROGRESS = {
+  slow: 'image:slow',
+  retrying: 'image:retrying',
+  processing: 'image:processing',
+} as const;
+
 export interface MediaTaskSnapshot {
   taskId: string;
   status: MediaTaskStatus;

@@ -61,6 +61,22 @@ describe('OpenAI-compatible media providers', () => {
     await writeFile(file, JSON.stringify(data), 'utf8');
   }
 
+  it('recovers an OpenAI poster timeout through generateMedia without reducing quality', async () => {
+    await writeConfig({ providers: { openai: { apiKey: 'test-only-key', baseUrl: 'https://images.example.test/v1' } } });
+    const fetchMock = vi.fn().mockRejectedValueOnce(new DOMException('timeout', 'TimeoutError'))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ b64_json: PNG_BASE64 }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const progress = vi.fn();
+    const result = await generateMedia({ projectRoot, projectsRoot, projectId: 'timeout-test', surface: 'image', model: 'gpt-image-2', quality: 'medium', aspect: '3:4', output: 'zamloan-poster-timeout.png', prompt: 'Poster test', loanPosterOutput: true, onProgress: progress });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const requests = fetchMock.mock.calls.map(call => JSON.parse(String(call[1].body)));
+    expect(requests[0]).toEqual(requests[1]);
+    expect(requests[0]).toMatchObject({ quality: 'medium', prompt: 'Poster test', model: 'gpt-image-2' });
+    expect(result.usedStubFallback).toBe(false);
+    expect(progress).toHaveBeenCalledWith('image:retrying');
+    expect(result.size).toBeGreaterThan(0);
+  });
+
   it('renders custom /v1/images/generations providers with configured base URL and model', async () => {
     await writeConfig({
       providers: {
