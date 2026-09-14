@@ -58,12 +58,16 @@ export function placeAntiFraudMessage(
   if (!(width > 0 && height > 0) || !Number.isFinite(width) || !Number.isFinite(height)) {
     throw new PosterHandLayoutError('invalid image dimensions');
   }
-  if (observation.hands.length !== 2) {
+  if (observation.hands.length < 1 || observation.hands.length > 2) {
     throw new PosterHandLayoutError('exactly two clearly visible hands are required');
   }
   const hands = observation.hands.map(handBounds).sort((a, b) => a.left + a.right - b.left - b.right);
-  const phoneHand = hands[0]!;
-  const hand = hands[1]!;
+  const phone = [...observation.phones].sort((a, b) => a.left + a.right - b.left - b.right)[0];
+  if (hands.length === 1 && !phone) {
+    throw new PosterHandLayoutError('the phone-holding hand is occluded and no phone could be verified');
+  }
+  const phoneHand = hands.length === 2 ? hands[0]! : phone!;
+  const hand = hands[hands.length - 1]!;
   const center = (hand.left + hand.right) / 2;
   if (center < 0.55 || center - (phoneHand.left + phoneHand.right) / 2 < 0.10) {
     throw new PosterHandLayoutError('the outward rejecting hand cannot be distinguished from the phone hand');

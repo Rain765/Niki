@@ -32,14 +32,21 @@ try handler.perform([hands, rectangles, text])
 let domains = (text.results ?? []).filter {
   ($0.topCandidates(1).first?.string.lowercased() ?? "").contains(".com")
 }
-let phones = domains.compactMap { domain in
-  (rectangles.results ?? []).filter { rect in
-    rect.boundingBox.contains(CGPoint(x: domain.boundingBox.midX, y: domain.boundingBox.midY))
+let phones = domains.map { domain -> [String: Double] in
+  let center = CGPoint(x: domain.boundingBox.midX, y: domain.boundingBox.midY)
+  let matchingRectangle = (rectangles.results ?? []).filter { rect in
+    let expanded = rect.boundingBox.insetBy(dx: -0.015, dy: -0.015)
+    return expanded.contains(center)
   }.min { a, b in
     a.boundingBox.width * a.boundingBox.height < b.boundingBox.width * b.boundingBox.height
   }
-}.map { rect -> [String: Double] in
-  let b = rect.boundingBox
+  // Rounded or partly covered phones are not always returned by Vision's
+  // rectangle detector. The recognised on-screen domain is still strong local
+  // evidence of a phone, so retain a conservative obstacle around it.
+  let b = matchingRectangle?.boundingBox ?? domain.boundingBox.insetBy(
+    dx: -max(0.045, domain.boundingBox.width * 0.75),
+    dy: -max(0.10, domain.boundingBox.height * 2.5)
+  ).intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
   return ["left": b.minX, "top": 1-b.maxY, "right": b.maxX, "bottom": 1-b.minY]
 }
 let result: [String: Any] = [

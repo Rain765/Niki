@@ -30,7 +30,7 @@ describe('hand-relative anti-fraud message layout', () => {
   });
   it('does not guess from a single phone-holding hand', () => {
     expect(() => placeAntiFraudMessage(1086, 1448, { hands: [observation().hands[0]!], phones: [] }))
-      .toThrow('exactly two');
+      .toThrow('no phone could be verified');
   });
   it('rejects low-confidence landmarks and overlapping hands', () => {
     const uncertain = observation();
@@ -95,6 +95,22 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(render).toHaveBeenCalledTimes(2);
     expect(render.mock.calls[1]![0]).toContain('CRITICAL HAND-RELATIVE LAYOUT');
     expect(result.handObservation).toEqual(observation());
+  });
+
+  it('accepts a verified phone when the holding hand is partly occluded', () => {
+    const scene: PosterHandObservation = {
+      hands: [hand(0.57, 0.60, 0.70, 0.69)],
+      phones: [{ left: 0.24, top: 0.48, right: 0.39, bottom: 0.73 }],
+    };
+    const placement = placeAntiFraudMessage(1086, 1448, scene);
+    expect(placement.rejectingHand.left).toBeGreaterThan(0.5);
+  });
+
+  it('does not infer an occluded phone hand without a verified phone', () => {
+    expect(() => placeAntiFraudMessage(1086, 1448, {
+      hands: [hand(0.57, 0.60, 0.70, 0.69)],
+      phones: [],
+    })).toThrow('no phone could be verified');
   });
 
   it('never delivers a guessed placement after the bounded retry', async () => {
