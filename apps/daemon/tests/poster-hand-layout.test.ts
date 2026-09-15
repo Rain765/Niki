@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
+import { ANTI_FRAUD_OPEN_PALM_RULE } from '@open-design/contracts';
 import { renderImageWithAntiFraudSafeZoneRetry, finalizeGeneratedPng } from '../src/media.js';
 import { antiFraudMessageSize, placeAntiFraudMessage, PosterHandLayoutError, type PosterHand, type PosterHandObservation } from '../src/poster-hand-layout.js';
 
@@ -98,6 +99,7 @@ describe('hand-relative anti-fraud message layout', () => {
       .mockResolvedValueOnce(observation());
     await renderImageWithAntiFraudSafeZoneRetry('scene', render, { detectHands });
     expect(render.mock.calls[1]![0]).toContain('MESSAGE SPACE RECOVERY');
+    expect(render.mock.calls[1]![0]).toContain(ANTI_FRAUD_OPEN_PALM_RULE);
     expect(render.mock.calls[1]![0]).not.toContain('CRITICAL HAND-RELATIVE LAYOUT');
   });
   it.each([[1086, 1448], [1024, 1024], [1536, 864]])('recovers a right-shifted palm without shrinking the message for %sx%s', (w, h) => {
@@ -152,7 +154,7 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(result.handObservation).toEqual(observation());
   });
 
-  it('automatically switches to a simpler pose when the correction still fails', async () => {
+  it('simplifies arm overlap without switching the approved open-palm pose after a failed correction', async () => {
     const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
     const render = vi.fn(async (_prompt: string) => ({ bytes }));
     const preserveLayoutDraft = vi.fn();
@@ -166,6 +168,11 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(render.mock.calls[1]![0]).not.toContain('SIMPLIFIED POSE RECOVERY');
     expect(render.mock.calls[2]![0]).toContain('SIMPLIFIED POSE RECOVERY');
     expect(render.mock.calls[2]![0]).toContain('original branded scene');
+    for (const [retryPrompt] of render.mock.calls.slice(1)) {
+      expect(retryPrompt).toContain(ANTI_FRAUD_OPEN_PALM_RULE);
+      expect(retryPrompt).not.toContain('palm turned partly sideways');
+      expect(retryPrompt).not.toContain('fingers pointing down');
+    }
     expect(preserveLayoutDraft).not.toHaveBeenCalled();
   });
 

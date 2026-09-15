@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { describe, expect, it, vi } from 'vitest';
+import { ANTI_FRAUD_OPEN_PALM_RULE } from '@open-design/contracts';
 
 import {
   AUTO_POSTER_BRANDS,
@@ -25,6 +26,23 @@ import {
 } from '../../../src/components/home-hero/zambia-posters';
 
 describe('Zambia poster preset', () => {
+  it('shares the open-palm pose across brands, ratios and both generation entry points without changing acquisition', () => {
+    for (const brand of AUTO_POSTER_BRANDS) {
+      for (const aspectRatio of AUTO_POSTER_ASPECT_RATIOS) {
+        const options = { brand, aspectRatio, purpose: 'anti-fraud' as const, count: 4 };
+        for (const prompt of [buildLoanPosterPrompt(options), ...buildLoanPosterScenePrompts(options)]) {
+          expect(prompt).toContain(ANTI_FRAUD_OPEN_PALM_RULE);
+          expect(prompt).not.toContain('Turn the palm sideways');
+          expect(prompt).not.toContain('vertical palm facing the camera');
+          expect(prompt).not.toContain('upright stop-sign palm');
+        }
+        for (const prompt of [buildLoanPosterPrompt({ ...options, purpose: 'acquisition' }),
+          ...buildLoanPosterScenePrompts({ ...options, purpose: 'acquisition' })]) {
+          expect(prompt).not.toContain(ANTI_FRAUD_OPEN_PALM_RULE);
+        }
+      }
+    }
+  });
   it('locks anti-fraud phone shields to emerald across brands, ratios, palettes and both prompt paths', () => {
     for (const brand of AUTO_POSTER_BRANDS) {
       for (const aspectRatio of AUTO_POSTER_ASPECT_RATIOS) {
@@ -209,8 +227,8 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('one solid deep-charcoal color');
     expect(prompt).toContain('lower-right continuity zone');
     expect(prompt).toContain('surrounding base background must flow through it');
-    expect(prompt).toContain('sweep sideways across the image plane toward the bottom-right');
-    expect(prompt).toContain('not extend toward the viewer');
+    expect(prompt).toContain('OPEN-PALM SIDEWARD REJECTION');
+    expect(prompt).toContain('Do not thrust the hand toward the camera');
     expect(prompt).toContain('`--overlay-logo-anchor left`');
     expect(prompt).toContain('`--poster-text-anchor right`');
     expect(prompt).toContain('`--poster-copy-style anti-fraud-message`');
@@ -471,22 +489,23 @@ describe('Zambia poster preset', () => {
       prompt.includes('directly beneath the rejecting hand within 2 to 4% of the canvas height')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('rejecting palm center at x=62% to 66%')
+      prompt.includes('Keep the full palm comfortably inside the frame')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('lowest fingertip or wrist above y=70%'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('OPEN-PALM SIDEWARD REJECTION'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('separated from the phone hand'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('sweep sideways across the image plane toward the bottom-right')
+      prompt.includes('palm surface clearly faces the viewer')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('not extend toward the viewer')
+      prompt.includes('Do not thrust the hand toward the camera')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('Turn the palm sideways'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('Turn the palm sideways'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('vertical palm facing the camera'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('rejecting hand remains closer to the torso')
+      prompt.includes('beside the torso and below the shoulder')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('below-right of the whole rejecting hand with a 2% canvas-height gap'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('upright stop-sign palm'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('ordinary scene space immediately below-right'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('upright stop-sign palm'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('rejecting palm aimed toward the phone'))).toBe(true);
     expect(prompts.every((prompt) => (
       !prompt.includes('open palm extended toward the camera in a firm stop gesture')
@@ -496,7 +515,7 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => (
       prompt.includes('x=73% to 100% and y=72% to 90% of the canvas')
     ))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('ordinary background immediately below-right'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('ordinary scene space immediately below-right'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('No crossed arms, folded arms'))).toBe(true);

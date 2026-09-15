@@ -1,3 +1,5 @@
+import { ANTI_FRAUD_OPEN_PALM_RULE } from '@open-design/contracts';
+
 /** Normalized top-left image coordinates, independent of output resolution. */
 export interface PosterPoint { x: number; y: number; confidence: number }
 export interface PosterHand { points: PosterPoint[]; wrist?: PosterPoint }
@@ -23,7 +25,7 @@ export class PosterHandLayoutError extends Error {
 /** A usable pose whose message cannot fit, distinct from missing/invalid limbs. */
 export class PosterMessagePlacementError extends PosterHandLayoutError {}
 
-export const ANTI_FRAUD_MESSAGE_SPACE_RETRY = 'MESSAGE SPACE RECOVERY: preserve the same single person, two separate arms, phone, exact copy, colors and background. Only move the rejecting hand upward and slightly inward, keeping its open palm facing partly toward the viewer and sweeping down-right. Keep the entire rejecting hand inside x=55% to 76%, y=55% to 74%, leaving ordinary continuous scene below-right for a small message composited later. Do not draw any message or placeholder panel. Do not add or cross arms.';
+export const ANTI_FRAUD_MESSAGE_SPACE_RETRY = `MESSAGE SPACE RECOVERY: ${ANTI_FRAUD_OPEN_PALM_RULE} Preserve the person, phone, exact copy, colors and background. Move the whole rejecting arm slightly upward and inward only as needed to leave space below-right. Do not turn the fingers downward, twist the wrist, add a hand, or draw a message or placeholder.`;
 
 export function antiFraudMessageSize(width: number, height: number) {
   const aspect = width / height;
@@ -144,7 +146,7 @@ function searchMessagePlacement(
   return { left: best.left, top: best.top, ...size, rejectingHand: hand };
 }
 
-export const ANTI_FRAUD_HAND_RETRY = 'CRITICAL HAND-RELATIVE LAYOUT: show exactly one person with both complete hands clearly visible. Keep the phone and its holding hand on the inner-left side. Move the rejecting palm center to x=62% to 66%, with its lowest fingertip or wrist above y=70%. Turn this palm sideways and sweep toward the right and slightly downward in the image plane, never reaching forward toward the camera. Keep generous continuous background immediately below-right of the entire hand through x=97%, y=97%. This space must remain visually indistinguishable from the surrounding natural scene. Preserve the complete phone, title, subtitle and logo-safe area. Keep both arm chains separate and easy to trace from shoulder through elbow and wrist to hand. No crossed arms, folded arms, forearm resting across the chest or waist, tucked hand, hidden extra hand, or overlapping sleeves. Use exactly two arms for the only two actions: holding the phone and pushing outward.';
+export const ANTI_FRAUD_HAND_RETRY = `CRITICAL HAND-RELATIVE LAYOUT: ${ANTI_FRAUD_OPEN_PALM_RULE} Preserve the phone, copy, brand-safe area and scene. Correct only the hand/arm issue while keeping this same open-palm pose.`;
 
 /** Last bounded recovery changes only the pose, not brand, copy or design. */
-export const ANTI_FRAUD_SIMPLE_POSE_RECOVERY = 'SIMPLIFIED POSE RECOVERY: replace any earlier complex arm choreography with this simpler two-arm pose. Keep the same single person, brand, exact headline/subtitle, phone screen, logo-safe band, palette and scene. Frame both shoulders, elbows, wrists and hands without cropping. Keep the upper arms separated beside the torso, never crossing the chest or each other. The image-left arm holds the phone upright, screen facing the viewer. The image-right elbow stays beside the torso; its forearm extends gently to image-right, with the open palm facing partly toward the viewer and angled slightly down-right, not edge-on, not pointing at the phone, and not thrust toward the camera. Keep this palm center at x=64%, y=62% and the entire hand above y=70%, leaving the natural scene below-right unobstructed for later message compositing. Do not draw a message, placeholder, extra arm, tucked hand or crossed sleeve. Preserve text size and the original poster composition; only simplify the arm pose.';
+export const ANTI_FRAUD_SIMPLE_POSE_RECOVERY = `SIMPLIFIED POSE RECOVERY: ${ANTI_FRAUD_OPEN_PALM_RULE} Simplify only arm overlap and wrist tension, never switch to an edge-on or downward gesture. Preserve the same person, phone, copy, palette and background.`;

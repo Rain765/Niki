@@ -39,6 +39,7 @@ export * from './sse/proxy.js';
 export * from './prompts/system.js';
 export * from './prompts/plugin-block.js';
 export * from './prompts/atom-block.js';
+export * from './prompts/anti-fraud-pose.js';
 export * from './critique.js';
 export * from './plugins/index.js';
 export * from './analytics/events.js';
