@@ -45,6 +45,7 @@ import { execFile as execFileCb, spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { EnvHttpProxyAgent } from 'undici';
 import { createImageRequestRecovery, imageRequestTimeoutMs, isRecoverableImageRequestError } from './image-request-recovery.js';
@@ -1815,6 +1816,8 @@ function clampWithWarning(value: unknown, allowed: number[], flagName: string): 
 export async function generateMedia(args: {
   /** Internal continuation: cached provider images only; never charges again. */
   posterRecoveryOnly?: boolean;
+  /** Server-owned task identity shared only with continuations of that task. */
+  posterGenerationId?: string | undefined;
   projectRoot: string; projectsRoot: string; projectId: string; surface: MediaSurface; model: string;
   prompt?: string; output?: string; aspect?: string; length?: number; duration?: number; voice?: string;
   quality?: ImageQuality;
@@ -2066,7 +2069,7 @@ export async function generateMedia(args: {
       : null;
 
   const checkpoint = loanPosterOutput && posterCopyStyle === 'anti-fraud-message'
-    ? posterCheckpoint(dir, JSON.stringify({ version: 1, output: safeOut, model: ctx.wireModel, aspect: ctx.aspect, quality: ctx.quality, prompt: ctx.prompt, provider: customImageOverridesOpenAIModel(ctx, customImageCredentials) ? 'custom-image' : def.provider }), args.posterRecoveryOnly)
+    ? posterCheckpoint(dir, JSON.stringify({ version: 1, output: safeOut, model: ctx.wireModel, aspect: ctx.aspect, quality: ctx.quality, prompt: ctx.prompt, provider: customImageOverridesOpenAIModel(ctx, customImageCredentials) ? 'custom-image' : def.provider }), args.posterRecoveryOnly, args.posterGenerationId ?? (args.posterRecoveryOnly ? undefined : randomUUID()))
     : undefined;
   const renderPoster = async (resolvedPrompt: string, render: () => Promise<RenderResult>) => {
     const result = checkpoint ? await checkpoint.render(resolvedPrompt, render) : await render();

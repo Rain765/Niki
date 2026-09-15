@@ -9,10 +9,12 @@ describe('durable poster continuation', () => {
       db.exec('CREATE TABLE projects (id TEXT PRIMARY KEY, metadata_json TEXT, updated_at INTEGER)');
       db.prepare('INSERT INTO projects VALUES (?, ?, ?)').run('project', JSON.stringify({ directGeneration: { activeBatchId: 'batch', status: 'interrupted', batches: [{ id: 'batch', status: 'interrupted' }] } }), 0);
       const jobs = posterRecoveryJobs(db);
-      jobs.save('loan-poster:batch:0', 'project', { surface: 'image', model: 'gpt-image-2', prompt: 'scene', posterCopyStyle: 'anti-fraud-message', apiKey: 'must-not-persist' } as never);
+      jobs.save('loan-poster:batch:0', 'project', { surface: 'image', model: 'gpt-image-2', prompt: 'scene', posterCopyStyle: 'anti-fraud-message', apiKey: 'must-not-persist', _checkpointScope: 'legacy' } as never);
       expect(jobs.get('loan-poster:batch:0', 'other')).toBeNull();
       const restart = posterRecoveryJobs(db);
       expect(restart.pending()).toHaveLength(1);
+      expect(restart.pending()[0]?.taskScopedCheckpoint).toBe(true);
+      expect(restart.pending()[0]?.request).not.toHaveProperty('_checkpointScope');
       expect(JSON.stringify(restart.pending())).not.toContain('must-not-persist');
       restart.begin('loan-poster:batch:0', 'project');
       expect(JSON.parse((db.prepare('SELECT metadata_json FROM projects').get() as any).metadata_json).directGeneration.status).toBe('queued');

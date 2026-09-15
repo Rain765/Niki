@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import sharp from 'sharp';
 import { PosterHandLayoutError, type PosterHandObservation } from './poster-hand-layout.js';
-import { assertPosterArmIntegrity } from './poster-arm-integrity.js';
+import { reviewPosterHands } from './poster-hand-review.js';
 
 const execFile = promisify(execFileCallback);
 export type PosterHandDetector = (input: Buffer) => Promise<PosterHandObservation>;
@@ -194,11 +194,14 @@ export async function createPosterHandDetector(options: { signal?: AbortSignal |
     try {
       const imagePath = path.join(directory, 'image.png');
       // Match the finalizer's pixel orientation; do not independently auto-rotate EXIF.
-      await sharp(input).resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-        .png().toFile(imagePath);
-      const observation = await execute(imagePath, false);
-      assertPosterArmIntegrity(observation);
-      return observation;
+      return await reviewPosterHands(input, async (bytes) => {
+        await sharp(bytes).resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+          .png().toFile(imagePath);
+        return execute(imagePath, false);
+      }, () => {
+        console.info('[poster-detector] stage=anatomy-recheck reason=uncertain-landmarks');
+        options.onProgress?.('image:local-retry');
+      });
     } catch (error) {
       options.signal?.throwIfAborted();
       if (error instanceof PosterHandLayoutError || error instanceof PosterDetectorUnavailableError) throw error;

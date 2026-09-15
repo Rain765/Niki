@@ -2,7 +2,7 @@ import type Database from 'better-sqlite3';
 import type { MediaGenerationRequest } from '@open-design/contracts';
 
 const fields = ['surface', 'model', 'prompt', 'output', 'aspect', 'quality', 'overlayZ', 'overlayLogo', 'overlayLogoAnchor', 'overlayPhoneScreen', 'foregroundPrompt', 'posterHeadline', 'posterSubtitle', 'posterTextAnchor', 'posterCopyStyle'] as const;
-export interface PosterRecoveryJob { taskId: string; projectId: string; request: MediaGenerationRequest }
+export interface PosterRecoveryJob { taskId: string; projectId: string; request: MediaGenerationRequest; taskScopedCheckpoint: boolean }
 
 /** Durable, project-owned requests contain no credentials. Only checkpoint-only
  * continuations are allowed after a restart or an explicit resume. */
@@ -11,14 +11,17 @@ export function posterRecoveryJobs(db: Database.Database) {
     task_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     request_json TEXT NOT NULL, state TEXT NOT NULL, updated_at INTEGER NOT NULL
   )`);
-  const parse = (row: any): PosterRecoveryJob | null => row ? {
-    taskId: row.task_id, projectId: row.project_id, request: JSON.parse(row.request_json),
-  } : null;
+  const parse = (row: any): PosterRecoveryJob | null => {
+    if (!row) return null;
+    const { _checkpointScope, ...request } = JSON.parse(row.request_json);
+    return { taskId: row.task_id, projectId: row.project_id, request,
+      taskScopedCheckpoint: _checkpointScope === 'task' };
+  };
   return {
     save(taskId: string, projectId: string, request: MediaGenerationRequest) {
       const safeRequest = Object.fromEntries(fields.filter(key => request[key] !== undefined).map(key => [key, request[key]]));
       db.prepare('INSERT OR REPLACE INTO poster_recovery_jobs VALUES (?, ?, ?, ?, ?)')
-        .run(taskId, projectId, JSON.stringify(safeRequest), 'pending', Date.now());
+        .run(taskId, projectId, JSON.stringify({ ...safeRequest, _checkpointScope: 'task' }), 'pending', Date.now());
     },
     get(taskId: string, projectId: string) {
       return parse(db.prepare('SELECT * FROM poster_recovery_jobs WHERE task_id = ? AND project_id = ?').get(taskId, projectId));

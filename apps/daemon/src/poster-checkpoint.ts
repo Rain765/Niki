@@ -9,9 +9,11 @@ const digest = (value: string | Buffer) => createHash('sha256').update(value).di
  * not a different brand/prompt/output. Recovery-only runs never buy another image.
  * The private cache is not a finished artifact and never enters the poster gallery.
  */
-export function posterCheckpoint(projectDir: string, identity: string, recoveryOnly = false) {
+export function posterCheckpoint(projectDir: string, identity: string, recoveryOnly = false, generationId?: string) {
   const root = path.join(projectDir, '.poster-checkpoints');
-  const directory = path.join(root, digest(identity));
+  // Identical output names/settings in a NEW task are a new generation, not a
+  // continuation. Only the same server-owned task id may reuse its candidates.
+  const directory = path.join(root, digest(generationId ? JSON.stringify([identity, generationId]) : identity));
   async function prepare() {
     for (const dir of [root, directory]) {
       await mkdir(dir, { recursive: false, mode: 0o700 }).catch((e: NodeJS.ErrnoException) => { if (e.code !== 'EEXIST') throw e; });

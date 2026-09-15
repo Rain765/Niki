@@ -16,9 +16,10 @@ afterEach(async () => {
   if (server) await new Promise<void>(resolve => server!.close(() => resolve()));
   server = undefined;
   closeDatabase();
+  vi.mocked(generateMedia).mockClear();
 });
 
-it('resumes a persisted job after a real server restart in checkpoint-only mode', async () => {
+it.each([false, true])('resumes a persisted job after restart without charging (legacy=%s)', async (legacy) => {
   const dataDir = process.env.OD_DATA_DIR;
   if (!dataDir) throw new Error('OD_DATA_DIR is required for tests');
   const db = openDatabase(process.cwd(), { dataDir });
@@ -27,9 +28,13 @@ it('resumes a persisted job after a real server restart in checkpoint-only mode'
   insertProject(db, { id: projectId, name: 'Saved poster', createdAt: Date.now(), updatedAt: Date.now(), metadata: { directGeneration: { kind: 'loan-poster' } } });
   insertMediaTask(db, { id: taskId, projectId, status: 'running', surface: 'image', model: 'gpt-image-2', progress: ['image:checkpoint-saved'] });
   posterRecoveryJobs(db).save(taskId, projectId, { surface: 'image', model: 'gpt-image-2', prompt: 'stored scene', output: 'recovered.png', posterCopyStyle: 'anti-fraud-message' });
+  if (legacy) {
+    db.prepare('UPDATE poster_recovery_jobs SET request_json = ? WHERE task_id = ?')
+      .run(JSON.stringify({ surface: 'image', model: 'gpt-image-2', prompt: 'stored scene', output: 'recovered.png', posterCopyStyle: 'anti-fraud-message' }), taskId);
+  }
   const started = await startServer({ port: 0, returnServer: true }) as { url: string; server: http.Server };
   server = started.server;
-  await vi.waitFor(() => expect(generateMedia).toHaveBeenCalledWith(expect.objectContaining({ projectId, prompt: 'stored scene', output: 'recovered.png', posterRecoveryOnly: true })));
+  await vi.waitFor(() => expect(generateMedia).toHaveBeenCalledWith(expect.objectContaining({ projectId, prompt: 'stored scene', output: 'recovered.png', posterRecoveryOnly: true, posterGenerationId: legacy ? undefined : taskId })));
   const response = await fetch(`${started.url}/api/media/tasks/${taskId}/wait`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ timeoutMs: 1000 }) });
   expect(await response.json()).toMatchObject({ status: 'done', file: { name: 'recovered.png' } });
   const resume = await fetch(`${started.url}/api/projects/${projectId}/media/generate`, { method: 'POST', headers: { 'content-type': 'application/json', origin: started.url }, body: JSON.stringify({ resumeTaskId: taskId }) });

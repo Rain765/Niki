@@ -95,8 +95,8 @@ describe('media brand overlay inputs', () => {
         posterCopyStyle: 'anti-fraud-message', output: 'poster.png',
       })).rejects.toThrow('base image saved as .poster-layout-drafts/');
     }
-    // An identical output/prompt replay reuses the saved three candidates.
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // A new generation gets fresh candidates, even with identical output/prompt.
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     await expect(readFile(path.join(projectDir, 'poster.png'))).rejects.toThrow();
     const draftRoot = path.join(projectDir, '.poster-layout-drafts');
     const drafts = await readdir(draftRoot);
@@ -256,7 +256,7 @@ describe('media brand overlay inputs', () => {
   it('resumes a paid image after detector failure without a second provider call', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
-    const request = { projectRoot, projectsRoot, projectId: 'poster-project', surface: 'image', model: 'gpt-image-2', prompt: 'unchanged branded scene', aspect: '3:4', quality: 'medium', loanPosterOutput: true, posterCopyStyle: 'anti-fraud-message', posterHeadline: 'Prevent Fraud', posterSubtitle: 'Trust Only Official Customer Service', posterTextAnchor: 'left', output: 'resume.png' } as const;
+    const request = { posterGenerationId: 'resume-test-task', projectRoot, projectsRoot, projectId: 'poster-project', surface: 'image', model: 'gpt-image-2', prompt: 'unchanged branded scene', aspect: '3:4', quality: 'medium', loanPosterOutput: true, posterCopyStyle: 'anti-fraud-message', posterHeadline: 'Prevent Fraud', posterSubtitle: 'Trust Only Official Customer Service', posterTextAnchor: 'left', output: 'resume.png' } as const;
     layoutFixture.unavailable = true;
     await expect(generateMedia(request)).rejects.toThrow('local detector timeout');
     expect(fetchMock).toHaveBeenCalledTimes(1);

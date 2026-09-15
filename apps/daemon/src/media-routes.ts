@@ -316,7 +316,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   });
 
   const jobs = posterRecoveryJobs(db);
-  function runTask(task: any, project: any, body: any, loanVideoStoryboard: ReturnType<typeof normalizeLoanVideoStoryboard> | null, recoveryOnly = false) {
+  function runTask(task: any, project: any, body: any, loanVideoStoryboard: ReturnType<typeof normalizeLoanVideoStoryboard> | null, recoveryOnly = false, legacyCheckpoint = false) {
     const projectId = project.id;
     const taskId = task.id;
     if (recoveryOnly) jobs.begin(taskId, projectId);
@@ -347,6 +347,9 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           projectsRoot: PROJECTS_DIR,
           projectId,
           posterRecoveryOnly: recoveryOnly,
+          // Only a persisted pre-scope job may resume the legacy cache. Client
+          // bodies cannot choose this flag or borrow another task's candidates.
+          posterGenerationId: recoveryOnly && legacyCheckpoint ? undefined : taskId,
           surface: body?.surface,
           model: body?.model,
           prompt: body?.prompt,
@@ -457,7 +460,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         const task = getLiveMediaTask(job.taskId);
         if (!project || !task || !['interrupted', 'failed'].includes(task.status)) continue;
         appendTaskProgress(task, 'image:resumed');
-        await runTask(task, project, job.request, null, true);
+        await runTask(task, project, job.request, null, true, !job.taskScopedCheckpoint);
       }
     } catch (error) {
       console.error('[poster recovery] Startup continuation failed:', error instanceof Error ? error.message : 'unknown error');
@@ -487,7 +490,7 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         if (!job || !task || task.projectId !== projectId) return res.status(404).json({ error: 'No saved poster task in this project' });
         if (!['running', 'queued', 'done'].includes(task.status)) {
           appendTaskProgress(task, 'image:resumed');
-          void runTask(task, project, job.request, null, true);
+          void runTask(task, project, job.request, null, true, !job.taskScopedCheckpoint);
         }
         return res.status(202).json({ taskId: task.id, status: task.status, startedAt: task.startedAt });
       }

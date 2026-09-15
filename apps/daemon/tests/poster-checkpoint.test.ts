@@ -5,6 +5,22 @@ import { describe, it, expect, vi } from 'vitest';
 import { posterCheckpoint } from '../src/poster-checkpoint.js';
 
 describe('poster provider checkpoints', () => {
+  it('buys a new candidate for a new task but resumes the same task without a provider call', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'poster-generation-scope-'));
+    try {
+      const render = vi.fn().mockResolvedValueOnce({ bytes: Buffer.from('rejected'), providerNote: 'first' })
+        .mockResolvedValueOnce({ bytes: Buffer.from('new'), providerNote: 'second' });
+      await posterCheckpoint(dir, 'same-output-and-settings', false, 'task-a').render('same-prompt', render);
+      const fresh = await posterCheckpoint(dir, 'same-output-and-settings', false, 'task-b').render('same-prompt', render);
+      expect(fresh.bytes.toString()).toBe('new');
+      expect(render).toHaveBeenCalledTimes(2);
+      const forbidden = vi.fn();
+      expect(await posterCheckpoint(dir, 'same-output-and-settings', true, 'task-b').render('same-prompt', forbidden)).toEqual(fresh);
+      await expect(posterCheckpoint(dir, 'same-output-and-settings', true, 'task-c').render('same-prompt', forbidden))
+        .rejects.toMatchObject({ code: 'poster_checkpoint_missing' });
+      expect(forbidden).not.toHaveBeenCalled();
+    } finally { await rm(dir, { recursive: true, force: true }); }
+  });
   it('saves exact bytes and resumes them in a new instance without a provider call', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'poster-checkpoint-test-'));
     try {

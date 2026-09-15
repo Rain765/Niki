@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
 import { createPosterHandDetector } from '../src/poster-hand-detector.js';
-import { assertPosterArmIntegrity } from '../src/poster-arm-integrity.js';
+import { assertPosterArmIntegrity, PosterArmUncertainError } from '../src/poster-arm-integrity.js';
+import { reviewPosterHands, mapPosterReviewObservation, posterPersonReviewRegion } from '../src/poster-hand-review.js';
 import type { PosterHandObservation, PosterPoint } from '../src/poster-hand-layout.js';
 
 const point = (x: number, y: number, confidence = 0.8): PosterPoint => ({ x, y, confidence });
@@ -22,6 +23,45 @@ function valid(): PosterHandObservation {
 }
 
 describe('anti-fraud arm integrity', () => {
+  it('requires two consistent views before accepting a moderately weak elbow', () => {
+    const first = valid();
+    first.bodies![0]!.arms[1]!.elbow.confidence = .265;
+    const second = structuredClone(first);
+    second.bodies![0]!.arms[1]!.elbow.confidence = .279;
+    second.bodies![0]!.arms[1]!.elbow.x += .01;
+    expect(() => assertPosterArmIntegrity(second)).toThrow(PosterArmUncertainError);
+    expect(() => assertPosterArmIntegrity(second, first)).not.toThrow();
+    second.bodies![0]!.arms[1]!.elbow.x += .1;
+    expect(() => assertPosterArmIntegrity(second, first)).toThrow(PosterArmUncertainError);
+    second.bodies![0]!.arms[1]!.elbow = point(.90, .72, .12);
+    expect(() => assertPosterArmIntegrity(second, first)).toThrow(PosterArmUncertainError);
+  });
+  it('keeps wrists strict even if both views repeat a mismatched connection', () => {
+    const scene = valid();
+    scene.bodies![0]!.arms[1]!.wrist = point(.70, .78);
+    expect(() => assertPosterArmIntegrity(scene, structuredClone(scene))).toThrow(PosterArmUncertainError);
+  });
+  it('rechecks uncertain evidence once, maps it back, and never crops away a known third hand', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1000, channels: 3, background: 'white' } }).png().toBuffer();
+    const scene = valid();
+    scene.bodies![0]!.arms[0]!.wrist = point(.44, .786);
+    const region = posterPersonReviewRegion(scene);
+    const rounded = { left: Math.floor(region.left * 800) / 800, right: Math.ceil(region.right * 800) / 800,
+      top: Math.floor(region.top * 1000) / 1000, bottom: Math.ceil(region.bottom * 1000) / 1000 };
+    const inverse = { left: -rounded.left / (rounded.right - rounded.left), top: -rounded.top / (rounded.bottom - rounded.top),
+      right: (1 - rounded.left) / (rounded.right - rounded.left), bottom: (1 - rounded.top) / (rounded.bottom - rounded.top) };
+    const observe = vi.fn().mockResolvedValueOnce(scene).mockResolvedValueOnce(mapPosterReviewObservation(valid(), inverse));
+    const onRecheck = vi.fn();
+    const accepted = await reviewPosterHands(bytes, observe, onRecheck);
+    expect(observe).toHaveBeenCalledTimes(2);
+    expect(onRecheck).toHaveBeenCalledOnce();
+    expect(accepted.hands[1]!.wrist!.x).toBeCloseTo(.8);
+    expect(accepted.phones[0]!.top).toBeCloseTo(.53);
+    const extra = valid(); extra.hands.push(extra.hands[0]!);
+    const bad = vi.fn().mockResolvedValue(extra);
+    await expect(reviewPosterHands(bytes, bad)).rejects.toThrow(/hands/);
+    expect(bad).toHaveBeenCalledOnce();
+  });
   it('executes a real preflight and retries a process failure on the same image using CPU', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'poster-detector-recovery-'));
     try {
@@ -39,6 +79,18 @@ describe('anti-fraud arm integrity', () => {
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
+  });
+  it('does not loop or accept a local recheck that loses an observed hand', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1000, channels: 3, background: 'white' } }).png().toBuffer();
+    const uncertain = valid();
+    uncertain.bodies![0]!.arms[1]!.wrist = point(.70, .78, .1);
+    const stillUncertain = vi.fn().mockResolvedValue(uncertain);
+    await expect(reviewPosterHands(bytes, stillUncertain)).rejects.toThrow(PosterArmUncertainError);
+    expect(stillUncertain).toHaveBeenCalledTimes(2);
+    const lost = valid(); lost.hands.pop();
+    const losesHand = vi.fn().mockResolvedValueOnce(uncertain).mockResolvedValueOnce(lost);
+    await expect(reviewPosterHands(bytes, losesHand)).rejects.toThrow('lost a previously observed hand');
+    expect(losesHand).toHaveBeenCalledTimes(2);
   });
   it('accepts two separate shoulder-elbow-wrist chains matched to the hands', () => {
     expect(() => assertPosterArmIntegrity(valid())).not.toThrow();

@@ -25,7 +25,7 @@ export class PosterHandLayoutError extends Error {
 /** A usable pose whose message cannot fit, distinct from missing/invalid limbs. */
 export class PosterMessagePlacementError extends PosterHandLayoutError {}
 
-export const ANTI_FRAUD_MESSAGE_SPACE_RETRY = `MESSAGE SPACE RECOVERY: ${ANTI_FRAUD_OPEN_PALM_RULE} Preserve the person, phone, exact copy, colors and background. Move the whole rejecting arm slightly upward and inward only as needed to leave space below-right. Do not turn the fingers downward, twist the wrist, add a hand, or draw a message or placeholder.`;
+export const ANTI_FRAUD_MESSAGE_SPACE_RETRY = `MESSAGE SPACE RECOVERY: ${ANTI_FRAUD_OPEN_PALM_RULE} Preserve the person, phone, exact copy, colors and background. Move the whole rejecting arm slightly upward and inward only as needed to leave space below-right. Keep a comfortable wrist and finger angle; do not add a hand or draw a message or placeholder.`;
 
 export function antiFraudMessageSize(width: number, height: number) {
   const aspect = width / height;
@@ -146,7 +146,7 @@ function searchMessagePlacement(
   return { left: best.left, top: best.top, ...size, rejectingHand: hand };
 }
 
-export const ANTI_FRAUD_HAND_RETRY = `CRITICAL HAND-RELATIVE LAYOUT: ${ANTI_FRAUD_OPEN_PALM_RULE} Preserve the phone, copy, brand-safe area and scene. Correct only the hand/arm issue while keeping this same open-palm pose.`;
+export const ANTI_FRAUD_HAND_RETRY = `CRITICAL HAND-RELATIVE LAYOUT: ${ANTI_FRAUD_OPEN_PALM_RULE} Preserve the phone, copy, brand-safe area and scene. Correct only the hand/arm issue while allowing a simpler natural refusal gesture.`;
 
 /** Last bounded recovery changes only the pose, not brand, copy or design. */
-export const ANTI_FRAUD_SIMPLE_POSE_RECOVERY = `SIMPLIFIED POSE RECOVERY: ${ANTI_FRAUD_OPEN_PALM_RULE} Simplify only arm overlap and wrist tension, never switch to an edge-on or downward gesture. Preserve the same person, phone, copy, palette and background.`;
+export const ANTI_FRAUD_SIMPLE_POSE_RECOVERY = `SIMPLIFIED POSE RECOVERY: ${ANTI_FRAUD_OPEN_PALM_RULE} Simplify arm overlap and wrist tension; allow natural palm and finger-angle variation. If any arm joint is cropped or hidden, widen the camera framing enough to show both complete shoulder-elbow-wrist chains inside the image, with a small margin below and beside both elbows. Do not repeat a close crop that cuts off an elbow. Keep the phone readable and preserve the person, copy size, palette and background.`;
