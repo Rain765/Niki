@@ -72,9 +72,10 @@ import { createPosterHandDetector, PosterDetectorUnavailableError, type PosterHa
 import { posterCheckpoint } from './poster-checkpoint.js';
 import { warpAntiFraudMessage } from './poster-message-perspective.js';
 import {
-  antiFraudMessageSize,
   placeAntiFraudMessage,
   PosterHandLayoutError,
+  PosterMessagePlacementError,
+  ANTI_FRAUD_MESSAGE_SPACE_RETRY,
   ANTI_FRAUD_HAND_RETRY,
   ANTI_FRAUD_SIMPLE_POSE_RECOVERY,
   type PosterHandObservation,
@@ -612,7 +613,9 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
     if (retry > 0 && !bestHands.error) break;
     const retryInstructions = [
       bestHands.error
-        ? retry === 0 ? ANTI_FRAUD_HAND_RETRY : ANTI_FRAUD_SIMPLE_POSE_RECOVERY
+        ? bestHands.error instanceof PosterMessagePlacementError
+          ? ANTI_FRAUD_MESSAGE_SPACE_RETRY
+          : retry === 0 ? ANTI_FRAUD_HAND_RETRY : ANTI_FRAUD_SIMPLE_POSE_RECOVERY
         : '',
       bestLogoSafeZone.intrudes ? logoRules.retryInstruction(anchor) : '',
       bestLowerRight.intrudes
@@ -1222,7 +1225,7 @@ async function renderAntiFraudMessageOverlay(
   const aspect = width / height;
   const widescreen = aspect >= 1.5;
   const square = !widescreen && aspect >= 0.9;
-  const { width: messageWidth, height: messageHeight } = antiFraudMessageSize(width, height);
+  const { width: messageWidth, height: messageHeight } = placement;
   const badgeSize = Math.round(messageHeight * 0.28);
   const badgeOverhangX = Math.round(badgeSize * 0.22);
   const badgeOverhangY = badgeSize - Math.round(badgeSize * 0.72);

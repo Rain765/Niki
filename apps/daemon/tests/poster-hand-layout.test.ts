@@ -59,11 +59,46 @@ describe('hand-relative anti-fraud message layout', () => {
     expect(() => placeAntiFraudMessage(1086, 1448, observation(hand(0.37, 0.60, 0.46, 0.69))))
       .toThrow('distinguished');
   });
-  it('rejects edge layouts instead of putting the message back above the palm', () => {
-    expect(() => placeAntiFraudMessage(1086, 1448, observation(hand(0.79, 0.7, 0.94, 0.8))))
+  it('recovers a near-edge palm with safe gutters instead of rejecting a usable picture', () => {
+    const p = placeAntiFraudMessage(1086, 1448, observation(hand(0.79, 0.7, 0.94, 0.8)));
+    expect(p.top / 1448).toBeGreaterThan(p.rejectingHand.bottom);
+    expect((p.left + p.width / 2) / 1086).toBeGreaterThanOrEqual(0.865);
+  });
+  it('recovers the production 28px deficit without reducing the full-size card', () => {
+    const p = placeAntiFraudMessage(1056, 1408, observation(hand(0.613364, 0.729396, 0.756404, 0.853868)));
+    expect({ width: p.width, height: p.height }).toEqual(antiFraudMessageSize(1056, 1408));
+    expect(p.top / 1408).toBeGreaterThan(p.rejectingHand.bottom);
+    expect(p.top + p.height * 1.08).toBeLessThan(1408);
+  });
+  it('compacts padding before giving up on a low palm', () => {
+    const p = placeAntiFraudMessage(1056, 1408, observation(hand(0.57, 0.80, 0.70, 0.885)));
+    expect(p.width).toBe(antiFraudMessageSize(1056, 1408).width);
+    expect(p.height).toBeLessThan(antiFraudMessageSize(1056, 1408).height);
+    expect(p.height).toBeGreaterThanOrEqual(antiFraudMessageSize(1056, 1408).height * 0.8 - 1);
+    expect(p.top / 1408).toBeGreaterThan(p.rejectingHand.bottom);
+  });
+  it('still rejects a palm at the bottom edge rather than covering it', () => {
+    expect(() => placeAntiFraudMessage(1086, 1448, observation(hand(0.57, 0.88, 0.70, 0.98))))
       .toThrow('insufficient space');
-    expect(() => placeAntiFraudMessage(1086, 1448, observation(hand(0.57, 0.8, 0.70, 0.92))))
-      .toThrow('insufficient space');
+  });
+  it('uses local spacing recovery without a paid pose retry', async () => {
+    const bytes = await sharp({ create: { width: 1056, height: 1408, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const scene = observation(hand(0.613364, 0.729396, 0.756404, 0.853868));
+    const render = vi.fn(async () => ({ bytes }));
+    const result = await renderImageWithAntiFraudSafeZoneRetry('scene', render, {
+      maxRetries: 0, detectHands: async () => scene,
+    });
+    expect(result.handObservation).toEqual(scene);
+    expect(render).toHaveBeenCalledOnce();
+  });
+  it('uses a spacing-specific correction only after local recovery is exhausted', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn(async (_prompt: string) => ({ bytes }));
+    const detectHands = vi.fn().mockResolvedValueOnce(observation(hand(0.57, 0.88, 0.70, 0.98)))
+      .mockResolvedValueOnce(observation());
+    await renderImageWithAntiFraudSafeZoneRetry('scene', render, { detectHands });
+    expect(render.mock.calls[1]![0]).toContain('MESSAGE SPACE RECOVERY');
+    expect(render.mock.calls[1]![0]).not.toContain('CRITICAL HAND-RELATIVE LAYOUT');
   });
   it.each([[1086, 1448], [1024, 1024], [1536, 864]])('recovers a right-shifted palm without shrinking the message for %sx%s', (w, h) => {
     const scene = observation(hand(0.70, 0.60, 0.82, 0.69));
@@ -211,7 +246,7 @@ describe('hand-relative anti-fraud message layout', () => {
     const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
     const preserveLayoutDraft = vi.fn(async (_bytes: Buffer) => {});
     await expect(renderImageWithAntiFraudSafeZoneRetry('scene', async () => ({ bytes }), {
-      detectHands: async () => observation(hand(0.79, 0.70, 0.94, 0.80)),
+      detectHands: async () => observation(hand(0.57, 0.88, 0.70, 0.98)),
       preserveLayoutDraft,
     })).rejects.toThrow('insufficient space');
     expect(preserveLayoutDraft).toHaveBeenCalledTimes(1);
@@ -245,9 +280,11 @@ describe('hand-relative anti-fraud message layout', () => {
     expect((await sharp(output).removeAlpha().raw().toBuffer()).equals(await sharp(bytes).removeAlpha().raw().toBuffer())).toBe(false);
   });
 
-  it.each([[800, 1067], [800, 800], [960, 540]])('keeps every transformed pixel inside the checked envelope for %sx%s', async (width, height) => {
+  it.each([[800, 1067, 0.69], [800, 800, 0.69], [960, 540, 0.69],
+    [1056, 1408, 0.885], [1024, 1024, 0.83], [1536, 864, 0.79]])('keeps every transformed pixel inside the checked envelope for %sx%s (hand bottom %s)', async (width, height, palmBottom) => {
+    const scene = observation(hand(0.57, palmBottom - 0.09, 0.70, palmBottom));
     const input = await sharp({ create: { width, height, channels: 3, background: '#365943' } }).png().toBuffer();
-    const placement = placeAntiFraudMessage(width, height, observation());
+    const placement = placeAntiFraudMessage(width, height, scene);
     const badge = Math.round(placement.height * 0.28);
     const left = placement.left - Math.round(badge * 0.22);
     const right = placement.left + placement.width;
@@ -255,7 +292,7 @@ describe('hand-relative anti-fraud message layout', () => {
     const output = await finalizeGeneratedPng(input, {
       loanPosterOutput: false, posterTextAnchor: 'right',
       posterHeadline: 'Prevent Fraud', posterSubtitle: 'Trust Only Official Customer Service',
-      posterCopyStyle: 'anti-fraud-message', posterHandObservation: observation(),
+      posterCopyStyle: 'anti-fraud-message', posterHandObservation: scene,
     });
     const before = await sharp(input).removeAlpha().raw().toBuffer();
     const after = await sharp(output).removeAlpha().raw().toBuffer();

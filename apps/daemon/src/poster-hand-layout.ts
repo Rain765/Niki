@@ -20,6 +20,11 @@ export class PosterHandLayoutError extends Error {
   }
 }
 
+/** A usable pose whose message cannot fit, distinct from missing/invalid limbs. */
+export class PosterMessagePlacementError extends PosterHandLayoutError {}
+
+export const ANTI_FRAUD_MESSAGE_SPACE_RETRY = 'MESSAGE SPACE RECOVERY: preserve the same single person, two separate arms, phone, exact copy, colors and background. Only move the rejecting hand upward and slightly inward, keeping its open palm facing partly toward the viewer and sweeping down-right. Keep the entire rejecting hand inside x=55% to 76%, y=55% to 74%, leaving ordinary continuous scene below-right for a small message composited later. Do not draw any message or placeholder panel. Do not add or cross arms.';
+
 export function antiFraudMessageSize(width: number, height: number) {
   const aspect = width / height;
   return {
@@ -48,9 +53,9 @@ function overlaps(a: PosterBox, b: PosterBox): boolean {
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
-/** Keep the full-size card below the hand, with its center to the right of the palm.
- * Search rectangle boundaries for the nearest safe position; never move above
- * the hand or shrink readable copy merely to make a candidate fit.
+/** Keep the message below-right without covering hands or phones. Prefer the
+ * original layout, then reduce decorative gutters and card whitespace only.
+ * Text size is canvas-derived in the compositor and never shrinks to fit.
  */
 export function placeAntiFraudMessage(
   width: number,
@@ -75,23 +80,42 @@ export function placeAntiFraudMessage(
     throw new PosterHandLayoutError('the outward rejecting hand cannot be distinguished from the phone hand');
   }
   const size = antiFraudMessageSize(width, height);
+  const obstacles = [...hands, ...observation.phones];
+  for (const variant of [
+    { height: size.height, gap: 0.02, edge: 0.02, centerOffset: 0.02 },
+    { height: size.height, gap: 0.004, edge: 0.008, centerOffset: 0 },
+    { height: Math.round(size.height * 0.9), gap: 0.004, edge: 0.008, centerOffset: 0 },
+    { height: Math.round(size.height * 0.8), gap: 0.004, edge: 0.008, centerOffset: 0 },
+  ]) {
+    const placement = searchMessagePlacement(width, height, hand, obstacles,
+      { width: size.width, height: variant.height }, variant);
+    if (placement) return placement;
+  }
+  throw new PosterMessagePlacementError('insufficient space below-right of the palm without overlap; local spacing recovery exhausted');
+}
+
+function searchMessagePlacement(
+  width: number, height: number, hand: PosterBox, obstacles: PosterBox[],
+  size: { width: number; height: number },
+  policy: { gap: number; edge: number; centerOffset: number },
+): AntiFraudMessagePlacement | undefined {
+  const center = (hand.left + hand.right) / 2;
   const badgeSize = Math.round(size.height * 0.28);
   const badgeOverhangX = Math.round(badgeSize * 0.22);
   const badgeOverhangY = badgeSize - Math.round(badgeSize * 0.72);
   const preferredLeft = Math.ceil((center + 0.02) * width) + badgeOverhangX;
   const minLeft = Math.max(
-    Math.ceil(0.02 * width) + badgeOverhangX,
-    Math.ceil((center + 0.02) * width - size.width / 2),
+    Math.ceil(policy.edge * width) + badgeOverhangX,
+    Math.ceil((center + policy.centerOffset) * width - size.width / 2),
   );
-  const maxLeft = Math.floor(0.98 * width) - size.width;
-  const minTop = Math.ceil((hand.bottom + 0.02) * height);
+  const maxLeft = Math.floor((1 - policy.edge) * width) - size.width;
+  const minTop = Math.ceil(hand.bottom * height) + Math.max(2, Math.ceil(policy.gap * height));
   // Stay near the gesture rather than drifting to the bottom of the poster.
-  const maxTop = Math.min(Math.floor(0.98 * height) - size.height - badgeOverhangY,
+  const maxTop = Math.min(Math.floor((1 - policy.edge) * height) - size.height - badgeOverhangY,
     minTop + Math.floor(0.04 * height));
   if (minLeft > maxLeft || minTop > maxTop) {
-    throw new PosterHandLayoutError('insufficient space below-right of the palm; move the rejecting hand upward and inward');
+    return undefined;
   }
-  const obstacles = [...hands, ...observation.phones];
   // Any closest feasible position either keeps a preferred coordinate or touches
   // a canvas/obstacle boundary. Include the badge in every candidate's footprint.
   const xs = new Set([Math.min(preferredLeft, maxLeft), minLeft, maxLeft]);
@@ -116,7 +140,7 @@ export function placeAntiFraudMessage(
       if (!best || score < best.score) best = { left, top, score };
     }
   }
-  if (!best) throw new PosterHandLayoutError('message or red badge would overlap a hand or phone throughout the safe region');
+  if (!best) return undefined;
   return { left: best.left, top: best.top, ...size, rejectingHand: hand };
 }
 
