@@ -7,9 +7,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { generateMedia } from '../src/media.js';
 
-const layoutFixture = vi.hoisted(() => ({ invalid: false }));
-vi.mock('../src/poster-hand-detector.js', () => ({
-  createPosterHandDetector: async () => async () => ({
+const layoutFixture = vi.hoisted(() => ({ invalid: false, unavailable: false }));
+vi.mock('../src/poster-hand-detector.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../src/poster-hand-detector.js')>(),
+  createPosterHandDetector: async () => async () => {
+    if (layoutFixture.unavailable) throw Object.assign(new Error('local detector timeout'), { code: 'poster_detector_unavailable' });
+    return ({
     hands: (layoutFixture.invalid ? [] : [[0.30, 0.48, 0.45, 0.60], [0.64, 0.62, 0.76, 0.718]]).map(([left, top, right, bottom]) => ({
       points: Array.from({ length: 21 }, (_, index) => ({
         x: left! + (right! - left!) * (index % 3) / 2,
@@ -18,7 +21,7 @@ vi.mock('../src/poster-hand-detector.js', () => ({
       })),
     })),
     phones: [],
-  }),
+  }); },
 }));
 
 describe('media brand overlay inputs', () => {
@@ -34,6 +37,7 @@ describe('media brand overlay inputs', () => {
 
   beforeEach(async () => {
     layoutFixture.invalid = false;
+    layoutFixture.unavailable = false;
     root = await mkdtemp(path.join(tmpdir(), 'od-media-overlay-logo-'));
     projectRoot = path.join(root, 'project-root');
     projectsRoot = path.join(projectRoot, '.od', 'projects');
@@ -91,7 +95,8 @@ describe('media brand overlay inputs', () => {
         posterCopyStyle: 'anti-fraud-message', output: 'poster.png',
       })).rejects.toThrow('base image saved as .poster-layout-drafts/');
     }
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    // An identical output/prompt replay reuses the saved three candidates.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     await expect(readFile(path.join(projectDir, 'poster.png'))).rejects.toThrow();
     const draftRoot = path.join(projectDir, '.poster-layout-drafts');
     const drafts = await readdir(draftRoot);
@@ -246,6 +251,33 @@ describe('media brand overlay inputs', () => {
       data[preservedGreenOffset + 1],
       data[preservedGreenOffset + 2],
     ]).toEqual([24, 169, 87]);
+  });
+
+  it('resumes a paid image after detector failure without a second provider call', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [{ b64_json: generatedPoster.toString('base64') }] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const request = { projectRoot, projectsRoot, projectId: 'poster-project', surface: 'image', model: 'gpt-image-2', prompt: 'unchanged branded scene', aspect: '3:4', quality: 'medium', loanPosterOutput: true, posterCopyStyle: 'anti-fraud-message', posterHeadline: 'Prevent Fraud', posterSubtitle: 'Trust Only Official Customer Service', posterTextAnchor: 'left', output: 'resume.png' } as const;
+    layoutFixture.unavailable = true;
+    await expect(generateMedia(request)).rejects.toThrow('local detector timeout');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((await readdir(projectDir)).includes('resume.png')).toBe(false);
+    expect((await readdir(projectDir)).includes('.poster-checkpoints')).toBe(true);
+    layoutFixture.unavailable = false;
+    const result = await generateMedia({ ...request, posterRecoveryOnly: true });
+    expect(result.name).toBe('resume.png');
+    expect(result.usedStubFallback).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect((await readFile(path.join(projectDir, result.name))).length).toBeGreaterThan(1000);
+  });
+
+  it('reports exhausted provider credits without retrying or saving a fake poster', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ error: {
+      message: 'You have no credits remaining.', type: 'insufficient_quota', code: 'credit_balance_too_low',
+    } }), { status: 429 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(generateMedia({ projectRoot, projectsRoot, projectId: 'poster-project', surface: 'image', model: 'gpt-image-2', prompt: 'scene', aspect: '3:4', loanPosterOutput: true, posterCopyStyle: 'anti-fraud-message', posterHeadline: 'Prevent Fraud', posterSubtitle: 'Trust Only Official Customer Service', posterTextAnchor: 'left', output: 'quota.png' })).rejects.toMatchObject({ code: 'image_provider_quota_exhausted', status: 429 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await expect(readFile(path.join(projectDir, 'quota.png'))).rejects.toThrow();
   });
 
   it('forces the Zamloan tagline black on anti-fraud posters', async () => {

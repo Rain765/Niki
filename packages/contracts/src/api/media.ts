@@ -76,6 +76,8 @@ export interface LoanVideoStoryboard {
 }
 
 export interface MediaGenerationRequest {
+  /** Continue local processing of this project's saved poster; no provider call. */
+  resumeTaskId?: string;
   clientRequestId?: string;
   surface: 'image' | 'video' | 'audio';
   model: string;
@@ -133,6 +135,9 @@ export interface MediaTaskError {
 
 /** Stable markers carried by the existing task progress stream (UI and CLI). */
 export const IMAGE_GENERATION_PROGRESS = {
+  preflight: 'image:preflight',
+  localRetry: 'image:local-retry',
+  resumed: 'image:resumed',
   slow: 'image:slow',
   retrying: 'image:retrying',
   processing: 'image:processing',

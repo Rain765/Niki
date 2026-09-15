@@ -232,7 +232,6 @@ import {
 } from './media-models.js';
 import { readMaskedConfig, writeConfig } from './media-config.js';
 import {
-  deleteMediaTask,
   getMediaTask,
   insertMediaTask,
   listMediaTasksByProject,
@@ -2596,7 +2595,7 @@ function sendMulterError(res, err) {
 }
 
 const mediaTasks = new Map();
-const TASK_TTL_AFTER_DONE_MS = 10 * 60 * 1000;
+const TASK_TTL_AFTER_DONE_MS = 7 * 24 * 60 * 60 * 1000;
 const DIRECT_LOAN_POSTER_QUEUE_STALE_AFTER_MS = 15 * 60 * 1000;
 const DIRECT_LOAN_POSTER_QUEUE_SWEEP_INTERVAL_MS = 60 * 1000;
 const MEDIA_TERMINAL_STATUSES = new Set(['done', 'failed', 'interrupted']);
@@ -2690,11 +2689,11 @@ function notifyTaskWaiters(db, task) {
   ) {
     task._gcScheduled = true;
     setTimeout(() => {
-      if (task.waiters.size === 0) {
+      task._gcScheduled = false;
+      if (task.waiters.size === 0 && MEDIA_TERMINAL_STATUSES.has(task.status)) {
         mediaTasks.delete(task.id);
-        deleteMediaTask(db, task.id);
       }
-    }, TASK_TTL_AFTER_DONE_MS).unref?.();
+    }, 10 * 60 * 1000).unref?.();
   }
 }
 

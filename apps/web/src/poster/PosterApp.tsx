@@ -57,7 +57,7 @@ import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
 import type { Project, ProjectFile } from '../types';
 import { useRuntimeReleaseRefresh } from './useRuntimeReleaseRefresh';
 import { posterLayoutFailureCopy, posterRequestProgress } from './generation-failure-copy';
-import { listProjectMediaTasks } from '../providers/media';
+import { listProjectMediaTasks, startProjectMediaTask } from '../providers/media';
 
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
@@ -456,6 +456,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [posterLoadState, setPosterLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [generating, setGenerating] = useState(false);
   const [requestProgress, setRequestProgress] = useState<{ batchId: string; message: string | null } | null>(null);
+  const [resumableTaskIds, setResumableTaskIds] = useState<string[]>([]);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [previewNotice, setPreviewNotice] = useState<Notice | null>(null);
@@ -678,13 +679,16 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       setFiles(nextFiles);
       setPosterLoadState('ready');
       const lifecycle = nextProject.metadata?.directGeneration;
-      if (lifecycle?.activeBatchId && lifecycle.status === 'queued') {
+      if (lifecycle?.activeBatchId && ['queued', 'failed', 'interrupted'].includes(lifecycle.status ?? '')) {
         const snapshot = await listProjectMediaTasks(id, false).catch(() => null);
+        setResumableTaskIds(snapshot?.tasks.filter(task => task.taskId.startsWith(`loan-poster:${lifecycle.activeBatchId}:`)
+          && ['failed', 'interrupted'].includes(task.status)
+          && task.error?.code === 'poster_postprocess_pending').map(task => task.taskId) ?? []);
         if (snapshot) setRequestProgress({
           batchId: lifecycle.activeBatchId,
           message: posterRequestProgress(snapshot.tasks, lifecycle.activeBatchId, copy === POSTER_COPY.zh ? 'zh' : 'en'),
         });
-      }
+      } else setResumableTaskIds([]);
     } catch (error) {
       if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
         window.location.reload();
@@ -813,6 +817,22 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     } finally {
       setGenerating(false);
     }
+  };
+
+  const resumePoster = async () => {
+    if (!projectId || posterIsWorking || !resumableTaskIds.length) return;
+    const id = ++generationFeedbackIdRef.current;
+    setGenerating(true);
+    setGenerationFeedback({ id, batchId: latestBatch?.id ?? null, state: 'working', message: copy.generatingPosters });
+    try {
+      for (const taskId of resumableTaskIds) {
+        await startProjectMediaTask(projectId, { resumeTaskId: taskId, surface: 'image', model: 'gpt-image-2' });
+      }
+      setResumableTaskIds([]);
+      await refreshProject(projectId, true);
+    } catch (error) {
+      setGenerationFeedback({ id, batchId: latestBatch?.id ?? null, state: 'failed', message: error instanceof Error ? error.message : copy.generationSubmitFailed });
+    } finally { setGenerating(false); }
   };
 
   const handlePosterResultTabKeyDown = (
@@ -1275,8 +1295,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               {posterLoadState === 'failed' ? (
                 <Button variant="primary" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
               ) : (
-                <Button variant="primary" disabled={posterIsWorking} onClick={() => void generate()}>
-                  {status.state === 'idle' ? copy.generateFirst : copy.generateAgainAction}
+                <Button variant="primary" disabled={posterIsWorking} onClick={() => void (resumableTaskIds.length ? resumePoster() : generate())}>
+                  {resumableTaskIds.length ? (locale === 'zh-CN' ? '继续处理' : 'Resume processing') : status.state === 'idle' ? copy.generateFirst : copy.generateAgainAction}
                 </Button>
               )}
               {historyFiles.length === 0 && posterLoadState !== 'failed' && status.state === 'complete' ? (

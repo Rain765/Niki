@@ -1,5 +1,6 @@
 import type { Express } from 'express';
 
+import { posterRecoveryJobs } from './poster-recovery-jobs.js';
 import { appendImageNodes } from './canvas-store.js';
 import { currentNikiUser } from './niki-auth-context.js';
 import {
@@ -314,6 +315,155 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
     }
   });
 
+  const jobs = posterRecoveryJobs(db);
+  function runTask(task: any, project: any, body: any, loanVideoStoryboard: ReturnType<typeof normalizeLoanVideoStoryboard> | null, recoveryOnly = false) {
+    const projectId = project.id;
+    const taskId = task.id;
+    if (recoveryOnly) jobs.begin(taskId, projectId);
+    task.status = 'running';
+    task.error = null;
+    task.endedAt = null;
+    persistMediaTask(task);
+    const prepareComposition = loanVideoStoryboard
+      ? prepareLoanVideoComposition({
+          projectDir: resolveProjectDir(PROJECTS_DIR, projectId, project.metadata),
+          projectId,
+          storyboard: loanVideoStoryboard,
+          designTemplatesDir: DESIGN_TEMPLATES_DIR,
+          odBin: OD_BIN,
+          onProgress: (line) => appendTaskProgress(task, line),
+        })
+      : Promise.resolve(null);
+    return prepareComposition
+      .then(async (prepared) => {
+        if (prepared) {
+          appendTaskProgress(
+            task,
+            `Prepared ${prepared.scenes} tutorial scenes at ${prepared.size}`,
+          );
+        }
+        const meta = await generateMedia({
+          projectRoot: PROJECT_ROOT,
+          projectsRoot: PROJECTS_DIR,
+          projectId,
+          posterRecoveryOnly: recoveryOnly,
+          surface: body?.surface,
+          model: body?.model,
+          prompt: body?.prompt,
+          output: body?.output,
+          aspect: loanVideoStoryboard?.aspectRatio ?? body?.aspect,
+          quality: body?.quality,
+          loanPosterOutput:
+            project.metadata?.directGeneration?.kind === 'loan-poster',
+          length: loanVideoStoryboard?.durationSeconds
+            ?? (typeof body?.length === 'number' ? body.length : undefined),
+          duration:
+            typeof body?.duration === 'number'
+              ? body.duration
+              : undefined,
+          voice: body?.voice,
+          audioKind: body?.audioKind,
+          language: typeof body?.language === 'string' ? body.language : undefined,
+          loop: typeof body?.loop === 'boolean' ? body.loop : undefined,
+          promptInfluence: typeof body?.promptInfluence === 'number'
+            ? body.promptInfluence
+            : undefined,
+          compositionDir: prepared?.compositionDir
+            ?? body?.compositionDir,
+          image: body?.image,
+          overlayZ: body?.overlayZ,
+          overlayLogo: body?.overlayLogo,
+          overlayLogoAnchor: body?.overlayLogoAnchor,
+          overlayPhoneScreen: body?.overlayPhoneScreen,
+          foregroundPrompt: body?.foregroundPrompt,
+          posterHeadline: body?.posterHeadline,
+          posterSubtitle: body?.posterSubtitle,
+          posterTextAnchor: body?.posterTextAnchor,
+          posterCopyStyle: body?.posterCopyStyle,
+          onProgress: (line: any) => appendTaskProgress(task, line),
+        });
+        if (!prepared?.warnings.length) return meta;
+        return {
+          ...meta,
+          warnings: [...(Array.isArray(meta.warnings) ? meta.warnings : []), ...prepared.warnings],
+        };
+      })
+      .then((meta: any) => {
+        jobs.finish(task.id, 'done');
+        task.status = 'done';
+        task.file = meta;
+        task.endedAt = Date.now();
+        persistMediaTask(task);
+        reconcileDirectLoanPosterProject(projectId);
+        notifyTaskWaiters(task);
+        // Drop generated images onto the project canvas. The canvas store
+        // emits a `node-added` SSE event so an open canvas surface shows the
+        // image live; if the canvas isn't open the node is simply persisted
+        // and appears next time the canvas is opened.
+        try {
+          const kind = typeof meta?.kind === 'string' ? meta.kind : '';
+          const mime = typeof meta?.mime === 'string' ? meta.mime : '';
+          const name = typeof meta?.name === 'string' ? meta.name : '';
+          const isImage = kind === 'image' || mime.startsWith('image/');
+          if (isImage && name) {
+            const src = `/api/projects/${encodeURIComponent(projectId)}/files/${name
+              .split('/')
+              .map((seg: string) => encodeURIComponent(seg))
+              .join('/')}`;
+            appendImageNodes(db, projectId, [{ src, alt: name }]);
+          }
+        } catch (canvasErr) {
+          console.error(
+            `[task ${taskId.slice(0, 8)}] canvas append skipped: ${String(canvasErr)}`,
+          );
+        }
+        console.error(
+          `[task ${taskId.slice(0, 8)}] stage=done size=${meta?.size} mime=${meta?.mime} ` +
+            `provider=${meta?.providerId || 'unknown'} elapsedMs=${task.endedAt - task.startedAt}`,
+        );
+      })
+      .catch((err: any) => {
+        jobs.finish(task.id, 'paused');
+        const failure = mediaTaskFailure(err);
+        if (body?.posterCopyStyle === 'anti-fraud-message' && task.progress.includes('image:checkpoint-saved')
+          && failure.name !== 'PosterHandLayoutError' && failure.code !== 'poster_checkpoint_missing') {
+          failure.code = 'poster_postprocess_pending';
+          failure.message = `Poster local processing pending: saved image can be resumed. ${failure.message}`;
+        }
+        task.status = 'failed';
+        task.error = {
+          message: failure.message,
+          status: failure.status,
+          code: failure.code,
+        };
+        task.endedAt = Date.now();
+        persistMediaTask(task);
+        reconcileDirectLoanPosterProject(projectId);
+        notifyTaskWaiters(task);
+        console.error(
+          `[task ${taskId.slice(0, 8)}] stage=failed elapsedMs=${task.endedAt - task.startedAt} ` +
+            `status=${task.error.status} errorName=${failure.name} ` +
+            `code=${failure.code || 'none'} message=${oneLine(task.error.message || '')}`,
+        );
+      });
+  }
+
+  // Existing admitted jobs resume only local stages. Never duplicate an upstream
+  // request whose result was not received before shutdown.
+  queueMicrotask(async () => {
+    try {
+      for (const job of jobs.pending()) {
+        const project = getProject(db, job.projectId);
+        const task = getLiveMediaTask(job.taskId);
+        if (!project || !task || !['interrupted', 'failed'].includes(task.status)) continue;
+        appendTaskProgress(task, 'image:resumed');
+        await runTask(task, project, job.request, null, true);
+      }
+    } catch (error) {
+      console.error('[poster recovery] Startup continuation failed:', error instanceof Error ? error.message : 'unknown error');
+    }
+  });
+
   app.post('/api/projects/:id/media/generate', async (req, res) => {
     // Niki's authenticated web UI may run inside an embedded webview that
     // omits the Origin header. The auth middleware has already resolved the
@@ -331,6 +481,16 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       const projectId = req.params.id;
       const project = getProject(db, projectId);
       if (!project) return res.status(404).json({ error: 'project not found' });
+      if (req.body?.resumeTaskId) {
+        const task = getLiveMediaTask(String(req.body.resumeTaskId));
+        const job = jobs.get(String(req.body.resumeTaskId), projectId);
+        if (!job || !task || task.projectId !== projectId) return res.status(404).json({ error: 'No saved poster task in this project' });
+        if (!['running', 'queued', 'done'].includes(task.status)) {
+          appendTaskProgress(task, 'image:resumed');
+          void runTask(task, project, job.request, null, true);
+        }
+        return res.status(202).json({ taskId: task.id, status: task.status, startedAt: task.startedAt });
+      }
       const loanVideoStoryboard = req.body?.loanVideoStoryboard === undefined
         ? null
         : normalizeLoanVideoStoryboard(req.body.loanVideoStoryboard);
@@ -382,122 +542,8 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           `compositionDir=${req.body?.compositionDir ? 'yes' : 'no'}`,
       );
 
-      task.status = 'running';
-      persistMediaTask(task);
-      const prepareComposition = loanVideoStoryboard
-        ? prepareLoanVideoComposition({
-            projectDir: resolveProjectDir(PROJECTS_DIR, projectId, project.metadata),
-            projectId,
-            storyboard: loanVideoStoryboard,
-            designTemplatesDir: DESIGN_TEMPLATES_DIR,
-            odBin: OD_BIN,
-            onProgress: (line) => appendTaskProgress(task, line),
-          })
-        : Promise.resolve(null);
-      prepareComposition
-        .then(async (prepared) => {
-          if (prepared) {
-            appendTaskProgress(
-              task,
-              `Prepared ${prepared.scenes} tutorial scenes at ${prepared.size}`,
-            );
-          }
-          const meta = await generateMedia({
-            projectRoot: PROJECT_ROOT,
-            projectsRoot: PROJECTS_DIR,
-            projectId,
-            surface: req.body?.surface,
-            model: req.body?.model,
-            prompt: req.body?.prompt,
-            output: req.body?.output,
-            aspect: loanVideoStoryboard?.aspectRatio ?? req.body?.aspect,
-            quality: req.body?.quality,
-            loanPosterOutput:
-              project.metadata?.directGeneration?.kind === 'loan-poster',
-            length: loanVideoStoryboard?.durationSeconds
-              ?? (typeof req.body?.length === 'number' ? req.body.length : undefined),
-            duration:
-              typeof req.body?.duration === 'number'
-                ? req.body.duration
-                : undefined,
-            voice: req.body?.voice,
-            audioKind: req.body?.audioKind,
-            language: typeof req.body?.language === 'string' ? req.body.language : undefined,
-            loop: typeof req.body?.loop === 'boolean' ? req.body.loop : undefined,
-            promptInfluence: typeof req.body?.promptInfluence === 'number'
-              ? req.body.promptInfluence
-              : undefined,
-            compositionDir: prepared?.compositionDir
-              ?? req.body?.compositionDir,
-            image: req.body?.image,
-            overlayZ: req.body?.overlayZ,
-            overlayLogo: req.body?.overlayLogo,
-            overlayLogoAnchor: req.body?.overlayLogoAnchor,
-            overlayPhoneScreen: req.body?.overlayPhoneScreen,
-            foregroundPrompt: req.body?.foregroundPrompt,
-            posterHeadline: req.body?.posterHeadline,
-            posterSubtitle: req.body?.posterSubtitle,
-            posterTextAnchor: req.body?.posterTextAnchor,
-            posterCopyStyle: req.body?.posterCopyStyle,
-            onProgress: (line: any) => appendTaskProgress(task, line),
-          });
-          if (!prepared?.warnings.length) return meta;
-          return {
-            ...meta,
-            warnings: [...(Array.isArray(meta.warnings) ? meta.warnings : []), ...prepared.warnings],
-          };
-        })
-        .then((meta: any) => {
-          task.status = 'done';
-          task.file = meta;
-          task.endedAt = Date.now();
-          persistMediaTask(task);
-          reconcileDirectLoanPosterProject(projectId);
-          notifyTaskWaiters(task);
-          // Drop generated images onto the project canvas. The canvas store
-          // emits a `node-added` SSE event so an open canvas surface shows the
-          // image live; if the canvas isn't open the node is simply persisted
-          // and appears next time the canvas is opened.
-          try {
-            const kind = typeof meta?.kind === 'string' ? meta.kind : '';
-            const mime = typeof meta?.mime === 'string' ? meta.mime : '';
-            const name = typeof meta?.name === 'string' ? meta.name : '';
-            const isImage = kind === 'image' || mime.startsWith('image/');
-            if (isImage && name) {
-              const src = `/api/projects/${encodeURIComponent(projectId)}/files/${name
-                .split('/')
-                .map((seg: string) => encodeURIComponent(seg))
-                .join('/')}`;
-              appendImageNodes(db, projectId, [{ src, alt: name }]);
-            }
-          } catch (canvasErr) {
-            console.error(
-              `[task ${taskId.slice(0, 8)}] canvas append skipped: ${String(canvasErr)}`,
-            );
-          }
-          console.error(
-            `[task ${taskId.slice(0, 8)}] stage=done size=${meta?.size} mime=${meta?.mime} ` +
-              `provider=${meta?.providerId || 'unknown'} elapsedMs=${task.endedAt - task.startedAt}`,
-          );
-        })
-        .catch((err: any) => {
-          const failure = mediaTaskFailure(err);
-          task.status = 'failed';
-          task.error = {
-            message: failure.message,
-            status: failure.status,
-            code: failure.code,
-          };
-          task.endedAt = Date.now();
-          persistMediaTask(task);
-          reconcileDirectLoanPosterProject(projectId);
-          notifyTaskWaiters(task);
-          console.error(
-            `[task ${taskId.slice(0, 8)}] stage=failed elapsedMs=${task.endedAt - task.startedAt} ` +
-              `status=${task.error.status} errorName=${failure.name} ` +
-              `code=${failure.code || 'none'} message=${oneLine(task.error.message || '')}`,
-          );
-        });
+      if (project.metadata?.directGeneration?.kind === 'loan-poster' && req.body?.posterCopyStyle === 'anti-fraud-message' && req.body?.surface === 'image') jobs.save(taskId, projectId, req.body);
+      void runTask(task, project, req.body, loanVideoStoryboard);
 
       res.status(202).json({
         taskId,

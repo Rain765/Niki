@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import sharp from 'sharp';
@@ -22,6 +22,24 @@ function valid(): PosterHandObservation {
 }
 
 describe('anti-fraud arm integrity', () => {
+  it('executes a real preflight and retries a process failure on the same image using CPU', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'poster-detector-recovery-'));
+    try {
+      const executable = path.join(directory, 'detector');
+      const calls = path.join(directory, 'calls');
+      await writeFile(executable, `#!/usr/bin/env node\nconst fs=require('fs');fs.appendFileSync(${JSON.stringify(calls)},process.argv.slice(2).join('|')+'\\n');if(process.argv[3]!=='cpu')process.exit(1);process.stdout.write(${JSON.stringify(JSON.stringify(valid()))});`, { mode: 0o700 });
+      vi.stubEnv('OD_POSTER_HAND_DETECTOR', executable);
+      const detector = await createPosterHandDetector();
+      expect((await readFile(calls, 'utf8')).trim().split('\n')).toHaveLength(2);
+      const bytes = await sharp({ create: { width: 32, height: 32, channels: 3, background: 'white' } }).png().toBuffer();
+      await expect(detector(bytes)).resolves.toEqual(valid());
+      const history = (await readFile(calls, 'utf8')).trim().split('\n');
+      expect(history.at(-1)).toMatch(/\|cpu$/);
+      expect(history).toHaveLength(3);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   it('accepts two separate shoulder-elbow-wrist chains matched to the hands', () => {
     expect(() => assertPosterArmIntegrity(valid())).not.toThrow();
   });
@@ -66,6 +84,10 @@ describe('anti-fraud arm integrity', () => {
       const executable = path.join(directory, 'detector');
       await writeFile(executable, `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(JSON.stringify(scene))});\n`, { mode: 0o700 });
       vi.stubEnv('OD_POSTER_HAND_DETECTOR', executable);
+      if (mode === 'missing-body' || mode === 'malformed-body') {
+        await expect(createPosterHandDetector()).rejects.toThrow(/Poster detector unavailable/);
+        return;
+      }
       const detector = await createPosterHandDetector();
       const bytes = await sharp({ create: { width: 32, height: 32, channels: 3, background: 'white' } }).png().toBuffer();
       if (mode === 'valid') await expect(detector(bytes)).resolves.toEqual(scene);

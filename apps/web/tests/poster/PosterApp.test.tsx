@@ -1146,6 +1146,26 @@ describe('PosterApp mobile-safe flow', () => {
     expect(generationStatus.querySelector('p')).toBeNull();
   });
 
+  it('resumes saved local processing without starting a new paid batch', async () => {
+    const failedProject = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'failed', activeBatchId: 'saved', expectedOutputs: 1,
+      batches: [{ id: 'saved', status: 'failed', requestedAt: 10, expectedOutputs: 1, outputNames: ['zamloan-poster-pending.png'], lastError: 'Poster local processing pending: saved image can be resumed.' }],
+    } } };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(failedProject);
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: [] } : { project: failedProject },
+    ), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:saved:0', status: 'failed', progress: [], error: { code: 'poster_postprocess_pending' } }] });
+    render(<PosterApp />);
+    await screen.findByTestId('poster-app-latest-empty');
+    fireEvent(window, new Event('focus'));
+    const resume = await screen.findByRole('button', { name: 'Resume processing' });
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    fireEvent.click(resume);
+    await waitFor(() => expect(startProjectMediaTaskMock).toHaveBeenCalledWith('project-1', { resumeTaskId: 'loan-poster:saved:0', surface: 'image', model: 'gpt-image-2' }));
+    expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['image:retrying', 'The image request was interrupted. Retrying automatically…'],
     ['image:slow', 'Generation is taking longer, but is still processing…'],

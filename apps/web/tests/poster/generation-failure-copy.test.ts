@@ -3,6 +3,10 @@ import { posterLayoutFailureCopy, posterRequestProgress } from '../../src/poster
 import type { ProjectMediaTaskSummary } from '@open-design/contracts';
 
 describe('poster layout recovery feedback', () => {
+  it('distinguishes exhausted credits from transient rate limits and timeouts', () => {
+    expect(posterLayoutFailureCopy('Image provider quota exhausted: restore API credits', 'zh')).toContain('API 额度不足');
+    expect(posterLayoutFailureCopy('openai 429: insufficient_quota', 'en')).toContain('no credits remaining');
+  });
   it.each(['The operation was aborted due to timeout', 'Image service request timed out', 'Image recovery budget exhausted', 'openai 429: busy'])('hides transient provider diagnostics: %s', detail => {
     expect(posterLayoutFailureCopy(detail, 'zh')).toContain('自动恢复已结束');
     expect(posterLayoutFailureCopy(detail, 'en')).not.toContain(detail);

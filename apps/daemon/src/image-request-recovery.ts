@@ -11,8 +11,9 @@ export function isRecoverableImageRequestError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
   const e = error as { name?: string; message?: string; status?: number; code?: string; cause?: { code?: string } };
   if (e.name === 'AbortError') return false;
+  if (e.code === 'image_provider_quota_exhausted' || /insufficient_quota|credit_balance_too_low|no credits remaining|billing_hard_limit_reached/i.test(e.message ?? '')) return false;
   return e.name === 'TimeoutError'
-    || e.code === 'image_request_timeout' || e.code === 'image_recovery_exhausted'
+    || e.code === 'image_request_timeout' || e.code === 'image_recovery_exhausted' || e.code === 'poster_checkpoint_missing'
     || [408, 429, 500, 502, 503, 504].includes(e.status ?? 0)
     || (e.name === 'TypeError' && e.message === 'fetch failed')
     || /^(?:UND_ERR_(?:CONNECT_TIMEOUT|HEADERS_TIMEOUT|BODY_TIMEOUT|SOCKET)|ECONNRESET|ETIMEDOUT|EAI_AGAIN)$/.test(e.cause?.code ?? e.code ?? '');

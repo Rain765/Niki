@@ -58,6 +58,7 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'poster-subtitle',
   'poster-text-anchor',
   'poster-copy-style',
+  'resume-task',
   'output',
   'aspect',
   'quality',
@@ -985,12 +986,12 @@ async function runMediaGenerate(rawArgs) {
     process.exit(2);
   }
 
-  const surface = flags.surface;
+  const surface = flags.surface || (flags['resume-task'] ? 'image' : undefined);
   if (!surface || !['image', 'video', 'audio'].includes(surface)) {
     console.error('--surface must be one of: image | video | audio');
     process.exit(2);
   }
-  if (!flags.model) {
+  if (!flags.model && !flags['resume-task']) {
     console.error('--model required (see http://<daemon>/api/media/models)');
     process.exit(2);
   }
@@ -1010,6 +1011,7 @@ async function runMediaGenerate(rawArgs) {
     }
   }
   const body = {
+    resumeTaskId: flags['resume-task'],
     surface,
     model: flags.model,
     prompt,
@@ -1784,6 +1786,7 @@ Common options:
                             Align deterministic copy with the reserved title column.
   --poster-copy-style <standard|anti-fraud|anti-fraud-message>
                             Select the deterministic poster copy treatment.
+  --resume-task <taskId>  Resume a saved poster locally without a new image charge
   --daemon-url <url>
 
 Output: a single line of JSON: {"file": { name, size, kind, mime, ... }}.

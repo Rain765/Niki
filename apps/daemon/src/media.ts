@@ -68,7 +68,8 @@ import {
   verifyHyperFramesBinaries,
 } from './hyperframes-binaries.js';
 import { resolveModelAlias, resolveProviderConfig } from './media-config.js';
-import { createPosterHandDetector, type PosterHandDetector } from './poster-hand-detector.js';
+import { createPosterHandDetector, PosterDetectorUnavailableError, type PosterHandDetector } from './poster-hand-detector.js';
+import { posterCheckpoint } from './poster-checkpoint.js';
 import { warpAntiFraudMessage } from './poster-message-perspective.js';
 import {
   antiFraudMessageSize,
@@ -1809,6 +1810,8 @@ function clampWithWarning(value: unknown, allowed: number[], flagName: string): 
  * @returns {Promise<{ name: string, size: number, mtime: number, kind: string, mime: string, model: string, surface: string, providerNote: string, providerId: string }>}
  */
 export async function generateMedia(args: {
+  /** Internal continuation: cached provider images only; never charges again. */
+  posterRecoveryOnly?: boolean;
   projectRoot: string; projectsRoot: string; projectId: string; surface: MediaSurface; model: string;
   prompt?: string; output?: string; aspect?: string; length?: number; duration?: number; voice?: string;
   quality?: ImageQuality;
@@ -2030,8 +2033,12 @@ export async function generateMedia(args: {
     ...(args.signal ? { signal: args.signal } : {}),
   };
 
+  if (args.posterRecoveryOnly && !(surface === 'image' && def.provider === 'openai' && loanPosterOutput
+    && posterCopyStyle === 'anti-fraud-message' && !overlayPhoneScreenRef && !layeredPosterRequested)) {
+    throw Object.assign(new Error('Poster recovery only supports saved anti-fraud image stages'), { status: 409, code: 'poster_checkpoint_missing' });
+  }
   const detectPosterHands = surface === 'image' && posterCopyStyle === 'anti-fraud-message'
-    ? await createPosterHandDetector()
+    ? await createPosterHandDetector({ signal: args.signal, onProgress: args.onProgress })
     : undefined;
   let posterHandObservation: PosterHandObservation | undefined;
   const preserveLayoutDraft = async (input: Buffer, error: PosterHandLayoutError, observation?: PosterHandObservation) => {
@@ -2054,6 +2061,16 @@ export async function generateMedia(args: {
     surface === 'image' && def.provider === 'openai'
       ? await resolveProviderConfig(projectRoot, 'custom-image')
       : null;
+
+  const checkpoint = loanPosterOutput && posterCopyStyle === 'anti-fraud-message'
+    ? posterCheckpoint(dir, JSON.stringify({ version: 1, output: safeOut, model: ctx.wireModel, aspect: ctx.aspect, quality: ctx.quality, prompt: ctx.prompt, provider: customImageOverridesOpenAIModel(ctx, customImageCredentials) ? 'custom-image' : def.provider }), args.posterRecoveryOnly)
+    : undefined;
+  const renderPoster = async (resolvedPrompt: string, render: () => Promise<RenderResult>) => {
+    const result = checkpoint ? await checkpoint.render(resolvedPrompt, render) : await render();
+    if (checkpoint) args.onProgress?.('image:checkpoint-saved');
+    args.onProgress?.('image:processing');
+    return result;
+  };
 
   let bytes: Buffer;
   let foregroundBytes: Buffer | undefined;
@@ -2092,10 +2109,10 @@ export async function generateMedia(args: {
         && posterCopyStyle === 'anti-fraud-message'
         ? await renderImageWithAntiFraudSafeZoneRetry(
           ctx.prompt,
-          (resolvedPrompt) => renderCustomOpenAIImage(
+          (resolvedPrompt) => renderPoster(resolvedPrompt, () => renderCustomOpenAIImage(
             { ...ctx, prompt: resolvedPrompt },
             customImageCredentials!,
-          ),
+          )),
           {
             detectHands: detectPosterHands,
             preserveLayoutDraft,
@@ -2160,10 +2177,10 @@ export async function generateMedia(args: {
         && posterCopyStyle === 'anti-fraud-message'
         ? await renderImageWithAntiFraudSafeZoneRetry(
           ctx.prompt,
-          (resolvedPrompt) => renderOpenAIImage(
+          (resolvedPrompt) => renderPoster(resolvedPrompt, () => renderOpenAIImage(
             { ...ctx, prompt: resolvedPrompt },
             credentials,
-          ),
+          )),
           {
             detectHands: detectPosterHands,
             preserveLayoutDraft,
@@ -2348,7 +2365,7 @@ export async function generateMedia(args: {
     // Stub-disabled errors are intentional — propagate so the daemon
     // maps them to 503 and the CLI surfaces a clear "configure a real
     // provider" message rather than writing fake bytes.
-    if (err instanceof StubProviderDisabledError || err instanceof PosterHandLayoutError) {
+    if (checkpoint || args.posterRecoveryOnly || err instanceof StubProviderDisabledError || err instanceof PosterHandLayoutError || err instanceof PosterDetectorUnavailableError) {
       throw err;
     }
     // A real provider failed (network blip, 4xx, missing key, …). We
@@ -2582,7 +2599,7 @@ async function renderOpenAIImageRequest(ctx: MediaContext, credentials: Provider
   stage('response-body');
   if (!resp.ok) {
     const tag = azure ? 'azure-openai' : 'openai';
-    throw imageProviderResponseError(resp, `${tag} ${resp.status}: ${truncate(text, 240)}`);
+    throw imageProviderResponseError(resp, `${tag} ${resp.status}: ${truncate(text, 240)}`, text);
   }
   let data: any;
   try {
@@ -2616,7 +2633,10 @@ async function renderOpenAIImageRequest(ctx: MediaContext, credentials: Provider
   };
 }
 
-function imageProviderResponseError(response: Response, message: string): Error {
+function imageProviderResponseError(response: Response, message: string, body = ''): Error {
+  if (response.status === 429 && /insufficient_quota|credit_balance_too_low|no credits remaining|billing_hard_limit_reached/i.test(body)) {
+    return Object.assign(new Error('Image provider quota exhausted: restore API credits before generating again'), { status: 429, code: 'image_provider_quota_exhausted' });
+  }
   const value = response.headers.get('retry-after');
   const seconds = value ? Number(value) : NaN;
   const retryAfterMs = Number.isFinite(seconds) ? seconds * 1_000

@@ -36,6 +36,14 @@ describe('image request recovery budget', () => {
     await expect(createImageRequestRecovery({}).run(operation)).rejects.toMatchObject({ status });
     expect(operation).toHaveBeenCalledTimes(1);
   });
+  it.each([
+    { code: 'image_provider_quota_exhausted', message: 'Image provider quota exhausted' },
+    { code: 'insufficient_quota', message: 'openai 429: no credits remaining' },
+  ])('does not retry exhausted billing quota: $code', async ({ code, message }) => {
+    const operation = vi.fn().mockRejectedValue(Object.assign(new Error(message), { status: 429, code }));
+    await expect(createImageRequestRecovery({}).run(operation)).rejects.toMatchObject({ code });
+    expect(operation).toHaveBeenCalledTimes(1);
+  });
   it('honors a short Retry-After and cancels during backoff', async () => {
     vi.useFakeTimers();
     const controller = new AbortController();
