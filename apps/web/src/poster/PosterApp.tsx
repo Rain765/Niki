@@ -121,13 +121,9 @@ const POSTER_COPY = {
     noPosterHistory: 'No previous generations yet.',
     noPostersYet: 'No posters yet',
     latestFailedEmpty: 'No posters were completed in this batch',
-    latestFailedEmptyDetail: 'This batch stopped before any poster was ready. You can generate again or view previous posters.',
+    latestFailedEmptyDetail: 'No poster is ready yet. Use Generate posters above to try again.',
     latestUnavailable: 'No posters available in this batch',
     latestUnavailableDetail: 'The batch record exists, but no matching images are available. Refresh to check again, or generate a new batch.',
-    generateFirst: 'Generate first poster',
-    generateAgainAction: 'Generate again',
-    viewHistory: 'View history',
-    refreshPage: 'Refresh page',
     loadPostersRetry: 'We could not retrieve your posters. Refresh the page to try again.',
     close: 'Close',
     share: 'Share',
@@ -213,13 +209,9 @@ const POSTER_COPY = {
     noPosterHistory: '暂无历史生成记录。',
     noPostersYet: '暂无海报',
     latestFailedEmpty: '本批尚未生成可用海报',
-    latestFailedEmptyDetail: '本次任务在图片完成前已结束，可以重新生成或查看历史海报。',
+    latestFailedEmptyDetail: '暂未生成可用海报，可通过上方“生成海报”重试。',
     latestUnavailable: '本批暂无可显示的海报',
     latestUnavailableDetail: '批次记录存在，但暂未找到对应图片。可刷新重试，或生成新的一批。',
-    generateFirst: '生成第一张海报',
-    generateAgainAction: '重新生成',
-    viewHistory: '查看历史海报',
-    refreshPage: '刷新页面',
     loadPostersRetry: '暂时无法读取海报，请刷新页面重试。',
     close: '关闭',
     share: '分享',
@@ -512,21 +504,22 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     [posterFiles, project?.metadata?.directGeneration],
   );
   const latestBatch = batches.at(-1) ?? null;
-  const latestBatchAspectRatio = latestBatch?.aspectRatio ?? aspectRatio;
-  const latestBatchCount = latestBatch?.files.length ?? 0;
-  const historyBatches = useMemo(
-    () => batches.slice(0, -1).reverse(),
-    [batches],
-  );
-  const historyFiles = useMemo(
-    () => historyBatches
+  // Task status tracks the newest request; the gallery tracks saved outputs.
+  // An empty pending/failed request must never replace the last usable image.
+  const savedPosters = useMemo(
+    () => batches
       .flatMap((batch) => batch.files.map((file) => ({
         aspectRatio: batch.aspectRatio,
         file,
       })))
-      .sort((left, right) => right.file.mtime - left.file.mtime),
-    [historyBatches],
+      .sort((left, right) => right.file.mtime - left.file.mtime
+        || right.file.name.localeCompare(left.file.name, undefined, { numeric: true })),
+    [batches],
   );
+  const latestPoster = savedPosters[0] ?? null;
+  const latestBatchAspectRatio = latestPoster?.aspectRatio ?? latestBatch?.aspectRatio ?? aspectRatio;
+  const latestBatchCount = latestPoster ? 1 : 0;
+  const historyFiles = savedPosters.slice(1);
   const aspectRatioByFile = useMemo(() => new Map(
     batches.flatMap((batch) => batch.files.map((file) => [file.name, batch.aspectRatio] as const)),
   ), [batches]);
@@ -1194,9 +1187,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           variant="primary"
           loading={generating}
           disabled={posterIsWorking}
-          onClick={() => void generate()}
+          onClick={() => void (resumableTaskIds.length ? resumePoster() : generate())}
         >
-          {generating ? copy.submitting : copy.generatePosters}
+          {generating ? copy.submitting : resumableTaskIds.length
+            ? (locale === 'zh-CN' ? '继续处理' : 'Resume processing') : copy.generatePosters}
         </Button>
       </section>
 
@@ -1268,12 +1262,12 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         tabIndex={-1}
       >
         <div className="poster-app__gallery">
-          {latestBatch?.files.map((file, index) => renderPoster(file, {
-            aspectRatio: latestBatch.aspectRatio,
+          {latestPoster ? renderPoster(latestPoster.file, {
+            aspectRatio: latestPoster.aspectRatio,
             eager: true,
-            index,
-          }))}
-          {posterIsWorking ? (
+            index: 0,
+          }) : null}
+          {posterIsWorking && !latestPoster ? (
             <div className={`poster-app__poster-skeleton${latestBatchAspectRatio === '1:1'
               ? ' is-square'
               : latestBatchAspectRatio === '3:4'
@@ -1291,24 +1285,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             <div className="poster-app__empty-icon" aria-hidden="true"><Icon name="image" size={88} /></div>
             <h3>{latestEmptyTitle}</h3>
             <p>{latestEmptyDetail}</p>
-            <div className="poster-app__latest-empty-actions">
-              {posterLoadState === 'failed' ? (
-                <Button variant="primary" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
-              ) : (
-                <Button variant="primary" disabled={posterIsWorking} onClick={() => void (resumableTaskIds.length ? resumePoster() : generate())}>
-                  {resumableTaskIds.length ? (locale === 'zh-CN' ? '继续处理' : 'Resume processing') : status.state === 'idle' ? copy.generateFirst : copy.generateAgainAction}
-                </Button>
-              )}
-              {historyFiles.length === 0 && posterLoadState !== 'failed' && status.state === 'complete' ? (
-                <Button variant="secondary" onClick={() => window.location.reload()}>{copy.refreshPage}</Button>
-              ) : null}
-              {historyFiles.length > 0 ? (
-                <Button variant="secondary" onClick={() => {
-                  setPosterResultTab('history');
-                  document.getElementById('poster-result-tab-history')?.focus();
-                }}>{copy.viewHistory}</Button>
-              ) : null}
-            </div>
           </div>
         ) : null}
       </section>

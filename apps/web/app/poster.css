@@ -1868,33 +1868,15 @@ button {
   line-height: 1.6;
 }
 
-.poster-app__latest-empty-actions {
-  --od-control-fill: var(--poster-panel-muted);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 12px;
-}
-
 .poster-app__empty-icon {
   color: var(--poster-placeholder);
   margin-bottom: 12px;
   line-height: 0;
 }
 
-.poster-app__latest-empty-actions .od-button {
-  min-width: 140px;
-  min-height: 48px;
-  padding: 12px 20px;
-  font-size: 15px;
-}
-
 @media (max-width: 600px) {
   .poster-app__latest-empty { min-height: 300px; padding: 28px 12px; }
   .poster-app__empty-icon svg { width: 80px; height: 80px; }
-  .poster-app__latest-empty-actions { flex-wrap: nowrap; gap: 10px; width: 100%; }
-  .poster-app__latest-empty-actions .od-button { min-width: 0; flex: 1; max-width: 200px; padding-inline: 12px; }
 }
 
 .poster-app__history-toggle {

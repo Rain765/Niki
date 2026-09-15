@@ -1063,13 +1063,12 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
     const empty = await screen.findByTestId('poster-app-latest-empty');
     expect(empty.querySelector('.poster-app__empty-icon svg')).toBeTruthy();
-    expect(within(empty).getByRole('button', { name: 'Generate first poster' }).className).toContain('od-button--primary');
+    expect(within(empty).queryAllByRole('button')).toHaveLength(0);
     expect(within(empty).getByText('No posters yet')).toBeTruthy();
     expect(within(screen.getByRole('tab', { name: /^Latest batch/ })).getByText('3:4 × 0')).toBeTruthy();
-    expect(within(empty).getByRole('button', { name: 'Generate first poster' })).toBeTruthy();
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
-    fireEvent.click(within(empty).getByRole('button', { name: 'Generate first poster' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
     await waitFor(() => expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce());
   });
 
@@ -1086,14 +1085,14 @@ describe('PosterApp mobile-safe flow', () => {
       }],
     } } };
     resolveDirectLoanPosterProjectMock.mockResolvedValue(emptyProject);
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: [] } : { project: emptyProject },
+    ), { status: 200 }));
     render(<PosterApp />);
     const empty = await screen.findByTestId('poster-app-latest-empty');
     expect(within(empty).getByText(title)).toBeTruthy();
-    expect(within(empty).getByRole('button', { name: 'Generate again' })).toBeTruthy();
-    expect(within(empty).getAllByRole('button')).toHaveLength(2);
-    expect(within(empty).getByRole('button', { name: 'Generate again' }).className).toContain('od-button--primary');
-    expect(within(empty).getByRole('button', { name: 'View history' }).className).toContain('od-button--secondary');
-    fireEvent.click(within(empty).getByRole('button', { name: 'View history' }));
+    expect(within(empty).queryAllByRole('button')).toHaveLength(0);
+    fireEvent.click(screen.getByRole('tab', { name: /^History/ }));
     expect(screen.getByRole('tab', { name: /^History/ }).getAttribute('aria-selected')).toBe('true');
     expect(screen.queryByText('Anti-fraud hand layout: internal coordinates')).toBeNull();
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
@@ -1109,12 +1108,12 @@ describe('PosterApp mobile-safe flow', () => {
     expect(await screen.findByText('No posters yet')).toBeTruthy();
   });
 
-  it('shows an inline load-failure state with refresh, without an unsolicited toast', async () => {
+  it('shows an inline load-failure state without actions or an unsolicited toast', async () => {
     resolveDirectLoanPosterProjectMock.mockRejectedValue(new Error('Restore unavailable'));
     render(<PosterApp />);
     const empty = await screen.findByTestId('poster-app-latest-empty');
     expect(within(empty).getByText('Could not load posters')).toBeTruthy();
-    expect(within(empty).getByRole('button', { name: 'Refresh page' })).toBeTruthy();
+    expect(within(empty).queryAllByRole('button')).toHaveLength(0);
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
   });
 
@@ -1389,7 +1388,79 @@ describe('PosterApp mobile-safe flow', () => {
     });
   });
 
-  it('pins the newest batch above collapsed history with its own ratio and count', async () => {
+  it.each(['preparing', 'queued', 'failed', 'interrupted'] as const)(
+    'restores the last successful poster when the newest batch is %s and empty', async (status) => {
+      const storedProject = { ...project, metadata: { kind: 'image', directGeneration: {
+        kind: 'loan-poster', status, expectedOutputs: 2,
+        batches: [
+          { id: 'successful', status: 'complete', requestedAt: 1, expectedOutputs: 1,
+            outputNames: ['zamloan-poster-001.png'], aspectRatio: '1:1' },
+          { id: 'new', status, requestedAt: 10, expectedOutputs: 1,
+            outputNames: ['zamloan-poster-pending.png'], aspectRatio: '16:9' },
+        ],
+      } } };
+      resolveDirectLoanPosterProjectMock.mockResolvedValue(storedProject);
+      vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+        String(input).endsWith('/files')
+          ? { files: [{ name: 'zamloan-poster-001.png', kind: 'image', mime: 'image/png', size: 100, mtime: 2 }] }
+          : { project: storedProject },
+      ), { status: 200 }));
+      const view = render(<PosterApp />);
+      await screen.findByRole('img', { name: 'zamloan-poster-001.png' });
+      expect(screen.getByRole('tab', { name: /^Latest batch/ }).textContent).toContain('1:1 × 1');
+      expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
+      expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
+      view.unmount();
+      render(<PosterApp />);
+      await screen.findByRole('img', { name: 'zamloan-poster-001.png' });
+      expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
+    },
+  );
+
+  it('keeps the displayed poster throughout a new request and its submission failure', async () => {
+    let rejectRequest!: (reason: Error) => void;
+    startDirectLoanPosterProjectMock.mockReturnValue(new Promise((_resolve, reject) => { rejectRequest = reject; }));
+    render(<PosterApp />);
+    const name = 'biumoney-poster-20260804-001.png';
+    await screen.findByRole('img', { name });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    expect(screen.getByRole('img', { name })).toBeTruthy();
+    expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
+    await act(async () => rejectRequest(new Error('Request failed')));
+    expect(screen.getByRole('img', { name })).toBeTruthy();
+    expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
+    expect(screen.getByTestId('poster-app-generation-status').textContent).toContain('Request failed');
+  });
+
+  it('replaces the pinned poster only as saved files arrive, keeping all other outputs in history', async () => {
+    const outputNames = [1, 2, 3, 4].map(index => `zamloan-poster-${index}.png`);
+    const storedProject = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', expectedOutputs: 4,
+      batches: [{ id: 'multi', status: 'queued', requestedAt: 1, expectedOutputs: 4,
+        outputNames, aspectRatio: '3:4' }],
+    } } };
+    let savedCount = 1;
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(storedProject);
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: outputNames.slice(0, savedCount).map((name, index) => ({
+        name, kind: 'image', mime: 'image/png', size: 100, mtime: index + 2,
+      })).reverse() } : { project: storedProject },
+    ), { status: 200 }));
+    render(<PosterApp />);
+    await screen.findByRole('img', { name: outputNames[0] });
+    for (savedCount = 2; savedCount <= 4; savedCount++) {
+      fireEvent(window, new Event('focus'));
+      await screen.findByRole('img', { name: outputNames[savedCount - 1] });
+      const panel = screen.getByRole('tabpanel', { name: /^Latest batch/ });
+      expect(within(panel).getAllByRole('img')).toHaveLength(1);
+      expect(screen.getByRole('tab', { name: /^Latest batch/ }).textContent).toContain('3:4 × 1');
+      expect(screen.getByRole('tab', { name: /^History/ }).textContent).toContain(String(savedCount - 1));
+    }
+    fireEvent.click(screen.getByRole('tab', { name: /^History/ }));
+    expect(within(screen.getByRole('tabpanel', { name: /^History/ })).getAllByRole('img')).toHaveLength(3);
+  });
+
+  it('pins the newest successful image above history with its own ratio and count', async () => {
     const batchedProject = {
       ...project,
       updatedAt: 30,
