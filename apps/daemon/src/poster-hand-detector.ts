@@ -200,7 +200,7 @@ export async function createPosterHandDetector(options: { signal?: AbortSignal |
         return execute(imagePath, false);
       }, () => {
         console.info('[poster-detector] stage=anatomy-recheck reason=uncertain-landmarks');
-        options.onProgress?.('image:local-retry');
+        options.onProgress?.('image:hand-review');
       });
     } catch (error) {
       options.signal?.throwIfAborted();

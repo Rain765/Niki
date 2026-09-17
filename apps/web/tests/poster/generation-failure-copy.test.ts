@@ -18,6 +18,9 @@ describe('poster layout recovery feedback', () => {
     expect(posterRequestProgress([{ ...task, status: 'failed' }], 'current', 'zh')).toBeNull();
     expect(posterRequestProgress([{ ...task, progress: ['image:slow'] }], 'current', 'en')).toContain('taking longer');
     expect(posterRequestProgress([{ ...task, progress: ['image:retrying'] }], 'current', 'zh')).toContain('正在自动重试');
+    expect(posterRequestProgress([{ ...task, progress: ['image:hand-review', 'image:correcting'] }], 'current', 'zh')).toContain('重新生成画面');
+    expect(posterRequestProgress([{ ...task, progress: ['image:hand-review'] }], 'current', 'zh')).toContain('复核人物和手部');
+    expect(posterRequestProgress([{ ...task, progress: ['image:preflight', 'image:generating'] }], 'current', 'zh')).toContain('正在生成海报画面');
   });
   it.each(['Anti-fraud hand layout: exactly two hands', 'Poster layout not accepted; base image saved as private/draft.png'])('hides diagnostics in both locales: %s', (detail) => {
     expect(posterLayoutFailureCopy(detail, 'zh')).toBe('本次画面未能完成，请重新生成；已完成的海报已保留。');

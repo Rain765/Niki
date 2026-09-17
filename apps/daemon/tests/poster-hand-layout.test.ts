@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import sharp from 'sharp';
+import { PosterArmUncertainError } from '../src/poster-arm-integrity.js';
 import { ANTI_FRAUD_OPEN_PALM_RULE } from '@open-design/contracts';
 import { renderImageWithAntiFraudSafeZoneRetry, finalizeGeneratedPng } from '../src/media.js';
 import { antiFraudMessageSize, placeAntiFraudMessage, PosterHandLayoutError, type PosterHand, type PosterHandObservation } from '../src/poster-hand-layout.js';
@@ -17,6 +18,17 @@ const observation = (palm = hand(0.57, 0.60, 0.70, 0.69)): PosterHandObservation
 });
 
 describe('hand-relative anti-fraud message layout', () => {
+  it('does not buy a third image for repeated uncertain anatomy evidence', async () => {
+    const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
+    const render = vi.fn().mockResolvedValue({ bytes });
+    const error = new PosterArmUncertainError('arm evidence remains inconclusive');
+    const preserveLayoutDraft = vi.fn();
+    await expect(renderImageWithAntiFraudSafeZoneRetry('scene', render, {
+      detectHands: async () => { throw error; }, preserveLayoutDraft,
+    })).rejects.toBe(error);
+    expect(render).toHaveBeenCalledTimes(2);
+    expect(preserveLayoutDraft).toHaveBeenCalledOnce();
+  });
   it.each(['image_request_timeout', 'image_recovery_exhausted'])('keeps valid hands when cosmetic recovery fails: %s', async (code) => {
     const bytes = await sharp({ create: { width: 800, height: 1067, channels: 3, background: '#f6ead6' } }).png().toBuffer();
     const render = vi.fn().mockResolvedValueOnce({ bytes }).mockRejectedValue(Object.assign(new Error('recovery failed'), { code, status: 504 }));

@@ -250,7 +250,7 @@ const ANTI_FRAUD_POSTER_SCENES = [
     environment: 'in a bright, contemporary Lusaka home with warm daylight and restrained décor',
     riskCue: 'her free hand makes a decisive stop gesture toward the empty area reserved for a suspicious message overlay',
     safeAction: 'she presents the official website on the phone in her other hand',
-    camera: 'a candid waist-up portrait with the safety decision readable at a glance',
+    camera: 'a medium environmental portrait with both elbows and hands comfortably inside the frame',
   },
   {
     model: 'a Zambian neighborhood shop owner',
@@ -258,7 +258,7 @@ const ANTI_FRAUD_POSTER_SCENES = [
     environment: 'behind the counter of a tidy neighborhood shop with colorful products softly out of focus',
     riskCue: 'her free hand makes a decisive stop gesture toward the empty area reserved for a suspicious fake-agent message overlay',
     safeAction: 'she presents the official website on the phone in her other hand',
-    camera: 'a confident counter-height environmental portrait',
+    camera: 'a medium environmental portrait with the counter below both visible elbows and hands',
   },
   {
     model: 'a young Zambian commuter',
@@ -266,7 +266,7 @@ const ANTI_FRAUD_POSTER_SCENES = [
     environment: 'at a bright public transit shelter with an energetic Lusaka streetscape in the distance',
     riskCue: 'their free hand dismisses the empty area reserved for a suspicious-call overlay',
     safeAction: 'they present the official website on the phone in the other hand',
-    camera: 'a dynamic mid-shot with clean directional movement from danger to safety',
+    camera: 'a medium environmental portrait with room around both elbows and hands',
   },
   {
     model: 'a Zambian parent',
@@ -274,7 +274,7 @@ const ANTI_FRAUD_POSTER_SCENES = [
     environment: 'in a welcoming family living room with soft afternoon light',
     riskCue: 'their free hand rejects the empty area reserved for a suspicious-profile message overlay',
     safeAction: 'they present the official website on a phone held toward the camera',
-    camera: 'an intimate single-person waist-up portrait',
+    camera: 'a medium single-person portrait with both elbows and hands visible',
   },
   {
     model: 'a Zambian office worker',
@@ -282,7 +282,7 @@ const ANTI_FRAUD_POSTER_SCENES = [
     environment: 'at a modern, uncluttered desk with graphic daylight and subtle office depth',
     riskCue: 'their free hand pushes away the empty area reserved for a suspicious-payment message overlay',
     safeAction: 'they present the official website on the phone in the other hand',
-    camera: 'a polished desk-level editorial portrait',
+    camera: 'a medium editorial portrait with the desk below the visible elbows and hands',
   },
   {
     model: 'an older Zambian man',
@@ -290,7 +290,7 @@ const ANTI_FRAUD_POSTER_SCENES = [
     environment: 'in a comfortable living room with warm practical lighting and familiar family details',
     riskCue: 'his free hand rejects the empty area reserved for a suspicious-caller message overlay',
     safeAction: 'he presents the official website on a phone held toward the camera',
-    camera: 'a reassuring single-person portrait that emphasizes confidence',
+    camera: 'a medium single-person portrait with room around both elbows and hands',
   },
 ] as const;
 
@@ -498,17 +498,17 @@ Use ${antiFraudPalette.copyField} and ${antiFraudPalette.sceneField} for a crisp
 
 Render exactly two poster-copy text elements: “Prevent Fraud” as the very large bold primary headline and “Trust Only Official Customer Service” as the large supporting subtitle. Reproduce both phrases exactly. Match the acquisition posters' expressive heavy campaign typography, oversized scale, tight line spacing, and compact headline-to-subtitle gap. Make the subtitle about 20% larger than a conventional supporting line and use one solid deep-charcoal color across every subtitle word; do not color any subtitle word green, red, or another accent. Do not reduce the established headline or subtitle font size to satisfy the new spacing; achieve separation only through the specified position, line breaks, width, and negative space. Keep the complete copy inside the reserved negative-space region with a visible gap from every person, hand, prop, and phone.
 
-Show exactly one person: ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Do not include a companion, background person, cropped person, or any limb entering from outside the frame. Preserve the acquisition posters' model scale, editorial crop, premium lighting, natural skin retouching, and clear model-to-copy balance. Use ${antiFraudPlan.camera}. The person should look alert, calm, and empowered. Render exactly two arms and two hands in the entire image. The phone hand and rejecting hand must belong to this one person, with both arms visibly and anatomically connected to that same person's shoulders and torso. The phone hand must present a smartphone at the same scale and visual prominence as the acquisition posters. Keep the phone on the inner side, nearer the copy-model intersection, and place the rejecting hand farther outward on the lower-right gesture side. ${ANTI_FRAUD_OPEN_PALM_RULE}
+Show exactly one person: ${antiFraudPlan.model}, ${antiFraudPlan.wardrobe}, ${antiFraudPlan.environment}. Do not include a companion, background person or any limb entering from outside the frame. Preserve the acquisition posters' premium lighting, natural skin retouching and clear model-to-copy balance, but use wider framing whenever necessary to include both elbows. Use ${antiFraudPlan.camera}. The person should look alert, calm, and empowered. The phone hand must present a smartphone at the same scale and visual prominence as the acquisition posters. ${ANTI_FRAUD_OPEN_PALM_RULE}
 
 The smartphone must remain on the model side of the required 5%-wide copy-to-subject air gap rather than crowding the subtitle or sitting at the canvas edge. It must be upright, complete, perfectly front-on, unobstructed by fingers, free of glare, and large enough for its interface to read clearly. Use a clean white screen containing only a compact solid green shield silhouette with a crisp white checkmark above centered bold black text “${brandDomain}”. Reproduce this exact official domain with the full “.com” suffix; do not substitute, misspell, abbreviate, or show another brand. Keep the shield to about one-quarter of the visible screen height. The shield and domain together should occupy no more than half of the visible screen height with balanced spacing. ${ANTI_FRAUD_SHIELD_COLOR_RULE}
 
 Prefer quiet surrounding scene space near ${lowerRightContinuityZone}, directly below-right of the rejecting hand. Treat these coordinates as a flexible composition guide, not a hand-position target. Preserve natural anatomy first; allow the quiet surroundings to follow the free hand instead of aiming the fingers at a fixed point. Avoid busy props near the palm. The surrounding base background must flow continuously without any separate visual treatment; keep its color, gradient, texture, depth, and lighting indistinguishable from the adjacent scene. This is ordinary surrounding background, not a separate designed element.
 
-Keep both arm chains separate and easy to trace from shoulder through elbow and wrist to hand. No crossed arms, folded arms, forearm resting across the chest or waist, tucked hand, hidden extra hand, or overlapping sleeves. The only two actions are holding the phone and pushing outward; do not combine either action with a folded-arm resting pose.
+Keep the phone-holding arm and open-hand refusal arm separate and naturally connected to the same person. Do not combine either action with a folded-arm resting pose.
 
 Use realistic Zambian lifestyle commercial photography, strong text hierarchy, expressive campaign typography, clear visual storytelling, and generous safe margins. Do not depict a scammer, completed payment, money rain, panic, intimidation, or instructions that could help commit fraud.
 
-Negative prompt: Z over subject, Z over text, foreground Z, duplicate Z, extra Z, logo, watermark, brand wordmark, benefit copy, feature callout, badge, disclaimer, extra poster text, small typography, generic Arial-like typography, loose headline spacing, detached subtitle, multicolor subtitle, green subtitle word, red subtitle word, text over model, text over face, text over body, text over hands, text over phone, two people, multiple people, companion, background person, cropped person, extra person, third hand, extra arm, duplicate limb, disconnected arm, hands belonging to different people, arm entering from outside frame, wrist bent unnaturally backward, severely fused fingers, rejecting hand below the lower-right zone, hand entering or covering the lower-right zone, arm crossing the phone, rejecting palm aimed toward the phone, inward push gesture, hand gesture aimed away from the lower-right zone, phone at the canvas edge, phone in the lower-right zone, tiny phone, hidden phone screen, phone turned away, cropped phone, blank phone screen, missing domain, misspelled domain, wrong brand domain, missing .com suffix, outlined shield, oversized shield, excessive phone-screen whitespace, screen glare, full-page website screenshot, extra floating graphic, geometric foreground tile, discontinuous lower-right background, drop shadow, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, mixed brands.`,
+Negative prompt: Z over subject, Z over text, foreground Z, duplicate Z, extra Z, logo, watermark, brand wordmark, benefit copy, feature callout, badge, disclaimer, extra poster text, small typography, generic Arial-like typography, loose headline spacing, detached subtitle, multicolor subtitle, green subtitle word, red subtitle word, text over model, text over face, text over body, text over hands, text over phone, two people, multiple people, companion, background person, cropped person, extra person, third hand, extra arm, duplicate limb, disconnected arm, hands belonging to different people, arm entering from outside frame, wrist bent unnaturally backward, severely fused fingers, phone at the canvas edge, phone in the lower-right zone, tiny phone, hidden phone screen, phone turned away, cropped phone, blank phone screen, missing domain, misspelled domain, wrong brand domain, missing .com suffix, outlined shield, oversized shield, excessive phone-screen whitespace, screen glare, full-page website screenshot, extra floating graphic, geometric foreground tile, discontinuous lower-right background, drop shadow, blurry, low quality, distorted anatomy, deformed hands, extra fingers, unreadable text, bad typography, duplicated elements, mixed brands.`,
       };
     }
     if (brand !== 'zamloan') {

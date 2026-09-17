@@ -7,6 +7,7 @@ import { createPosterHandDetector } from '../src/poster-hand-detector.js';
 import { assertPosterArmIntegrity, PosterArmUncertainError } from '../src/poster-arm-integrity.js';
 import { reviewPosterHands, mapPosterReviewObservation, posterPersonReviewRegion } from '../src/poster-hand-review.js';
 import type { PosterHandObservation, PosterPoint } from '../src/poster-hand-layout.js';
+import { clippedElbowViews, extraArmViews } from './fixtures/poster-arm-observations.js';
 
 const point = (x: number, y: number, confidence = 0.8): PosterPoint => ({ x, y, confidence });
 afterEach(() => vi.unstubAllEnvs());
@@ -23,6 +24,25 @@ function valid(): PosterHandObservation {
 }
 
 describe('anti-fraud arm integrity', () => {
+  it('distinguishes the real clipped-elbow failure from the reported extra-arm regression', () => {
+    expect(() => assertPosterArmIntegrity(clippedElbowViews[0]!)).toThrow(PosterArmUncertainError);
+    expect(() => assertPosterArmIntegrity(clippedElbowViews[1]!, clippedElbowViews[0]!)).not.toThrow();
+    expect(() => assertPosterArmIntegrity(extraArmViews[1]!, extraArmViews[0]!)).toThrow(PosterArmUncertainError);
+  });
+  it('accepts a weak proximal joint only with two complete, consistent wrist-to-hand observations', () => {
+    const scene = valid();
+    scene.bodies![0]!.arms[1]!.shoulder.confidence = .15;
+    scene.bodies![0]!.arms[1]!.elbow = point(0, 0, 0);
+    expect(() => assertPosterArmIntegrity(scene)).toThrow(PosterArmUncertainError);
+    expect(() => assertPosterArmIntegrity(scene, structuredClone(scene))).not.toThrow();
+    const bad = structuredClone(scene);
+    bad.bodies![0]!.arms[1]!.wrist.confidence = .12;
+    expect(() => assertPosterArmIntegrity(bad, scene)).toThrow(PosterArmUncertainError);
+    const missing = structuredClone(scene); missing.hands.pop();
+    expect(() => assertPosterArmIntegrity(scene, missing)).toThrow(PosterArmUncertainError);
+    const unstable = structuredClone(scene); unstable.bodies![0]!.arms[1]!.wrist.x -= .1;
+    expect(() => assertPosterArmIntegrity(scene, unstable)).toThrow(PosterArmUncertainError);
+  });
   it('requires two consistent views before accepting a moderately weak elbow', () => {
     const first = valid();
     first.bodies![0]!.arms[1]!.elbow.confidence = .265;
@@ -34,6 +54,8 @@ describe('anti-fraud arm integrity', () => {
     second.bodies![0]!.arms[1]!.elbow.x += .1;
     expect(() => assertPosterArmIntegrity(second, first)).toThrow(PosterArmUncertainError);
     second.bodies![0]!.arms[1]!.elbow = point(.90, .72, .12);
+    expect(() => assertPosterArmIntegrity(second, first)).not.toThrow();
+    second.bodies![0]!.arms[1]!.wrist.confidence = .12;
     expect(() => assertPosterArmIntegrity(second, first)).toThrow(PosterArmUncertainError);
   });
   it('keeps wrists strict even if both views repeat a mismatched connection', () => {

@@ -49,6 +49,7 @@ import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { EnvHttpProxyAgent } from 'undici';
 import { createImageRequestRecovery, imageRequestTimeoutMs, isRecoverableImageRequestError } from './image-request-recovery.js';
+import { PosterArmUncertainError } from './poster-arm-integrity.js';
 import type { PosterCopyStyle } from '@open-design/contracts';
 import {
   AUDIO_DURATIONS_SEC,
@@ -611,6 +612,9 @@ export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: B
 
   for (let retry = 0; retry < maxRetries; retry += 1) {
     // Cosmetic background checks retain their existing one-retry budget.
+    // Low confidence already had a local second view: one framing correction,
+    // not a third paid image for the same unresolved evidence.
+    if (retry > 0 && bestHands.error instanceof PosterArmUncertainError) break;
     if (retry > 0 && !bestHands.error) break;
     const retryInstructions = [
       bestHands.error

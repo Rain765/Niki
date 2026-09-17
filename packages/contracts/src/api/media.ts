@@ -137,6 +137,9 @@ export interface MediaTaskError {
 export const IMAGE_GENERATION_PROGRESS = {
   preflight: 'image:preflight',
   localRetry: 'image:local-retry',
+  handReview: 'image:hand-review',
+  generating: 'image:generating',
+  correcting: 'image:correcting',
   resumed: 'image:resumed',
   slow: 'image:slow',
   retrying: 'image:retrying',

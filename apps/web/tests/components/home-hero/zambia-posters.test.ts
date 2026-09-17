@@ -228,7 +228,7 @@ describe('Zambia poster preset', () => {
     expect(prompt).toContain('lower-right continuity zone');
     expect(prompt).toContain('surrounding base background must flow through it');
     expect(prompt).toContain('NATURAL REJECTION POSE');
-    expect(prompt).toContain('Do not thrust the hand toward the camera');
+    expect(prompt).toContain('natural proportions');
     expect(prompt).toContain('`--overlay-logo-anchor left`');
     expect(prompt).toContain('`--poster-text-anchor right`');
     expect(prompt).toContain('`--poster-copy-style anti-fraud-message`');
@@ -497,10 +497,10 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => !prompt.includes('Keep every person, phone, hand, prop'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('separated from the phone hand'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('palm to face the viewer or turn partly sideways')
+      prompt.includes('palm face the viewer naturally')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('Do not thrust the hand toward the camera')
+      prompt.includes('natural proportions')
     ))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('Turn the palm sideways'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('vertical palm facing the camera'))).toBe(true);
@@ -509,7 +509,8 @@ describe('Zambia poster preset', () => {
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('ordinary scene space immediately below-right'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('upright stop-sign palm'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('rejecting palm aimed toward the phone'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes('hand gesture aimed away from the lower-right zone'))).toBe(true);
+    expect(prompts.every((prompt) => !prompt.includes("Preserve the acquisition posters' model scale, editorial crop"))).toBe(true);
     expect(prompts.every((prompt) => (
       !prompt.includes('open palm extended toward the camera in a firm stop gesture')
     ))).toBe(true);
@@ -520,10 +521,10 @@ describe('Zambia poster preset', () => {
     ))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('ordinary scene space immediately below-right'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('No crossed arms, folded arms'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Exactly two hands attached to this person'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('no folded arms'))).toBe(true);
     expect(prompts.every((prompt) => (
-      prompt.includes('both arms visibly and anatomically connected to that same person')
+      prompt.includes('naturally connected to the same person')
     ))).toBe(true);
     expect(prompts.every((prompt) => (
       prompt.includes('surrounding base background must flow continuously')
@@ -619,7 +620,7 @@ describe('Zambia poster preset', () => {
     expect(prompts.every((prompt) => prompt.includes('same campaign-quality composition system'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('geometric foreground tile'))).toBe(true);
     expect(prompts.every((prompt) => prompt.includes('exactly one person'))).toBe(true);
-    expect(prompts.every((prompt) => prompt.includes('exactly two arms and two hands'))).toBe(true);
+    expect(prompts.every((prompt) => prompt.includes('Exactly two hands attached to this person'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('mother and her adult daughter'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('with a younger relative'))).toBe(true);
     expect(prompts.every((prompt) => !prompt.includes('Application Successful'))).toBe(true);

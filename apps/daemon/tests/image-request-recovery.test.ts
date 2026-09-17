@@ -3,6 +3,15 @@ import { createImageRequestRecovery, imageRequestTimeoutMs } from '../src/image-
 
 afterEach(() => vi.useRealTimers());
 describe('image request recovery budget', () => {
+  it('announces each provider request rather than leaving the previous local-review message active', async () => {
+    const progress = vi.fn();
+    const recovery = createImageRequestRecovery({ onProgress: progress });
+    await recovery.run(async () => 'first');
+    await recovery.run(async () => 'corrected');
+    expect(progress.mock.calls.map(([state]) => state)).toEqual([
+      'image:generating', 'image:processing', 'image:correcting', 'image:processing',
+    ]);
+  });
   it('defaults to six minutes and clamps overrides', () => {
     expect(imageRequestTimeoutMs()).toBe(360_000);
     expect(imageRequestTimeoutMs('')).toBe(360_000);

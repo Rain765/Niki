@@ -61,6 +61,7 @@ export function createImageRequestRecovery(options: {
         const slow = setTimeout(() => progress('slow'), 60_000);
         const stage = (name: string) => console.info(`[image ${id}] attempt=${calls} stage=${name} elapsedMs=${Date.now() - started}`);
         stage('request');
+        progress(calls === 1 ? 'generating' : 'correcting');
         try {
           const result = await operation(controller.signal, stage);
           controller.signal.throwIfAborted();

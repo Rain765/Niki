@@ -29,8 +29,11 @@ export function posterLayoutFailureCopy(detail: string | undefined, locale: 'en'
 export function posterRequestProgress(tasks: ProjectMediaTaskSummary[], batchId: string, locale: 'en' | 'zh'): string | null {
   const states = tasks.filter(task => task.taskId.startsWith(`loan-poster:${batchId}:`) && task.status === 'running')
     .map(task => task.progress.filter(line => line.startsWith('image:')).at(-1));
-  if (states.includes(IMAGE_GENERATION_PROGRESS.localRetry)) return locale === 'zh' ? '正在切换本地识别计算方式…' : 'Switching local recognition processing…';
-  if (states.includes(IMAGE_GENERATION_PROGRESS.preflight)) return locale === 'zh' ? '正在准备本地图片检查…' : 'Preparing local image checks…';
+  if (states.includes(IMAGE_GENERATION_PROGRESS.handReview)) return locale === 'zh' ? '图片已生成，正在复核人物和手部…' : 'Image generated. Reviewing the person and hands…';
+  if (states.includes(IMAGE_GENERATION_PROGRESS.generating)) return locale === 'zh' ? '正在生成海报画面…' : 'Generating the poster image…';
+  if (states.includes(IMAGE_GENERATION_PROGRESS.correcting)) return locale === 'zh' ? '正在重新生成画面，请稍候…' : 'Generating another image, please wait…';
+  if (states.includes(IMAGE_GENERATION_PROGRESS.localRetry)) return locale === 'zh' ? '图片检查暂时中断，正在自动恢复…' : 'Image checks were interrupted. Recovering automatically…';
+  if (states.includes(IMAGE_GENERATION_PROGRESS.preflight)) return locale === 'zh' ? '正在准备海报生成…' : 'Preparing poster generation…';
   if (states.includes(IMAGE_GENERATION_PROGRESS.resumed)) return locale === 'zh' ? '正在继续处理已保存的图片…' : 'Resuming the saved image…';
   if (states.includes(IMAGE_GENERATION_PROGRESS.retrying)) return locale === 'zh' ? '图像请求暂时中断，正在自动重试…' : 'The image request was interrupted. Retrying automatically…';
   if (states.includes(IMAGE_GENERATION_PROGRESS.slow)) return locale === 'zh' ? '生成耗时较长，仍在处理中…' : 'Generation is taking longer, but is still processing…';
