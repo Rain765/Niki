@@ -46,6 +46,19 @@ function controlMediaRules(query: string): string {
 }
 
 describe('poster app image layout', () => {
+  it('stacks generation toasts below the measured navigation without blocking outside clicks', () => {
+    const stack = rule('.poster-app__generation-notifications');
+    const toast = rule('.poster-app .poster-app__generation-notifications > .od-toast');
+    expect(stack).toContain('top: calc(var(--poster-topbar-height, 110px) + 12px);');
+    expect(stack).toContain('position: fixed;');
+    expect(stack).toContain('pointer-events: none;');
+    expect(stack).toContain('display: grid;');
+    expect(toast).toContain('position: relative;');
+    expect(toast).toContain('top: auto;');
+    expect(toast).toContain('transform: none;');
+    expect(toast).toContain('pointer-events: auto;');
+  });
+
   it('uses two mobile filter columns and keeps the generate action full width', () => {
     const mobile = controlMediaRules('(max-width: 760px)');
     const tablet = controlMediaRules('(max-width: 1100px)');

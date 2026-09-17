@@ -469,6 +469,26 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const generationFeedbackIdRef = useRef(0);
   const videoGenerationStartedRef = useRef(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const appRef = useRef<HTMLElement | null>(null);
+  const topbarRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const topbar = topbarRef.current;
+    if (!topbar) return;
+    // Toasts stay below the actual header, including mobile rows and safe-area padding.
+    const measure = () => {
+      const height = Math.ceil(topbar.getBoundingClientRect().height);
+      if (height > 0) appRef.current?.style.setProperty('--poster-topbar-height', `${height}px`);
+    };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(topbar);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
 
   useEffect(() => {
     if (!accountMenuOpen) return;
@@ -548,7 +568,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const feedbackMessage = generationFeedback?.state === 'working' && generationFeedback.batchId === requestProgress?.batchId
     ? progressMessage ?? generationFeedback.message : generationFeedback?.message;
   const generationFeedbackKey = generationFeedback
-    ? `${generationFeedback.id}:${generationFeedback.state}:${feedbackMessage}`
+    ? `${generationFeedback.id}:${generationFeedback.state}`
     : null;
   const statusDismissed = generationFeedbackKey !== null
     && dismissedStatusKey === generationFeedbackKey;
@@ -564,7 +584,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     setNotice({ message: copy.refreshingVersion, tone: 'info' });
   }, [copy.refreshingVersion]);
   useRuntimeReleaseRefresh({
-    blocked: generating || videoWorking || presentationLocked,
+    blocked: posterIsWorking || videoWorking || presentationLocked,
     onReloading: showRuntimeReloading,
   });
   const videoElapsed = useVideoElapsed(videoWorking, videoGeneration.state.requestedAt);
@@ -737,12 +757,15 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   }, [creationMode, user.id]);
 
   useEffect(() => {
-    if (creationMode !== 'poster' || !projectId) return undefined;
+    if (!projectId || (creationMode !== 'poster' && !posterIsWorking)) return undefined;
+    let inFlight = false;
     const reconcile = () => {
-      if (document.visibilityState === 'visible') {
-        void refreshProject(projectId, true);
+      if (document.visibilityState === 'visible' && !inFlight) {
+        inFlight = true;
+        void refreshProject(projectId, true).finally(() => { inFlight = false; });
       }
     };
+    reconcile();
     const intervalId = window.setInterval(() => {
       reconcile();
     }, status.state === 'working' ? 1_500 : 5_000);
@@ -758,7 +781,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       window.removeEventListener('pageshow', reconcile);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [creationMode, projectId, refreshProject, status.state]);
+  }, [creationMode, projectId, refreshProject, status.state, posterIsWorking]);
 
   const generate = async () => {
     if (posterIsWorking) return;
@@ -1004,8 +1027,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   };
 
   return (
-    <main className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}${creationMode === 'ppt' ? ' is-ppt' : ''}`}>
-      <header className="poster-app__topbar">
+    <main ref={appRef} className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}${creationMode === 'ppt' ? ' is-ppt' : ''}`}>
+      <header ref={topbarRef} className="poster-app__topbar">
         <div className="poster-app__topbar-inner">
           <button disabled={presentationLocked}
             type="button"
@@ -1143,6 +1166,35 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         </div>
       </header>
 
+      <div className="poster-app__generation-notifications">
+        {generationFeedback && generationFeedbackKey && !statusDismissed ? (
+          <Toast
+            testId="poster-app-generation-status"
+            indicator={generationFeedback.state === 'complete' ? 'success' : generationFeedback.state === 'failed' ? 'error' : 'loading'}
+            message={feedbackMessage ?? generationFeedback.message}
+            tone={generationFeedback.state === 'complete' ? 'success' : generationFeedback.state === 'failed' ? 'error' : 'info'}
+            persistent={generationFeedback.state !== 'complete'}
+            dismissible
+            dismissLabel={copy.closeStatus}
+            onDismiss={() => setDismissedStatusKey(generationFeedbackKey)}
+          />
+        ) : null}
+        {creationMode === 'video' && (videoGenerationStartedRef.current || videoStatus.state === 'failed')
+          && videoStatus.state !== 'idle' && !videoStatusDismissed ? (
+          <Toast
+            testId="poster-app-video-generation-status"
+            indicator={videoStatus.state === 'complete' ? 'success' : videoStatus.state === 'failed' ? 'error' : 'loading'}
+            message={videoStatus.title}
+            details={videoStatus.detail}
+            tone={videoStatus.state === 'complete' ? 'success' : videoStatus.state === 'failed' ? 'error' : 'info'}
+            persistent={videoStatus.state !== 'complete'}
+            dismissible
+            dismissLabel={copy.closeVideoStatus}
+            onDismiss={() => setDismissedVideoStatusKey(videoStatusKey)}
+          />
+        ) : null}
+      </div>
+
       <PasswordAccountManager
         open={accountManagerOpen}
         onClose={() => setAccountManagerOpen(false)}
@@ -1193,23 +1245,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             ? (locale === 'zh-CN' ? '继续处理' : 'Resume processing') : copy.generatePosters}
         </Button>
       </section>
-
-      {generationFeedback && generationFeedbackKey && !statusDismissed ? (
-        <Toast
-          testId="poster-app-generation-status"
-          indicator={generationFeedback.state === 'complete' ? 'success' : generationFeedback.state === 'failed' ? 'error' : 'loading'}
-          message={feedbackMessage ?? generationFeedback.message}
-          tone={generationFeedback.state === 'complete'
-            ? 'success'
-            : generationFeedback.state === 'failed'
-              ? 'error'
-              : 'info'}
-          persistent={generationFeedback.state !== 'complete'}
-          dismissible
-          dismissLabel={copy.closeStatus}
-          onDismiss={() => setDismissedStatusKey(generationFeedbackKey)}
-        />
-      ) : null}
 
       {notice ? (
         <button
@@ -1436,26 +1471,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             disabled={videoGeneration.active}
             restoring={videoGeneration.restoring}
           />
-
-          {(videoGenerationStartedRef.current || videoStatus.state === 'failed')
-            && videoStatus.state !== 'idle'
-            && !videoStatusDismissed ? (
-            <Toast
-              testId="poster-app-video-generation-status"
-              indicator={videoStatus.state === 'complete' ? 'success' : videoStatus.state === 'failed' ? 'error' : 'loading'}
-              message={videoStatus.title}
-              details={videoStatus.detail}
-              tone={videoStatus.state === 'complete'
-                ? 'success'
-                : videoStatus.state === 'failed'
-                  ? 'error'
-                  : 'info'}
-              persistent={videoStatus.state !== 'complete'}
-              dismissible
-              dismissLabel={copy.closeVideoStatus}
-              onDismiss={() => setDismissedVideoStatusKey(videoStatusKey)}
-            />
-          ) : null}
 
           {videoWorking || videoResultAvailable ? (
             <section

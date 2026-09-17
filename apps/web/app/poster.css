@@ -1659,6 +1659,27 @@ button {
   white-space: nowrap;
 }
 
+.poster-app__generation-notifications {
+  position: fixed;
+  top: calc(var(--poster-topbar-height, 110px) + 12px);
+  left: 50%;
+  z-index: 9001;
+  display: grid;
+  gap: 8px;
+  width: min(560px, calc(100% - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.poster-app .poster-app__generation-notifications > .od-toast {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: 100%;
+  transform: none;
+  pointer-events: auto;
+}
+
 .poster-app .od-toast {
   align-items: center;
   background: var(--poster-toast-bg);

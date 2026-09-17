@@ -294,6 +294,93 @@ async function fillValidVideoDraft(title = 'How to apply') {
 }
 
 describe('PosterApp mobile-safe flow', () => {
+  it.each(['complete', 'failed'] as const)('reconciles a poster %s across tabs without submitting another job', async (terminalState) => {
+    render(<PosterApp />);
+    await screen.findByAltText('biumoney-poster-20260804-001.png');
+    const batch = { id: 'cross-page', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: ['zamloan-poster-20260917-001.png'] };
+    let currentProject = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', activeBatchId: batch.id, expectedOutputs: 1, batches: [batch],
+    } } };
+    let currentFiles: { name: string; kind: string; mtime: number }[] = [];
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: currentFiles } : { project: currentProject },
+    ), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    startDirectLoanPosterProjectMock.mockImplementation(async (_options, onCreated) => {
+      onCreated(currentProject);
+      return { projectId: project.id };
+    });
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:cross-page:0', status: 'running', progress: ['image:slow'] }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    await within(screen.getByTestId('poster-app-generation-status')).findByText('Generation is taking longer, but is still processing…');
+    selectWorkspace('Videos');
+    expect(screen.getByTestId('poster-app-generation-status')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
+    currentProject = { ...currentProject, metadata: { kind: 'image', directGeneration: {
+      ...currentProject.metadata.directGeneration, status: terminalState, batches: [{ ...batch, status: terminalState }],
+    } } };
+    if (terminalState === 'complete') currentFiles = [{ name: batch.outputNames[0]!, kind: 'image', mtime: Date.now() }];
+    // No focus event: the regular background poll must finish the task on another tab.
+    await waitFor(() => expect(screen.getByTestId('poster-app-generation-status')
+      .querySelector(`[data-status="${terminalState === 'complete' ? 'success' : 'error'}"]`)).toBeTruthy(), { timeout: 2500 });
+    expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
+    selectWorkspace('Posters');
+    if (terminalState === 'complete') expect(screen.getByAltText(batch.outputNames[0]!)).toBeTruthy();
+    expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce();
+    expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps dismissed progress hidden across stages and tabs without stopping reconciliation', async () => {
+    render(<PosterApp />);
+    await screen.findByAltText('biumoney-poster-20260804-001.png');
+    const queued = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', activeBatchId: 'dismiss', expectedOutputs: 1,
+      batches: [{ id: 'dismiss', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: ['zamloan-poster-dismiss.png'] }],
+    } } };
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: [] } : { project: queued },
+    ), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+    startDirectLoanPosterProjectMock.mockImplementation(async (_options, onCreated) => {
+      onCreated(queued);
+      return { projectId: project.id };
+    });
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:dismiss:0', status: 'running', progress: ['image:slow'] }] });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    await within(screen.getByTestId('poster-app-generation-status')).findByText('Generation is taking longer, but is still processing…');
+    fireEvent.click(within(screen.getByTestId('poster-app-generation-status')).getByRole('button', { name: 'Close status' }));
+    selectWorkspace('Videos');
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:dismiss:0', status: 'running', progress: ['image:retrying'] }] });
+    selectWorkspace('Posters');
+    fireEvent(window, new Event('focus'));
+    await waitFor(() => expect(screen.queryByText('Generation is taking longer, but is still processing…')).toBeNull());
+    await screen.findByText('The image request was interrupted. Retrying automatically…');
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(true);
+    expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce();
+  });
+
+  it('measures header height again when responsive rows resize and disconnects on unmount', () => {
+    let resizeHeader = () => {};
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(callback: () => void) { resizeHeader = callback; }
+      observe = observe;
+      disconnect = disconnect;
+    });
+    const view = render(<PosterApp />);
+    const header = view.container.querySelector('.poster-app__topbar') as HTMLElement;
+    const app = view.container.querySelector('main') as HTMLElement;
+    expect(observe).toHaveBeenCalledWith(header);
+    vi.spyOn(header, 'getBoundingClientRect').mockReturnValue({ height: 69 } as DOMRect);
+    act(() => resizeHeader());
+    expect(app.style.getPropertyValue('--poster-topbar-height')).toBe('69px');
+    vi.spyOn(header, 'getBoundingClientRect').mockReturnValue({ height: 113.5 } as DOMRect);
+    act(() => resizeHeader());
+    expect(app.style.getPropertyValue('--poster-topbar-height')).toBe('114px');
+    view.unmount();
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
   it('uses a standard top navigation with a persistent Chinese and English switch', () => {
     render(
       <I18nProvider initial="zh-CN">
