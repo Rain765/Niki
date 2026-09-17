@@ -103,14 +103,28 @@ export function getDirectLoanPosterProjectId(sessionScope?: string): string | nu
  */
 export async function resolveDirectLoanPosterProject(
   sessionScope?: string,
+  options: { strict?: boolean; signal?: AbortSignal } = {},
 ): Promise<Project | null> {
   const storageKey = lastProjectStorageKey(sessionScope);
   const storedProjectId = window.localStorage.getItem(storageKey);
   if (storedProjectId === NEW_CHAT_SESSION) return null;
 
-  const [storedProject, projects] = await Promise.all([
-    storedProjectId ? getProject(storedProjectId) : Promise.resolve(null),
-    listProjects(),
+  // Restoring a generation must distinguish an empty history from a failed read.
+  const read = async (url: string, allowMissing = false) => {
+    const response = await fetch(url, { credentials: 'include', cache: 'no-store', signal: options.signal });
+    if (response.status === 401) throw new Error('AUTH_REQUIRED');
+    if (allowMissing && response.status === 404) return { project: null };
+    if (!response.ok) throw new Error(`Could not restore poster tasks (HTTP ${response.status})`);
+    return response.json();
+  };
+  const [storedProject, projects]: [Project | null, Project[]] = await Promise.all([
+    storedProjectId ? options.strict
+      ? read(`/api/projects/${encodeURIComponent(storedProjectId)}`, true).then(body => body.project ?? null)
+      : getProject(storedProjectId) : Promise.resolve(null),
+    options.strict ? read('/api/projects').then(body => {
+      if (!Array.isArray(body.projects)) throw new Error('Invalid poster project list');
+      return body.projects;
+    }) : listProjects(),
   ]);
   const candidates = [...projects];
   if (

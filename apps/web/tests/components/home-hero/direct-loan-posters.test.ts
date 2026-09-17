@@ -64,6 +64,21 @@ afterEach(() => {
 });
 
 describe('startDirectLoanPosterProject', () => {
+  it('does not mistake a failed strict restore for an empty history or clear its pointer', async () => {
+    const key = 'niki:direct-loan-poster:last-project:user-1';
+    window.localStorage.setItem(key, 'existing-project');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
+    await expect(resolveDirectLoanPosterProject('user-1', { strict: true })).rejects.toThrow('HTTP 503');
+    expect(window.localStorage.getItem(key)).toBe('existing-project');
+  });
+
+  it('distinguishes an empty strict restore and propagates its abort signal', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ projects: [] }), { status: 200 })));
+    expect(await resolveDirectLoanPosterProject('user-1', { strict: true, signal: controller.signal })).toBeNull();
+    expect(fetch).toHaveBeenCalledWith('/api/projects', expect.objectContaining({ signal: controller.signal, cache: 'no-store' }));
+  });
+
   const project = {
     id: 'project-1',
     name: 'Zamloan 贷款海报',

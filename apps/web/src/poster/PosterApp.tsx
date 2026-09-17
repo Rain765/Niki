@@ -98,6 +98,12 @@ const POSTER_COPY = {
     submitting: 'Submitting…',
     generatePosters: 'Generate posters',
     generatingPosters: 'Generating posters…',
+    generatingButton: 'Generating…',
+    checkingGeneration: 'Checking tasks…',
+    restoredGeneration: 'Your poster is still generating. Progress updates have resumed.',
+    reconnecting: 'Reconnecting…',
+    reconnectingGeneration: 'Reconnecting to check generation progress. Please do not submit again.',
+    unavailableGeneration: 'The previous task is no longer available. You can generate a new poster.',
     generated: (count: number) => `${count} ${count === 1 ? 'poster' : 'posters'} generated`,
     generationFailed: (detail?: string) => posterLayoutFailureCopy(detail, 'en')
       ?? `Generation failed${detail ? `: ${detail}` : ''}`,
@@ -186,6 +192,12 @@ const POSTER_COPY = {
     submitting: '正在提交…',
     generatePosters: '生成海报',
     generatingPosters: '正在生成海报…',
+    generatingButton: '生成中…',
+    checkingGeneration: '正在确认任务…',
+    restoredGeneration: '海报仍在生成中，已恢复进度同步。',
+    reconnecting: '正在重新连接…',
+    reconnectingGeneration: '正在重新连接并确认生成进度，请勿重复提交。',
+    unavailableGeneration: '原任务已不存在，可以重新生成海报。',
     generated: (count: number) => `已生成 ${count} 张海报`,
     generationFailed: (detail?: string) => posterLayoutFailureCopy(detail, 'zh')
       ?? `生成失败${detail ? `：${detail}` : ''}`,
@@ -297,21 +309,24 @@ function previewUrl(projectId: string, file: ProjectFile, variant: 'mobile' | 'p
     + `?variant=${variant}&v=${Math.round(file.mtime)}`;
 }
 
-async function fetchPosterProject(projectId: string): Promise<Project | null> {
+async function fetchPosterProject(projectId: string, signal?: AbortSignal): Promise<Project | null> {
   const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
     credentials: 'include',
     cache: 'no-store',
+    signal,
   });
   if (response.status === 401) throw new Error('AUTH_REQUIRED');
-  if (!response.ok) return null;
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Could not load poster task (HTTP ${response.status})`);
   const body = await response.json() as { project?: Project };
   return body.project ?? null;
 }
 
-async function fetchPosterFiles(projectId: string): Promise<ProjectFile[]> {
+async function fetchPosterFiles(projectId: string, signal?: AbortSignal): Promise<ProjectFile[]> {
   const response = await fetch(`/api/projects/${encodeURIComponent(projectId)}/files`, {
     credentials: 'include',
     cache: 'no-store',
+    signal,
   });
   if (response.status === 401) throw new Error('AUTH_REQUIRED');
   if (!response.ok) throw new Error(`Could not load images (HTTP ${response.status})`);
@@ -447,6 +462,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [posterLoadState, setPosterLoadState] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [generating, setGenerating] = useState(false);
+  const [posterReconnecting, setPosterReconnecting] = useState(false);
   const [requestProgress, setRequestProgress] = useState<{ batchId: string; message: string | null } | null>(null);
   const [resumableTaskIds, setResumableTaskIds] = useState<string[]>([]);
   const [previewName, setPreviewName] = useState<string | null>(null);
@@ -558,6 +574,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
   const status = generationCopy(latestBatch, copy);
   const posterIsWorking = generating || status.state === 'working';
+  const posterRestoring = restoredPosterUserRef.current !== user.id;
   const latestEmptyTitle = posterLoadState === 'failed' ? copy.loadPostersFailed
     : status.state === 'failed' ? copy.latestFailedEmpty
       : status.state === 'complete' ? copy.latestUnavailable : copy.noPostersYet;
@@ -565,8 +582,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     : status.state === 'failed' ? copy.latestFailedEmptyDetail
       : status.state === 'complete' ? copy.latestUnavailableDetail : copy.readyPosterDetail;
   const progressMessage = requestProgress?.batchId === latestBatch?.id ? requestProgress?.message : null;
-  const feedbackMessage = generationFeedback?.state === 'working' && generationFeedback.batchId === requestProgress?.batchId
-    ? progressMessage ?? generationFeedback.message : generationFeedback?.message;
+  const feedbackMessage = posterReconnecting && generationFeedback?.state === 'working'
+    ? copy.reconnectingGeneration
+    : generationFeedback?.state === 'working' && generationFeedback.batchId === requestProgress?.batchId
+      ? progressMessage ?? generationFeedback.message : generationFeedback?.message;
   const generationFeedbackKey = generationFeedback
     ? `${generationFeedback.id}:${generationFeedback.state}`
     : null;
@@ -603,8 +622,21 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const videoHistory = videoGeneration.videos.slice(1);
 
   useEffect(() => {
+    // A restored active job deserves live feedback; terminal history stays silent.
+    // Keep the same feedback object after dismissal so polling cannot reopen it.
+    if (generationFeedback || generating || status.state !== 'working' || !latestBatch) return;
+    setGenerationFeedback({
+      id: ++generationFeedbackIdRef.current,
+      batchId: latestBatch.id,
+      state: 'working',
+      message: copy.restoredGeneration,
+    });
+  }, [copy.restoredGeneration, generating, generationFeedback, latestBatch, status.state]);
+
+  useEffect(() => {
     if (
-      !generationFeedback
+      posterReconnecting
+      || !generationFeedback
       || generationFeedback.state !== 'working'
       || !generationFeedback.batchId
       || latestBatch?.id !== generationFeedback.batchId
@@ -629,7 +661,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         message: copy.generationFailed(failureDetail),
       });
     }
-  }, [copy, generationFeedback, latestBatch]);
+  }, [copy, generationFeedback, latestBatch, posterReconnecting]);
 
   useEffect(() => {
     if (!previewFile || !projectId || !previewFileKey) return undefined;
@@ -679,21 +711,31 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   }, [latestBatch?.id]);
 
   const refreshProject = useCallback(async (id: string, quiet = false) => {
+    // Bound status reads only. Aborting these GETs never cancels the image job.
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
     try {
-      const [nextProject, nextFiles] = await Promise.all([
-        fetchPosterProject(id),
-        fetchPosterFiles(id),
-      ]);
+      const nextProject = await fetchPosterProject(id, controller.signal);
       if (!nextProject) {
-        setPosterLoadState('failed');
+        setProject(null);
+        setFiles([]);
+        setResumableTaskIds([]);
+        setRequestProgress(null);
+        setPosterReconnecting(false);
+        setPosterLoadState('ready');
+        setGenerationFeedback(current => current?.state === 'working'
+          ? { ...current, state: 'failed', message: copy.unavailableGeneration } : current);
         return;
       }
+      const nextFiles = await fetchPosterFiles(id, controller.signal);
       setProject(nextProject);
       setFiles(nextFiles);
       setPosterLoadState('ready');
       const lifecycle = nextProject.metadata?.directGeneration;
       if (lifecycle?.activeBatchId && ['queued', 'failed', 'interrupted'].includes(lifecycle.status ?? '')) {
-        const snapshot = await listProjectMediaTasks(id, false).catch(() => null);
+        // Only terminal recovery needs history; live polling stays lightweight.
+        const includeTerminal = lifecycle.status === 'failed' || lifecycle.status === 'interrupted';
+        const snapshot = await listProjectMediaTasks(id, includeTerminal, controller.signal);
         setResumableTaskIds(snapshot?.tasks.filter(task => task.taskId.startsWith(`loan-poster:${lifecycle.activeBatchId}:`)
           && ['failed', 'interrupted'].includes(task.status)
           && task.error?.code === 'poster_postprocess_pending').map(task => task.taskId) ?? []);
@@ -702,6 +744,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           message: posterRequestProgress(snapshot.tasks, lifecycle.activeBatchId, copy === POSTER_COPY.zh ? 'zh' : 'en'),
         });
       } else setResumableTaskIds([]);
+      setPosterReconnecting(false);
     } catch (error) {
       if (error instanceof Error && error.message === 'AUTH_REQUIRED') {
         window.location.reload();
@@ -714,20 +757,27 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         });
       }
       setPosterLoadState('failed');
+      setPosterReconnecting(true);
+    } finally {
+      window.clearTimeout(timeout);
     }
   }, [copy]);
 
   useEffect(() => {
-    if (creationMode !== 'poster') return undefined;
     if (restoredPosterUserRef.current === user.id) return undefined;
     let cancelled = false;
+    let retryTimer: number | undefined;
+    let controller: AbortController | undefined;
     setPosterLoadState('loading');
-    void (async () => {
+    const restore = async () => {
+      controller = new AbortController();
+      const timeout = window.setTimeout(() => controller?.abort(), 15_000);
       try {
-        const restoredProject = await resolveDirectLoanPosterProject(user.id);
+        const restoredProject = await resolveDirectLoanPosterProject(user.id, { strict: true, signal: controller.signal });
         if (cancelled) return;
         if (!restoredProject) {
           restoredPosterUserRef.current = user.id;
+          setPosterReconnecting(false);
           setProjectId(null);
           setProject(null);
           setFiles([]);
@@ -736,9 +786,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         }
         setProjectId(restoredProject.id);
         setProject(restoredProject);
-        const restoredFiles = await fetchPosterFiles(restoredProject.id);
+        const restoredFiles = await fetchPosterFiles(restoredProject.id, controller.signal);
         if (!cancelled) {
           restoredPosterUserRef.current = user.id;
+          setPosterReconnecting(false);
           setFiles(restoredFiles);
           setPosterLoadState('ready');
         }
@@ -749,15 +800,22 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           return;
         }
         setPosterLoadState('failed');
+        setPosterReconnecting(true);
+        retryTimer = window.setTimeout(() => { void restore(); }, 5_000);
+      } finally {
+        window.clearTimeout(timeout);
       }
-    })();
+    };
+    void restore();
     return () => {
       cancelled = true;
+      window.clearTimeout(retryTimer);
+      controller?.abort();
     };
-  }, [creationMode, user.id]);
+  }, [user.id]);
 
   useEffect(() => {
-    if (!projectId || (creationMode !== 'poster' && !posterIsWorking)) return undefined;
+    if (!projectId || (creationMode !== 'poster' && !posterIsWorking && !posterReconnecting)) return undefined;
     let inFlight = false;
     const reconcile = () => {
       if (document.visibilityState === 'visible' && !inFlight) {
@@ -781,10 +839,10 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       window.removeEventListener('pageshow', reconcile);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [creationMode, projectId, refreshProject, status.state, posterIsWorking]);
+  }, [creationMode, projectId, refreshProject, status.state, posterIsWorking, posterReconnecting]);
 
   const generate = async () => {
-    if (posterIsWorking) return;
+    if (posterIsWorking || posterReconnecting || posterRestoring) return;
     const feedbackId = generationFeedbackIdRef.current + 1;
     generationFeedbackIdRef.current = feedbackId;
     setPosterResultTab('latest');
@@ -836,7 +894,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   };
 
   const resumePoster = async () => {
-    if (!projectId || posterIsWorking || !resumableTaskIds.length) return;
+    if (!projectId || posterIsWorking || posterReconnecting || posterRestoring || !resumableTaskIds.length) return;
     const id = ++generationFeedbackIdRef.current;
     setGenerating(true);
     setGenerationFeedback({ id, batchId: latestBatch?.id ?? null, state: 'working', message: copy.generatingPosters });
@@ -1237,11 +1295,12 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         />
         <Button
           variant="primary"
-          loading={generating}
-          disabled={posterIsWorking}
+          loading={posterIsWorking || posterReconnecting || posterRestoring}
+          disabled={posterIsWorking || posterReconnecting || posterRestoring}
           onClick={() => void (resumableTaskIds.length ? resumePoster() : generate())}
         >
-          {generating ? copy.submitting : resumableTaskIds.length
+          {posterReconnecting ? copy.reconnecting : posterRestoring ? copy.checkingGeneration : generating ? copy.submitting
+            : posterIsWorking ? copy.generatingButton : resumableTaskIds.length
             ? (locale === 'zh-CN' ? '继续处理' : 'Resume processing') : copy.generatePosters}
         </Button>
       </section>

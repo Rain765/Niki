@@ -68,11 +68,12 @@ export async function waitForMediaTask(
 export async function listProjectMediaTasks(
   projectId: string,
   includeDone = true,
+  signal?: AbortSignal,
 ): Promise<ProjectMediaTasksResponse> {
   const query = includeDone ? '?includeDone=1' : '';
   const response = await fetch(
     `/api/projects/${encodeURIComponent(projectId)}/media/tasks${query}`,
-    { credentials: 'include' },
+    { credentials: 'include', signal },
   );
   if (!response.ok) throw await responseError(response);
   return response.json() as Promise<ProjectMediaTasksResponse>;

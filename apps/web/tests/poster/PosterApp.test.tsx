@@ -294,6 +294,109 @@ async function fillValidVideoDraft(title = 'How to apply') {
 }
 
 describe('PosterApp mobile-safe flow', () => {
+  it('restores a running task after closing and reopening without submitting again', async () => {
+    const pending = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', activeBatchId: 'reopen', expectedOutputs: 1,
+      batches: [{ id: 'reopen', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: ['zamloan-poster-20260917-001.png'] }],
+    } } };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(pending);
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: [] } : { project: pending },
+    ), { status: 200 }));
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:reopen:0', status: 'running', progress: [] }] });
+    const first = render(<PosterApp />);
+    const toast = await screen.findByTestId('poster-app-generation-status');
+    const button = screen.getByRole('button', { name: 'Generating…' });
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(button.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(within(toast).getByRole('button', { name: 'Close status' }));
+    fireEvent(window, new Event('focus'));
+    await act(async () => {});
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    first.unmount();
+    render(<PosterApp initialMode="video" />);
+    expect(await screen.findByTestId('poster-app-generation-status')).toBeTruthy();
+    selectWorkspace('Posters');
+    expect(screen.getByRole('button', { name: 'Generating…' }).hasAttribute('disabled')).toBe(true);
+    expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
+    expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps an active task safe while reconnecting and releases the button when it ends', async () => {
+    const batch = { id: 'network', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: ['zamloan-poster-20260917-001.png'] };
+    let currentProject = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', activeBatchId: batch.id, expectedOutputs: 1, batches: [batch],
+    } } };
+    let offline = false;
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(currentProject);
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (offline) return new Response('', { status: 503 });
+      return new Response(JSON.stringify(String(input).endsWith('/files') ? { files: [] } : { project: currentProject }), { status: 200 });
+    });
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:network:0', status: 'running', progress: [] }] });
+    render(<PosterApp />);
+    await screen.findByRole('button', { name: 'Generating…' });
+    await act(async () => {});
+    offline = true;
+    fireEvent(window, new Event('offline'));
+    fireEvent(window, new Event('focus'));
+    expect((await screen.findByRole('button', { name: 'Reconnecting…' })).hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByText(/Generation failed/)).toBeNull();
+    offline = false;
+    currentProject = { ...currentProject, metadata: { kind: 'image', directGeneration: {
+      ...currentProject.metadata.directGeneration, status: 'interrupted', batches: [{ ...batch, status: 'interrupted' }],
+    } } };
+    fireEvent(window, new Event('online'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(false));
+    expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
+  });
+
+  it('unlocks a confirmed missing project instead of leaving the restored task disabled forever', async () => {
+    const pending = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', activeBatchId: 'removed', expectedOutputs: 1,
+      batches: [{ id: 'removed', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: [] }],
+    } } };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(pending);
+    vi.mocked(fetch).mockImplementation(async (input) => String(input).endsWith('/files')
+      ? new Response(JSON.stringify({ files: [] }), { status: 200 })
+      : new Response('', { status: 404 }));
+    render(<PosterApp />);
+    await within(await screen.findByTestId('poster-app-generation-status')).findByText('The previous task is no longer available. You can generate a new poster.');
+    expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(false);
+    expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
+  });
+
+  it('times out a hanging status read without cancelling or resubmitting the image job', async () => {
+    const pending = { ...project, metadata: { kind: 'image', directGeneration: {
+      kind: 'loan-poster', status: 'queued', activeBatchId: 'timeout', expectedOutputs: 1,
+      batches: [{ id: 'timeout', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: [] }],
+    } } };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(pending);
+    vi.mocked(fetch).mockImplementation(async input => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: [] } : { project: pending },
+    ), { status: 200 }));
+    render(<PosterApp />);
+    await screen.findByRole('button', { name: 'Generating…' });
+    await act(async () => {});
+    let aborted = false;
+    vi.mocked(fetch).mockImplementation((_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => { aborted = true; reject(new Error('status read timed out')); }, { once: true });
+    }));
+    vi.useFakeTimers();
+    try {
+      fireEvent(window, new Event('focus'));
+      await act(async () => vi.advanceTimersByTimeAsync(15_001));
+      expect(aborted).toBe(true);
+      expect(screen.getByRole('button', { name: 'Reconnecting…' }).hasAttribute('disabled')).toBe(true);
+      expect(screen.queryByText(/Generation failed/)).toBeNull();
+      expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
+      expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
+    } finally {
+      cleanup();
+      vi.useRealTimers();
+    }
+  });
+
   it.each(['complete', 'failed'] as const)('reconciles a poster %s across tabs without submitting another job', async (terminalState) => {
     render(<PosterApp />);
     await screen.findByAltText('biumoney-poster-20260804-001.png');
@@ -310,7 +413,7 @@ describe('PosterApp mobile-safe flow', () => {
       return { projectId: project.id };
     });
     listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:cross-page:0', status: 'running', progress: ['image:slow'] }] });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     await within(screen.getByTestId('poster-app-generation-status')).findByText('Generation is taking longer, but is still processing…');
     selectWorkspace('Videos');
     expect(screen.getByTestId('poster-app-generation-status')).toBeTruthy();
@@ -344,7 +447,7 @@ describe('PosterApp mobile-safe flow', () => {
       return { projectId: project.id };
     });
     listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:dismiss:0', status: 'running', progress: ['image:slow'] }] });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     await within(screen.getByTestId('poster-app-generation-status')).findByText('Generation is taking longer, but is still processing…');
     fireEvent.click(within(screen.getByTestId('poster-app-generation-status')).getByRole('button', { name: 'Close status' }));
     selectWorkspace('Videos');
@@ -354,7 +457,7 @@ describe('PosterApp mobile-safe flow', () => {
     await waitFor(() => expect(screen.queryByText('Generation is taking longer, but is still processing…')).toBeNull());
     await screen.findByText('The image request was interrupted. Retrying automatically…');
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Generating…' }).hasAttribute('disabled')).toBe(true);
     expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce();
   });
 
@@ -381,7 +484,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(disconnect).toHaveBeenCalledOnce();
   });
 
-  it('uses a standard top navigation with a persistent Chinese and English switch', () => {
+  it('uses a standard top navigation with a persistent Chinese and English switch', async () => {
     render(
       <I18nProvider initial="zh-CN">
         <PosterApp />
@@ -402,7 +505,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByRole('combobox', { name: '类型' }).textContent).toContain('防欺诈');
     expect(screen.getByRole('combobox', { name: '数量' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '比例' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '生成海报' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '生成海报' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /最新一批/ }).getAttribute('aria-selected')).toBe('true');
     const historyTab = screen.getByRole('tab', { name: /历史生成/ });
     fireEvent.click(historyTab);
@@ -1017,7 +1120,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByRole('region', { name: 'Brand brief' })).toBeTruthy();
   });
 
-  it('renders Logo Studio without restoring an unrelated poster project', async () => {
+  it('checks for background poster work on Logo Studio without replaying completed history', async () => {
     render(<PosterApp initialMode="logo" />);
 
     await act(async () => Promise.resolve());
@@ -1026,7 +1129,8 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByText('Build a mark worth remembering.')).toBeNull();
     expect(screen.getByRole('region', { name: 'Brand brief' })).toBeTruthy();
     expect(document.querySelector('.poster-app')?.classList.contains('is-logo')).toBe(true);
-    expect(resolveDirectLoanPosterProjectMock).not.toHaveBeenCalled();
+    expect(resolveDirectLoanPosterProjectMock).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
   });
 
   it('starts with the creation controls instead of a repeated page title', () => {
@@ -1043,7 +1147,7 @@ describe('PosterApp mobile-safe flow', () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
 
     await waitFor(() => {
       expect(startDirectLoanPosterProjectMock).toHaveBeenCalledWith(
@@ -1155,7 +1259,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(within(screen.getByRole('tab', { name: /^Latest batch/ })).getByText('3:4 × 0')).toBeTruthy();
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     await waitFor(() => expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce());
   });
 
@@ -1190,6 +1294,10 @@ describe('PosterApp mobile-safe flow', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(resolve => { resolveRestore = resolve; }));
     render(<PosterApp />);
     expect(screen.getByText('Loading recent posters…')).toBeTruthy();
+    const checking = screen.getByRole('button', { name: 'Checking tasks…' });
+    expect(checking.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(checking);
+    expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
     expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
     await act(async () => resolveRestore(null));
     expect(await screen.findByText('No posters yet')).toBeTruthy();
@@ -1205,16 +1313,21 @@ describe('PosterApp mobile-safe flow', () => {
   });
 
   it.each(['preparing', 'queued'] as const)('keeps a zero-output %s batch in progress instead of showing empty actions', async (status) => {
-    resolveDirectLoanPosterProjectMock.mockResolvedValue({
+    const pending = {
       ...project, metadata: { kind: 'image', directGeneration: {
         kind: 'loan-poster', status, expectedOutputs: 1,
         batches: [{ id: 'pending', status, requestedAt: 10, expectedOutputs: 1, outputNames: ['zamloan-poster-pending.png'] }],
       } },
-    });
+    };
+    resolveDirectLoanPosterProjectMock.mockResolvedValue(pending);
+    vi.mocked(fetch).mockImplementation(async (input) => new Response(JSON.stringify(
+      String(input).endsWith('/files') ? { files: [] } : { project: pending },
+    ), { status: 200 }));
     render(<PosterApp />);
     expect(await screen.findByText('Generating image…')).toBeTruthy();
     expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
-    expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
+    expect(await screen.findByTestId('poster-app-generation-status')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Generating…' }).hasAttribute('disabled')).toBe(true);
   });
 
   it('shows a one-line generation status only after clicking generate', async () => {
@@ -1222,7 +1335,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
 
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generating posters…')).toBeTruthy();
@@ -1246,6 +1359,7 @@ describe('PosterApp mobile-safe flow', () => {
     await screen.findByTestId('poster-app-latest-empty');
     fireEvent(window, new Event('focus'));
     const resume = await screen.findByRole('button', { name: 'Resume processing' });
+    expect(listProjectMediaTasksMock).toHaveBeenCalledWith('project-1', true, expect.any(AbortSignal));
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
     fireEvent.click(resume);
     await waitFor(() => expect(startProjectMediaTaskMock).toHaveBeenCalledWith('project-1', { resumeTaskId: 'loan-poster:saved:0', surface: 'image', model: 'gpt-image-2' }));
@@ -1270,9 +1384,9 @@ describe('PosterApp mobile-safe flow', () => {
       return { projectId: 'project-1' };
     });
     listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:recovery:0', status: 'running', progress: [marker] }] });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     await waitFor(() => expect(within(screen.getByTestId('poster-app-generation-status')).getByText(message)).toBeTruthy());
-    const button = screen.getByRole('button', { name: 'Generate posters' });
+    const button = screen.getByRole('button', { name: 'Generating…' });
     expect(button.hasAttribute('disabled')).toBe(true);
     fireEvent.click(button);
     expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce();
@@ -1283,7 +1397,7 @@ describe('PosterApp mobile-safe flow', () => {
     startDirectLoanPosterProjectMock.mockRejectedValue(new Error('Provider unavailable'));
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generation failed: Provider unavailable')).toBeTruthy();
     expect(generationStatus.querySelector('[data-status="error"]')).toBeTruthy();
@@ -1297,7 +1411,7 @@ describe('PosterApp mobile-safe flow', () => {
       'Poster layout not accepted; base image saved as .poster-layout-drafts/layout-123/base.png. Anti-fraud hand layout: arm connection is uncertain',
     ));
     render(<PosterApp />);
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     await waitFor(() => expect(within(generationStatus).getByText(
       'We could not complete this poster. Please generate again; completed posters are kept.',
@@ -1337,7 +1451,7 @@ describe('PosterApp mobile-safe flow', () => {
     const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     render(<PosterApp />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     await within(generationStatus).findByText('1 poster generated');
     const autoDismissCall = setTimeoutSpy.mock.calls
@@ -1510,7 +1624,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
     const name = 'biumoney-poster-20260804-001.png';
     await screen.findByRole('img', { name });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
     expect(screen.getByRole('img', { name })).toBeTruthy();
     expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
     await act(async () => rejectRequest(new Error('Request failed')));
