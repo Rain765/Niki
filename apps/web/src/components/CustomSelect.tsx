@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
@@ -16,7 +16,12 @@ export interface CustomSelectGroup {
 
 export type CustomSelectItem = CustomSelectOption | CustomSelectGroup;
 
-interface Props {
+export interface SelectRenderers {
+  renderValue?: (option: CustomSelectOption) => ReactNode;
+  renderOption?: (option: CustomSelectOption, keyboardActive: boolean, keyboardNavigation: boolean) => ReactNode;
+}
+
+interface Props extends SelectRenderers {
   value: string;
   options: CustomSelectItem[];
   onChange: (value: string) => void;
@@ -77,14 +82,16 @@ export function CustomSelect({
   title,
   testId,
   onFocus,
+  renderValue,
+  renderOption,
 }: Props) {
   const reactId = useId();
   const idBase = reactId.replace(/:/g, '');
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const wasOpenRef = useRef(false);
   const activeSourceValueRef = useRef(value);
   const [open, setOpen] = useState(false);
+  const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [activeValue, setActiveValue] = useState(value);
   const [position, setPosition] = useState<MenuPosition | null>(null);
 
@@ -146,14 +153,12 @@ export function CustomSelect({
 
   useEffect(() => {
     if (!open) {
-      wasOpenRef.current = false;
       activeSourceValueRef.current = value;
       return;
     }
-    if (wasOpenRef.current && activeSourceValueRef.current === value) return;
+    if (activeSourceValueRef.current === value) return;
     const selectedOption = flatOptionsRef.current.find((option) => option.value === value && !option.disabled);
     setActiveValue(selectedOption?.value ?? enabledOptionsRef.current[0]?.value ?? '');
-    wasOpenRef.current = true;
     activeSourceValueRef.current = value;
   }, [open, value]);
 
@@ -195,11 +200,19 @@ export function CustomSelect({
     setActiveValue(enabledOptions[nextIndex]!.value);
   };
 
+  const openMenu = () => {
+    const selectedOption = flatOptions.find(option => option.value === value && !option.disabled);
+    setActiveValue(selectedOption?.value ?? enabledOptions[0]?.value ?? '');
+    activeSourceValueRef.current = value;
+    setOpen(true);
+  };
+
   const onButtonKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    setKeyboardNavigation(true);
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!open) {
-        setOpen(true);
+        openMenu();
         return;
       }
       moveActive(event.key === 'ArrowDown' ? 1 : -1);
@@ -210,7 +223,7 @@ export function CustomSelect({
       if (open) {
         choose(activeValue || value);
       } else {
-        setOpen(true);
+        openMenu();
       }
       return;
     }
@@ -258,7 +271,9 @@ export function CustomSelect({
                   active={option.value === activeValue}
                   id={optionIdByValue.get(option.value)}
                   onChoose={choose}
-                  onActive={setActiveValue}
+                  onActive={next => { setKeyboardNavigation(false); setActiveValue(next); }}
+                  renderOption={renderOption}
+                  keyboardNavigation={keyboardNavigation}
                 />
               ))}
             </div>
@@ -272,7 +287,9 @@ export function CustomSelect({
             active={item.value === activeValue}
             id={optionIdByValue.get(item.value)}
             onChoose={choose}
-            onActive={setActiveValue}
+            onActive={next => { setKeyboardNavigation(false); setActiveValue(next); }}
+            renderOption={renderOption}
+            keyboardNavigation={keyboardNavigation}
           />
         );
       })}
@@ -296,12 +313,12 @@ export function CustomSelect({
         data-testid={testId}
         disabled={disabled}
         title={title}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => { setKeyboardNavigation(false); if (open) setOpen(false); else openMenu(); }}
         onKeyDown={onButtonKeyDown}
         onFocus={onFocus}
       >
         <span id={`${idBase}-value`} className="od-select-value">
-          {selectedLabel}
+          {selected && renderValue ? renderValue(selected) : selectedLabel}
         </span>
         <Icon name="chevron-down" size={14} />
       </button>
@@ -317,6 +334,8 @@ function SelectOptionButton({
   id,
   onChoose,
   onActive,
+  renderOption,
+  keyboardNavigation,
 }: {
   option: CustomSelectOption;
   selected: boolean;
@@ -324,6 +343,8 @@ function SelectOptionButton({
   id?: string;
   onChoose: (value: string) => void;
   onActive: (value: string) => void;
+  renderOption?: SelectRenderers['renderOption'];
+  keyboardNavigation: boolean;
 }) {
   return (
     <button
@@ -338,10 +359,10 @@ function SelectOptionButton({
       aria-selected={selected}
       tabIndex={-1}
       disabled={option.disabled}
-      onMouseEnter={() => onActive(option.value)}
+      onMouseMove={() => onActive(option.value)}
       onClick={() => onChoose(option.value)}
     >
-      <span className="od-select-option-label">{option.label}</span>
+      <span className="od-select-option-label">{renderOption ? renderOption(option, active && keyboardNavigation, keyboardNavigation) : option.label}</span>
       <span className="od-select-option-check" aria-hidden>
         <Icon name="check" size={13} />
       </span>

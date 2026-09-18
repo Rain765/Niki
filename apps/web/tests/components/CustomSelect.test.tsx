@@ -103,6 +103,20 @@ describe('CustomSelect', () => {
     );
   });
 
+  it('does not let a stationary pointer replace the keyboard choice when the menu appears', () => {
+    render(<CustomSelect ariaLabel="Template" value="first" options={[
+      {value:'first',label:'First'}, {value:'second',label:'Second'}, {value:'third',label:'Third'},
+    ]} onChange={vi.fn()} />);
+    const trigger=screen.getByRole('combobox');
+    fireEvent.keyDown(trigger,{key:'ArrowDown'});
+    fireEvent.keyDown(trigger,{key:'ArrowDown'});
+    const third=screen.getByRole('option',{name:'Third'});
+    fireEvent.mouseEnter(third);
+    expect(trigger.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option',{name:'Second'}).id);
+    fireEvent.mouseMove(third);
+    expect(trigger.getAttribute('aria-activedescendant')).toBe(third.id);
+  });
+
   it('places a constrained portal menu eight pixels below its trigger', () => {
     vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(320);
     vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(240);

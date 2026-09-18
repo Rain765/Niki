@@ -3,9 +3,10 @@ import { useId } from 'react';
 import {
   CustomSelect,
   type CustomSelectItem,
+  type SelectRenderers,
 } from './CustomSelect';
 
-export interface SelectFieldProps {
+export interface SelectFieldProps extends SelectRenderers {
   className?: string;
   disabled?: boolean;
   label: string;
@@ -27,6 +28,8 @@ export function SelectField({
   options,
   testId,
   value,
+  renderValue,
+  renderOption,
 }: SelectFieldProps) {
   const reactId = useId();
   const labelId = `${reactId.replace(/:/g, '')}-label`;
@@ -35,6 +38,8 @@ export function SelectField({
     <div className={['od-field', className].filter(Boolean).join(' ')}>
       <span className="od-field__label" id={labelId}>{label}</span>
       <CustomSelect
+        renderValue={renderValue}
+        renderOption={renderOption}
         ariaLabel={label}
         className="od-control-select"
         disabled={disabled}

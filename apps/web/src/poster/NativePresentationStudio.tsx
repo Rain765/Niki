@@ -9,7 +9,7 @@ import type { Project, SkillSummary } from '../types';
 import { Button } from '../components/Button';
 import { SelectField } from '../components/SelectField';
 import { NativePresentationResult } from './NativePresentationResult';
-import { NativeTemplatePicker, NativeTemplatePreview } from './NativeTemplatePicker';
+import { NativeTemplatePicker } from './NativeTemplatePicker';
 import { isNativePresentation, prepareNativePresentation, type NativePptBrief, type NativePptSkill } from './native-presentations';
 import './native-presentation-studio.css';
 
@@ -79,32 +79,26 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   };
   return <section className="native-ppt" aria-label={zh ? '演示文稿工作室' : 'Presentation studio'}>
     <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
-      <section className="native-ppt__filters od-generation-toolbar od-filter-grid" aria-label={zh ? '创作筛选' : 'Creation settings'}>
+      <section className={`native-ppt__filters od-generation-toolbar${skill !== 'html-ppt' || brief.style === 'custom' ? ' has-theme' : ''}`} aria-label={zh ? '创作筛选' : 'Creation settings'}>
         <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
-        <SelectField className={`od-filter-grid__item${skill !== 'html-ppt' || brief.style === 'custom' ? ' od-filter-grid__wide' : ''}`} label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
-      </section>
-      <section className="native-ppt__generation" aria-label={zh ? '生成区' : 'Creation area'}>
-        <div className="native-ppt__source">
-          <label className="od-field native-ppt__topic" htmlFor="ppt-creation-content"><span className="od-field__label">{zh ? '创作内容' : 'Content'}</span></label>
+        <SelectField label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
+
+        <div className="native-ppt__source od-field">
+          <label className="od-field__label" htmlFor="ppt-creation-content">{zh ? '创作内容' : 'Content'}</label>
           <div className="native-ppt__composer">
-            <textarea aria-describedby="ppt-content-hint" id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '填写主题、要求，或添加文档' : 'Enter a topic, requirements, or add a document'} rows={2} />
-            <div className="native-ppt__attachments">
-              <label className="native-ppt__upload" title="PDF / Word / PPTX / Markdown / TXT / CSV / Excel">
-                <Paperclip size={16} aria-hidden="true" />
-                <span>{file ? (zh ? '替换文档' : 'Replace document') : (zh ? '添加文档' : 'Add document')}</span>
-                <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFile(selected); }} disabled={busy} />
-              </label>
-              {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
-            </div>
+            <label className="native-ppt__upload" title={zh ? '添加或替换文档 · PDF / Word / PPTX / Markdown / TXT / CSV / Excel' : 'Add or replace a document'}>
+              <Paperclip size={16} aria-hidden="true" />
+              <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFile(selected); }} disabled={busy} />
+            </label>
+            <input type="text" id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '主题、受众、场景与重点要求' : 'Topic, audience, occasion and priorities'} />
+            {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
           </div>
-          <small id="ppt-content-hint" className="native-ppt__content-hint">{zh ? '可补充受众、使用场景和重点要求。' : 'Optionally include your audience, occasion and priorities.'}</small>
         </div>
-        <NativeTemplatePreview workflow={skill} template={brief.style} theme={brief.theme} />
         <div className="native-ppt__generation-actions">
-          <div className="native-ppt__generation-status">{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>
           <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '正在保存资料…' : 'Saving source…') : (zh ? '开始创作' : 'Start creating')}<ArrowRight size={18} /></Button>
         </div>
       </section>
+      <div className="native-ppt__generation-status">{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>
     </form>
     <div ref={results} className="poster-app__result-tabs native-ppt__result-tabs" role="tablist" onKeyDown={tabKeys} aria-label={zh ? '文稿导航' : 'Presentation navigation'}>
       <button type="button" id="ppt-tab-latest" role="tab" aria-controls="ppt-panel-latest" className={view === 'latest' ? 'is-active' : undefined} tabIndex={view === 'latest' ? 0 : -1} aria-selected={view === 'latest'} onClick={() => show('latest')}>{zh ? '最新一批' : 'Latest batch'}</button>
