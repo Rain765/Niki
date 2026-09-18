@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Maximize, Minimize, PanelLeft } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { projectFileUrl } from '../providers/registry';
-import { loadNativeDeck, nativeDeckSrcdoc, type NativeDeckDocument } from '../presentations/native-viewer';
+import { loadNativeDeck, nativeDeckSrcdoc, NativeDeckPendingError, type NativeDeckDocument } from '../presentations/native-viewer';
 import { NativePresentationEditor } from './NativePresentationEditor';
 import { NativePresentationInspectionPanel } from './NativePresentationInspectionPanel';
 import { Button } from './Button';
@@ -33,10 +33,19 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
   }, [positionKey]);
   useEffect(() => {
     let active=true;
+    let pendingRetry: ReturnType<typeof setTimeout> | undefined;
     setReady(false); setError(''); setDeck(null);
     const timeout=setTimeout(()=>{active=false;setError(zh?'读取超时，请重新加载。':'Loading timed out. Retry.');},20000);
-    void loadNativeDeck(projectId,name).then(value=>{if(active)setDeck(value);}).catch(e=>{if(active){setDeck(null);setError(e instanceof Error?e.message:String(e));}}).finally(()=>clearTimeout(timeout));
-    return ()=>{active=false;clearTimeout(timeout);};
+    void loadNativeDeck(projectId,name).then(value=>{if(active)setDeck(value);}).catch(e=>{
+      if (!active) return;
+      setDeck(null);
+      if (e instanceof NativeDeckPendingError) {
+        pendingRetry = setTimeout(() => { if (active) setRetry(n => n + 1); }, 3000);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    }).finally(()=>clearTimeout(timeout));
+    return ()=>{active=false;clearTimeout(timeout);clearTimeout(pendingRetry);};
   }, [projectId,name,revision,retry,zh]);
   const srcDoc=useMemo(()=>deck?nativeDeckSrcdoc(deck,projectId,Math.min(remembered.current,deck.titles.length-1)):undefined,[deck,projectId]);
   const closeFullscreen=useCallback(()=>{

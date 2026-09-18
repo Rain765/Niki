@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-import { loadNativeDeck, nativeDeckSrcdoc } from '../../src/presentations/native-viewer';
+import { loadNativeDeck, nativeDeckSrcdoc, NativeDeckPendingError } from '../../src/presentations/native-viewer';
 import { fetchProjectFileText } from '../../src/providers/registry';
 vi.mock('../../src/providers/registry',()=>({fetchProjectFileText:vi.fn(),projectFileUrl:(id:string,name:string)=>`/api/projects/${id}/raw/${name}`}));
 afterEach(()=>vi.resetAllMocks());
@@ -30,4 +30,11 @@ it('preserves authenticated local module bytes through a preview-only import map
  const url=new URL('/api/projects/p/raw/assets/motion.min.js',window.location.origin).href;
  expect(deck.moduleImports?.[url]).toBe(`data:text/javascript;charset=utf-8,${encodeURIComponent(module)}`);
  expect(deck.source).toBe(source);expect(nativeDeckSrcdoc(deck,'p',0)).toContain('type="importmap"');
+});
+
+it('identifies an unfinished entry separately from read and wrapper failures',async()=>{
+ vi.mocked(fetchProjectFileText).mockResolvedValue('<html><body></body></html>');
+ await expect(loadNativeDeck('p','index.html')).rejects.toBeInstanceOf(NativeDeckPendingError);
+ vi.mocked(fetchProjectFileText).mockResolvedValue(null);
+ await expect(loadNativeDeck('p','index.html')).rejects.toThrow('Could not load presentation');
 });

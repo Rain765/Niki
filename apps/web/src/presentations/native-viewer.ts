@@ -1,6 +1,11 @@
 import { buildSrcdoc } from '../runtime/srcdoc';
 import { fetchProjectFileText, projectFileUrl } from '../providers/registry';
 
+/** A published entry can exist before the generator has written its slides. */
+export class NativeDeckPendingError extends Error {
+  constructor() { super('Presentation slides pending'); this.name = 'NativeDeckPendingError'; }
+}
+
 export interface NativeDeckDocument {
   source: string;
   name: string;
@@ -45,7 +50,7 @@ export async function loadNativeDeck(projectId: string, entry: string): Promise<
       return {source, name, moduleImports, titles:slides.map((slide,i) => (slide.getAttribute('data-title') || slide.querySelector('h1,h2,h3')?.textContent || `Page ${i+1}`).trim().replace(/\s+/g,' ')),width:portrait?960:1280,height:portrait?1280:720};
     }
     const frames = doc.querySelectorAll('iframe[src]');
-    if (frames.length !== 1) throw new Error('页面尚未生成完整 / Slides are not ready yet');
+    if (frames.length !== 1) throw new NativeDeckPendingError();
     const root = new URL(projectFileUrl(projectId, ''), window.location.origin);
     const next = new URL(frames[0]!.getAttribute('src')!, new URL(projectFileUrl(projectId,name), window.location.origin));
     if (next.origin !== root.origin || !next.pathname.startsWith(root.pathname) || !/\.html?$/i.test(next.pathname)) throw new Error('无法预览此文稿入口 / Unsupported presentation entry');

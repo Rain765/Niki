@@ -3,8 +3,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { NativePresentationPreview } from '../../src/components/NativePresentationPreview';
 import { I18nProvider } from '../../src/i18n';
-import { loadNativeDeck } from '../../src/presentations/native-viewer';
-vi.mock('../../src/presentations/native-viewer',()=>({loadNativeDeck:vi.fn(),nativeDeckSrcdoc:()=>'<html></html>'}));
+import { loadNativeDeck, NativeDeckPendingError } from '../../src/presentations/native-viewer';
+vi.mock('../../src/presentations/native-viewer',async importOriginal=>({...await importOriginal<typeof import('../../src/presentations/native-viewer')>(),loadNativeDeck:vi.fn(),nativeDeckSrcdoc:()=>'<html></html>'}));
 vi.mock('../../src/components/NativePresentationInspectionPanel',()=>({NativePresentationInspectionPanel:()=>null}));
 vi.mock('../../src/components/NativePresentationEditor',()=>({NativePresentationEditor:({initialPage,onClose}:{initialPage:number;onClose:()=>void})=><button onClick={onClose}>Editing {initialPage}</button>}));
 beforeEach(()=>{
@@ -59,4 +59,22 @@ it('turns load failures into a retryable error instead of an endless skeleton',a
  expect(await screen.findByRole('alert')).toBeTruthy();
  fireEvent.click(screen.getByRole('button',{name:'重新加载'}));
  await waitFor(()=>expect(loadNativeDeck).toHaveBeenCalledTimes(2));
+});
+
+it('keeps incomplete slides in the loader and automatically reads the finished deck',async()=>{
+ vi.useFakeTimers();
+ try {
+  vi.mocked(loadNativeDeck).mockRejectedValueOnce(new NativeDeckPendingError());
+  const {container,unmount}=render(<I18nProvider defaultLocale="zh-CN"><NativePresentationPreview projectId="p" name="index.html"/></I18nProvider>);
+  await act(async()=>{});
+  expect(screen.getByRole('status',{name:'正在加载文稿'})).toBeTruthy();
+  expect(screen.queryByRole('alert')).toBeNull();
+  expect(screen.queryByRole('button',{name:'重新加载'})).toBeNull();
+  await act(async()=>{await vi.advanceTimersByTimeAsync(3000);});
+  expect(loadNativeDeck).toHaveBeenCalledTimes(2);
+  expect(container.querySelector('iframe')).not.toBeNull();
+  unmount();
+  await vi.advanceTimersByTimeAsync(3000);
+  expect(loadNativeDeck).toHaveBeenCalledTimes(2);
+ } finally {vi.useRealTimers();}
 });
