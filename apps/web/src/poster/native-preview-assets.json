@@ -1,0 +1,3602 @@
+{
+  "recommend": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/995f2f25141a62e1a395.webp",
+      "full": "/presentation-previews/e3b54fb653c2218e85fd.webp"
+    }
+  },
+  "custom": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/d12ff96bbbbcf655dd3e.webp",
+      "full": "/presentation-previews/2ba2cbc552cd19ef388e.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/d12ff96bbbbcf655dd3e.webp",
+      "full": "/presentation-previews/2ba2cbc552cd19ef388e.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/325e5d0dda44a4cc5a64.webp",
+      "full": "/presentation-previews/cb63eb0720716d8afa13.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/32f58c5324e3e10ff486.webp",
+      "full": "/presentation-previews/ec5caa86012a7ee2fcc5.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/bb6aa2dd77a4f9e45d40.webp",
+      "full": "/presentation-previews/55075d203b348a4e2d25.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/09209934bd24ce146145.webp",
+      "full": "/presentation-previews/8df685fac287570669cf.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/124ceec9581eecef05e7.webp",
+      "full": "/presentation-previews/8cdaef473aeb0294aa17.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0641cebcac1fdd82bcb5.webp",
+      "full": "/presentation-previews/28ec398aff0e6b32caab.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b09c346229a0a1054ad0.webp",
+      "full": "/presentation-previews/dba12b49186e743cad97.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6343fbb2889e7cbdb586.webp",
+      "full": "/presentation-previews/e4179f02893245cb7386.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5d3d2cf9140e71b0b6c6.webp",
+      "full": "/presentation-previews/e17efd65de1143db562d.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/da2488acf866baaf2e9d.webp",
+      "full": "/presentation-previews/f88397943681fc868bad.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3e7c72616789e1bc383c.webp",
+      "full": "/presentation-previews/404422be240d5f7784ec.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/41893fd102cc1d7e5124.webp",
+      "full": "/presentation-previews/0d1d0e2f53034540de44.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f02b076b7e77ba648705.webp",
+      "full": "/presentation-previews/2d271d6fe78c89cf74cc.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5ff23360771af5eacb84.webp",
+      "full": "/presentation-previews/6a8b64becbd9ef2b8af9.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/58a9c05290eb58fa260f.webp",
+      "full": "/presentation-previews/0bbf85492100fc94aed6.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8f3195dfc4ac00446814.webp",
+      "full": "/presentation-previews/31d3633fa45b28cdea96.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/4ba3ecd7f86a8293ce0c.webp",
+      "full": "/presentation-previews/b83d74a3dd7a3b5bc7c6.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/d0d762e6a5bc35071772.webp",
+      "full": "/presentation-previews/9b0facfcfc2aa9ee4916.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/041446123d203d3b020b.webp",
+      "full": "/presentation-previews/9ca2906bd2e0e8161c4c.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b01574f3a2f0cac6aec2.webp",
+      "full": "/presentation-previews/81c51aa9ea52e3ed184f.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/aeb2e1b06070b0fe6676.webp",
+      "full": "/presentation-previews/e0735d75842236849946.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/4eed43f38e8f07634a2d.webp",
+      "full": "/presentation-previews/fef8c67639cf62ae5422.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/48d2a8fa254e7a6ac2e6.webp",
+      "full": "/presentation-previews/f539b3ebcbda3edcb830.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0aa61735a4a6afe1a7ab.webp",
+      "full": "/presentation-previews/ca38041cbdaad387ef77.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/9cd8654ad653cb83b6da.webp",
+      "full": "/presentation-previews/d0dca4d4c8bb1689eb14.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/13a492a7873b4f5dead7.webp",
+      "full": "/presentation-previews/4589da5ddc7de49e424c.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1bfc0cf30d2c0293077f.webp",
+      "full": "/presentation-previews/92c8400bc786bc8b57d8.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/24e4706f3cd858955d1c.webp",
+      "full": "/presentation-previews/06596ab3b2e93a593ca8.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b97fae6dffbe67fc91d3.webp",
+      "full": "/presentation-previews/c078da9d7071bf754915.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/d810f82c929044541444.webp",
+      "full": "/presentation-previews/51956736c6734e75f6e8.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0f393d14c66dc8717e45.webp",
+      "full": "/presentation-previews/d1a667ab76cac2906de2.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/599f0c49b339c23a2624.webp",
+      "full": "/presentation-previews/947233a0aa8389c6ad4c.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/4e46d26800ad0ed5e881.webp",
+      "full": "/presentation-previews/9b2817036ce4fdfa0bfd.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/759dd794532d39a443fd.webp",
+      "full": "/presentation-previews/f16c779d14d5d2c2f005.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/583e5820db5cacf4557b.webp",
+      "full": "/presentation-previews/71ce9d2e8e9d002f75c9.webp"
+    }
+  },
+  "pitch-deck": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f9ad4c02c3791970ce61.webp",
+      "full": "/presentation-previews/89c0aef203ed8739a485.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3ea396dfdaf6eaa37544.webp",
+      "full": "/presentation-previews/e75e4d09c845d5b21691.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/362c8c3e175163f64702.webp",
+      "full": "/presentation-previews/1e4c26dba9edac3f58f9.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/362c8c3e175163f64702.webp",
+      "full": "/presentation-previews/1e4c26dba9edac3f58f9.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1151e9de57332eadfca7.webp",
+      "full": "/presentation-previews/bab16eda199b9a1d28e3.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/9691246bfc5c245ab152.webp",
+      "full": "/presentation-previews/08b3ab92ba27006fb80b.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6a099b09dd3bf6eeba9b.webp",
+      "full": "/presentation-previews/d12d917c0076e2c524c5.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/4155cd7283d4194d4bf6.webp",
+      "full": "/presentation-previews/476b297c26f4e234e313.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0ae96eaa5e847a7291ed.webp",
+      "full": "/presentation-previews/2009f6fac1a9c16d3f76.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/d8da618046476809d156.webp",
+      "full": "/presentation-previews/39dcda8496096fe1399d.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/362c8c3e175163f64702.webp",
+      "full": "/presentation-previews/1e4c26dba9edac3f58f9.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/baeacfce209975ec39a3.webp",
+      "full": "/presentation-previews/773261a248bc0f2ac8a1.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/c34e15879ef5cc4e68d2.webp",
+      "full": "/presentation-previews/f04d0b1981b10aa2ca92.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/2ca15179263e7aad29fa.webp",
+      "full": "/presentation-previews/b6444f78b593af5c6d52.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/644b8413e9caf2ba49de.webp",
+      "full": "/presentation-previews/30f48de5bac614ebc77b.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/4ccc2863a6e6baa57c59.webp",
+      "full": "/presentation-previews/2ba0a3cb1e18362a646b.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5e85b4f4d58b85b5f9eb.webp",
+      "full": "/presentation-previews/a3942cbd41fe851c8c49.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3c7739e9c482dfe1c0ad.webp",
+      "full": "/presentation-previews/c63883a5feec1b46836d.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e3c3c11116a00b4d1528.webp",
+      "full": "/presentation-previews/47ac8fb15b3d0213dfa3.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e447c1e8bd074870d2ff.webp",
+      "full": "/presentation-previews/77e1292097907b2f8d2e.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ecb52cfc4591fa5464a0.webp",
+      "full": "/presentation-previews/92eef761ddeeda22da97.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e85f3f2f29e5d439c244.webp",
+      "full": "/presentation-previews/8832d08ffcfeffbccc19.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/325340f71a529fabd260.webp",
+      "full": "/presentation-previews/5658d57e3e8cdce8f925.webp"
+    }
+  },
+  "product-launch": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/eac0990cb0ecb104cee6.webp",
+      "full": "/presentation-previews/dc5fc29f51c64637f204.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/9f455433d7153713a15c.webp",
+      "full": "/presentation-previews/0af5db66544fde6d465d.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3fbd68281d2c9f2401e7.webp",
+      "full": "/presentation-previews/87c688a4a941986b6bdd.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3fbd68281d2c9f2401e7.webp",
+      "full": "/presentation-previews/87c688a4a941986b6bdd.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/39282e0798cc0088f362.webp",
+      "full": "/presentation-previews/52a27cbe5cf478b125fe.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8d1932bac99d98275706.webp",
+      "full": "/presentation-previews/7422c57f1c14a266a093.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/cfc15ba48187f2a884fb.webp",
+      "full": "/presentation-previews/344f010fe775a432a5c4.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3fbd68281d2c9f2401e7.webp",
+      "full": "/presentation-previews/87c688a4a941986b6bdd.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1f8a1042897635d928d8.webp",
+      "full": "/presentation-previews/ea436b27a82dd14179b5.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/64c77df943d92cdea3cf.webp",
+      "full": "/presentation-previews/ac455ade69211c540cac.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/349412142c8d12efeb86.webp",
+      "full": "/presentation-previews/5fae1cfc691f30865e1a.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/c2740f9c22cab7d42d3d.webp",
+      "full": "/presentation-previews/60f1999bfdb615b6af28.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1f9fde13b278e3df7007.webp",
+      "full": "/presentation-previews/a79e3f7d720c964041f5.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/dc4a968b56ce35f65607.webp",
+      "full": "/presentation-previews/75b7106c3ececa51196f.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/6604dfb2e9e2556a006e.webp",
+      "full": "/presentation-previews/c363aff1176ef4769f79.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a1ce1aac9d8cf46eea73.webp",
+      "full": "/presentation-previews/9a609b02ef960a6e052f.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/31d59b8c663ae7b49395.webp",
+      "full": "/presentation-previews/598fdfb19f00ff60de38.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b4d68e2d7f5c35bdfd05.webp",
+      "full": "/presentation-previews/25420a6e5dd23983c317.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b27789a5e540cc84c07b.webp",
+      "full": "/presentation-previews/bf5bb029ecca140ee564.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b24cfcdc6388fb9e363b.webp",
+      "full": "/presentation-previews/f1caca734fba3def4f8a.webp"
+    }
+  },
+  "tech-sharing": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3e9afb91b241de17c362.webp",
+      "full": "/presentation-previews/a5131b515d58ad98672b.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3dd995de0cd97483ebaf.webp",
+      "full": "/presentation-previews/e69bad06b8f72025f1eb.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/437e6b37b40c2fa3fe55.webp",
+      "full": "/presentation-previews/47fc8aa6d3c1566d409e.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/437e6b37b40c2fa3fe55.webp",
+      "full": "/presentation-previews/47fc8aa6d3c1566d409e.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/259932a681d8418de833.webp",
+      "full": "/presentation-previews/eb263765df2aff72ed5b.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/db2a124bbe6ede6dd00f.webp",
+      "full": "/presentation-previews/eb49d6a154442c0fee86.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/4060602e4ee76e2b103e.webp",
+      "full": "/presentation-previews/c6e0caf7b9556a09361f.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/27ea796bfa6d56b5a88b.webp",
+      "full": "/presentation-previews/07ba558ea991def1a3fc.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/437e6b37b40c2fa3fe55.webp",
+      "full": "/presentation-previews/47fc8aa6d3c1566d409e.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e86c6e1be7cf21e4acd4.webp",
+      "full": "/presentation-previews/4d8d6089744da5009b50.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/799867744932692e71eb.webp",
+      "full": "/presentation-previews/a7c433e65a9b9756bfa7.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ff3a5675b5bf1aa5a6a6.webp",
+      "full": "/presentation-previews/03664ac80705d0f530b9.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/4060602e4ee76e2b103e.webp",
+      "full": "/presentation-previews/c6e0caf7b9556a09361f.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b59774fd4aafa3cfceb6.webp",
+      "full": "/presentation-previews/f600cbae3738f68e03f9.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ff3a5675b5bf1aa5a6a6.webp",
+      "full": "/presentation-previews/03664ac80705d0f530b9.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/196119f10a964c118f80.webp",
+      "full": "/presentation-previews/83b7988f5bcdba2cbcc4.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/7b7224ff3725a4106343.webp",
+      "full": "/presentation-previews/702a17d20fd391a6191c.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0668135d69fbe7faec18.webp",
+      "full": "/presentation-previews/c02d2b8b80b18338bb87.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1521e9e7f955d3c21f40.webp",
+      "full": "/presentation-previews/d8a6ef554d239809ca0d.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ff3a5675b5bf1aa5a6a6.webp",
+      "full": "/presentation-previews/03664ac80705d0f530b9.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/27ea796bfa6d56b5a88b.webp",
+      "full": "/presentation-previews/07ba558ea991def1a3fc.webp"
+    }
+  },
+  "weekly-report": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/dd1ef7d23b14563dbeea.webp",
+      "full": "/presentation-previews/0bf356b492f25829d6bb.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8698079e4e00f9e5a019.webp",
+      "full": "/presentation-previews/478e39ce7aa40ccd135c.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8698079e4e00f9e5a019.webp",
+      "full": "/presentation-previews/478e39ce7aa40ccd135c.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8698079e4e00f9e5a019.webp",
+      "full": "/presentation-previews/478e39ce7aa40ccd135c.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/50ff13b6300210eaebb3.webp",
+      "full": "/presentation-previews/3b77ac5357b2f1876f06.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8d718c0720d40d13a599.webp",
+      "full": "/presentation-previews/dd4e4d80d6388b0da3f1.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ddbf707b3478acc3722c.webp",
+      "full": "/presentation-previews/9e8878bc08a9c055edbf.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/63b714fa08d80cd09732.webp",
+      "full": "/presentation-previews/9b0fb548fad593238b83.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f26779473cddb65f42a9.webp",
+      "full": "/presentation-previews/bdbc5772dfda8a0ffaad.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8698079e4e00f9e5a019.webp",
+      "full": "/presentation-previews/478e39ce7aa40ccd135c.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ced42ae2e2d76f9a088e.webp",
+      "full": "/presentation-previews/17e00e6cc25254653bee.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1b92e36d61125f1d3db2.webp",
+      "full": "/presentation-previews/777a922ddf25cf3990eb.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/92fe7612dffe97f2bcd9.webp",
+      "full": "/presentation-previews/8fb9e65be7054a9eb217.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/490c17b9b851f92f1997.webp",
+      "full": "/presentation-previews/5e5e37ac5e1f07ad84b0.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0789a1940a2ba789b5ba.webp",
+      "full": "/presentation-previews/a03789363ed6e20c0971.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/93a46adc197105d6497e.webp",
+      "full": "/presentation-previews/a4091013a0b67cf933d8.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/0e536dbec8c01b590020.webp",
+      "full": "/presentation-previews/f8789d9ffa3231657091.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f679957d11dc6f9ab9a1.webp",
+      "full": "/presentation-previews/569c6f6f5f1b044bfc21.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/05c70b2572bea2015122.webp",
+      "full": "/presentation-previews/346053c4874b26ff43ca.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/42c6620b9c0a68909761.webp",
+      "full": "/presentation-previews/b955c2544800027bdf0b.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/db8ed64f6d88a47edc23.webp",
+      "full": "/presentation-previews/5d28e9264f579d7f94c1.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a2cc6f7b008eae1eb467.webp",
+      "full": "/presentation-previews/b602f36da8599c2b8477.webp"
+    }
+  },
+  "xhs-post": {
+    "default": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "minimal-white": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "editorial-serif": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/60ae978ac7ec53f5ac73.webp",
+      "full": "/presentation-previews/e9d04aa3fd089cf92ec9.webp"
+    },
+    "soft-pastel": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "sharp-mono": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/a61ad39445fb1d1ea29f.webp",
+      "full": "/presentation-previews/f8946ea79fa1357fe009.webp"
+    },
+    "arctic-cool": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "sunset-warm": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "catppuccin-latte": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "dracula": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "tokyo-night": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "nord": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "solarized-light": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "gruvbox-dark": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "rose-pine": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "neo-brutalism": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/f2be7e503bc13beab403.webp",
+      "full": "/presentation-previews/9a0203135a733ab9a3c8.webp"
+    },
+    "glassmorphism": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "bauhaus": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/f2be7e503bc13beab403.webp",
+      "full": "/presentation-previews/9a0203135a733ab9a3c8.webp"
+    },
+    "swiss-grid": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/14a7714e39e10828bcbd.webp",
+      "full": "/presentation-previews/a6e999a61576e3851f8d.webp"
+    },
+    "terminal-green": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/66f86215c86491a2088d.webp",
+      "full": "/presentation-previews/e63b3258a5d190c38623.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/99d441bae8bb7fc83d01.webp",
+      "full": "/presentation-previews/0c61441e46e378981102.webp"
+    },
+    "rainbow-gradient": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "aurora": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "blueprint": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/7af8eb4febcccd10fac0.webp",
+      "full": "/presentation-previews/3bb464e0c73fe02c877d.webp"
+    },
+    "memphis-pop": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/f2be7e503bc13beab403.webp",
+      "full": "/presentation-previews/9a0203135a733ab9a3c8.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/7058e9e0b068fdb830b8.webp",
+      "full": "/presentation-previews/b5c9665cc99f4f6bbac2.webp"
+    },
+    "y2k-chrome": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/9befbf998e0abf099bcc.webp",
+      "full": "/presentation-previews/1f63ef441c02bfde50fc.webp"
+    },
+    "retro-tv": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/6b9720b1ced4f44c2a24.webp",
+      "full": "/presentation-previews/a38d7fc0cc2f966de9a6.webp"
+    },
+    "japanese-minimal": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/99d441bae8bb7fc83d01.webp",
+      "full": "/presentation-previews/0c61441e46e378981102.webp"
+    },
+    "vaporwave": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/5fd0597f96909e3f87fe.webp",
+      "full": "/presentation-previews/ca6ec1ff4c60ee2fd9c7.webp"
+    },
+    "midcentury": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/6b9720b1ced4f44c2a24.webp",
+      "full": "/presentation-previews/a38d7fc0cc2f966de9a6.webp"
+    },
+    "corporate-clean": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "academic-paper": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/6b9720b1ced4f44c2a24.webp",
+      "full": "/presentation-previews/a38d7fc0cc2f966de9a6.webp"
+    },
+    "news-broadcast": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/ba57d0a5bf64e4dcd66c.webp",
+      "full": "/presentation-previews/bcc229d578d12411ed42.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/8a60ff2dc91c265c0aaf.webp",
+      "full": "/presentation-previews/744d4debc7fa31ce792a.webp"
+    },
+    "magazine-bold": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/6b9720b1ced4f44c2a24.webp",
+      "full": "/presentation-previews/a38d7fc0cc2f966de9a6.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 810,
+      "height": 1080,
+      "thumb": "/presentation-previews/7af8eb4febcccd10fac0.webp",
+      "full": "/presentation-previews/3bb464e0c73fe02c877d.webp"
+    }
+  },
+  "course-module": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a08402d1d26d7a5d0d88.webp",
+      "full": "/presentation-previews/c00ee40c5ac02dfc3885.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/09487f52a49129777656.webp",
+      "full": "/presentation-previews/5b8562f64fbac0f16806.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/2606d7b71de2a034ffbb.webp",
+      "full": "/presentation-previews/1e1d6d47bafb5cf8fcfb.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/671f6785b83a7f9e5229.webp",
+      "full": "/presentation-previews/2ecb25f2c6917f72046e.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a00898726b84011957e0.webp",
+      "full": "/presentation-previews/320ab39da2b41f0347e6.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/15b01b7da49a30e0bb6f.webp",
+      "full": "/presentation-previews/cbdcb000d6b0c8cf184b.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/49f9c932e067f8f33b1d.webp",
+      "full": "/presentation-previews/d596c53848f16eefbee1.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/415376d3e0d5a3803eee.webp",
+      "full": "/presentation-previews/3c784db3c30636e4f689.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/d8577295b7a83e18e269.webp",
+      "full": "/presentation-previews/6fa58d018acc35f881e6.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8b96cb33f0974c19b2ab.webp",
+      "full": "/presentation-previews/1ca998dd0fc247e88a9d.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/764bc5900df06137abb1.webp",
+      "full": "/presentation-previews/9c9a217420f62d618e06.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f14034c7d2493e577c9c.webp",
+      "full": "/presentation-previews/f9248e1487399ee46e6e.webp"
+    }
+  },
+  "presenter-mode-reveal": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/283c9a157b1c1de405e6.webp",
+      "full": "/presentation-previews/331811c7f047e402edbc.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b9a2d79b6eb3b5c776fd.webp",
+      "full": "/presentation-previews/787d279257d77aaa73d5.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f72d498376f971ab4f52.webp",
+      "full": "/presentation-previews/cf4303e1887040189459.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/dc9229520e9f9e5845c7.webp",
+      "full": "/presentation-previews/524771c2d304e30eb830.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f6d959a7c17c5334e073.webp",
+      "full": "/presentation-previews/8bc179496fc3dbb3fdcf.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/513903e7aa2946ba6acc.webp",
+      "full": "/presentation-previews/066506af62905568212e.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/90dc72f92560121b5404.webp",
+      "full": "/presentation-previews/3ab525e17734a1a3ef52.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/caabbef87fabee1d059b.webp",
+      "full": "/presentation-previews/3205cb11269e44194a70.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/cbed4e3d9dc2351b5014.webp",
+      "full": "/presentation-previews/bfe26ee09fdd7aa90108.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b126fefe65fd5af91612.webp",
+      "full": "/presentation-previews/6fcb01207c9d40026d9b.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/283c9a157b1c1de405e6.webp",
+      "full": "/presentation-previews/331811c7f047e402edbc.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/48abc36daff6f080a7c0.webp",
+      "full": "/presentation-previews/ed53b3d7165ff35a3ffd.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/981a9af9a7c9e6bd8988.webp",
+      "full": "/presentation-previews/355edc04ec0564643fd0.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/fe0b453d703515d8d039.webp",
+      "full": "/presentation-previews/03965d3e69facb5f18e9.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ba7ae684540f17c22632.webp",
+      "full": "/presentation-previews/42a1fbfe043a2092d743.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/9c1808bf493f784b3424.webp",
+      "full": "/presentation-previews/065fe4395552aceb5273.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/f6044bfec959543fee80.webp",
+      "full": "/presentation-previews/e98d810a9bd7c4c6735b.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e7a6cd6c84ef8e940b94.webp",
+      "full": "/presentation-previews/2c2a8e9f546e95a4e1f8.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/dcc62d12889c555fae84.webp",
+      "full": "/presentation-previews/9431f3847eb5fc5b2710.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5b639f03200a135bd577.webp",
+      "full": "/presentation-previews/1f5eab9ae1a57704f084.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3dc8956ed41b8cd6fecc.webp",
+      "full": "/presentation-previews/9bca412eb35cfe1b6851.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b69addedb178dfeb5469.webp",
+      "full": "/presentation-previews/94a5a1528596386ee99b.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/442a1f754b1981e5bc83.webp",
+      "full": "/presentation-previews/e87396b20fa238ec8d21.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/9b88c91fc132c8c3c036.webp",
+      "full": "/presentation-previews/512409182247ce6172a4.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5831b7b7d98e2a03eebd.webp",
+      "full": "/presentation-previews/11ad14229119f03b3862.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/fb44b385df262b5e8687.webp",
+      "full": "/presentation-previews/95a9033ea9e078d3ac33.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/25d20e3f466ac4417289.webp",
+      "full": "/presentation-previews/3de2f46ae374d5b3973b.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/49f41720e59325c5d0af.webp",
+      "full": "/presentation-previews/d8176b6a277e30e0148c.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/db1eaa727c1b0cccf8d8.webp",
+      "full": "/presentation-previews/e3105e2890e50a828f32.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/fd25b230889c50cfd98d.webp",
+      "full": "/presentation-previews/53b5dd950ef9d40e7a8d.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/52349df5b9682885aedd.webp",
+      "full": "/presentation-previews/0bf2acb91f508659a493.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1d50e6cfedd9b5f41915.webp",
+      "full": "/presentation-previews/b0aed5ec4bcd5c9905d8.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e3fa3320a0eeaf47f7e7.webp",
+      "full": "/presentation-previews/78526281d7c7d1ea1162.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/16fb46b212ab2fce72f3.webp",
+      "full": "/presentation-previews/2e2a3b52d4db6fa59d8d.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/af28d23cf24a351b86ed.webp",
+      "full": "/presentation-previews/ecd23dd775d65471fedd.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/c532be06c5202c9e0207.webp",
+      "full": "/presentation-previews/bd432678c13d5a0ad243.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e27f210fcdaa30becca1.webp",
+      "full": "/presentation-previews/100db3682c6273eb4ffc.webp"
+    }
+  },
+  "xhs-white-editorial": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/056d005b8e0a5989d8a2.webp",
+      "full": "/presentation-previews/b6586148535fbf0f82ad.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/941439f79f56e46188b7.webp",
+      "full": "/presentation-previews/870012ad8073ef6e2b29.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/7a9eed083afec9e86b4e.webp",
+      "full": "/presentation-previews/874bea5e281c4b67434c.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/73e8dca565cf67a4f6e3.webp",
+      "full": "/presentation-previews/4c00920dc2813c2f3f9b.webp"
+    }
+  },
+  "graphify-dark-graph": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/7069ca4ebf4bfa4686ba.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/9d9a5cd7bbb0ad5b5b0e.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/cba3ec149f5e04f709b3.webp",
+      "full": "/presentation-previews/672e64d038309807cb55.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/e8fea0b4ce46928fb793.webp",
+      "full": "/presentation-previews/a7dbd8f81263f0e1e122.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5217862effa3ac9353e4.webp",
+      "full": "/presentation-previews/19b54656e5fe878d0b23.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/2d031af45a17482e65a0.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/00c900046c377279b43d.webp",
+      "full": "/presentation-previews/89ceb25d3bb6ddf97769.webp"
+    }
+  },
+  "knowledge-arch-blueprint": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/7450d2664ba3886aea57.webp",
+      "full": "/presentation-previews/d106320dc57f215aa1b0.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/370f815dbd9461c075f5.webp",
+      "full": "/presentation-previews/b2386c0ee0fefb8a8b12.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8b8d094b0daa36e71aa5.webp",
+      "full": "/presentation-previews/c8ad40185f38bea5b8db.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/a329c30ae5dc71800707.webp",
+      "full": "/presentation-previews/0dd07ef9c50ae26fba28.webp"
+    }
+  },
+  "hermes-cyber-terminal": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/05822c98c51457f3f3e0.webp",
+      "full": "/presentation-previews/5af5581c5df022e4f2f5.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/b1bd4504b29e86e6cc46.webp",
+      "full": "/presentation-previews/1e37581b7c81b6accea8.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/514f813bb9cdd15ec489.webp",
+      "full": "/presentation-previews/ee69989201894ea2b566.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/8fdc04d1354b7f3d9da7.webp",
+      "full": "/presentation-previews/7f88d3dbd535e0fa636b.webp"
+    }
+  },
+  "obsidian-claude-gradient": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ef34c62231e13b97fef0.webp",
+      "full": "/presentation-previews/c8314d1ecaa72d09a724.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/c1f0a4297b69f7c0d0a9.webp",
+      "full": "/presentation-previews/9fa15ee912fb94eb35ba.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/53b9fc058648eff9ebee.webp",
+      "full": "/presentation-previews/993d15660938c282a5eb.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/56a4ab94fe3fe5f43412.webp",
+      "full": "/presentation-previews/29d33778f3db06c67f97.webp"
+    }
+  },
+  "testing-safety-alert": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/7f38fe898a0573f2a027.webp",
+      "full": "/presentation-previews/c097dc22d38b34b2233e.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/c5cf42eda975e88ee1ad.webp",
+      "full": "/presentation-previews/5dd501ed691f418e5331.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/393c1dffae5b4efadbd4.webp",
+      "full": "/presentation-previews/dfe0823ca80acc62aca4.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5854fca2f483f5c2d51f.webp",
+      "full": "/presentation-previews/afb902d9c8b1c0d1e7bf.webp"
+    }
+  },
+  "xhs-pastel-card": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/7198859e5dcb92d8f010.webp",
+      "full": "/presentation-previews/f6ae8a33b4ff70200523.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1172a29a0f47d84d45a6.webp",
+      "full": "/presentation-previews/f430e9f1f3d872ab08b9.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/506c25cf285cfefa8162.webp",
+      "full": "/presentation-previews/3931649b7dba1d546324.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/07cedee042faeb4e3cff.webp",
+      "full": "/presentation-previews/eb46f8b00ca18055e49e.webp"
+    }
+  },
+  "dir-key-nav-minimal": {
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "minimal-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "editorial-serif": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "soft-pastel": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "sharp-mono": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "arctic-cool": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "sunset-warm": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "catppuccin-latte": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "catppuccin-mocha": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "dracula": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "tokyo-night": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "nord": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "solarized-light": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "gruvbox-dark": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "rose-pine": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "neo-brutalism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "glassmorphism": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "bauhaus": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "swiss-grid": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "terminal-green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/d5eab2e6a347f369ca99.webp",
+      "full": "/presentation-previews/af45c09dd7fb4af618cf.webp"
+    },
+    "xiaohongshu-white": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "rainbow-gradient": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "aurora": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "blueprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "memphis-pop": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "cyberpunk-neon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "y2k-chrome": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "retro-tv": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/fda4cc872bdc63a1b460.webp",
+      "full": "/presentation-previews/0328d03cdc01e93369d5.webp"
+    },
+    "japanese-minimal": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "vaporwave": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "midcentury": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "corporate-clean": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "academic-paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "news-broadcast": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/df166c7e60d557f58fb2.webp",
+      "full": "/presentation-previews/45c63c57094aec9d9ec0.webp"
+    },
+    "pitch-deck-vc": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "magazine-bold": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/62622e2a1ad246078288.webp",
+      "full": "/presentation-previews/13861f6c5a9b4987ebd1.webp"
+    },
+    "engineering-whiteprint": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/1f0eaccc97618febb592.webp",
+      "full": "/presentation-previews/a2f0e5bee3c7a4ee426d.webp"
+    }
+  },
+  "guizang": {
+    "default": {
+      "width": 2400,
+      "height": 1350,
+      "thumb": "/presentation-previews/d4ef03026ff0c16478a3.webp",
+      "full": "/presentation-previews/34d8d63e36e5e245bf05.webp"
+    }
+  }
+}

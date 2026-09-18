@@ -1,3 +1,6 @@
+import { useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import previewAssets from './native-preview-assets.json';
 import { NATIVE_HTML_TEMPLATES, NATIVE_HTML_THEMES, NATIVE_GUIZANG_THEMES, type NativePresentationWorkflow } from '@open-design/contracts';
 import { useI18n } from '../i18n';
 import { SelectField } from '../components/SelectField';
@@ -17,21 +20,31 @@ export function NativeTemplatePicker({ workflow, template, theme, onChange, disa
   </>;
 }
 
+type PreviewAsset = { thumb: string; full: string; width: number; height: number };
+const previews: Record<string, Record<string, PreviewAsset>> = previewAssets;
+
 export function NativeTemplatePreview({ workflow, template, theme }: {
   workflow: NativePresentationWorkflow; template: string; theme: string;
 }) {
   const { locale } = useI18n();
   const zh = locale.startsWith('zh');
   const html = workflow === 'html-ppt';
-  const base = `/api/native-presentation-resources/${workflow}/`;
-  const path = !template ? 'templates/full-decks-index.html' : template === 'custom' ? 'templates/deck.html' : `templates/full-decks/${template}/index.html`;
-  const reference = `${base}assets/ppt-skill-showcase.png`;
-  const themeIndex = NATIVE_HTML_THEMES.findIndex(id => id === theme);
-  return <aside className="native-ppt__templates" aria-label={zh ? '模板预览' : 'Template preview'}>
-    <span className="od-field__label">{html ? (zh ? '模板预览' : 'Template preview') : (zh ? '风格参考' : 'Style reference')}</span>
-    {html ? <a className={`native-ppt__template-preview${template === 'xhs-pastel-card' ? ' native-ppt__template-preview--portrait' : ''}`} href={`${base}${path}`} target="_blank" rel="noreferrer" aria-label={zh ? '放大原模板' : 'Enlarge original template'}>
-      <iframe title={zh ? '原始模板预览' : 'Original template preview'} src={`${base}${path}?preview=1`} sandbox="allow-scripts" tabIndex={-1} />
-    </a> : <a href={reference} target="_blank" rel="noreferrer" aria-label={zh ? '放大风格参考' : 'Enlarge style reference'}><img className="native-ppt__original-showcase" src={reference} alt={zh ? '设计创作风格参考' : 'Design style reference'} /></a>}
-    <div className="native-ppt__template-actions">{html ? <a href={`${base}${path}`} target="_blank" rel="noreferrer">{zh ? '查看原模板 ↗' : 'Open template ↗'}</a> : <a href={reference} target="_blank" rel="noreferrer">{zh ? '查看风格参考 ↗' : 'Open style reference ↗'}</a>}{html && <a href={`${base}templates/theme-showcase.html${themeIndex >= 0 ? `?preview=${themeIndex+1}` : ''}`} target="_blank" rel="noreferrer">{zh ? '查看原主题 ↗' : 'Open themes ↗'}</a>}</div>
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const key = html ? (template || (theme ? 'custom' : 'recommend')) : 'guizang';
+  const variants = previews[key] ?? previews.recommend!;
+  const asset = variants[html && theme ? theme : 'default'] ?? variants.default!;
+  const title = html ? (zh ? '模板预览' : 'Template preview') : (zh ? '风格参考' : 'Style reference');
+  const alt = html ? (zh ? '原始模板预览' : 'Original template preview') : (zh ? '设计创作风格参考' : 'Design style reference');
+  const close = () => { dialog.current?.close(); setExpanded(false); };
+  return <aside className="native-ppt__templates" aria-label={title}>
+    <span className="od-field__label">{title}</span>
+    <button type="button" className="native-ppt__template-preview" aria-label={zh ? `放大${title}` : `Enlarge ${title.toLowerCase()}`} onClick={() => { setExpanded(true); dialog.current?.showModal(); }}>
+      <img key={asset.thumb} src={asset.thumb} alt={alt} width={asset.width} height={asset.height} decoding="async" />
+    </button>
+    <dialog ref={dialog} className="native-ppt__preview-dialog" aria-label={title} onClose={() => setExpanded(false)} onCancel={close} onClick={event => { if (event.target === event.currentTarget) { const rect = event.currentTarget.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close(); } }}>
+      <button type="button" className="native-ppt__preview-close" aria-label={zh ? '关闭预览' : 'Close preview'} onClick={close}><X size={20} aria-hidden="true" /></button>
+      {expanded && <img src={asset.full} alt={alt} width={asset.width} height={asset.height} />}
+    </dialog>
   </aside>;
 }

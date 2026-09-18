@@ -127,10 +127,14 @@ const nextConfig: NextConfig = {
   ...(!shouldStaticExport
     ? {
         async headers() {
-          return DEV_NO_STORE_HEADERS.map((entry) => ({
+          return [...DEV_NO_STORE_HEADERS.map((entry) => ({
             ...entry,
             headers: entry.headers.map((header) => ({ ...header })),
-          }));
+          })), {
+            // Preview filenames contain the hash of their bytes.
+            source: '/presentation-previews/:path*',
+            headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+          }];
         },
       }
     : {}),

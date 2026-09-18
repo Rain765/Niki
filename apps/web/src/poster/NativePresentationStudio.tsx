@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { ArrowRight, FileText, Upload } from 'lucide-react';
+import { ArrowRight, FileText, Paperclip, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { fetchDesignTemplates, fetchSkills } from '../providers/registry';
 import { listProjects } from '../state/projects';
@@ -93,19 +93,22 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
       </section>
       <section className="native-ppt__generation" aria-label={zh ? '生成区' : 'Creation area'}>
         <div className="native-ppt__source">
-          <div className="native-ppt__upload-row">
-            <label className="native-ppt__upload">
-              <Upload size={20} aria-hidden="true" />
-              <span className="native-ppt__upload-copy"><strong title={file?.name}>{file?.name ?? (zh ? '上传文档' : 'Upload document')}</strong><small>{file ? (zh ? '点击替换' : 'Click to replace') : 'PDF / Word / PPTX / Markdown / TXT / CSV / Excel'}</small></span>
-              <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '上传文档' : 'Upload document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFiles(old => ({...old,[skill]:selected})); }} disabled={busy} />
-            </label>
-            {file && <Button size="compact" variant="ghost" disabled={busy} onClick={() => setFiles(old => ({...old,[skill]:undefined}))}>{zh ? '移除' : 'Remove'}</Button>}
+          <label className="od-field native-ppt__topic" htmlFor="ppt-creation-content"><span className="od-field__label">{zh ? '创作内容' : 'Content'}</span></label>
+          <div className="native-ppt__composer">
+            <textarea id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '填写主题、要求，或添加文档' : 'Enter a topic, requirements, or add a document'} rows={2} />
+            <div className="native-ppt__attachments">
+              <label className="native-ppt__upload" title="PDF / Word / PPTX / Markdown / TXT / CSV / Excel">
+                <Paperclip size={16} aria-hidden="true" />
+                <span>{file ? (zh ? '替换文档' : 'Replace document') : (zh ? '添加文档' : 'Add document')}</span>
+                <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFiles(old => ({...old,[skill]:selected})); }} disabled={busy} />
+              </label>
+              {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} onClick={() => setFiles(old => ({...old,[skill]:undefined}))}><X size={14} aria-hidden="true" /></button></span>}
+            </div>
           </div>
-          <label className="od-field native-ppt__topic"><span className="od-field__label">{zh ? '主题与要求' : 'Topic and requirements'}</span><textarea value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '填写主题或补充要求，也可以只上传文档' : 'Enter a topic or requirements, or upload a document'} rows={3} /></label>
         </div>
         <NativeTemplatePreview workflow={skill} template={brief.style} theme={brief.theme} />
         <div className="native-ppt__generation-actions">
-          <div>{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>
+          <div className="native-ppt__generation-status">{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>
           <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '正在保存资料…' : 'Saving source…') : (zh ? '开始创作' : 'Start creating')}<ArrowRight size={18} /></Button>
         </div>
       </section>
