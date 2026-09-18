@@ -5,7 +5,18 @@ export const NATIVE_INSPECTION_SCRIPT = String.raw`(index) => {
   const seen = new Set();
   const textRects = [];
   const elements = [];
-  const rgba = color => { const x = color.match(/[\d.]+/g); return x && x.length >= 3 ? [Number(x[0]),Number(x[1]),Number(x[2]),x.length > 3 ? Number(x[3]) : 1] : null; };
+  // Browser-computed color-mix() values use color(srgb ...) with 0..1 channels.
+  // Let the browser convert every supported CSS color into the same sRGB bytes.
+  const colorCanvas = document.createElement('canvas'); colorCanvas.width = colorCanvas.height = 1;
+  const colorContext = colorCanvas.getContext('2d', {willReadFrequently:true});
+  const colors = new Map();
+  const rgba = color => {
+    if (colors.has(color)) return colors.get(color);
+    if (!colorContext || !CSS.supports('color', color)) return null;
+    colorContext.clearRect(0,0,1,1); colorContext.fillStyle = color; colorContext.fillRect(0,0,1,1);
+    const bytes = colorContext.getImageData(0,0,1,1).data;
+    const result = [bytes[0],bytes[1],bytes[2],bytes[3]/255]; colors.set(color,result); return result;
+  };
   const luminance = color => color.slice(0,3).map(x=>{x/=255;return x<=0.04045?x/12.92:Math.pow((x+0.055)/1.055,2.4)}).reduce((n,x,i)=>n+x*[0.2126,0.7152,0.0722][i],0);
   const add = (kind, text) => {
     const key = kind + ':' + text;
