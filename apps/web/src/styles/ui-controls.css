@@ -66,6 +66,23 @@
   background: var(--poster-panel-muted, var(--bg-subtle));
 }
 
+/* Free-text fields adjacent to the shared selectors use the same control tokens. */
+.od-control-input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--od-control-height);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--od-control-radius);
+  background: var(--od-control-fill);
+  color: var(--od-control-text);
+  font: inherit;
+  font-size: 13px;
+}
+.od-control-input::placeholder { color: var(--od-control-muted); }
+.od-control-input:focus-visible { outline: 2px solid var(--od-control-focus); outline-offset: 2px; }
+.od-control-input:disabled { color: var(--od-control-disabled); cursor: not-allowed; opacity: 0.58; }
+
 .od-control-select {
   position: relative;
   width: 100%;

@@ -8,7 +8,9 @@ import { useI18n } from '../i18n';
 import { fetchDesignTemplates, fetchSkills } from '../providers/registry';
 import { listProjects } from '../state/projects';
 import type { Project, SkillSummary } from '../types';
-import { NativeTemplatePicker } from './NativeTemplatePicker';
+import { Button } from '../components/Button';
+import { SelectField } from '../components/SelectField';
+import { NativeTemplatePicker, NativeTemplatePreview } from './NativeTemplatePicker';
 import { isNativePresentation, prepareNativePresentation, type NativePptBrief, type NativePptSkill } from './native-presentations';
 import './native-presentation-studio.css';
 
@@ -89,25 +91,36 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
       <iframe title={zh ? '原生演示工作区' : 'Native presentation workspace'} src={nativePresentationWorkspaceUrl(projectId)} />
     </div> : view === 'history' ? <div className="native-ppt__history">
       {!projects.length && <p>{zh ? '暂无文稿' : 'No presentations yet'}</p>}
-      {projects.map((project) => <button key={project.id} onClick={() => open(project.id)}><FileText size={22} /><span><strong>{project.name}</strong><small>{project.skillId === 'html-ppt' ? 'HTML PPT Studio' : 'Guizang'} · {new Date(project.updatedAt).toLocaleDateString(locale)}</small></span><ArrowRight size={18} /></button>)}
-    </div> : <>
-      <div className="native-ppt__switch" role="tablist" onKeyDown={tabKeys} aria-label={zh ? '生成方式' : 'Workflow'}>
-        <button role="tab" tabIndex={skill === 'html-ppt' ? 0 : -1} aria-selected={skill === 'html-ppt'} onClick={() => switchWorkflow('html-ppt')}>HTML PPT Studio</button>
-        <button role="tab" tabIndex={skill === 'guizang-ppt-skill' ? 0 : -1} aria-selected={skill === 'guizang-ppt-skill'} onClick={() => switchWorkflow('guizang-ppt-skill')}>Guizang</button>
-      </div>
-      <div className="native-ppt__compose">
-        <form onSubmit={(event) => { event.preventDefault(); void create(); }}>
-          <label className="native-ppt__upload"><Upload size={24}/><strong>{file?.name ?? (zh ? '上传原始文档' : 'Upload source document')}</strong><span>{zh ? 'PDF、Word、PPTX、Markdown、文本 · 原文件完整保留' : 'PDF, Word, PPTX, Markdown, text · Original file retained'}</span><input type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={(event) => setFiles((old) => ({ ...old, [skill]: event.target.files?.[0] }))} disabled={busy} /></label>
-          {file && <button type="button" className="native-ppt__text-button" onClick={() => setFiles((old) => ({ ...old, [skill]: undefined }))}>{zh ? '移除文件' : 'Remove file'}</button>}
-          <label>{zh ? '主题与要求' : 'Topic and requirements'}<textarea value={brief.topic} onChange={(event) => edit({ topic: event.target.value })} placeholder={zh ? '希望观众理解什么？必须保留哪些内容？也可以只上传文档，在下一步一起确认。' : 'What should the audience understand? What must be preserved?'} rows={4} /></label>
-          <div className="native-ppt__fields"><label>{zh ? '受众 / 使用场景' : 'Audience / occasion'}<input value={brief.audience} onChange={(event) => edit({ audience: event.target.value })} placeholder={zh ? '例如：产品团队 · 方案评审' : 'e.g. Product team · Design review'} /></label><label>{zh ? '目标页数' : 'Target slides'}<select value={brief.pages} onChange={(event) => edit({ pages: event.target.value })}><option value="auto">{zh ? '按内容建议' : 'Recommend from content'}</option>{[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n}</option>)}</select></label></div>
-          <label>{zh ? '分享时长（分钟）' : 'Duration (minutes)'}<input type="number" min={1} max={240} value={brief.duration} onChange={(event) => edit({ duration: event.target.value })} /></label>
-          {!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}
-          {error && <p className="native-ppt__error" role="alert">{error}</p>}
-          <button type="submit" className="native-ppt__submit" disabled={busy || !available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '正在保存资料…' : 'Saving source…') : (zh ? '开始创作' : 'Start creating')}<ArrowRight size={18}/></button>
-        </form>
-        <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} onChange={(style, theme) => edit({ style, theme })} />
-      </div>
-    </>}
+      {projects.map((project) => <button key={project.id} onClick={() => open(project.id)}><FileText size={22} /><span><strong>{project.name}</strong><small>{project.skillId === 'html-ppt' ? (zh ? '模板创作' : 'Template creation') : (zh ? '设计创作' : 'Design creation')} · {new Date(project.updatedAt).toLocaleDateString(locale)}</small></span><ArrowRight size={18} /></button>)}
+    </div> : <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
+      <section className="native-ppt__filters od-generation-toolbar od-filter-grid" aria-label={zh ? '创作筛选' : 'Creation settings'}>
+        <SelectField className="od-filter-grid__item" label={zh ? '创作方式' : 'Creation mode'} value={skill} disabled={busy} onChange={value => switchWorkflow(value as NativePptSkill)} options={[
+          {value:'html-ppt',label:zh ? '模板创作' : 'Template creation'},
+          {value:'guizang-ppt-skill',label:zh ? '设计创作' : 'Design creation'},
+        ]} />
+        <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={(style, theme) => edit({ style, theme })} />
+        <SelectField className="od-filter-grid__item" label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
+        <label className="od-field od-filter-grid__item"><span className="od-field__label">{zh ? '受众 / 场景' : 'Audience / occasion'}</span><input className="od-control-input" value={brief.audience} disabled={busy} onChange={event => edit({audience:event.target.value})} placeholder={zh ? '如：产品团队' : 'e.g. Product team'} /></label>
+        <label className="od-field od-filter-grid__item"><span className="od-field__label">{zh ? '分享时长（分钟）' : 'Duration (minutes)'}</span><input className="od-control-input" type="number" min={1} max={240} value={brief.duration} disabled={busy} onChange={event => edit({duration:event.target.value})} placeholder={zh ? '选填' : 'Optional'} /></label>
+      </section>
+      <section className="native-ppt__generation" aria-label={zh ? '生成区' : 'Creation area'}>
+        <div className="native-ppt__source">
+          <div className="native-ppt__upload-row">
+            <label className="native-ppt__upload">
+              <Upload size={20} aria-hidden="true" />
+              <span className="native-ppt__upload-copy"><strong title={file?.name}>{file?.name ?? (zh ? '上传文档' : 'Upload document')}</strong><small>{file ? (zh ? '点击替换' : 'Click to replace') : 'PDF / Word / PPTX / Markdown / TXT / CSV / Excel'}</small></span>
+              <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '上传文档' : 'Upload document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFiles(old => ({...old,[skill]:selected})); }} disabled={busy} />
+            </label>
+            {file && <Button size="compact" variant="ghost" disabled={busy} onClick={() => setFiles(old => ({...old,[skill]:undefined}))}>{zh ? '移除' : 'Remove'}</Button>}
+          </div>
+          <label className="od-field native-ppt__topic"><span className="od-field__label">{zh ? '主题与要求' : 'Topic and requirements'}</span><textarea value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '填写主题或补充要求，也可以只上传文档' : 'Enter a topic or requirements, or upload a document'} rows={3} /></label>
+        </div>
+        <NativeTemplatePreview workflow={skill} template={brief.style} theme={brief.theme} />
+        <div className="native-ppt__generation-actions">
+          <div>{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>
+          <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '正在保存资料…' : 'Saving source…') : (zh ? '开始创作' : 'Start creating')}<ArrowRight size={18} /></Button>
+        </div>
+      </section>
+    </form>}
   </section>;
 }
