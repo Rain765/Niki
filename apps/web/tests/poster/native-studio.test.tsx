@@ -11,81 +11,89 @@ vi.mock('../../src/state/projects', () => ({ listProjects: async () => [], creat
 vi.mock('../../src/poster/native-presentations', async importOriginal => ({...await importOriginal<typeof import('../../src/poster/native-presentations')>(), prepareNativePresentation:vi.fn()}));
 function choose(label: string, option: string) { fireEvent.click(screen.getByRole('combobox',{name:label})); fireEvent.click(screen.getByRole('option',{name:option})); }
 afterEach(() => {cleanup();vi.clearAllMocks(); window.history.replaceState(null,'','/');});
-it('has compact centered navigation and real template selection without legacy or promotional content', async () => {
+it('combines every original template and both styles in one filter without workflow or recommendation choices', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  expect(screen.getByRole('tab',{name:'最新一批'})).toBeTruthy();
-  expect(screen.getByRole('tab',{name:/历史生成/})).toBeTruthy();
-  expect(screen.getByRole('region',{name:'生成区'}).compareDocumentPosition(screen.getByRole('tablist')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  const navigation = screen.getByRole('tablist',{name:'文稿导航'});
-  expect(within(navigation).getAllByRole('tab')).toHaveLength(2);
-  expect(screen.queryByText('旧版文稿')).toBeNull();
-  expect(screen.queryByText('让内容，拥有好的表达。')).toBeNull();
-  expect(screen.queryByText('THE ORIGINAL WORKFLOW')).toBeNull();
-  fireEvent.click(screen.getByRole('combobox',{name:'模板'}));
+  expect(screen.queryByRole('combobox',{name:'创作方式'})).toBeNull();
+  const filters=screen.getByRole('region',{name:'创作筛选'});
+  expect(Array.from(filters.querySelectorAll('.od-field__label')).map(el=>el.textContent)).toEqual(['模板与风格','主题','目标页数','受众 / 场景','分享时长（分钟）']);
+  expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toContain('白底编辑风');
+  fireEvent.click(screen.getByRole('combobox',{name:'模板与风格'}));
+  expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(18);
+  expect(screen.queryByRole('option',{name:/按原流程推荐/})).toBeNull();
+  expect(screen.getByRole('option',{name:'电子杂志'})).toBeTruthy();
+  expect(screen.getByRole('option',{name:'瑞士国际主义'})).toBeTruthy();
   fireEvent.click(screen.getByRole('option',{name:'技术分享'}));
   expect(screen.getByRole('img',{name:'原始模板预览'}).getAttribute('src')).toBe(previewAssets['tech-sharing'].default.thumb);
   expect(document.querySelector('iframe')).toBeNull();
   expect(screen.queryByRole('link',{name:/查看原/})).toBeNull();
-  choose('创作方式', '设计创作');
+  choose('模板与风格', '电子杂志');
   expect(window.location.search).toContain('guizang-ppt-skill');
-  choose('风格', '电子杂志');
   expect(screen.getByRole('img',{name:'设计创作风格参考'}).getAttribute('src')).toBe(previewAssets.guizang.default.thumb);
-  expect(screen.queryByTitle('原始模板预览')).toBeNull();
-  choose('创作方式', '模板创作');
-  expect(screen.getByRole('combobox',{name:'模板'}).textContent).toContain('技术分享');
+  expect(screen.getByRole('region',{name:'生成区'}).compareDocumentPosition(screen.getByRole('tablist')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(screen.queryByText('旧版文稿')).toBeNull();
 });
 
-it('exposes all original HTML themes and never silently selects weekly-report', async () => {
+it('only shows themes belonging to the selected original template/style and clears incompatible themes', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  expect(screen.getByRole('combobox',{name:'模板'}).textContent).toContain('按原流程推荐');
+  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('模板默认');
   fireEvent.click(screen.getByRole('combobox',{name:'主题'}));
   expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(37);
+  expect(screen.queryByRole('option',{name:/推荐/})).toBeNull();
   fireEvent.click(screen.getByRole('option',{name:'arctic-cool'}));
-  expect(screen.getByRole('img',{name:'原始模板预览'}).getAttribute('src')).toBe(previewAssets.custom['arctic-cool'].thumb);
-  choose('创作方式', '设计创作');
-  expect(screen.getByRole('combobox',{name:'主题'}).hasAttribute('disabled')).toBe(true);
-  choose('风格', '瑞士国际主义');
+  choose('模板与风格', '电子杂志');
+  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('Monocle');
+  choose('主题','Dune');
+  choose('模板与风格', '瑞士国际主义');
+  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('IKB');
   fireEvent.click(screen.getByRole('combobox',{name:'主题'}));
-  expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(5);
-  expect(screen.queryByRole('option',{name:'arctic-cool'})).toBeNull();
+  expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(4);
+  expect(screen.queryByRole('option',{name:'Dune'})).toBeNull();
+  fireEvent.click(screen.getByRole('option',{name:'IKB'}));
+  choose('模板与风格','技术分享');
+  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('模板默认');
 });
 
-it('keeps both workflow drafts and original submission values through the compact filters', async () => {
+it('keeps content, file and common settings through cross-workflow template changes and sends original HTML values', async () => {
   vi.mocked(prepareNativePresentation).mockResolvedValue({id:'created',skillId:'html-ppt'} as never);
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  const filters=screen.getByRole('region',{name:'创作筛选'});
-  expect(Array.from(filters.querySelectorAll('.od-field__label')).map(el=>el.textContent)).toEqual(['创作方式','模板','主题','目标页数','受众 / 场景','分享时长（分钟）']);
-  choose('模板','技术分享'); choose('主题','arctic-cool'); choose('目标页数','15');
+  choose('目标页数','15');
   fireEvent.change(screen.getByRole('textbox',{name:'受众 / 场景'}),{target:{value:'产品团队'}});
   fireEvent.change(screen.getByRole('spinbutton',{name:'分享时长（分钟）'}),{target:{value:'20'}});
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'架构与流程'}});
   const file=new File(['All source facts'], 'source.md', {type:'text/markdown'});
   fireEvent.change(screen.getByLabelText('添加文档'),{target:{files:[file]}});
-  choose('创作方式','设计创作'); choose('风格','电子杂志'); choose('主题','Monocle');
-  expect((screen.getByRole('textbox',{name:'创作内容'}) as HTMLTextAreaElement).value).toBe('');
-  choose('创作方式','模板创作');
-  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toContain('arctic-cool');
+  choose('模板与风格','电子杂志');
+  expect((screen.getByRole('textbox',{name:'创作内容'}) as HTMLTextAreaElement).value).toBe('架构与流程');
+  expect(screen.getByText('source.md')).toBeTruthy();
+  fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'补充后的架构与流程'}});
+  choose('模板与风格','技术分享'); choose('主题','arctic-cool');
   expect(screen.getByText('source.md')).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'开始创作'}));
-  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'html-ppt',topic:'架构与流程',audience:'产品团队',pages:'15',style:'tech-sharing',theme:'arctic-cool',duration:'20'},file));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'html-ppt',topic:'补充后的架构与流程',audience:'产品团队',pages:'15',style:'tech-sharing',theme:'arctic-cool',duration:'20'},file));
 });
 
-it('clears incompatible themes when changing design style and submits the original Guizang identifier', async () => {
+it.each([
+  ['电子杂志','A · 电子杂志','Monocle'],
+  ['瑞士国际主义','B · 瑞士国际主义','IKB'],
+])('routes %s through the original Guizang workflow', async (label,style,theme) => {
   vi.mocked(prepareNativePresentation).mockResolvedValue({id:'design',skillId:'guizang-ppt-skill'} as never);
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  choose('创作方式','设计创作'); choose('风格','电子杂志'); choose('主题','Monocle');
-  choose('风格','瑞士国际主义');
-  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toContain('按原流程推荐');
-  choose('主题','IKB');
+  choose('模板与风格',label);
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'发布计划'}});
   fireEvent.click(screen.getByRole('button',{name:'开始创作'}));
-  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'guizang-ppt-skill',topic:'发布计划',audience:'',pages:'auto',style:'B · 瑞士国际主义',theme:'IKB',duration:''},null));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'guizang-ppt-skill',topic:'发布计划',audience:'',pages:'auto',style,theme,duration:''},null));
 });
 
+it('opens existing Guizang workflow links with an explicit style and theme', async () => {
+  window.history.replaceState(null,'','/?pptWorkflow=guizang-ppt-skill');
+  render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
+  await waitFor(() => expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toBe('电子杂志'));
+  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('Monocle');
+});
 
 it('keeps document replacement and removal inside the content composer without losing text', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
@@ -110,7 +118,7 @@ it('loads the full preview only when opened and releases it when closed', async 
   Object.defineProperty(HTMLDialogElement.prototype,'close',{value:close,configurable:true});
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  choose('模板','技术分享'); choose('主题','arctic-cool');
+  choose('模板与风格','技术分享'); choose('主题','arctic-cool');
   const asset=previewAssets['tech-sharing']['arctic-cool'];
   expect(document.querySelector(`img[src="${asset.full}"]`)).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'放大模板预览'}));

@@ -5,7 +5,7 @@
 .native-ppt__nav { margin-bottom: 24px; }
 .native-ppt__nav button { border: 0; background: transparent; color: var(--poster-muted); padding: 12px 22px; border-radius: 8px; }
 .native-ppt__nav button[aria-selected=true] { background: var(--poster-panel-raised); color: var(--poster-text); }
-.native-ppt__filters.od-filter-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.native-ppt__filters.od-filter-grid { grid-template-columns: 1.25fr 1.2fr 1fr 1fr 1fr; }
 .native-ppt__filters :is(.od-control-select__trigger, .od-control-input) { height: var(--od-control-height); }
 .native-ppt__generation { display: grid; grid-template-columns: minmax(0, 1fr) 160px auto; align-items: center; gap: 24px; margin-top: 24px; padding: 16px; border-radius: 16px; background: var(--poster-panel-muted); }
 .native-ppt__source { min-width: 0; display: grid; gap: 8px; }

@@ -7,16 +7,30 @@ import { SelectField } from '../components/SelectField';
 
 const LABELS = ['融资路演', '产品发布', '技术分享', '周报汇报', '图文分享', '培训课程', '演讲者模式', '白底编辑风', '深色关系图', '架构蓝图', '终端风', '渐变叙事', '测试报告', '柔和卡片', '极简导航'];
 export function NativeTemplatePicker({ workflow, template, theme, onChange, disabled = false }: {
-  workflow: NativePresentationWorkflow; template: string; theme: string; disabled?: boolean; onChange: (template: string, theme: string) => void;
+  workflow: NativePresentationWorkflow; template: string; theme: string; disabled?: boolean;
+  onChange: (workflow: NativePresentationWorkflow, template: string, theme: string) => void;
 }) {
   const { locale } = useI18n();
   const zh = locale.startsWith('zh');
   const html = workflow === 'html-ppt';
-  const themes: readonly string[] = html ? NATIVE_HTML_THEMES : template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A : template.startsWith('B') ? NATIVE_GUIZANG_THEMES.B : [];
-  const options = [{value:'',label:zh ? '按原流程推荐' : 'Recommend in workflow'}, ...(html ? [...NATIVE_HTML_TEMPLATES.map((id,index)=>({value:id,label:zh ? LABELS[index]! : id})),{value:'custom',label:zh ? '自由编排' : 'Compose from layouts'}] : [{value:'A · 电子杂志',label:zh ? '电子杂志' : 'Editorial'},{value:'B · 瑞士国际主义',label:zh ? '瑞士国际主义' : 'Swiss'}])];
+  const themes: readonly string[] = html ? NATIVE_HTML_THEMES : template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A : NATIVE_GUIZANG_THEMES.B;
+  const htmlOptions = NATIVE_HTML_TEMPLATES.map((id, index) => ({ value: `html-ppt:${id}`, label: zh ? LABELS[index]! : id, workflow: 'html-ppt' as const, template: id as string }));
+  const options = [
+    ...htmlOptions.filter(option => option.template === 'xhs-white-editorial'),
+    {value:'guizang-ppt-skill:A',label:zh ? '电子杂志' : 'Editorial',workflow:'guizang-ppt-skill' as const,template:'A · 电子杂志'},
+    {value:'guizang-ppt-skill:B',label:zh ? '瑞士国际主义' : 'Swiss',workflow:'guizang-ppt-skill' as const,template:'B · 瑞士国际主义'},
+    ...htmlOptions.filter(option => option.template !== 'xhs-white-editorial'),
+    {value:'html-ppt:custom',label:zh ? '自由编排' : 'Compose from layouts',workflow:'html-ppt' as const,template:'custom'},
+  ];
+  const selected = options.find(option => option.workflow === workflow && option.template === template)!;
   return <>
-    <SelectField className="od-filter-grid__item" disabled={disabled} label={zh ? (html ? '模板' : '风格') : (html ? 'Template' : 'Style')} value={template} onChange={value => onChange(value, '')} options={options} />
-    <SelectField className="od-filter-grid__item" label={zh ? '主题' : 'Theme'} value={theme} disabled={disabled || !themes.length} onChange={value => onChange(template,value)} options={[{value:'',label:zh ? '按原流程推荐 / 模板默认' : 'Recommend / template default'}, ...themes.map(value=>({value,label:value}))]} />
+    <SelectField className="od-filter-grid__item" disabled={disabled} label={zh ? '模板与风格' : 'Template & style'} value={selected.value} onChange={value => {
+      const next = options.find(option => option.value === value);
+      if (!next || next.value === selected.value) return;
+      const nextTheme = next.workflow === 'html-ppt' ? '' : next.template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A[0] : NATIVE_GUIZANG_THEMES.B[0];
+      onChange(next.workflow, next.template, nextTheme);
+    }} options={options} />
+    <SelectField className="od-filter-grid__item" label={zh ? '主题' : 'Theme'} value={theme} disabled={disabled} onChange={value => onChange(workflow,template,value)} options={[...(html ? [{value:'',label:zh ? '模板默认' : 'Template default'}] : []), ...themes.map(value=>({value,label:value}))]} />
   </>;
 }
 

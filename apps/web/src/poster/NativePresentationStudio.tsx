@@ -14,15 +14,15 @@ import { isNativePresentation, prepareNativePresentation, type NativePptBrief, t
 import './native-presentation-studio.css';
 
 const INITIAL: Record<NativePptSkill, NativePptBrief> = {
-  'html-ppt': { skill: 'html-ppt', topic: '', audience: '', pages: 'auto', style: '', theme: '', duration: '' },
-  'guizang-ppt-skill': { skill: 'guizang-ppt-skill', topic: '', audience: '', pages: 'auto', style: '', theme: '', duration: '' },
+  'html-ppt': { skill: 'html-ppt', topic: '', audience: '', pages: 'auto', style: 'xhs-white-editorial', theme: '', duration: '' },
+  'guizang-ppt-skill': { skill: 'guizang-ppt-skill', topic: '', audience: '', pages: 'auto', style: 'A · 电子杂志', theme: 'Monocle', duration: '' },
 };
 export function NativePresentationStudio({ onNavigationLockChange }: { onNavigationLockChange?: (locked: boolean) => void }) {
   const { locale } = useI18n();
   const zh = locale.startsWith('zh');
-  const [skill, setSkill] = useState<NativePptSkill>('html-ppt');
-  const [drafts, setDrafts] = useState(INITIAL);
-  const [files, setFiles] = useState<Partial<Record<NativePptSkill, File>>>({});
+  const [brief, setBrief] = useState<NativePptBrief>(INITIAL['html-ppt']);
+  const [file, setFile] = useState<File>();
+  const skill = brief.skill;
   const [catalog, setCatalog] = useState<SkillSummary[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -31,8 +31,6 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   const results = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const brief = drafts[skill];
-  const file = files[skill];
   const available = catalog.some((item) => item.id === skill && item.hasBody);
   const refresh = () => { void listProjects().then((items) => { const decks = items.filter(isNativePresentation).sort((a,b) => b.updatedAt - a.updatedAt); setProjects(decks); setProjectId(current => current ?? decks[0]?.id ?? null); }); };
   useEffect(() => {
@@ -40,7 +38,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     refresh();
     const query = new URLSearchParams(window.location.search);
     const flow = query.get('pptWorkflow');
-    if (flow === 'html-ppt' || flow === 'guizang-ppt-skill') setSkill(flow);
+    if (flow === 'html-ppt' || flow === 'guizang-ppt-skill') setBrief(INITIAL[flow]);
     const id = query.get('pptProject');
     if (id) { setProjectId(id); setView('latest'); }
   }, []);
@@ -48,7 +46,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     onNavigationLockChange?.(busy);
     return () => onNavigationLockChange?.(false);
   }, [busy, onNavigationLockChange]);
-  const edit = (patch: Partial<NativePptBrief>) => setDrafts((old) => ({ ...old, [skill]: { ...old[skill], ...patch } }));
+  const edit = (patch: Partial<NativePptBrief>) => setBrief(old => ({ ...old, ...patch }));
   const open = (id: string) => {
     setProjectId(id); setView('latest');
     const url = new URL(window.location.href); url.searchParams.set('pptProject', id);
@@ -67,8 +65,8 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     } catch (err) { setError(err instanceof Error ? err.message : String(err)); refresh(); }
     finally { setBusy(false); }
   };
-  const switchWorkflow = (next: NativePptSkill) => {
-    setSkill(next);
+  const selectTemplate = (next: NativePptSkill, style: string, theme: string) => {
+    edit({skill:next, style, theme});
     const url = new URL(window.location.href); url.searchParams.set('pptWorkflow', next);
     window.history.replaceState(null, '', url);
   };
@@ -82,11 +80,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   return <section className="native-ppt" aria-label={zh ? '演示文稿工作室' : 'Presentation studio'}>
     <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
       <section className="native-ppt__filters od-generation-toolbar od-filter-grid" aria-label={zh ? '创作筛选' : 'Creation settings'}>
-        <SelectField className="od-filter-grid__item" label={zh ? '创作方式' : 'Creation mode'} value={skill} disabled={busy} onChange={value => switchWorkflow(value as NativePptSkill)} options={[
-          {value:'html-ppt',label:zh ? '模板创作' : 'Template creation'},
-          {value:'guizang-ppt-skill',label:zh ? '设计创作' : 'Design creation'},
-        ]} />
-        <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={(style, theme) => edit({ style, theme })} />
+        <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
         <SelectField className="od-filter-grid__item" label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
         <label className="od-field od-filter-grid__item"><span className="od-field__label">{zh ? '受众 / 场景' : 'Audience / occasion'}</span><input className="od-control-input" value={brief.audience} disabled={busy} onChange={event => edit({audience:event.target.value})} placeholder={zh ? '如：产品团队' : 'e.g. Product team'} /></label>
         <label className="od-field od-filter-grid__item"><span className="od-field__label">{zh ? '分享时长（分钟）' : 'Duration (minutes)'}</span><input className="od-control-input" type="number" min={1} max={240} value={brief.duration} disabled={busy} onChange={event => edit({duration:event.target.value})} placeholder={zh ? '选填' : 'Optional'} /></label>
@@ -100,9 +94,9 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
               <label className="native-ppt__upload" title="PDF / Word / PPTX / Markdown / TXT / CSV / Excel">
                 <Paperclip size={16} aria-hidden="true" />
                 <span>{file ? (zh ? '替换文档' : 'Replace document') : (zh ? '添加文档' : 'Add document')}</span>
-                <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFiles(old => ({...old,[skill]:selected})); }} disabled={busy} />
+                <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFile(selected); }} disabled={busy} />
               </label>
-              {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} onClick={() => setFiles(old => ({...old,[skill]:undefined}))}><X size={14} aria-hidden="true" /></button></span>}
+              {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
             </div>
           </div>
         </div>
