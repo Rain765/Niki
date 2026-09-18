@@ -5,7 +5,9 @@ export const NATIVE_PRESENTATION_RESOURCES = {
 } as const;
 
 export type NativePresentationWorkflow = keyof typeof NATIVE_PRESENTATION_RESOURCES;
+export const NATIVE_PRESENTATION_INSPECTOR_VERSION = '3';
 export interface NativePresentationInspection {
+  inspectorVersion?: string;
   version: 1;
   entry: string;
   sourceHash: string;
@@ -18,7 +20,8 @@ export interface NativePresentationInspection {
     page: number;
     screenshot: string;
     text: string;
-    issues: Array<{ kind: 'dim-text' | 'low-contrast' | 'overflow' | 'missing-image' | 'pipeline-markup'; text: string }>;
+    design?: { layout: string; background: string; backgroundImage: string; elements: Array<{ text: string; font: string; size: string; weight: string; color: string; x: number; y: number; width: number; height: number }> };
+    issues: Array<{ kind: 'dim-text' | 'low-contrast' | 'overflow' | 'missing-image' | 'pipeline-markup' | 'text-overlap' | 'visual-review'; text: string }>;
   }>;
   blockedResources: string[];
   failedResources: string[];
@@ -55,6 +58,12 @@ export const NATIVE_GUIZANG_THEMES = {
   B: ['IKB', 'Lemon', 'Lemon Green', 'Safety Orange'],
 } as const;
 
+/** Complete decks own their CSS; generic themes only apply to freely composed decks. */
+export function nativePresentationThemes(workflow: NativePresentationWorkflow, template: string): readonly string[] {
+  if (workflow === 'html-ppt') return !template || template === 'custom' ? NATIVE_HTML_THEMES : [];
+  return template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A : template.startsWith('B') ? NATIVE_GUIZANG_THEMES.B : [];
+}
+
 export function nativePresentationDesignInstructions(workflow: NativePresentationWorkflow, template: string, theme = ''): string {
   if (workflow === 'html-ppt') {
     const start = !template ? '起点尚未选择，按原流程推荐整稿模板或自由编排，并与用户确认。'
@@ -62,7 +71,7 @@ export function nativePresentationDesignInstructions(workflow: NativePresentatio
       : `用户选择整稿模板 templates/full-decks/${template}/index.html 及同目录 style.css。`;
     return [
       start,
-      theme ? `用户选择主题 assets/themes/${theme}.css。按 references/themes.md 和 references/authoring-guide.md 应用，检查最终计算样式确实使用该主题。` : '主题尚未选择，按原流程推荐或确认保留模板默认主题。',
+      template && template !== 'custom' ? '完整保留整稿模板自带主题、字体和样式，不叠加通用主题 CSS。' : theme ? `用户选择主题 assets/themes/${theme}.css。按 references/themes.md 和 references/authoring-guide.md 应用，检查最终计算样式确实使用该主题。` : '保留原始默认主题。',
       '完整使用 html-ppt 的模板、主题、布局、图形与动效能力。背景跟随选定模板与主题的实际样式，不另加模板未提供的背景轮换规则。按原流程保留完整依赖及演讲者运行时。',
     ].join('\n');
   }

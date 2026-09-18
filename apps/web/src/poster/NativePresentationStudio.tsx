@@ -81,15 +81,13 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
       <section className="native-ppt__filters od-generation-toolbar od-filter-grid" aria-label={zh ? '创作筛选' : 'Creation settings'}>
         <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
-        <SelectField className="od-filter-grid__item" label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
-        <label className="od-field od-filter-grid__item"><span className="od-field__label">{zh ? '受众 / 场景' : 'Audience / occasion'}</span><input className="od-control-input" value={brief.audience} disabled={busy} onChange={event => edit({audience:event.target.value})} placeholder={zh ? '如：产品团队' : 'e.g. Product team'} /></label>
-        <label className="od-field od-filter-grid__item"><span className="od-field__label">{zh ? '分享时长（分钟）' : 'Duration (minutes)'}</span><input className="od-control-input" type="number" min={1} max={240} value={brief.duration} disabled={busy} onChange={event => edit({duration:event.target.value})} placeholder={zh ? '选填' : 'Optional'} /></label>
+        <SelectField className={`od-filter-grid__item${skill !== 'html-ppt' || brief.style === 'custom' ? ' od-filter-grid__wide' : ''}`} label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
       </section>
       <section className="native-ppt__generation" aria-label={zh ? '生成区' : 'Creation area'}>
         <div className="native-ppt__source">
           <label className="od-field native-ppt__topic" htmlFor="ppt-creation-content"><span className="od-field__label">{zh ? '创作内容' : 'Content'}</span></label>
           <div className="native-ppt__composer">
-            <textarea id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '填写主题、要求，或添加文档' : 'Enter a topic, requirements, or add a document'} rows={2} />
+            <textarea aria-describedby="ppt-content-hint" id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '填写主题、要求，或添加文档' : 'Enter a topic, requirements, or add a document'} rows={2} />
             <div className="native-ppt__attachments">
               <label className="native-ppt__upload" title="PDF / Word / PPTX / Markdown / TXT / CSV / Excel">
                 <Paperclip size={16} aria-hidden="true" />
@@ -99,6 +97,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
               {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
             </div>
           </div>
+          <small id="ppt-content-hint" className="native-ppt__content-hint">{zh ? '可补充受众、使用场景和重点要求。' : 'Optionally include your audience, occasion and priorities.'}</small>
         </div>
         <NativeTemplatePreview workflow={skill} template={brief.style} theme={brief.theme} />
         <div className="native-ppt__generation-actions">

@@ -505,6 +505,14 @@ export function ProjectView({
   // wipes both — leaving the daemon's run with no client-side message to
   // attach the runId to.
   const [messagesInitialized, setMessagesInitialized] = useState(false);
+  useEffect(() => {
+    if (!project.metadata?.nativePresentation || window.parent === window) return;
+    const latest = [...messages].reverse().find(message => message.role === 'assistant');
+    const events = latest?.events ?? [];
+    const answered = new Set(messages.flatMap(message => (message.events ?? []).filter(event => event.kind === 'tool_result').map(event => event.toolUseId)));
+    const required = events.some(event => event.kind === 'tool_use' && /(?:AskUserQuestion|request_user_input)/i.test(event.name) && !answered.has(event.id));
+    window.parent.postMessage({type:'niki:ppt:attention',projectId:project.id,required}, window.location.origin);
+  }, [messages, project.id, project.metadata?.nativePresentation]);
   const [previewComments, setPreviewComments] = useState<PreviewComment[]>([]);
   const [attachedComments, setAttachedComments] = useState<PreviewComment[]>([]);
   const [streaming, setStreaming] = useState(false);

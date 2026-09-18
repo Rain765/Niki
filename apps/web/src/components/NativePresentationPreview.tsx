@@ -132,6 +132,7 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
       <label><span className="native-player__sr-only">{zh?'跳转页码':'Go to slide'}</span><input type="number" min={1} max={deck?.titles.length??1} value={jump} disabled={!ready||editing} onChange={e=>setJump(e.target.value)} onBlur={go} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go();}}}/></label><span>/ {deck?.titles.length??'—'}</span>
       <Button aria-label={zh?'下一页':'Next slide'} disabled={!ready||editing} onClick={()=>command('next')}><ChevronRight size={20}/></Button>
     </div>
-    {!expanded && !editing && <details className="native-player__more"><summary>{zh?'更多操作':'More actions'}</summary><a href={projectFileUrl(projectId,deck?.name??name)} target="_blank" rel="noopener noreferrer">{zh?'原生演示 / 演讲者模式 ↗':'Original presentation / presenter mode ↗'}</a><NativePresentationInspectionPanel key={`${revision}:${retry}`} projectId={projectId} name={deck?.name??name}/></details>}
+    {!expanded && !editing && ready && <NativePresentationInspectionPanel projectId={projectId} name={deck?.name??name} auto={!editingDisabled} revision={`${revision}:${retry}`}/>}
+    {!expanded && !editing && <details className="native-player__more"><summary>{zh?'更多操作':'More actions'}</summary><a href={projectFileUrl(projectId,deck?.name??name)} target="_blank" rel="noopener noreferrer">{zh?'原生演示 / 演讲者模式 ↗':'Original presentation / presenter mode ↗'}</a></details>}
   </div>;
 }

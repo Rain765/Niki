@@ -3,7 +3,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { chromium, type BrowserServer } from 'playwright-core';
-import type { NativePresentationInspection } from '@open-design/contracts';
+import { NATIVE_PRESENTATION_INSPECTOR_VERSION, type NativePresentationInspection } from '@open-design/contracts';
 import { mimeFor } from '../projects.js';
 import { NATIVE_INSPECTION_SCRIPT } from './native-inspection-script.js';
 
@@ -12,7 +12,7 @@ const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 
 /** A saved review only describes the exact entry and dependencies it rendered. */
 export async function nativeInspectionIsStale(projectDir: string, report: NativePresentationInspection): Promise<boolean> {
-  if (report.stale) return true;
+  if (report.stale || report.inspectorVersion !== NATIVE_PRESENTATION_INSPECTOR_VERSION) return true;
   try {
     const root = await realpath(projectDir);
     for (const [name, digest] of Object.entries({...report.resourceHashes, [report.entry]: report.sourceHash})) {
@@ -91,7 +91,7 @@ export async function inspectNativePresentation(input: {
     page.on('requestfailed', request => { failed.add(request.url()); });
     page.setDefaultTimeout(10_000);
     await page.goto(url, { waitUntil: 'load', timeout: 30_000 });
-    const selector = '#deck > .slide, .deck > .slide';
+    const selector = '#deck > .slide, .deck > .slide, body > .slide';
     const count = await page.locator(selector).count();
     if (!count) throw new Error('No native slides found; select the actual deck HTML');
     const html = await page.locator('.deck').count() > 0;
@@ -102,7 +102,17 @@ export async function inspectNativePresentation(input: {
     const slides: NativePresentationInspection['slides'] = [];
     for (let i = 0; i < count; i++) {
       if (html) await page.evaluate(`window.postMessage({type:'preview-goto',idx:${i}},'*')`);
-      else await page.locator('#nav button').nth(i).click();
+      else if (await page.locator('#nav button').count() > i) await page.locator('#nav button').nth(i).click();
+      else await page.evaluate(`if (typeof window.go === 'function') window.go(${i},{force:true})`);
+      await page.evaluate(`(async () => {
+        let timer;
+        try {
+          await Promise.race([
+            Promise.all([document.fonts.ready, ...Array.from(document.images, img => img.decode().catch(() => {}))]),
+            new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Asset readiness timed out')), 10000); }),
+          ]);
+        } finally { clearTimeout(timer); }
+      })()`).catch(() => { failed.add('fonts-or-images-not-ready'); });
       await page.waitForTimeout(2000);
       // Respect the original manual pipeline: reveal every step using its own keyboard interaction.
       const pipeline = page.locator(selector).nth(i).locator('[data-anim="step"]');
@@ -110,7 +120,24 @@ export async function inspectNativePresentation(input: {
         for (let j = 0; j < await pipeline.count(); j++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(100); }
         await page.waitForTimeout(600);
       }
-      const observed = await page.evaluate(`(${NATIVE_INSPECTION_SCRIPT})(${i})`) as Pick<NativePresentationInspection['slides'][number], 'text' | 'issues'>;
+      // Wait for finite entrance animations, but never stop or rewrite original background motion.
+      const settled = await page.evaluate(`(async () => {
+        const deadline = Date.now() + 12000;
+        let stable = 0, previous = '';
+        while (Date.now() < deadline) {
+          const running = document.getAnimations().some(animation =>
+            animation.effect?.getComputedTiming().iterations !== Infinity && (animation.playState === 'running' || animation.pending));
+          const active = document.querySelectorAll('${selector}')[${i}];
+          const sample = [...active.querySelectorAll('h1,h2,h3,p,li,td,span')].map(el => { const s = getComputedStyle(el); return s.opacity + '/' + s.transform; }).join('|');
+          stable = !running && sample === previous ? stable + 1 : 0;
+          if (stable >= 3) return true;
+          previous = sample;
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
+        return false;
+      })()`);
+      if (!settled) failed.add(`page-${i+1}:entrance-animation-not-settled`);
+      const observed = await page.evaluate(`(${NATIVE_INSPECTION_SCRIPT})(${i})`) as Pick<NativePresentationInspection['slides'][number], 'text' | 'issues' | 'design'>;
       const screenshot = `${review}/page-${String(i + 1).padStart(2, '0')}.png`;
       await input.save(screenshot, await page.screenshot());
       slides.push({page: i + 1, screenshot, ...observed});
@@ -120,7 +147,7 @@ export async function inspectNativePresentation(input: {
       catch { resourceChanged = true; }
     }
     const result: NativePresentationInspection = {
-      version: 1, entry: input.entry, sourceHash: hash(original), resourceHashes, stale: resourceChanged || hash(await readFile(file)) !== hash(original), viewport,
+      version: 1, inspectorVersion: NATIVE_PRESENTATION_INSPECTOR_VERSION, entry: input.entry, sourceHash: hash(original), resourceHashes, stale: resourceChanged || hash(await readFile(file)) !== hash(original), viewport,
       reportFile: `${review}/report.json`, visualReviewRequired: true, slides, blockedResources: [...blocked], failedResources: [...failed],
     };
     await input.save(result.reportFile, Buffer.from(JSON.stringify(result, null, 2)));

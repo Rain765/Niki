@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { NATIVE_HTML_TEMPLATES, NATIVE_HTML_THEMES, NATIVE_GUIZANG_THEMES, NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project } from '@open-design/contracts';
+import { NATIVE_HTML_TEMPLATES, nativePresentationThemes, NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project } from '@open-design/contracts';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -115,7 +115,7 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       const template = values.template === 'auto' ? '' : values.template ?? '';
       if (template && workflow === 'html-ppt' && template !== 'custom' && !NATIVE_HTML_TEMPLATES.some(id => id === template)) throw new Error('Unknown native template; use od ppt native-templates --json');
       if (workflow === 'guizang-ppt-skill' && template && !/^[AB](?:$| · )/.test(template)) throw new Error('Guizang template must be A or B');
-      const themes: readonly string[] = workflow === 'html-ppt' ? NATIVE_HTML_THEMES : template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A : template.startsWith('B') ? NATIVE_GUIZANG_THEMES.B : [];
+      const themes: readonly string[] = nativePresentationThemes(workflow, template);
       if (values.theme && !themes.includes(values.theme)) throw new Error('Unknown theme for this workflow/style; use od ppt native-templates --json');
       const brief = `${inputBrief}\n\n${nativePresentationDesignInstructions(workflow, template, values.theme ?? '')}`;
       const registry = workflow === 'html-ppt' ? 'design-templates' : 'skills';

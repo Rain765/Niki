@@ -96,3 +96,18 @@ pnpm exec tsx scripts/presentation-acceptance.ts --manifest /absolute/comparison
 ```
 
 `comparison.json` 结构为 `{cases: [caseId], engines: ["current-product", "guizang-skill", "built-in-html-ppt"], repetitions: 3, runs: [{caseId, engine, repetition: 1, result: "result.json", reviews: ["review-A.json", "review-B.json"]}]}`。路径相对 manifest。两份独立评审必须填写不同 reviewer、逐项 pass/fail、页码、证据和理由，绑定相同原文/答案/成品哈希。缺失、失败、未评、分歧或配置不匹配均返回非零退出码。这个门槛可以阻止未经验证的质量声明，不能替代评审者或产生尚不存在的金标准。
+
+## 原生 HTML 演示评测
+
+两套原生方案可沿用同一批冻结输入与核对项，无需先转成 PPTX：
+
+```sh
+od ppt inspect-native --project PROJECT --file index.html --json
+pnpm exec tsx scripts/presentation-eval.ts evaluate \
+  --case 01-long-report --inspection /project/native-review/RUN/report.json \
+  --project-dir /project --run /evidence/run.json --out /evidence/new-run
+```
+
+评测前重新核对实际 HTML、CSS、脚本等资源哈希；读取每一页 PNG，并将图片和检查记录一起绑定到产物哈希。旧评审不能用于修改后的输出。渲染检查会记录裁切、文字重叠、资源缺失等候选问题，复杂背景上的文字明确保留为视觉核对项。文字命中依然只是候选证据，不能证明关系、箭头、否定条件、视觉效果或原模板一致性。仍须通过现有独立评审门槛，不自动给出“质量通过”。
+
+原模板冻结对照应记录全部页面的截图和字体、颜色、几何位置；新生成对照应记录同一输入、原规则、模型、实际费用和失败结果。历史样本可以做回归，不能替代新一轮生成，也不能据此给出生产覆盖率。

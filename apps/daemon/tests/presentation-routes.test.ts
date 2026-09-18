@@ -51,7 +51,7 @@ describe('document to PPT HTTP workflow', () => {
     expect(job.status).toBe('running');
     const url=`${base}/api/projects/deck/native-presentation/inspections/${job.id}`;
     expect((await fetch(url,{headers:{'x-test-user':'other'}})).status).toBe(404);
-    expect((await start()).status).toBe(409);
+    expect(await (await start()).json()).toMatchObject({id:job.id,status:'running'});
     release();
     await expect.poll(async()=>((await (await fetch(url)).json()) as NativePresentationInspectionJob).status).toBe('completed');
     const saved=JSON.parse(await readFile(path.join(root,'projects/deck/native-review/report.json'),'utf8'));

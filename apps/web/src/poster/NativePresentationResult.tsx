@@ -15,6 +15,9 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
   const [error, setError] = useState('');
   const [workspace, setWorkspace] = useState(false);
   const [opened, setOpened] = useState(false);
+  const [attention, setAttention] = useState(false);
+  const workspaceFrame = useRef<HTMLIFrameElement>(null);
+  const conversationButton = useRef<HTMLSpanElement>(null);
   const [retry, setRetry] = useState(0);
   const hadEntry = useRef(false);
   const conversationInitialized = useRef(false);
@@ -36,11 +39,12 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
         // Original workflows publish index.html; allow named decks, excluding copied source and review files.
         const html = files.filter(file => /\.html?$/i.test(file.name) && !/^(native-review|source|references|node_modules|assets)\//.test(file.name));
         const next = html.find(file => file.name === 'index.html') ?? html.find(file => file.artifactKind === 'deck') ?? html[0] ?? null;
-        setEntry(next); setRunning(active); setFailed(!active && latestRun?.status === 'failed'); setLoading(false); setError('');
+        const visible = active && !hadEntry.current ? null : next;
+        setEntry(visible); setRunning(active); setFailed(!active && latestRun?.status === 'failed'); setLoading(false); setError('');
         // Wait for a write burst to finish before replacing a readable deck. Inspection files never reload it.
         if (!active || !hadEntry.current) setRevision(files.filter(file => /\.(html?|css|js|mjs|svg)$/i.test(file.name) && !file.name.startsWith('native-review/')).map(file => `${file.name}:${file.mtime}:${file.size}`).sort().join('|'));
-        if (next && !hadEntry.current) { setWorkspace(false); hadEntry.current = true; }
-        if (!next && !conversationInitialized.current) { setOpened(true); setWorkspace(true); conversationInitialized.current = true; }
+        if (visible && !hadEntry.current) { setWorkspace(false); hadEntry.current = true; }
+        if (!visible && !conversationInitialized.current) { setOpened(true); conversationInitialized.current = true; }
       } catch (cause) {
         if (!controller.signal.aborted) { setLoading(false); setError(cause instanceof Error ? cause.message : String(cause)); }
       } finally {
@@ -50,15 +54,30 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
     void poll();
     return () => { controller.abort(); clearTimeout(timer); };
   }, [projectId, retry, zh]);
+  useEffect(() => {
+    const receive = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== workspaceFrame.current?.contentWindow || event.data?.projectId !== projectId) return;
+      if (event.data.type === 'niki:ppt:attention') setAttention(Boolean(event.data.required));
+    };
+    window.addEventListener('message', receive);
+    return () => window.removeEventListener('message', receive);
+  }, [projectId]);
+  useEffect(() => {
+    if (!workspace) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') { setWorkspace(false); conversationButton.current?.querySelector('button')?.focus(); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [workspace]);
   return <div className="native-ppt__result">
     {error && <p role="alert">{error} <Button size="compact" onClick={()=>setRetry(n=>n+1)}>{zh?'重试':'Retry'}</Button></p>}
-    {(loading || (running && !entry)) && <div className="native-ppt__pending" role="status" aria-label={zh ? (running?'正在生成文稿':'正在加载文稿') : (running?'Generating presentation':'Loading presentation')}><div className="native-player__skeleton"><span/><span/><span/></div></div>}
-    {running && <p role="status">{zh?'正在生成，可在下方查看进度或补充要求…':'Generating. See progress or add requirements below…'}</p>}
-    {failed && <p role="alert">{zh?'这次生成未完成，请在下方查看原因并继续。':'Generation did not finish. Review the conversation below to continue.'}</p>}
+    {(!entry && !error && !failed) && <div className="native-ppt__pending" role="status" aria-label={zh ? (running?'正在生成文稿':'正在加载文稿') : (running?'Generating presentation':'Loading presentation')}><div className="native-player__skeleton"><span/><span/><span/></div></div>}
+    {(attention || (!loading && !running && !entry && !failed && !error)) && <p role="status">{zh?'需要确认后继续':'Confirmation needed to continue'}</p>}
+    {running && <p role="status">{zh?'正在生成…':'Generating…'}</p>}
+    {failed && <p role="alert">{zh?'这次生成未完成，可打开确认与修改继续。':'Generation did not finish. Review the conversation below to continue.'}</p>}
     {entry && <NativePresentationPreview projectId={projectId} name={entry.name} revision={revision} editingDisabled={running}/>}
-    {!loading && <Button className="native-ppt__conversation-toggle" variant="ghost" aria-expanded={workspace} aria-controls={`ppt-workspace-${projectId}`} onClick={()=>{setOpened(true);setWorkspace(value=>!value);}}>{workspace?(zh?'收起对话':'Hide conversation'):(zh?'生成与修改':'Generate and revise')}</Button>}
-    {opened && <div id={`ppt-workspace-${projectId}`} className="native-ppt__workspace" hidden={!workspace}>
-      <iframe title={zh?'生成与修改工作区':'Generation and editing workspace'} src={nativePresentationWorkspaceUrl(projectId)} allowFullScreen />
+    {!loading && <span ref={conversationButton}><Button className="native-ppt__conversation-toggle" variant="ghost" aria-expanded={workspace} aria-controls={`ppt-workspace-${projectId}`} onClick={()=>{setOpened(true);setWorkspace(value=>!value);}}>{workspace?(zh?'收起':'Close'):(zh?(attention?'需要确认':'确认与修改'):'Review and revise')}</Button></span>}
+    {opened && <div id={`ppt-workspace-${projectId}`} className="native-ppt__workspace" hidden={!workspace} role="region" aria-label={zh?'确认与修改':'Review and revise'}>
+      <iframe ref={workspaceFrame} title={zh?'生成与修改工作区':'Generation and editing workspace'} src={`${nativePresentationWorkspaceUrl(projectId)}&embedded=1`} allowFullScreen />
     </div>}
   </div>;
 }

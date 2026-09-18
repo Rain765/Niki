@@ -44,7 +44,7 @@ it('uses original project, file and run APIs without calling the restricted pres
 });
 
 it.each([
-  ['html-ppt', 'weekly-report', 'arctic-cool', 'assets/themes/arctic-cool.css'],
+  ['html-ppt', 'custom', 'arctic-cool', 'assets/themes/arctic-cool.css'],
   ['html-ppt', 'auto', 'arctic-cool', '起点尚未选择'],
   ['guizang-ppt-skill', 'A', 'Monocle', 'references/layouts.md'],
   ['guizang-ppt-skill', 'B', 'IKB', 'references/swiss-layout-lock.md'],
@@ -81,4 +81,15 @@ it('rejects a theme from another workflow before creating a project', async () =
     expect(process.exitCode).toBe(1);
     expect(fetchMock).not.toHaveBeenCalled();
   } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+it('rejects a generic theme layered over a complete deck before creating files',async()=>{
+ const dir=await mkdtemp(path.join(tmpdir(),'native-template-theme-'));
+ try {
+  await writeFile(path.join(dir,'brief.md'),'Use the original complete template.');
+  vi.spyOn(console,'error').mockImplementation(()=>{});
+  const request=vi.fn();vi.stubGlobal('fetch',request);
+  await runPresentationCli(['native','--workflow','html-ppt','--template','tech-sharing','--theme','arctic-cool','--prompt-file',path.join(dir,'brief.md')]);
+  expect(process.exitCode).toBe(1);expect(request).not.toHaveBeenCalled();
+ } finally {await rm(dir,{recursive:true,force:true});}
 });

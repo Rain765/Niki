@@ -79,6 +79,7 @@ export function registerPresentationRoutes(
   const editing = new Set<string>();
   const inspecting = new Set<string>();
   const inspections = new Map<string, NativePresentationInspectionJob>();
+  const inspectionEntries = new Map<string, string>();
   app.get('/api/projects/:id/native-presentation/inspections/:inspectionId', async (req, res) => {
     const project = getProject(db, req.params.id);
     const job = inspections.get(req.params.inspectionId);
@@ -93,12 +94,17 @@ export function registerPresentationRoutes(
     const project = getProject(db, req.params.id);
     if (!project || !['html-ppt', 'guizang-ppt-skill'].includes(project.skillId ?? '')) return res.status(404).json({ error: 'Native presentation not found' });
     if (typeof req.body?.entry !== 'string' || !/\.html?$/i.test(req.body.entry)) return res.status(400).json({ error: 'Select an HTML presentation' });
+    const previous = [...inspections.values()].find(job => job.projectId === project.id);
+    if (previous?.status === 'running' && inspectionEntries.get(previous.id) === req.body.entry) return res.status(202).json(previous);
+    if (previous?.status === 'completed' && previous.report && previous.report.entry === req.body.entry &&
+        !await nativeInspectionIsStale(resolveProjectDir(projectsRoot, project.id, project.metadata), previous.report)) return res.json(previous);
     if (inspecting.has(project.id)) return res.status(409).json({ error: 'This presentation is already being inspected' });
     inspecting.add(project.id);
     const job: NativePresentationInspectionJob = {id:randomUUID(),projectId:project.id,status:'running'};
     // Completed reports live in project files; retain only the latest in-memory job per project.
-    for (const [id, previous] of inspections) if (previous.projectId === project.id) inspections.delete(id);
+    for (const [id, previous] of inspections) if (previous.projectId === project.id) { inspections.delete(id); inspectionEntries.delete(id); }
     inspections.set(job.id, job);
+    inspectionEntries.set(job.id, req.body.entry);
     res.status(202).json(job);
     void (async () => { try {
       job.report = await (deps.inspectNative ?? inspectNativePresentation)({

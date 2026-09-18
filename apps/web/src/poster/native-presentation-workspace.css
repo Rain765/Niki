@@ -11,3 +11,9 @@
 
 .native-ppt-workspace .df-preview-thumb:has(.native-player) { height: auto; aspect-ratio: auto; }
 .native-ppt-workspace .viewer-body:has(> .native-player) { overflow-y: auto; display: block; }
+
+.native-ppt-workspace--embedded .split { display: flex; }
+.native-ppt-workspace--embedded .split > .workspace,
+.native-ppt-workspace--embedded .split > .split-resize-handle,
+.native-ppt-workspace--embedded .project-chat-chrome { display: none; }
+.native-ppt-workspace--embedded .split > .split-chat-slot { display: flex; flex: 1; min-width: 0; width: 100%; }

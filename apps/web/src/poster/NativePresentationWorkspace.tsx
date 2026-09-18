@@ -26,6 +26,8 @@ function Workspace() {
   const [systems, setSystems] = useState<DesignSystemSummary[]>([]);
   const [error, setError] = useState('');
   const [settings, setSettings] = useState(false);
+  const [embedded, setEmbedded] = useState(false);
+  useEffect(() => { setEmbedded(window.parent !== window); }, []);
   const refreshAgents = useCallback(() => { void fetchAgents().then(setAgents); }, []);
   useEffect(() => {
     let active = true;
@@ -57,8 +59,12 @@ function Workspace() {
   const agent = agents.find((item) => item.id === config?.agentId);
   const model = config?.agentModels?.[agent?.id ?? '']?.model;
   const ready = Boolean(agent?.available && agent.authStatus !== 'missing' && model);
+  useEffect(() => {
+    if (!id || window.parent === window) return;
+    window.parent.postMessage({type:'niki:ppt:attention',projectId:id,required:Boolean(error || (config && !ready))}, window.location.origin);
+  }, [id, config, ready, error]);
   const back = () => { window.location.assign('/?mode=ppt'); };
-  return <div className="native-ppt-workspace">
+  return <div className={`native-ppt-workspace${embedded?' native-ppt-workspace--embedded':''}`}>
     <header className="native-ppt-workspace__bar">
       <a href="/?mode=ppt" target="_top">← {zh ? '演示文稿' : 'Presentations'}</a>
       <strong>{project?.name}</strong>

@@ -15,8 +15,11 @@ it('combines every original template and both styles in one filter without workf
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
   expect(screen.queryByRole('combobox',{name:'创作方式'})).toBeNull();
+  expect(screen.queryByRole('textbox',{name:'受众 / 场景'})).toBeNull();
+  expect(screen.queryByRole('spinbutton',{name:'分享时长（分钟）'})).toBeNull();
+  expect(screen.getByText('可补充受众、使用场景和重点要求。')).toBeTruthy();
   const filters=screen.getByRole('region',{name:'创作筛选'});
-  expect(Array.from(filters.querySelectorAll('.od-field__label')).map(el=>el.textContent)).toEqual(['模板与风格','主题','目标页数','受众 / 场景','分享时长（分钟）']);
+  expect(Array.from(filters.querySelectorAll('.od-field__label')).map(el=>el.textContent)).toEqual(['模板与风格','目标页数']);
   expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toContain('白底编辑风');
   fireEvent.click(screen.getByRole('combobox',{name:'模板与风格'}));
   expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(18);
@@ -37,22 +40,23 @@ it('combines every original template and both styles in one filter without workf
 it('only shows themes belonging to the selected original template/style and clears incompatible themes', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('模板默认');
-  fireEvent.click(screen.getByRole('combobox',{name:'主题'}));
+  expect(screen.queryByRole('combobox',{name:'配色与字体'})).toBeNull();
+  choose('模板与风格','自由编排');
+  fireEvent.click(screen.getByRole('combobox',{name:'配色与字体'}));
   expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(37);
   expect(screen.queryByRole('option',{name:/推荐/})).toBeNull();
-  fireEvent.click(screen.getByRole('option',{name:'arctic-cool'}));
+  fireEvent.click(screen.getByRole('option',{name:'冰川蓝'}));
   choose('模板与风格', '电子杂志');
-  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('Monocle');
-  choose('主题','Dune');
+  expect(screen.getByRole('combobox',{name:'配色与字体'}).textContent).toBe('经典杂志');
+  choose('配色与字体','沙丘暖色');
   choose('模板与风格', '瑞士国际主义');
-  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('IKB');
-  fireEvent.click(screen.getByRole('combobox',{name:'主题'}));
+  expect(screen.getByRole('combobox',{name:'配色与字体'}).textContent).toBe('克莱因蓝');
+  fireEvent.click(screen.getByRole('combobox',{name:'配色与字体'}));
   expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(4);
-  expect(screen.queryByRole('option',{name:'Dune'})).toBeNull();
-  fireEvent.click(screen.getByRole('option',{name:'IKB'}));
+  expect(screen.queryByRole('option',{name:'沙丘暖色'})).toBeNull();
+  fireEvent.click(screen.getByRole('option',{name:'克莱因蓝'}));
   choose('模板与风格','技术分享');
-  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('模板默认');
+  expect(screen.queryByRole('combobox',{name:'配色与字体'})).toBeNull();
 });
 
 it('keeps content, file and common settings through cross-workflow template changes and sends original HTML values', async () => {
@@ -60,8 +64,6 @@ it('keeps content, file and common settings through cross-workflow template chan
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
   choose('目标页数','15');
-  fireEvent.change(screen.getByRole('textbox',{name:'受众 / 场景'}),{target:{value:'产品团队'}});
-  fireEvent.change(screen.getByRole('spinbutton',{name:'分享时长（分钟）'}),{target:{value:'20'}});
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'架构与流程'}});
   const file=new File(['All source facts'], 'source.md', {type:'text/markdown'});
   fireEvent.change(screen.getByLabelText('添加文档'),{target:{files:[file]}});
@@ -69,10 +71,10 @@ it('keeps content, file and common settings through cross-workflow template chan
   expect((screen.getByRole('textbox',{name:'创作内容'}) as HTMLTextAreaElement).value).toBe('架构与流程');
   expect(screen.getByText('source.md')).toBeTruthy();
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'补充后的架构与流程'}});
-  choose('模板与风格','技术分享'); choose('主题','arctic-cool');
+  choose('模板与风格','技术分享');
   expect(screen.getByText('source.md')).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'开始创作'}));
-  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'html-ppt',topic:'补充后的架构与流程',audience:'产品团队',pages:'15',style:'tech-sharing',theme:'arctic-cool',duration:'20'},file));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'html-ppt',topic:'补充后的架构与流程',audience:'',pages:'15',style:'tech-sharing',theme:'',duration:''},file));
 });
 
 it.each([
@@ -92,7 +94,7 @@ it('opens existing Guizang workflow links with an explicit style and theme', asy
   window.history.replaceState(null,'','/?pptWorkflow=guizang-ppt-skill');
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toBe('电子杂志'));
-  expect(screen.getByRole('combobox',{name:'主题'}).textContent).toBe('Monocle');
+  expect(screen.getByRole('combobox',{name:'配色与字体'}).textContent).toBe('经典杂志');
 });
 
 it('keeps document replacement and removal inside the content composer without losing text', async () => {
@@ -118,8 +120,8 @@ it('loads the full preview only when opened and releases it when closed', async 
   Object.defineProperty(HTMLDialogElement.prototype,'close',{value:close,configurable:true});
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  choose('模板与风格','技术分享'); choose('主题','arctic-cool');
-  const asset=previewAssets['tech-sharing']['arctic-cool'];
+  choose('模板与风格','技术分享');
+  const asset=previewAssets['tech-sharing'].default;
   expect(document.querySelector(`img[src="${asset.full}"]`)).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'放大模板预览'}));
   expect(showModal).toHaveBeenCalledOnce();

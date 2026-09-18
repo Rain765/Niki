@@ -41,3 +41,13 @@ it('uses original template files and preserves original background rhythm', asyn
   expect(prompt).not.toContain('Guizang');
   expect(nativePresentationPrompt({...brief,style:'B · 瑞士国际主义'})).toContain('assets/template-swiss.html');
 });
+
+it('preserves full-deck design and does not require removed optional fields',async()=>{
+ const {nativePresentationPrompt}=await import('../../src/poster/native-presentations');
+ const prompt=nativePresentationPrompt({...brief,skill:'html-ppt',style:'tech-sharing',theme:'arctic-cool',audience:'',duration:''});
+ expect(prompt).not.toContain('assets/themes/arctic-cool.css');
+ expect(prompt).toContain('不叠加通用主题 CSS');
+ expect(prompt).not.toContain('请在开始前与我确认');
+ expect(prompt).toContain('source-coverage.md');
+ expect(prompt).toContain('content-plan.md');
+});

@@ -23,7 +23,7 @@ it('invalidates a saved review when its entry or a local dependency changes', as
   const { createHash } = await import('node:crypto');
   const { nativeInspectionIsStale } = await import('../../src/presentations/native-inspection.js');
   const digest = (value: string) => createHash('sha256').update(value).digest('hex');
-  const report = {version:1 as const,entry:'index.html',sourceHash:digest('original'),resourceHashes:{'theme.css':digest('blue')},stale:false,viewport:{width:1280,height:720},reportFile:'report.json',visualReviewRequired:true as const,slides:[],blockedResources:[],failedResources:[]};
+  const report = {inspectorVersion:'3',version:1 as const,entry:'index.html',sourceHash:digest('original'),resourceHashes:{'theme.css':digest('blue')},stale:false,viewport:{width:1280,height:720},reportFile:'report.json',visualReviewRequired:true as const,slides:[],blockedResources:[],failedResources:[]};
   try {
     await writeFile(path.join(root,'index.html'),'original');
     await writeFile(path.join(root,'theme.css'),'blue');
@@ -35,3 +35,23 @@ it('invalidates a saved review when its entry or a local dependency changes', as
     expect(await nativeInspectionIsStale(root,report)).toBe(true);
   } finally { await rm(root,{recursive:true,force:true}); }
 });
+
+it('renders every page and reports overlap, clipping, complex backgrounds and missing assets without rewriting the deck', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'native-render-review-'));
+  const {mkdir,readFile} = await import('node:fs/promises');
+  const source = `<!doctype html><html><head><style>
+    body{margin:0}.slide{width:1280px;height:720px;background:white;position:relative}.slide:not(.active){display:none}
+    p{font:30px sans-serif;margin:0;position:absolute;left:80px;top:80px}.clip{overflow:hidden;width:80px;height:18px;position:absolute;top:200px}
+    .gradient{background:linear-gradient(black,white);top:300px;color:white}
+    </style></head><body><div id="deck"><section class="slide active"><p>第一段架构文字 Architecture</p><p>第二段重叠文字 Workflow</p><div class="clip"><span>很长的培训定义和容量边界</span></div><p class="gradient">渐变上的文字</p><div style="color:#fff;position:absolute;top:400px">白底白字普通元素</div><img src="missing.png"></section><section class="slide"><p>第二页数据 42</p></section></div><script>window.go=(i)=>document.querySelectorAll('.slide').forEach((s,n)=>s.classList.toggle('active',n===i));</script></body></html>`;
+  try {
+    await writeFile(path.join(root,'index.html'),source);
+    const report = await inspectNativePresentation({projectDir:root,entry:'index.html',save:async(name,bytes)=>{await mkdir(path.dirname(path.join(root,name)),{recursive:true});await writeFile(path.join(root,name),bytes);}});
+    expect(report.slides).toHaveLength(2);
+    expect(report.slides[0]!.issues.map(issue=>issue.kind)).toEqual(expect.arrayContaining(['text-overlap','overflow','missing-image','visual-review','low-contrast']));
+    expect(report.slides[1]!.text).toContain('第二页数据 42');
+    expect(report.slides[1]!.design?.elements.length).toBeGreaterThan(0);
+    expect(report.visualReviewRequired).toBe(true);
+    expect(await readFile(path.join(root,'index.html'),'utf8')).toBe(source);
+  } finally { await rm(root,{recursive:true,force:true}); }
+},30000);
