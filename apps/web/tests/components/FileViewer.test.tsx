@@ -2621,8 +2621,9 @@ describe('LiveArtifactRefreshHistoryPanel', () => {
   });
 });
 
-it('opens native presentations outside the sandbox without changing their source', async () => {
-  const source = '<html><body><script>localStorage.setItem("presenter", "ready")</script><h1>Original deck</h1></body></html>';
+it('renders native presentations directly and retains the original presentation link', async () => {
+  vi.stubGlobal('ResizeObserver',class{observe(){} disconnect(){}});
+  const source = '<html><body><script>localStorage.setItem("presenter", "ready")</script><section class="slide"><h1>Original deck</h1></section></body></html>';
   vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
     const url = String(input);
     if (url.endsWith('/raw/index.html')) return new Response(source);
@@ -2632,5 +2633,5 @@ it('opens native presentations outside the sandbox without changing their source
   await screen.findByTestId('native-presentation-preview');
   const link = container.querySelector<HTMLAnchorElement>('a[target="_blank"][href="/api/projects/deck-1/raw/index.html"]');
   expect(link).not.toBeNull();
-  expect(container.querySelector('iframe')).toBeNull();
+  await waitFor(()=>expect(container.querySelector('iframe[title="Presentation preview"]')).not.toBeNull());
 });

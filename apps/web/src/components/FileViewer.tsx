@@ -6042,7 +6042,7 @@ function HtmlViewer({
         {source === null ? (
           <div className="viewer-empty">{t('fileViewer.loading')}</div>
         ) : mode === 'preview' && externalHtmlPreview ? (
-          <NativePresentationPreview projectId={projectId} name={file.name} />
+          <NativePresentationPreview projectId={projectId} name={file.name} revision={file.mtime} />
         ) : mode === 'preview' ? (
           <div
             className={`${manualEditMode ? 'manual-edit-workspace' : 'comment-preview-layer'} preview-viewport preview-viewport-${previewViewport}`}

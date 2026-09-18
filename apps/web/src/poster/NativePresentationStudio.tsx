@@ -1,15 +1,14 @@
 'use client';
 
-import { nativePresentationWorkspaceUrl } from '@open-design/contracts';
-
-import { useEffect, useState, type KeyboardEvent } from 'react';
-import { ArrowUpRight, ArrowRight, FileText, Upload } from 'lucide-react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { ArrowRight, FileText, Upload } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { fetchDesignTemplates, fetchSkills } from '../providers/registry';
 import { listProjects } from '../state/projects';
 import type { Project, SkillSummary } from '../types';
 import { Button } from '../components/Button';
 import { SelectField } from '../components/SelectField';
+import { NativePresentationResult } from './NativePresentationResult';
 import { NativeTemplatePicker, NativeTemplatePreview } from './NativeTemplatePicker';
 import { isNativePresentation, prepareNativePresentation, type NativePptBrief, type NativePptSkill } from './native-presentations';
 import './native-presentation-studio.css';
@@ -27,13 +26,15 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   const [catalog, setCatalog] = useState<SkillSummary[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState<string | null>(null);
-  const [view, setView] = useState<'create' | 'history' | 'workspace'>('create');
+  const [view, setView] = useState<'latest' | 'history'>('latest');
+  const [historyId, setHistoryId] = useState<string | null>(null);
+  const results = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const brief = drafts[skill];
   const file = files[skill];
   const available = catalog.some((item) => item.id === skill && item.hasBody);
-  const refresh = () => { void listProjects().then((items) => setProjects(items.filter(isNativePresentation))); };
+  const refresh = () => { void listProjects().then((items) => { const decks = items.filter(isNativePresentation).sort((a,b) => b.updatedAt - a.updatedAt); setProjects(decks); setProjectId(current => current ?? decks[0]?.id ?? null); }); };
   useEffect(() => {
     void Promise.all([fetchSkills(), fetchDesignTemplates()]).then(([a, b]) => setCatalog([...a, ...b]));
     refresh();
@@ -41,7 +42,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     const flow = query.get('pptWorkflow');
     if (flow === 'html-ppt' || flow === 'guizang-ppt-skill') setSkill(flow);
     const id = query.get('pptProject');
-    if (id) { setProjectId(id); setView('workspace'); }
+    if (id) { setProjectId(id); setView('latest'); }
   }, []);
   useEffect(() => {
     onNavigationLockChange?.(busy);
@@ -49,17 +50,16 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   }, [busy, onNavigationLockChange]);
   const edit = (patch: Partial<NativePptBrief>) => setDrafts((old) => ({ ...old, [skill]: { ...old[skill], ...patch } }));
   const open = (id: string) => {
-    setProjectId(id); setView('workspace');
+    setProjectId(id); setView('latest');
     const url = new URL(window.location.href); url.searchParams.set('pptProject', id);
     window.history.replaceState(null, '', url);
   };
   const show = (next: typeof view) => {
     setView(next); refresh();
-    const url = new URL(window.location.href); url.searchParams.delete('pptProject');
-    window.history.replaceState(null, '', url);
   };
   const create = async () => {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setView('latest');
+    results.current?.scrollIntoView?.({behavior:'smooth',block:'start'});
     try {
       const project = await prepareNativePresentation(brief, file ?? null);
       try { window.sessionStorage.setItem(`od:auto-send-first:${project.id}`, '1'); } catch { /* The original composer still opens with the saved brief. */ }
@@ -80,19 +80,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     event.preventDefault(); tabs[next]?.focus(); tabs[next]?.click();
   };
   return <section className="native-ppt" aria-label={zh ? '演示文稿工作室' : 'Presentation studio'}>
-    <header className="native-ppt__nav">
-      <nav role="tablist" onKeyDown={tabKeys} aria-label={zh ? '文稿导航' : 'Presentation navigation'}>
-        <button role="tab" tabIndex={view === 'create' ? 0 : -1} aria-selected={view === 'create'} onClick={() => show('create')} disabled={busy}>{zh ? '新建文稿' : 'Create'}</button>
-        <button role="tab" tabIndex={view !== 'create' ? 0 : -1} aria-selected={view === 'history' || view === 'workspace'} onClick={() => show('history')} disabled={busy}>{zh ? '我的文稿' : 'My presentations'} <span>{projects.length}</span></button>
-      </nav>
-    </header>
-    {view === 'workspace' && projectId ? <div className="native-ppt__workspace">
-      <div className="native-ppt__workspace-tools"><a href={nativePresentationWorkspaceUrl(projectId)} target="_blank" rel="noreferrer">{zh ? '独立打开工作区' : 'Open workspace'} <ArrowUpRight size={16} /></a></div>
-      <iframe title={zh ? '原生演示工作区' : 'Native presentation workspace'} src={nativePresentationWorkspaceUrl(projectId)} />
-    </div> : view === 'history' ? <div className="native-ppt__history">
-      {!projects.length && <p>{zh ? '暂无文稿' : 'No presentations yet'}</p>}
-      {projects.map((project) => <button key={project.id} onClick={() => open(project.id)}><FileText size={22} /><span><strong>{project.name}</strong><small>{project.skillId === 'html-ppt' ? (zh ? '模板创作' : 'Template creation') : (zh ? '设计创作' : 'Design creation')} · {new Date(project.updatedAt).toLocaleDateString(locale)}</small></span><ArrowRight size={18} /></button>)}
-    </div> : <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
+    <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
       <section className="native-ppt__filters od-generation-toolbar od-filter-grid" aria-label={zh ? '创作筛选' : 'Creation settings'}>
         <SelectField className="od-filter-grid__item" label={zh ? '创作方式' : 'Creation mode'} value={skill} disabled={busy} onChange={value => switchWorkflow(value as NativePptSkill)} options={[
           {value:'html-ppt',label:zh ? '模板创作' : 'Template creation'},
@@ -121,6 +109,19 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
           <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '正在保存资料…' : 'Saving source…') : (zh ? '开始创作' : 'Start creating')}<ArrowRight size={18} /></Button>
         </div>
       </section>
-    </form>}
+    </form>
+    <div ref={results} className="poster-app__result-tabs native-ppt__result-tabs" role="tablist" onKeyDown={tabKeys} aria-label={zh ? '文稿导航' : 'Presentation navigation'}>
+      <button type="button" id="ppt-tab-latest" role="tab" aria-controls="ppt-panel-latest" className={view === 'latest' ? 'is-active' : undefined} tabIndex={view === 'latest' ? 0 : -1} aria-selected={view === 'latest'} onClick={() => show('latest')}>{zh ? '最新一批' : 'Latest batch'}</button>
+      <button type="button" id="ppt-tab-history" role="tab" aria-controls="ppt-panel-history" className={view === 'history' ? 'is-active' : undefined} tabIndex={view === 'history' ? 0 : -1} aria-selected={view === 'history'} onClick={() => show('history')}>{zh ? '历史生成' : 'History'} <small>{projects.length}</small></button>
+    </div>
+    <section id="ppt-panel-latest" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-latest" hidden={view !== 'latest'}>
+      {busy ? <div className="native-ppt__pending" role="status" aria-label={zh?'正在保存资料':'Saving source'}><div className="native-player__skeleton"><span/><span/><span/></div></div> : projectId ? <NativePresentationResult key={projectId} projectId={projectId}/> : <p className="native-ppt__empty">{zh?'生成的文稿会显示在这里':'Your presentation will appear here'}</p>}
+    </section>
+    <section id="ppt-panel-history" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-history" hidden={view !== 'history'}>
+      {historyId ? <><Button variant="ghost" onClick={()=>setHistoryId(null)}>{zh?'← 返回历史':'← Back to history'}</Button><NativePresentationResult key={historyId} projectId={historyId}/></> : <div className="native-ppt__history">
+        {!projects.length && <p>{zh?'暂无历史生成记录':'No generation history yet'}</p>}
+        {projects.map(project=><button type="button" key={project.id} onClick={()=>{if(project.id===projectId){setView('latest');}else{setHistoryId(project.id);}}}><FileText size={22}/><span><strong>{project.name}</strong><small>{project.skillId==='html-ppt'?(zh?'模板创作':'Template creation'):(zh?'设计创作':'Design creation')} · {new Date(project.updatedAt).toLocaleDateString(locale)}</small></span><ArrowRight size={18}/></button>)}
+      </div>}
+    </section>
   </section>;
 }

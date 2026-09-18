@@ -1,27 +1,62 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { NativePresentationPreview } from '../../src/components/NativePresentationPreview';
 import { I18nProvider } from '../../src/i18n';
-vi.mock('../../src/providers/registry', () => ({ projectFileUrl: (id:string,name:string)=>`/api/projects/${id}/files/${name}` }));
-afterEach(()=>{cleanup();vi.unstubAllGlobals();sessionStorage.clear();});
-it('exposes the same local inspection API and actual screenshots without claiming visual acceptance', async()=>{
- const fetchMock=vi.fn().mockResolvedValue(Response.json({id:"r1",projectId:"p1",status:"completed",report:{version:1,entry:'index.html',sourceHash:'abc',stale:false,visualReviewRequired:true,viewport:{width:1280,height:720},reportFile:'native-review/r/report.json',blockedResources:[],slides:[{page:1,text:'Title',screenshot:'native-review/r/page-01.png',issues:[{kind:'dim-text',text:'Title'}]}]}}));
- vi.stubGlobal('fetch',fetchMock);
- render(<I18nProvider defaultLocale="zh-CN"><NativePresentationPreview projectId="p1" name="index.html"/></I18nProvider>);
- fireEvent.click(screen.getByRole('button',{name:'检查文稿'}));
- expect((await screen.findByRole('status')).textContent).toContain('1 项待核对');
- expect(screen.getByRole('link',{name:'第 1 页 ↗'}).getAttribute('href')).toBe('/api/projects/p1/files/native-review/r/page-01.png');
- expect(fetchMock).toHaveBeenCalledWith('/api/projects/p1/native-presentation/inspect',expect.objectContaining({method:'POST',body:JSON.stringify({entry:'index.html'})}));
- expect(screen.queryByText(/验收通过/)).toBeNull();
+import { loadNativeDeck } from '../../src/presentations/native-viewer';
+vi.mock('../../src/presentations/native-viewer',()=>({loadNativeDeck:vi.fn(),nativeDeckSrcdoc:()=>'<html></html>'}));
+vi.mock('../../src/components/NativePresentationInspectionPanel',()=>({NativePresentationInspectionPanel:()=>null}));
+vi.mock('../../src/components/NativePresentationEditor',()=>({NativePresentationEditor:({initialPage,onClose}:{initialPage:number;onClose:()=>void})=><button onClick={onClose}>Editing {initialPage}</button>}));
+beforeEach(()=>{
+ vi.stubGlobal('ResizeObserver',class{observe(){} disconnect(){}});
+ vi.mocked(loadNativeDeck).mockResolvedValue({source:'',name:'index.html',titles:['开场','架构','流程'],width:1280,height:720});
 });
-
-it('resumes the existing inspection when review-file writes remount the viewer', async () => {
-  sessionStorage.setItem('native-ppt-inspection:p1:index.html', 'running-job');
-  const fetchMock=vi.fn().mockResolvedValue(Response.json({id:'running-job',projectId:'p1',status:'completed',report:{version:1,entry:'index.html',sourceHash:'abc',stale:false,visualReviewRequired:true,viewport:{width:1280,height:720},reportFile:'native-review/r/report.json',blockedResources:[],slides:[]}}));
-  vi.stubGlobal('fetch',fetchMock);
-  render(<I18nProvider defaultLocale="zh-CN"><NativePresentationPreview projectId="p1" name="index.html"/></I18nProvider>);
-  expect(await screen.findByRole('link',{name:'检查记录 ↗'},{timeout:3000})).toBeTruthy();
-  expect(fetchMock).toHaveBeenCalledWith('/api/projects/p1/native-presentation/inspections/running-job',expect.objectContaining({signal:expect.any(AbortSignal)}));
-  expect(fetchMock.mock.calls.every(([,options])=>options?.method !== 'POST')).toBe(true);
+afterEach(()=>{cleanup();vi.clearAllMocks();vi.unstubAllGlobals();sessionStorage.clear();});
+async function mount(){
+ const {container}=render(<I18nProvider defaultLocale="zh-CN"><NativePresentationPreview projectId="p" name="index.html"/></I18nProvider>);
+ await waitFor(()=>expect(container.querySelector('iframe')).not.toBeNull());
+ await act(async()=>{});
+ const frame=container.querySelector('iframe')!;
+ return {container,frame};
+}
+function state(frame:HTMLIFrameElement,index:number){act(()=>window.dispatchEvent(new window.MessageEvent('message',{source:frame.contentWindow,data:{type:'niki:ppt:state',index}})));}
+it('accepts navigation state only from its own iframe and supports inline arrows, jumps and current-slide editing',async()=>{
+ const {frame}=await mount();
+ const post=vi.spyOn(frame.contentWindow!,'postMessage');
+ act(()=>window.dispatchEvent(new window.MessageEvent('message',{source:window,data:{type:'niki:ppt:state',index:2}})));
+ expect(screen.getByRole('button',{name:'下一页'}).hasAttribute('disabled')).toBe(true);
+ state(frame,1);
+ expect((screen.getByRole('spinbutton',{name:'跳转页码'}) as HTMLInputElement).value).toBe('2');
+ fireEvent.click(screen.getByRole('button',{name:'下一页'}));
+ expect(post).toHaveBeenLastCalledWith({type:'niki:ppt:command',action:'next',index:undefined},'*');
+ const jump=screen.getByRole('spinbutton',{name:'跳转页码'});
+ fireEvent.change(jump,{target:{value:'3'}});fireEvent.keyDown(jump,{key:'Enter'});
+ expect(post).toHaveBeenLastCalledWith({type:'niki:ppt:command',action:'goto',index:2},'*');
+ state(frame,99);
+ expect(sessionStorage.getItem('native-ppt-position:p:index.html')).toBe('1');
+ fireEvent.click(screen.getByRole('button',{name:'编辑本页'}));
+ expect(screen.getByText('Editing 1')).toBeTruthy();
+});
+it('keeps the same iframe and reading position through fullscreen/sidebar switches',async()=>{
+ const {container,frame}=await mount();state(frame,1);
+ const post=vi.spyOn(frame.contentWindow!,'postMessage');
+ fireEvent.click(screen.getByRole('button',{name:'全屏'}));
+ expect(screen.getByRole('navigation',{name:'页面目录'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:/03.*流程/}));
+ expect(post).toHaveBeenLastCalledWith({type:'niki:ppt:command',action:'goto',index:2},'*');
+ state(frame,2);
+ fireEvent.click(screen.getByRole('button',{name:'切换页面目录'}));
+ expect(screen.queryByRole('navigation',{name:'页面目录'})).toBeNull();
+ fireEvent.keyDown(screen.getByTestId('native-presentation-preview'),{key:'Escape'});
+ expect(screen.getByRole('button',{name:'全屏'})).toBeTruthy();
+ expect(container.querySelector('iframe')).toBe(frame);
+ expect((screen.getByRole('spinbutton',{name:'跳转页码'}) as HTMLInputElement).value).toBe('3');
+ expect(document.body.style.overflow).toBe('');
+});
+it('turns load failures into a retryable error instead of an endless skeleton',async()=>{
+ vi.mocked(loadNativeDeck).mockRejectedValueOnce(new Error('读取失败'));
+ render(<I18nProvider defaultLocale="zh-CN"><NativePresentationPreview projectId="p" name="index.html"/></I18nProvider>);
+ expect(await screen.findByRole('alert')).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'重新加载'}));
+ await waitFor(()=>expect(loadNativeDeck).toHaveBeenCalledTimes(2));
 });

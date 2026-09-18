@@ -5,6 +5,7 @@ import { NativePresentationStudio } from '../../src/poster/NativePresentationStu
 import { prepareNativePresentation } from '../../src/poster/native-presentations';
 import { I18nProvider } from '../../src/i18n';
 vi.mock('../../src/providers/registry', () => ({ fetchSkills: async () => [{id:'guizang-ppt-skill',hasBody:true}], fetchDesignTemplates: async () => [{id:'html-ppt',hasBody:true}] }));
+vi.mock('../../src/poster/NativePresentationResult', () => ({NativePresentationResult: ({projectId}:{projectId:string}) => <div data-testid={`result-${projectId}`}/> }));
 vi.mock('../../src/state/projects', () => ({ listProjects: async () => [], createProject: vi.fn(), patchProject: vi.fn() }));
 vi.mock('../../src/poster/native-presentations', async importOriginal => ({...await importOriginal<typeof import('../../src/poster/native-presentations')>(), prepareNativePresentation:vi.fn()}));
 function choose(label: string, option: string) { fireEvent.click(screen.getByRole('combobox',{name:label})); fireEvent.click(screen.getByRole('option',{name:option})); }
@@ -12,6 +13,9 @@ afterEach(() => {cleanup();vi.clearAllMocks(); window.history.replaceState(null,
 it('has compact centered navigation and real template selection without legacy or promotional content', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
+  expect(screen.getByRole('tab',{name:'最新一批'})).toBeTruthy();
+  expect(screen.getByRole('tab',{name:/历史生成/})).toBeTruthy();
+  expect(screen.getByRole('region',{name:'生成区'}).compareDocumentPosition(screen.getByRole('tablist')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   const navigation = screen.getByRole('tablist',{name:'文稿导航'});
   expect(within(navigation).getAllByRole('tab')).toHaveLength(2);
   expect(screen.queryByText('旧版文稿')).toBeNull();

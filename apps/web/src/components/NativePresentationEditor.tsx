@@ -3,13 +3,13 @@ import { fetchProjectFileText, writeProjectTextFile } from '../providers/registr
 import { presentationTextFields, replacePresentationText, type PresentationTextField } from '../edit-mode/presentation-text';
 import { useI18n } from '../i18n';
 
-export function NativePresentationEditor({ projectId, name, onClose }: { projectId: string; name: string; onClose: () => void }) {
+export function NativePresentationEditor({ projectId, name, onClose, initialPage = 0 }: { projectId: string; name: string; onClose: () => void; initialPage?: number }) {
   const { locale } = useI18n(); const zh = locale.startsWith('zh');
   const [targetName, setTargetName] = useState(name);
   const [source, setSource] = useState<string | null>(null);
   const [fields, setFields] = useState<PresentationTextField[]>([]);
   const [drafts, setDrafts] = useState<Record<number, string>>({});
-  const [page, setPage] = useState(0); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(initialPage); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   useEffect(() => { let active = true; void fetchProjectFileText(projectId, name).then(async text => {
     let target = name;
     if (text !== null && !presentationTextFields(text).length) {
@@ -39,7 +39,7 @@ export function NativePresentationEditor({ projectId, name, onClose }: { project
       setSource(updated); setFields(presentationTextFields(updated)); setDrafts({}); onClose();
     } catch (e) { setError(String(e instanceof Error ? e.message : e)); } finally { setBusy(false); }
   };
-  const pages = Math.max(0, ...fields.map(f => f.slide)) + 1;
+  const pages = Math.max(initialPage, ...fields.map(f => f.slide)) + 1;
   return <div className="native-ppt-text-editor" role="region" aria-label={zh ? '编辑文案' : 'Edit text'}>
     <div className="native-ppt-text-editor__bar"><select aria-label={zh ? '页码' : 'Slide'} value={page} onChange={e => setPage(Number(e.target.value))}>{Array.from({length: pages}, (_, i) => <option key={i} value={i}>{zh ? `第 ${i + 1} 页` : `Slide ${i + 1}`}</option>)}</select><button disabled={busy} onClick={onClose}>{zh ? '取消' : 'Cancel'}</button><button disabled={busy || !Object.keys(drafts).length} onClick={() => void save()}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '保存修改' : 'Save changes')}</button></div>
     {error && <p role="alert">{error}</p>}
