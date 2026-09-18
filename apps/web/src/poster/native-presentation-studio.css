@@ -62,3 +62,22 @@
 .native-ppt__conversation-toggle { margin: 12px 0; }
 
 .native-ppt__workspace { border: 1px solid var(--poster-border); border-radius: 12px; overflow: hidden; }
+.native-ppt__stage-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: var(--poster-muted); }
+.native-ppt__pending:has(.native-player__skeleton) .native-ppt__stage-status { justify-content: flex-end; padding-bottom: 24px; }
+.native-ppt__dialog { width: min(640px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 40px)); padding: 0; border: 1px solid var(--poster-border); border-radius: 16px; color: var(--poster-text); background: var(--poster-panel); box-shadow: 0 20px 70px color-mix(in srgb, var(--poster-text) 18%, transparent); }
+.native-ppt__dialog::backdrop { background: color-mix(in srgb, var(--poster-text) 30%, transparent); }
+.native-ppt__dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--poster-line-divide); }
+.native-ppt__dialog h2 { margin: 0; font-size: 18px; }
+.native-ppt__dialog .native-ppt__workspace { border: 0; border-radius: 0; }
+.native-ppt__dialog .native-ppt__workspace iframe { display: block; height: min(65dvh, 560px); min-height: 260px; }
+.native-ppt-question { padding: 24px; }
+.native-ppt-question__field, .native-ppt-question__form { min-width: 0; padding: 0; margin: 0 0 24px; border: 0; }
+.native-ppt-question__field legend { font-size: 16px; font-weight: 650; line-height: 1.6; margin-bottom: 16px; }
+.native-ppt-question__options { display: grid; gap: 10px; }
+.native-ppt-question__options button { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--poster-border); border-radius: 10px; text-align: left; font: inherit; color: var(--poster-text); background: var(--poster-panel); cursor: pointer; }
+.native-ppt-question__options button[aria-pressed=true] { border-color: var(--poster-accent); background: var(--poster-control-hover); }
+.native-ppt-question__options span { color: var(--poster-muted); font-size: 13px; line-height: 1.5; }
+.native-ppt-question textarea { width: 100%; resize: vertical; margin-top: 12px; padding: 12px; border: 1px solid var(--poster-border); border-radius: 10px; font: inherit; color: var(--poster-text); background: var(--poster-panel); }
+.native-ppt-question :is(button,textarea):focus-visible { outline: 2px solid var(--poster-accent); outline-offset: 2px; }
+.native-ppt-question__actions { display: flex; justify-content: flex-end; }
+.native-ppt-question [role=alert] { margin: 12px 0 0; color: var(--poster-danger); font-size: 13px; }

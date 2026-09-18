@@ -8,7 +8,7 @@ import { NativePresentationInspectionPanel } from './NativePresentationInspectio
 import { Button } from './Button';
 import './native-presentation-player.css';
 
-export function NativePresentationPreview({ projectId, name, revision = 0, editingDisabled = false }: { projectId: string; name: string; revision?: number | string; editingDisabled?: boolean }) {
+export function NativePresentationPreview({ projectId, name, revision = 0, editingDisabled = false, onRevise }: { projectId: string; name: string; revision?: number | string; editingDisabled?: boolean; onRevise?: () => void }) {
   const { locale } = useI18n(); const zh = locale.startsWith('zh');
   const [deck, setDeck] = useState<NativeDeckDocument | null>(null);
   const [error, setError] = useState('');
@@ -114,6 +114,7 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
       {expanded && <Button aria-label={zh?'切换页面目录':'Toggle slide list'} aria-expanded={sidebar} onClick={()=>setSidebar(!sidebar)}><PanelLeft size={18}/></Button>}
       <span className="native-player__title" title={deck?.titles[index]}>{deck?.titles[index] || name}</span>
       <Button disabled={!ready || editing || editingDisabled} onClick={()=>{try{sessionStorage.removeItem(`native-ppt-inspection:${projectId}:${deck?.name??name}`);}catch{/* Optional. */}setEditing(true);}}>{zh?'编辑本页':'Edit slide'}</Button>
+      {onRevise && <Button disabled={editingDisabled} onClick={onRevise}>{zh?'修改文稿':'Revise deck'}</Button>}
       <a className="od-button od-button--secondary od-button--default" href={`/api/projects/${encodeURIComponent(projectId)}/archive`}>{zh?'下载文稿':'Download deck'}</a>
       <button ref={fullscreenButton} type="button" className="od-button od-button--secondary od-button--default" onClick={expanded?closeFullscreen:openFullscreen} aria-label={expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')}>
         {expanded?<Minimize size={18}/>:<Maximize size={18}/>}<span>{expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')}</span>
