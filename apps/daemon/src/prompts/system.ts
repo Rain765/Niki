@@ -578,6 +578,9 @@ export function composeSystemPrompt({
   // `<question-form>` flow defined in DISCOVERY_AND_PHILOSOPHY; this only
   // covers follow-ups where the next action depends on a small set of
   // choices the user can pick quickly.
+  if (agentId === 'opencode' && nativePresentation) {
+    parts.push('\n\nWhen the original presentation workflow needs user input, emit a <question-form id="ppt-clarification" title="确认创作要求"> whose body is valid JSON, for example {"questions":[{"id":"choice","label":"具体问题","type":"radio","options":["选项一","选项二"]}]}, close it with </question-form>, then stop your turn. Use a textarea question for free text. The host renders the form and returns the answers in the next message. Do not use the terminal question tool or duplicate the form as prose. The original skill still determines when clarification is needed.');
+  }
   if (agentId === 'claude' && nativePresentation) {
     parts.push('\n\nWhen the original workflow needs finite choices, use AskUserQuestion and wait for its answer. Do not duplicate the questions as prose. The original skill determines when clarification is needed.');
   } else if (agentId === 'claude') {

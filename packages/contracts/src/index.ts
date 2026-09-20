@@ -46,3 +46,5 @@ export * from './analytics/events.js';
 export * from './analytics/public-params.js';
 
 export * from './api/native-presentations.js';
+
+export * from './api/ppt-models.js';

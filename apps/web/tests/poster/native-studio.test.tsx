@@ -5,12 +5,15 @@ import previewAssets from '../../src/poster/native-preview-assets.json';
 import { NativePresentationStudio } from '../../src/poster/NativePresentationStudio';
 import { prepareNativePresentation } from '../../src/poster/native-presentations';
 import { I18nProvider } from '../../src/i18n';
+const auth = vi.hoisted(() => ({ role: 'member' }));
+vi.mock('../../src/auth/NikiAuth', () => ({ useNikiAuth: () => ({user: {role: auth.role}}) }));
+vi.mock('../../src/poster/ppt-model-api', () => ({ pptModelRequest: async () => ({defaultProvider:'existing',providers:[{provider:'qwen',configured:true,testedAt:1},{provider:'kimi',configured:false},{provider:'deepseek',configured:false}]}) }));
 vi.mock('../../src/providers/registry', () => ({ fetchSkills: async () => [{id:'guizang-ppt-skill',hasBody:true}], fetchDesignTemplates: async () => [{id:'html-ppt',hasBody:true}] }));
 vi.mock('../../src/poster/NativePresentationResult', () => ({NativePresentationResult: ({projectId}:{projectId:string}) => <div data-testid={`result-${projectId}`}/> }));
 vi.mock('../../src/state/projects', () => ({ listProjects: async () => [], createProject: vi.fn(), patchProject: vi.fn() }));
 vi.mock('../../src/poster/native-presentations', async importOriginal => ({...await importOriginal<typeof import('../../src/poster/native-presentations')>(), prepareNativePresentation:vi.fn()}));
 function choose(label: string, option: string) { fireEvent.click(screen.getByRole('combobox',{name:label})); fireEvent.click(screen.getByRole('option',{name:option})); }
-afterEach(() => {cleanup();vi.clearAllMocks(); window.history.replaceState(null,'','/');});
+afterEach(() => {auth.role='member';cleanup();vi.clearAllMocks(); window.history.replaceState(null,'','/');});
 it('combines every original template and both styles in one filter without workflow or recommendation choices', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
@@ -157,4 +160,16 @@ it('supports keyboard preview and selection while keeping the content and action
   fireEvent.keyDown(trigger,{key:'ArrowDown'});
   fireEvent.keyDown(trigger,{key:'Enter'});
   expect(trigger.textContent).toBe('电子杂志');
+});
+
+it('lets administrators select a verified model without changing template choices', async () => {
+  auth.role='admin';
+  vi.mocked(prepareNativePresentation).mockResolvedValue({id:'provider-created',skillId:'html-ppt'} as never);
+  render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
+  await waitFor(()=>expect(screen.getByRole('combobox',{name:'生成模型'}).getAttribute('disabled')).toBeNull());
+  choose('生成模型','Qwen3.8-Max');
+  choose('模板与风格','瑞士国际主义');
+  fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'保持原版设计'}});
+  fireEvent.click(screen.getByRole('button',{name:'开始创作'}));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({provider:'qwen',skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null));
 });

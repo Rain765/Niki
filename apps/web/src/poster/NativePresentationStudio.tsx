@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { PPT_MODEL_PROVIDERS, type PptModelSettings, type PptModelProvider } from '@open-design/contracts';
+import { useNikiAuth } from '../auth/NikiAuth';
+import { pptModelRequest } from './ppt-model-api';
 import { ArrowRight, FileText, Paperclip, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { fetchDesignTemplates, fetchSkills } from '../providers/registry';
@@ -20,6 +23,17 @@ const INITIAL: Record<NativePptSkill, NativePptBrief> = {
 export function NativePresentationStudio({ onNavigationLockChange }: { onNavigationLockChange?: (locked: boolean) => void }) {
   const { locale } = useI18n();
   const zh = locale.startsWith('zh');
+  const { user } = useNikiAuth();
+  const admin = user?.role === 'admin';
+  const [models, setModels] = useState<PptModelSettings>();
+  const previousDefault = useRef<PptModelProvider>();
+  useEffect(() => {
+    if (!admin) return;
+    let active = true;
+    const refreshModels = () => { void pptModelRequest().then(data => { if (active) { const changed = previousDefault.current !== data.defaultProvider; previousDefault.current = data.defaultProvider; setModels(data); setBrief(old => ({ ...old, provider: changed ? data.defaultProvider : old.provider ?? data.defaultProvider })); } }).catch(() => {}); };
+    refreshModels(); window.addEventListener('niki:ppt-models-changed', refreshModels);
+    return () => { active = false; window.removeEventListener('niki:ppt-models-changed', refreshModels); };
+  }, [admin]);
   const [brief, setBrief] = useState<NativePptBrief>(INITIAL['html-ppt']);
   const [file, setFile] = useState<File>();
   const skill = brief.skill;
@@ -79,7 +93,8 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   };
   return <section className="native-ppt" aria-label={zh ? '演示文稿工作室' : 'Presentation studio'}>
     <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
-      <section className={`native-ppt__filters od-generation-toolbar${skill !== 'html-ppt' || brief.style === 'custom' ? ' has-theme' : ''}`} aria-label={zh ? '创作筛选' : 'Creation settings'}>
+      <section className={`native-ppt__filters od-generation-toolbar${admin ? ' has-model' : ''}${skill !== 'html-ppt' || brief.style === 'custom' ? ' has-theme' : ''}`} aria-label={zh ? '创作筛选' : 'Creation settings'}>
+        {admin && <SelectField label={zh?'生成模型':'Generation model'} value={brief.provider ?? 'existing'} disabled={busy || !models} options={[{value:'existing',label:zh?'当前模型':'Existing model'}, ...(models?.providers ?? []).map(item => ({value:item.provider,label:PPT_MODEL_PROVIDERS[item.provider].label,disabled:!item.testedAt}))]} onChange={provider => edit({provider:provider as PptModelProvider})} />}
         <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
         <SelectField label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
 

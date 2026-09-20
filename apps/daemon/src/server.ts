@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { PptModels } from './ppt-models.js';
+import { PptModelGateway, registerPptModelRoutes } from './ppt-model-routes.js';
 import type { DesktopExportPdfInput, DesktopExportPdfResult } from '@open-design/sidecar-proto';
 import express from 'express';
 import multer from 'multer';
@@ -2858,6 +2860,7 @@ export async function startServer({
   }
 
   const app = express();
+  app.use('/api/ppt-model-gateway', express.json({ limit: '64mb' }));
   app.use(express.json({ limit: '4mb' }));
 
   // Plan §3.K1 — bearer-token middleware.
@@ -3404,12 +3407,16 @@ export async function startServer({
 
   let resolveNikiRunProjectId: (runId: string) => string | null | undefined =
     () => undefined;
+  const pptModels = new PptModels(RUNTIME_DATA_DIR);
+  const pptModelGateway = new PptModelGateway(pptModels);
+  pptModelGateway.register(app);
   registerNikiAuthRoutes(app, {
     db,
     projectsRoot: PROJECTS_DIR,
     isLocalOperatorRequest: (req) => validateLocalDaemonRequest(req).ok,
     resolveRunProjectId: (runId) => resolveNikiRunProjectId(runId),
   });
+  registerPptModelRoutes(app, pptModels, (req) => validateLocalDaemonRequest(req).ok);
   registerFeishuDocumentRoutes(app, { db });
   registerEnglishPracticeRoutes(app, { db });
 
@@ -4509,6 +4516,7 @@ export async function startServer({
     projectStore: projectStoreDeps,
   });
   registerProjectRoutes(app, {
+    pptModels,
     db,
     design,
     http: httpDeps,
@@ -9143,6 +9151,13 @@ export async function startServer({
   const startChatRun = async (chatBody, run) => {
     /** @type {Partial<ChatRequest> & { imagePaths?: string[] }} */
     chatBody = chatBody || {};
+    const pptBinding = typeof chatBody.projectId === 'string'
+      ? getProject(db, chatBody.projectId)?.metadata?.nativePresentation?.modelBinding : undefined;
+    if (pptBinding && pptBinding.provider !== 'existing') {
+      chatBody = { ...chatBody, agentId: 'opencode', model: `niki-ppt/${pptBinding.model}`, reasoning: undefined };
+    }
+    let pptLaunch;
+
     const {
       agentId,
       message,
@@ -9844,6 +9859,10 @@ export async function startServer({
         ),
         ...odMediaEnv,
       }, agentLaunch);
+      if (pptBinding && pptBinding.provider !== 'existing') {
+        pptLaunch = await pptModelGateway.launch(pptBinding, daemonUrl, () => !design.runs.isTerminal(run.status));
+        Object.assign(env, pptLaunch.env);
+      }
       spawnedAgentEnv = env;
       const invocation = createCommandInvocation({
         command: agentLaunch.launchPath,
@@ -9861,6 +9880,7 @@ export async function startServer({
         windowsVerbatimArguments: invocation.windowsVerbatimArguments,
       });
       run.child = child;
+      if (pptLaunch) child.once('close', pptLaunch.release);
       if (def.promptViaStdin && child.stdin && def.streamFormat !== 'pi-rpc') {
         // EPIPE from a fast-exiting CLI (bad auth, missing model, exit on
         // launch) would otherwise surface as an unhandled stream error and

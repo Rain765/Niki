@@ -514,3 +514,13 @@ it.each(['html-ppt', 'guizang-ppt-skill'])('does not constrain %s with generic d
   expect(prompt).toContain(skillBody);
   for (const conflict of ['1000 lines', 'never smaller than 24px', 'overused fonts', 'rounded boxes with a left-border', 'inline all CSS', 'Always confirm: starting context', 'unknown — ask', 'turn-1 discovery form']) expect(prompt).not.toContain(conflict);
 });
+
+it('uses a host question form for native OpenCode PPT without replacing the original skill', () => {
+  const original = 'Read the original template and preserve alternating backgrounds.';
+  const prompt = composeSystemPrompt({agentId:'opencode',skillName:'guizang-ppt-skill',skillBody:original});
+  expect(prompt).toContain(original);
+  expect(prompt).toContain('<question-form id="ppt-clarification"');
+  expect(prompt).toContain('"questions":[');
+  expect(prompt).toContain('stop your turn');
+  expect(prompt).not.toContain('Quick brief — 30 seconds');
+});

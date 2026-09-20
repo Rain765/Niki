@@ -1,0 +1,14 @@
+.ppt-model-settings { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); padding: 24px; border: 1px solid var(--poster-border); border-radius: 16px; color: var(--poster-text); background: var(--poster-panel); }
+.ppt-model-settings::backdrop { background: color-mix(in srgb, var(--poster-text) 35%, transparent); }
+.ppt-model-settings header, .ppt-model-settings__actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ppt-model-settings header { justify-content: space-between; }
+.ppt-model-settings h2 { margin: 0; font-size: 20px; }
+.ppt-model-settings h3 { margin: 0 0 6px; font-size: 16px; }
+.ppt-model-settings section { margin-top: 20px; padding: 16px; border-radius: 12px; background: var(--poster-panel-raised); }
+.ppt-model-settings label { display: block; margin: 12px 0 6px; font-size: 13px; }
+.ppt-model-settings input { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid var(--poster-border); border-radius: 8px; background: var(--poster-panel); color: var(--poster-text); }
+.ppt-model-settings small, .ppt-model-settings p, .ppt-model-settings__actions span { font-size: 12px; color: var(--poster-muted); overflow-wrap: anywhere; }
+.ppt-model-settings__actions { margin-top: 10px; }
+.ppt-model-settings input:focus-visible { outline: 2px solid var(--poster-accent); outline-offset: 2px; }
+
+.ppt-model-settings select { display: block; width: 100%; height: var(--od-control-height, 46px); margin-top: 8px; padding: 0 12px; border: 1px solid var(--poster-border); border-radius: 8px; color: var(--poster-text); background: var(--poster-panel); }

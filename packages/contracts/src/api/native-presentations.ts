@@ -1,3 +1,4 @@
+import type { PptModelBinding } from './ppt-models.js';
 /** Frozen resources used by the native entry; no renderer or model policy lives here. */
 export const NATIVE_PRESENTATION_RESOURCES = {
   'html-ppt': 'sha256:4c6c510e6c28f0962416689c2b91b24539a65685563c9843bcd5f9c3a5af780f',
@@ -34,6 +35,7 @@ export interface NativePresentationInspectionJob {
   error?: string;
 }
 export interface NativePresentationMetadata {
+  modelBinding?: PptModelBinding;
   version: 1;
   workflow: NativePresentationWorkflow;
   resourceVersion: string;

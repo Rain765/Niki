@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { NATIVE_HTML_TEMPLATES, nativePresentationThemes, NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project } from '@open-design/contracts';
+import { NATIVE_HTML_TEMPLATES, nativePresentationThemes, NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project, type PptModelProvider } from '@open-design/contracts';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -10,8 +10,12 @@ import type {
 } from '@open-design/contracts';
 import { resolveDaemonUrl } from './daemon-url.js';
 
-const HELP = `od ppt inspect-native --project ID --file index.html [--json]\nod ppt native-templates --json\nod ppt native --workflow html-ppt|guizang-ppt-skill --prompt-file brief.md|- [--file source.pdf]
-              [--template ID|auto|custom] [--theme ID] [--agent codex] [--model ID] [--json]
+const HELP = `od ppt providers [--json]
+od ppt provider-save --provider qwen|kimi|deepseek --key-file path|- [--json]
+od ppt provider-test|provider-delete --provider qwen|kimi|deepseek [--json]
+od ppt default-model --provider existing|qwen|kimi|deepseek [--json]
+od ppt inspect-native --project ID --file index.html [--json]\nod ppt native-templates --json\nod ppt native --workflow html-ppt|guizang-ppt-skill --prompt-file brief.md|- [--file source.pdf]
+              [--provider existing|qwen|kimi|deepseek] [--template ID|auto|custom] [--theme ID] [--agent codex] [--model ID] [--json]
 Creates an original-skill project. With --agent, starts its native conversation;
 without --agent, saves the brief for the web workspace. Use od run watch <id> to follow.
 od ppt generate --file document.pdf [--color emerald] [--ratio 16:9] [--pages auto|5|10|15|20]
@@ -49,6 +53,8 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       args: rest,
       strict: true,
       options: {
+        provider: { type: 'string' },
+        'key-file': { type: 'string' },
         file: { type: 'string' },
         workflow: { type: 'string' },
         template: { type: 'string' },
@@ -92,7 +98,14 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       return `/api/projects/${encodeURIComponent(id)}/presentation`;
     };
     let result: unknown;
-    if (command === 'inspect-native') {
+    if (command === 'providers') result = await request('/api/ppt-models');
+    else if (['provider-save', 'provider-test', 'provider-delete', 'default-model'].includes(command)) {
+      if (!values.provider || !['existing','qwen','kimi','deepseek'].includes(values.provider)) throw new Error('--provider is required');
+      if (command === 'provider-save' && !values['key-file']) throw new Error('--key-file path|- is required; never put keys in command arguments');
+      const suffix = command === 'default-model' ? '/default' : `/${values.provider}${command === 'provider-test' ? '/test' : ''}`;
+      const body = command === 'provider-save' ? { apiKey: (await readInput(values['key-file']!)).trim() } : command === 'default-model' ? { provider: values.provider } : undefined;
+      result = await request(`/api/ppt-models${suffix}`, { method: command === 'provider-delete' ? 'DELETE' : command === 'provider-test' ? 'POST' : 'PUT', headers: { 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    } else if (command === 'inspect-native') {
       if (!id || !values.file) throw new Error('--project and --file are required');
       let inspection = await request<NativePresentationInspectionJob>(`/api/projects/${encodeURIComponent(id)}/native-presentation/inspect`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({entry: values.file}),
@@ -123,6 +136,7 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       // Read input before creating the project; a missing file cannot leave an orphan draft.
       const bytes = values.file ? await readFile(values.file) : null;
       const metadata = { kind: 'deck' as const, nativePresentation: {
+        ...(values.provider ? { modelBinding: { provider: values.provider as PptModelProvider } } : {}),
         version: 1 as const, workflow, selection: { template, theme: values.theme ?? '' }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[workflow], brief,
       } };
       const created = await request<{ project: Project; conversationId: string }>('/api/projects', {
@@ -140,7 +154,7 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       const prompt = sourceName ? `${brief}\n\nRead the complete original project file ${JSON.stringify(sourceName)}; preserve its facts, tables and constraints.` : brief;
       await request(`/api/projects/${projectId}`, {
         method: 'PATCH', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ pendingPrompt: prompt, metadata: { ...metadata, nativePresentation: { ...metadata.nativePresentation, brief: prompt, sourceFileName: sourceName } } }),
+        body: JSON.stringify({ pendingPrompt: prompt, metadata: { ...metadata, nativePresentation: { ...metadata.nativePresentation, ...created.project.metadata?.nativePresentation, brief: prompt, sourceFileName: sourceName } } }),
       });
       const run = values.agent ? await request('/api/runs', {
         method: 'POST', headers: { 'content-type': 'application/json' },

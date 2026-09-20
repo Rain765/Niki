@@ -81,3 +81,7 @@
 .native-ppt-question :is(button,textarea):focus-visible { outline: 2px solid var(--poster-accent); outline-offset: 2px; }
 .native-ppt-question__actions { display: flex; justify-content: flex-end; }
 .native-ppt-question [role=alert] { margin: 12px 0 0; color: var(--poster-danger); font-size: 13px; }
+
+.native-ppt__filters.has-model { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.native-ppt__filters.has-model .native-ppt__source { grid-column: 1 / 4; }
+@media (max-width: 760px) { .native-ppt__filters.has-model { grid-template-columns: repeat(2, minmax(0, 1fr)); } .native-ppt__filters.has-model .native-ppt__source { grid-column: 1 / -1; } }

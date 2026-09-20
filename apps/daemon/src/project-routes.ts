@@ -1,3 +1,4 @@
+import { PptModels, PptModelError } from './ppt-models.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdir, rename, stat, unlink } from 'node:fs/promises';
@@ -28,6 +29,7 @@ import { listSkills } from './skills.js';
 import { auditDesignSystemPackage } from './tools-connectors-cli.js';
 
 export interface RegisterProjectRoutesDeps extends RouteDeps<'db' | 'design' | 'http' | 'paths' | 'projectStore' | 'projectFiles' | 'conversations' | 'templates' | 'status' | 'events' | 'ids' | 'telemetry' | 'validation'> {
+  pptModels?: PptModels;
   plugins?: {
     ensureRegistryInitialized: () => Promise<void>;
   };
@@ -234,6 +236,12 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
           : skipDiscoveryBrief === true
             ? { skipDiscoveryBrief: true }
             : null;
+      if (projectMetadata?.nativePresentation && ctx.pptModels) {
+        try {
+          projectMetadata.nativePresentation = { ...projectMetadata.nativePresentation,
+            modelBinding: await ctx.pptModels.bind(projectMetadata.nativePresentation.modelBinding?.provider, !currentNikiUser() || currentNikiUser()?.role === 'admin') };
+        } catch (error) { return sendApiError(res, error instanceof PptModelError ? error.status : 500, 'BAD_REQUEST', error instanceof PptModelError ? error.message : '模型配置不可用'); }
+      }
       const now = Date.now();
       const project = insertProject(db, {
         id,
@@ -364,6 +372,15 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
   app.patch('/api/projects/:id', async (req, res) => {
     try {
       const patch = req.body || {};
+      if ('metadata' in patch && ctx.pptModels) {
+        const previous = getProject(db, req.params.id)?.metadata?.nativePresentation?.modelBinding;
+        const requested = patch.metadata?.nativePresentation?.modelBinding;
+        if (requested && (requested.provider !== previous?.provider || requested.model !== previous?.model)) return sendApiError(res, 400, 'BAD_REQUEST', '文稿创建后不能更换生成模型，请新建文稿');
+        if (previous) {
+          if (!patch.metadata?.nativePresentation) return sendApiError(res, 400, 'BAD_REQUEST', '不能移除文稿的模型配置');
+          patch.metadata.nativePresentation.modelBinding = previous;
+        }
+      }
       // baseDir / folder-import state is privileged: it's set only by the
       // import endpoint and otherwise immutable. Two failure modes to
       // guard against here:

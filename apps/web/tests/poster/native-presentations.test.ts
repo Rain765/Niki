@@ -51,3 +51,14 @@ it('preserves full-deck design and does not require removed optional fields',asy
  expect(prompt).toContain('source-coverage.md');
  expect(prompt).toContain('content-plan.md');
 });
+
+it('preserves the server-bound model through upload and leaves the skill prompt unchanged', async () => {
+  const { nativePresentationPrompt } = await import('../../src/poster/native-presentations');
+  const { createProject, patchProject } = await import('../../src/state/projects');
+  vi.mocked(createProject).mockResolvedValue({project:{id:'bound',metadata:{kind:'deck',nativePresentation:{version:1,workflow:'html-ppt',brief:'',resourceVersion:'test',modelBinding:{provider:'qwen',model:'qwen3.8-max'}}}}} as never);
+  vi.mocked(patchProject).mockResolvedValue({id:'bound'} as never);
+  const input={...brief,provider:'qwen' as const};
+  expect(nativePresentationPrompt(input)).toBe(nativePresentationPrompt(brief));
+  await prepareNativePresentation(input,null);
+  expect(vi.mocked(patchProject).mock.lastCall?.[1].metadata?.nativePresentation?.modelBinding).toEqual({provider:'qwen',model:'qwen3.8-max'});
+});

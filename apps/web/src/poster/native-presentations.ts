@@ -1,4 +1,4 @@
-import { NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions } from '@open-design/contracts';
+import { NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, type PptModelProvider } from '@open-design/contracts';
 import { createProject, patchProject } from '../state/projects';
 import { uploadProjectFile } from '../providers/registry';
 import type { Project } from '../types';
@@ -6,6 +6,7 @@ import type { Project } from '../types';
 export const NATIVE_PPT_SKILLS = ['html-ppt', 'guizang-ppt-skill'] as const;
 export type NativePptSkill = typeof NATIVE_PPT_SKILLS[number];
 export type NativePptBrief = {
+  provider?: PptModelProvider;
   skill: NativePptSkill;
   topic: string;
   audience: string;
@@ -47,14 +48,14 @@ export async function prepareNativePresentation(brief: NativePptBrief, file: Fil
     name: brief.topic.trim().slice(0, 70) || file?.name.replace(/\.[^.]+$/, '') || '演示文稿',
     skillId: brief.skill,
     designSystemId: null,
-    metadata: { kind: 'deck', nativePresentation: { version: 1, workflow: brief.skill, selection: { template: brief.style, theme: brief.theme }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief) } },
+    metadata: { kind: 'deck', nativePresentation: { ...(brief.provider ? { modelBinding: { provider: brief.provider } } : {}), version: 1, workflow: brief.skill, selection: { template: brief.style, theme: brief.theme }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief) } },
   });
   if (!created) throw new Error('无法创建文稿，请重试。 / Could not create presentation.');
   const uploaded = file ? await uploadProjectFile(created.project.id, file) : null;
   if (file && !uploaded) throw new Error('原文件上传失败，尚未开始生成。可从我的文稿打开草稿重新上传。 / Upload failed; generation has not started.');
   const project = await patchProject(created.project.id, {
     pendingPrompt: nativePresentationPrompt(brief, uploaded?.name),
-    metadata: { ...created.project.metadata!, nativePresentation: { version: 1, workflow: brief.skill, selection: { template: brief.style, theme: brief.theme }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief, uploaded?.name), sourceFileName: uploaded?.name } },
+    metadata: { ...created.project.metadata!, nativePresentation: { ...created.project.metadata?.nativePresentation, version: 1, workflow: brief.skill, selection: { template: brief.style, theme: brief.theme }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief, uploaded?.name), sourceFileName: uploaded?.name } },
   });
   if (!project) throw new Error('资料已保存，需求保存失败。可从我的文稿继续。 / Brief could not be saved.');
   return project;

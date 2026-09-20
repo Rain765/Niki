@@ -9,6 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useNikiAuth } from '../auth/NikiAuth';
+import { PptModelSettings } from './PptModelSettings';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
 import { Button } from '../components/Button';
 import { LoanVideoComposer } from '../components/loan-video/LoanVideoComposer';
@@ -453,6 +454,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video');
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const [brand, setBrand] = useState<AutoPosterBrand>(AUTO_POSTER_DEFAULT_BRAND);
   const [purpose, setPurpose] = useState<AutoPosterPurpose>(POSTER_APP_DEFAULT_PURPOSE);
   const [aspectRatio, setAspectRatio] = useState<AutoPosterAspectRatio>('3:4');
@@ -1192,6 +1194,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                 role="menu"
                 aria-hidden={!accountMenuOpen}
               >
+                {user.role === 'admin' && <button type="button" role="menuitem" tabIndex={accountMenuOpen ? 0 : -1} onClick={() => { setAccountMenuOpen(false); setModelSettingsOpen(true); }}>{locale.startsWith('zh') ? '模型设置' : 'Model settings'}</button>}
                 {user.role === 'admin' ? (
                   <button
                     type="button"
@@ -1253,6 +1256,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         ) : null}
       </div>
 
+      {user?.role === 'admin' && <PptModelSettings open={modelSettingsOpen} onClose={() => setModelSettingsOpen(false)} />}
       <PasswordAccountManager
         open={accountManagerOpen}
         onClose={() => setAccountManagerOpen(false)}

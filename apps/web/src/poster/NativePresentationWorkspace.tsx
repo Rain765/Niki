@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PPT_MODEL_PROVIDERS, type PptApiProvider } from '@open-design/contracts';
 import { ProjectView } from '../components/ProjectView';
 import { useRoute } from '../router';
 import { fetchAgents, fetchSkills, fetchDesignTemplates, fetchDesignSystems } from '../providers/registry';
@@ -19,8 +20,8 @@ function Workspace() {
   const { locale } = useI18n();
   const zh = locale.startsWith('zh');
   const [project, setProject] = useState<Project | null>(null);
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [storedConfig, setConfig] = useState<AppConfig | null>(null);
+  const [storedAgents, setAgents] = useState<AgentInfo[]>([]);
   const [skills, setSkills] = useState<SkillSummary[]>([]);
   const [templates, setTemplates] = useState<SkillSummary[]>([]);
   const [systems, setSystems] = useState<DesignSystemSummary[]>([]);
@@ -55,7 +56,11 @@ function Workspace() {
     });
     return () => { active = false; };
   }, [id]);
-  const update = (next: AppConfig) => { setConfig(next); saveConfig(next); };
+  const binding = project?.metadata?.nativePresentation?.modelBinding;
+  const external = binding && binding.provider !== 'existing' ? binding : null;
+  const config = useMemo(() => storedConfig && external ? { ...storedConfig, agentId: 'opencode', agentModels: { ...storedConfig.agentModels, opencode: { model: `niki-ppt/${external.model}` } } } : storedConfig, [storedConfig, external]);
+  const agents = useMemo(() => external ? storedAgents.map(item => item.id === 'opencode' ? { ...item, authStatus: 'ok' as const, models: [{ id: `niki-ppt/${external.model}`, label: PPT_MODEL_PROVIDERS[external.provider as PptApiProvider].label }] } : item) : storedAgents, [storedAgents, external]);
+  const update = (next: AppConfig) => { if (!external) { setConfig(next); saveConfig(next); } };
   const agent = agents.find((item) => item.id === config?.agentId);
   const model = config?.agentModels?.[agent?.id ?? '']?.model;
   const ready = Boolean(agent?.available && agent.authStatus !== 'missing' && model);
@@ -68,9 +73,10 @@ function Workspace() {
     <header className="native-ppt-workspace__bar">
       <a href="/?mode=ppt" target="_top">← {zh ? '演示文稿' : 'Presentations'}</a>
       <strong>{project?.name}</strong>
-      <button onClick={() => setSettings(!settings)}>{agent?.name ?? (zh ? '选择执行代理' : 'Choose agent')}</button>
+      <button onClick={() => setSettings(!settings)}>{external ? PPT_MODEL_PROVIDERS[external.provider as PptApiProvider].label : agent?.name ?? (zh ? '选择执行代理' : 'Choose agent')}</button>
     </header>
-    {config && (settings || !ready) && <div className="native-ppt-workspace__settings">
+    {external && !ready && <p role="alert">{zh ? 'PPT 执行器不可用，请管理员检查 OpenCode。' : 'PPT runner unavailable. Ask an administrator to check OpenCode.'}</p>}
+    {config && !external && (settings || !ready) && <div className="native-ppt-workspace__settings">
       <label>{zh ? '执行代理' : 'Agent'} <select value={config.agentId ?? ''} onChange={(event) => update({ ...config, agentId: event.target.value })}>
         <option value="">{zh ? '请选择' : 'Select'}</option>
         {agents.map((item) => <option key={item.id} value={item.id} disabled={!item.available || item.authStatus === 'missing'}>{item.name}{!item.available ? ' · unavailable' : ''}</option>)}
