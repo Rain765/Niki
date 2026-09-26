@@ -3,6 +3,7 @@ import {
   applyPlugin,
   contributeGeneratedPluginToOpenDesign,
   createPluginShareProject,
+  getPlugin,
   importFolderProject,
   installGeneratedPluginFolder,
   listPlugins,
@@ -104,6 +105,28 @@ describe('listPlugins', () => {
     const rows = await listPlugins({ includeHidden: true });
 
     expect(rows.map((row) => row.id)).toEqual(['od-default', 'od-new-generation']);
+  });
+});
+
+describe('getPlugin', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('loads only the requested plugin record', async () => {
+    const plugin = {
+      id: 'od-media-generation',
+      title: 'Media generation',
+      manifest: { od: { kind: 'scenario' } },
+    };
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(
+      JSON.stringify(plugin),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getPlugin('od-media-generation')).resolves.toEqual(plugin);
+    expect(fetchMock).toHaveBeenCalledWith('/api/plugins/od-media-generation');
   });
 });
 

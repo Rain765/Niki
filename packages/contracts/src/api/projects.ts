@@ -89,6 +89,39 @@ export interface DesignSystemReviewEntry {
 
 export interface ProjectMetadata {
   kind: ProjectKind;
+  /**
+   * Marks projects whose first deliverables are started directly through the
+   * media API instead of through a chat/agent turn. The web uses this to show
+   * generation progress without exposing an internal execution prompt as a
+   * draft user message.
+   */
+  directGeneration?: {
+    kind: 'loan-poster';
+    expectedOutputs: number;
+    outputPrefix: string;
+    /**
+     * Direct generation is a two-phase operation: project setup first, then
+     * media-task admission. Persist the phase so a rejected admission cannot
+     * leave every client rendering an endless spinner.
+     */
+    status?: 'preparing' | 'queued' | 'failed';
+    requestedAt?: number;
+    queuedAt?: number;
+    failedAt?: number;
+    lastError?: string;
+    /** Local calendar day used to keep Home one-click generations together. */
+    sessionDate?: string;
+    /** Every output prefix used by batches accumulated in this project. */
+    outputPrefixes?: string[];
+    /** Number of one-click generation batches accumulated in this project. */
+    batchCount?: number;
+    /**
+     * Internal project-relative reference image reused by later batches.
+     * Keeping this path avoids re-uploading the same brand image on every
+     * one-click generation while the original remains private to the project.
+     */
+    referencePath?: string;
+  };
   intent?: 'live-artifact';
   fidelity?: 'wireframe' | 'high-fidelity';
   speakerNotes?: boolean;

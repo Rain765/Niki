@@ -165,6 +165,13 @@ describe('GET /api/projects/:id/raw/* range request route', () => {
     await writeFile(path.join(dir, 'clip.mp4'), Buffer.alloc(FILE_SIZE, 0x42));
     await writeFile(path.join(dir, 'audio.mp3'), Buffer.alloc(FILE_SIZE, 0x43));
     await writeFile(path.join(dir, 'page.html'), Buffer.from('<html/>'));
+    await writeFile(
+      path.join(dir, 'poster.png'),
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAFElEQVR42mNkYGD4z8DAwMDAAAANHQEDasKb6QAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    );
   });
 
   afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
@@ -224,6 +231,31 @@ describe('GET /api/projects/:id/raw/* range request route', () => {
     expect(res.headers.get('accept-ranges')).toBeNull();
     const text = await res.text();
     expect(text).toBe('<html/>');
+  });
+
+  it('serves cached WebP derivatives for image previews', async () => {
+    const previewUrl = `${baseUrl}/api/projects/${projectId}/image-preview/poster.png?variant=thumbnail&v=1`;
+    const res = await fetch(previewUrl);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('image/webp');
+    expect(res.headers.get('cache-control')).toContain('immutable');
+    expect(res.headers.get('etag')).toBeTruthy();
+    expect(Buffer.from(await res.arrayBuffer()).subarray(0, 4).toString('ascii')).toBe('RIFF');
+
+    const cached = await fetch(previewUrl, {
+      headers: { 'If-None-Match': res.headers.get('etag')! },
+    });
+    expect(cached.status).toBe(304);
+  });
+
+  it('streams versioned raw images with immutable caching', async () => {
+    const res = await fetch(`${rawUrl('poster.png')}?v=1`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toContain('immutable');
+    expect(res.headers.get('content-length')).toBeTruthy();
+    expect(res.headers.get('etag')).toBeTruthy();
   });
 
   it('returns 404 for a missing file', async () => {

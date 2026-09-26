@@ -89,7 +89,10 @@ function getSelects(container: HTMLElement) {
 }
 
 describe('DesignFilesPanel image thumbnails', () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    cleanup();
+  });
 
   it('renders the project image to the left of its filename', () => {
     renderPanel([
@@ -104,7 +107,7 @@ describe('DesignFilesPanel image thumbnails', () => {
       'design-file-thumbnail-zambia-support-poster-01.png',
     ) as HTMLImageElement;
     expect(thumbnail.src).toContain(
-      '/api/projects/test-project/raw/zambia-support-poster-01.png',
+      '/api/projects/test-project/image-preview/zambia-support-poster-01.png?variant=thumbnail',
     );
   });
 
@@ -126,8 +129,34 @@ describe('DesignFilesPanel image thumbnails', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
 
     expect(screen.getByRole('dialog', { name: /zambia-support-poster-01\.png/i })).toBeTruthy();
-    expect(screen.getByTestId('design-file-modal-image')).toBeTruthy();
+    expect(screen.getByTestId('design-file-modal-image').getAttribute('src')).toContain(
+      '/api/projects/test-project/image-preview/zambia-support-poster-01.png?variant=preview',
+    );
     expect(onOpenFile).not.toHaveBeenCalled();
+  });
+
+  it('opens an image directly from its filename on a mobile viewport', () => {
+    vi.stubGlobal('matchMedia', vi.fn(() => ({
+      matches: true,
+      media: '(max-width: 900px)',
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })));
+    const { container } = renderPanel([
+      file({
+        name: 'mobile-poster.png',
+        kind: 'image',
+        mime: 'image/png',
+      }),
+    ]);
+
+    fireEvent.click(container.querySelector('.df-row-name-btn')!);
+
+    expect(screen.getByRole('dialog', { name: /mobile-poster\.png/i })).toBeTruthy();
   });
 
   it('shows the full file action set beneath the selected image preview', () => {
@@ -150,6 +179,9 @@ describe('DesignFilesPanel image thumbnails', () => {
     ]);
     expect(within(preview).getByRole('button', { name: 'Preview' })).toBeTruthy();
     expect(within(preview).getByRole('link', { name: 'Download' })).toBeTruthy();
+    expect(within(preview).getByRole('link', { name: 'Download' }).getAttribute('href')).toBe(
+      '/api/projects/test-project/raw/zambia-support-poster-01.png?download=1',
+    );
     expect(within(preview).getByRole('button', { name: 'Add to canvas' })).toBeTruthy();
     expect(within(preview).getByRole('button', { name: 'Copy' })).toBeTruthy();
     expect(within(preview).getByRole('button', { name: 'Rename' })).toBeTruthy();
@@ -569,8 +601,8 @@ describe('DesignFilesPanel large-list regression', () => {
     const download = screen.getByTestId(
       `design-file-row-download-${imageName}`,
     ) as HTMLAnchorElement;
-    expect(download.href).toContain(`/api/projects/test-project/raw/${imageName}`);
-    expect(download.download).toBe(imageName);
+    expect(download.href).toContain(`/api/projects/test-project/raw/${imageName}?download=1`);
+    expect(download.target).toBe('');
 
     fireEvent.click(screen.getByTestId(`design-file-row-delete-${imageName}`));
     expect(onDeleteFile).toHaveBeenCalledWith(imageName);

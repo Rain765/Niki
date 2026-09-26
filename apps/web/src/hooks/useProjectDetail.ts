@@ -16,14 +16,21 @@ export interface ProjectDetailState {
   refresh: () => Promise<void>;
 }
 
-export function useProjectDetail(projectId: string): ProjectDetailState {
+export function useProjectDetail(projectId: string, enabled: boolean = true): ProjectDetailState {
   const [project, setProject] = useState<Project | null>(null);
   const [resolvedDir, setResolvedDir] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchOnce = useCallback(
     async (signal?: AbortSignal) => {
+      if (!enabled) {
+        setProject(null);
+        setResolvedDir(null);
+        setLoading(false);
+        setError(null);
+        return;
+      }
       setLoading(true);
       setError(null);
       try {
@@ -50,7 +57,7 @@ export function useProjectDetail(projectId: string): ProjectDetailState {
         if (!signal?.aborted) setLoading(false);
       }
     },
-    [projectId],
+    [enabled, projectId],
   );
 
   useEffect(() => {

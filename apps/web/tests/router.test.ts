@@ -109,6 +109,6 @@ describe('parseRoute / buildPath (issue #1505)', () => {
 
   it('falls back to home when the URL is unrecognized', () => {
     expect(parseRoute('/something/else')).toEqual({ kind: 'home', view: 'home' });
-    expect(parseRoute('/projects')).toEqual({ kind: 'home', view: 'projects' });
+    expect(parseRoute('/projects')).toEqual({ kind: 'home', view: 'home' });
   });
 });

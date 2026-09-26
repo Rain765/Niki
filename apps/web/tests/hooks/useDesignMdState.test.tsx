@@ -57,6 +57,16 @@ afterEach(() => {
 });
 
 describe('useDesignMdState', () => {
+  it('skips DESIGN.md inspection when the feature is disabled', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { result } = renderHook(() => useDesignMdState('p1', 0, false));
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.exists).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('returns { exists: false, isStale: false } when DESIGN.md is absent', async () => {
     installFetchMock({
       files: { body: { files: [{ name: 'index.html', size: 10, mtime: 1, kind: 'html', mime: 'text/html' }] } },

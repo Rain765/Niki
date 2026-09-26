@@ -24,6 +24,7 @@ import {
 } from '../providers/daemon';
 import { fetchElevenLabsVoiceOptions } from '../providers/elevenlabs-voices';
 import {
+  deleteProjectFile,
   deletePreviewComment,
   fetchPreviewComments,
   fetchDesignSystem,
@@ -132,6 +133,11 @@ import {
   buildPluginFolderAgentActionPrompt,
   type PluginFolderAgentAction,
 } from './design-files/pluginFolderActions';
+import {
+  isDirectLoanPosterProject,
+  isLoanPosterGenerationPrompt,
+  isLoanPosterOutputName,
+} from './home-hero/zambia-posters';
 import { CenteredLoader } from './Loading';
 import { Toast } from './Toast';
 import { useDesignMdState } from '../hooks/useDesignMdState';
@@ -188,6 +194,7 @@ interface Props {
   onTogglePet?: () => void;
   onOpenPetSettings?: () => void;
   onBack: () => void;
+  showBackButton?: boolean;
   onClearPendingPrompt: () => void;
   onTouchProject: () => void;
   onProjectChange: (next: Project) => void;
@@ -399,8 +406,12 @@ function appendLiveArtifactEventItem(
   return next.length > 50 ? next.slice(next.length - 50) : next;
 }
 
-export function projectSplitClassName(workspaceFocused: boolean): string {
-  return workspaceFocused ? 'split split-focus' : 'split';
+export function projectSplitClassName(
+  workspaceFocused: boolean,
+  workspaceCollapsed = false,
+): string {
+  if (workspaceFocused) return 'split split-focus';
+  return workspaceCollapsed ? 'split split-workspace-collapsed' : 'split';
 }
 
 function shouldFetchElevenLabsVoiceOptions(project: Project): boolean {
@@ -452,6 +463,7 @@ export function ProjectView({
   onTogglePet,
   onOpenPetSettings,
   onBack,
+  showBackButton = true,
   onClearPendingPrompt,
   onTouchProject,
   onProjectChange,
@@ -459,6 +471,10 @@ export function ProjectView({
 }: Props) {
   const t = useT();
   const analytics = useAnalytics();
+  const directLoanPosterProject = isDirectLoanPosterProject(
+    project.skillId,
+    project.metadata,
+  );
   // P0 page_view page_name=chat_panel — fire once per project mount.
   // ProjectView outlives conversation switches (ChatPane is keyed by
   // activeConversationId so it remounts when the user switches chats,
@@ -498,11 +514,13 @@ export function ProjectView({
   const [artifact, setArtifact] = useState<Artifact | null>(null);
   const [filesRefresh, setFilesRefresh] = useState(0);
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [projectFilesInitialized, setProjectFilesInitialized] = useState(false);
   const projectFilesRef = useRef<ProjectFile[]>([]);
   const projectFilesHydratedRef = useRef(false);
   const [liveArtifacts, setLiveArtifacts] = useState<LiveArtifactSummary[]>([]);
   const [liveArtifactEvents, setLiveArtifactEvents] = useState<LiveArtifactEventItem[]>([]);
   const [workspaceFocused, setWorkspaceFocused] = useState(false);
+  const [workspaceCollapsed, setWorkspaceCollapsed] = useState(directLoanPosterProject);
   // Per-session override for the BYOK SenseAudio chat's generate_image
   // tool. Seeded once from Settings (config.byokImageModel) so the
   // composer dropdown opens on the user's chosen default; subsequent
@@ -512,6 +530,8 @@ export function ProjectView({
   const [byokImageModelOverride, setByokImageModelOverride] = useState<string>(
     config.byokImageModel ?? '',
   );
+  const [projectTitleEditing, setProjectTitleEditing] = useState(false);
+  const [projectTitleDraft, setProjectTitleDraft] = useState(project.name);
   // `closed` → no surface; `review` → read-only saved-state panel with a
   // preview + reopen-to-edit action (#1822); `edit` → the textarea editor.
   const [instructionsMode, setInstructionsMode] = useState<'closed' | 'review' | 'edit'>('closed');
@@ -528,6 +548,9 @@ export function ProjectView({
       setInstructionsMode('closed');
     }
   }, [project.customInstructions, instructionsMode]);
+  useEffect(() => {
+    if (!projectTitleEditing) setProjectTitleDraft(project.name);
+  }, [project.name, projectTitleEditing]);
   // PR #974 round 7 (mrcfps @ useDesignMdState.ts:131): counter that
   // bumps on file-changed SSE events, live_artifact* events, and the
   // chat streaming-completion edge so the staleness chip stays in sync
@@ -538,8 +561,16 @@ export function ProjectView({
   // ----- Continue in CLI / Finalize design package wiring (#451) -----
   // The toast surface is shared between Finalize errors and the
   // success/fallback toasts emitted from handleContinueInCli.
-  const projectDetail = useProjectDetail(project.id);
-  const designMdState = useDesignMdState(project.id, designMdRefreshKey);
+  // One-click poster projects only need chat + generated files on first
+  // render. Defer the advanced DESIGN.md / resolved-directory probes so
+  // opening a poster project is not gated by unrelated project tooling.
+  const advancedProjectToolsEnabled = !directLoanPosterProject;
+  const projectDetail = useProjectDetail(project.id, advancedProjectToolsEnabled);
+  const designMdState = useDesignMdState(
+    project.id,
+    designMdRefreshKey,
+    advancedProjectToolsEnabled,
+  );
   const finalize = useFinalizeProject(project.id);
   const terminalLauncher = useTerminalLaunch();
   const [projectActionsToast, setProjectActionsToast] = useState<{
@@ -982,6 +1013,7 @@ export function ProjectView({
     projectFilesRef.current = next;
     projectFilesHydratedRef.current = true;
     setProjectFiles(next);
+    setProjectFilesInitialized(true);
     for (const file of addedImages) {
       void addCanvasImageNode(
         project.id,
@@ -995,7 +1027,11 @@ export function ProjectView({
   useEffect(() => {
     projectFilesHydratedRef.current = false;
     projectFilesRef.current = [];
-  }, [project.id]);
+    setProjectFiles([]);
+    setProjectFilesInitialized(false);
+    setWorkspaceCollapsed(directLoanPosterProject);
+    setMobileWorkspaceOpen(false);
+  }, [directLoanPosterProject, project.id]);
 
   useEffect(() => {
     projectFilesRef.current = projectFiles;
@@ -1012,10 +1048,60 @@ export function ProjectView({
     return nextFiles;
   }, [refreshLiveArtifacts, refreshProjectFiles]);
 
+  const directPosterExpectedCount = directLoanPosterProject
+    ? project.metadata?.directGeneration?.expectedOutputs ?? null
+    : null;
+  const directPosterGeneratedCount = directLoanPosterProject
+    ? projectFiles.filter((file) => file.kind === 'image' && isLoanPosterOutputName(file.name)).length
+    : 0;
+
+  // Project file changes normally arrive through SSE within 80–250ms. Mobile
+  // webviews can suspend or reconnect that stream while an image provider is
+  // working, leaving a completed poster hidden behind the loading state. Poll
+  // only while a direct generation is incomplete so a missed event can delay
+  // the UI by at most two seconds without adding idle background traffic.
+  useEffect(() => {
+    if (
+      !daemonLive
+      || !directLoanPosterProject
+      || directPosterExpectedCount === null
+      || directPosterGeneratedCount >= directPosterExpectedCount
+    ) {
+      return;
+    }
+
+    const refresh = () => {
+      void refreshProjectFiles().catch(() => {
+        // SSE remains the primary transport; the next bounded poll retries.
+      });
+    };
+    const firstRefresh = window.setTimeout(refresh, 750);
+    const interval = window.setInterval(refresh, 2_000);
+    return () => {
+      window.clearTimeout(firstRefresh);
+      window.clearInterval(interval);
+    };
+  }, [
+    daemonLive,
+    directLoanPosterProject,
+    directPosterExpectedCount,
+    directPosterGeneratedCount,
+    refreshProjectFiles,
+  ]);
+
   const requestOpenFile = useCallback((name: string) => {
     if (!name) return;
     setOpenRequest({ name, nonce: Date.now() });
-  }, []);
+    setWorkspaceCollapsed(false);
+    // On narrow screens the workspace is a full-screen overlay. Opening a
+    // produced file without revealing that overlay updates a hidden tab and
+    // looks like a dead tap, so surface it as part of the same action.
+    if (window.matchMedia?.('(max-width: 900px)').matches) {
+      setMobileWorkspaceOpen(true);
+    } else if (directLoanPosterProject) {
+      setWorkspaceFocused(true);
+    }
+  }, [directLoanPosterProject]);
 
   const persistArtifact = useCallback(
     async (art: Artifact, projectFilesSnapshot?: ProjectFile[]) => {
@@ -1141,12 +1227,21 @@ export function ProjectView({
   // mount we also do an initial pull so attachments staged before the
   // agent has written anything still see the user's pasted images.
   useEffect(() => {
-    void refreshWorkspaceItems().catch(() => {
+    const refreshInitialFiles = directLoanPosterProject
+      ? refreshProjectFiles
+      : refreshWorkspaceItems;
+    void refreshInitialFiles().catch(() => {
       // The daemon probe can briefly lag behind a just-started local
       // runtime. Retry when daemonLive flips or the explicit refresh key
       // changes instead of leaving the project view in its empty shell.
     });
-  }, [daemonLive, refreshWorkspaceItems, filesRefresh]);
+  }, [
+    daemonLive,
+    directLoanPosterProject,
+    filesRefresh,
+    refreshProjectFiles,
+    refreshWorkspaceItems,
+  ]);
 
   // Live-reload: when the daemon's chokidar watcher reports a file change,
   // bump filesRefresh so the file list refetches with new mtimes — which
@@ -1753,7 +1848,11 @@ export function ProjectView({
         if (needsFullReplay) {
           updateMessageById(
             message.id,
-            (prev) => ({ ...prev, content: '', events: [], producedFiles: undefined }),
+            // A replay may recover missing prose/events, but it must never
+            // erase an image that the file watcher already discovered.
+            // Otherwise the newest chat briefly shows its image and then
+            // regresses to a prose-only transcript as replay starts.
+            (prev) => ({ ...prev, content: '', events: [] }),
           );
         }
 
@@ -3007,6 +3106,12 @@ export function ProjectView({
     [project, onProjectChange],
   );
 
+  const commitProjectTitle = useCallback(() => {
+    handleProjectRename(projectTitleDraft);
+    setProjectTitleDraft((current) => current.trim() || project.name);
+    setProjectTitleEditing(false);
+  }, [handleProjectRename, project.name, projectTitleDraft]);
+
   const handleSaveInstructions = useCallback(async () => {
     const value = instructionsDraft.trim() || undefined;
     // After a save, land on the review panel so the saved value is read
@@ -3023,15 +3128,6 @@ export function ProjectView({
     onProjectChange(result);
     settle();
   }, [project, onProjectChange, instructionsDraft]);
-
-  const projectMeta = useMemo(() => {
-    const summary =
-      skills.find((s) => s.id === project.skillId) ??
-      designTemplates.find((s) => s.id === project.skillId);
-    const skill = summary?.name;
-    const ds = designSystems.find((d) => d.id === project.designSystemId)?.title;
-    return [skill, ds].filter(Boolean).join(' · ') || t('project.metaFreeform');
-  }, [skills, designTemplates, designSystems, project.skillId, project.designSystemId, t]);
 
   const designSystemProject = useMemo(() => {
     if (project.metadata?.importedFrom !== 'design-system') return null;
@@ -3243,6 +3339,17 @@ export function ProjectView({
     } catch {
       /* sessionStorage may be unavailable; treat as manual flow. */
     }
+    // Older one-click poster projects were created before the
+    // sessionStorage auto-send marker existed. Their pending prompt has
+    // a stable execution contract, so recognize it and dispatch it as a
+    // real first user message instead of leaving a wall of text in the
+    // composer. Direct-media projects never need a duplicate chat run.
+    if (
+      !directLoanPosterProject
+      && isLoanPosterGenerationPrompt(project.pendingPrompt)
+    ) {
+      isAutoSend = true;
+    }
     autoSendFirstMessageRef.current = isAutoSend;
     autoSendSeedRef.current = isAutoSend ? (project.pendingPrompt ?? '') : '';
     autoSendAttachmentsRef.current = isAutoSend ? readAutoSendAttachments(project.id) : [];
@@ -3250,13 +3357,18 @@ export function ProjectView({
   const [initialDraft, setInitialDraft] = useState<
     { projectId: string; value: string } | undefined
   >(
-    autoSendSeedRef.current || !project.pendingPrompt
+    directLoanPosterProject || autoSendSeedRef.current || !project.pendingPrompt
       ? undefined
       : { projectId: project.id, value: project.pendingPrompt },
   );
   useEffect(() => {
     const pendingPrompt = project.pendingPrompt;
     if (!pendingPrompt) return;
+    if (directLoanPosterProject) {
+      setInitialDraft(undefined);
+      onClearPendingPrompt();
+      return;
+    }
     if (autoSendFirstMessageRef.current) {
       onClearPendingPrompt();
       return;
@@ -3267,9 +3379,17 @@ export function ProjectView({
         : { projectId: project.id, value: pendingPrompt },
     );
     onClearPendingPrompt();
-  }, [project.id, project.pendingPrompt, onClearPendingPrompt]);
+  }, [
+    directLoanPosterProject,
+    project.id,
+    project.pendingPrompt,
+    onClearPendingPrompt,
+  ]);
   const chatInitialDraft =
-    chatSeed?.value ?? (initialDraft?.projectId === project.id ? initialDraft.value : undefined);
+    directLoanPosterProject
+      ? undefined
+      : chatSeed?.value
+        ?? (initialDraft?.projectId === project.id ? initialDraft.value : undefined);
 
   // Continue in CLI / Finalize design package handlers + keyboard
   // shortcut wiring. Close to the JSX so the data flow is easy to
@@ -3431,7 +3551,7 @@ export function ProjectView({
     } catch {
       flag = null;
     }
-    if (!flag) return;
+    if (!flag && !autoSendFirstMessageRef.current) return;
     // Prefer the seed captured at mount (autoSendSeedRef) — it survives
     // even after onClearPendingPrompt wipes project.pendingPrompt on the
     // server. Fall back to the live values for any edge case where the
@@ -3511,19 +3631,78 @@ export function ProjectView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mobileWorkspaceOpen]);
 
+  const directPosterCanvasOpen =
+    workspaceFocused || mobileWorkspaceOpen || !workspaceCollapsed;
+  const showDirectPosterChat = useCallback(() => {
+    setMobileWorkspaceOpen(false);
+    setWorkspaceFocused(false);
+    setWorkspaceCollapsed(true);
+  }, []);
+  const showDirectPosterCanvas = useCallback(() => {
+    setWorkspaceCollapsed(false);
+    if (window.matchMedia?.('(max-width: 900px)').matches) {
+      setWorkspaceFocused(false);
+      setMobileWorkspaceOpen(true);
+    } else {
+      setMobileWorkspaceOpen(false);
+      setWorkspaceFocused(true);
+    }
+  }, []);
+
   return (
-    <div className={`app${mobileWorkspaceOpen ? ' app--mobile-workspace-open' : ''}`}>
+    <div
+      className={[
+        'app',
+        directLoanPosterProject ? 'app--direct-poster' : '',
+        mobileWorkspaceOpen ? 'app--mobile-workspace-open' : '',
+      ].filter(Boolean).join(' ')}
+    >
       <CritiqueTheaterMount
         projectId={project.id}
         enabled={critiqueTheaterEnabled}
       />
+      {directLoanPosterProject ? (
+        <header className="app-chrome-header direct-poster-topbar">
+          <div
+            className="direct-poster-surface-switch"
+            role="tablist"
+            aria-label={`${t('chat.tabChat')} / ${t('workspace.canvas')}`}
+            data-testid="project-surface-switch"
+          >
+            <button
+              type="button"
+              role="tab"
+              className={!directPosterCanvasOpen ? 'is-active' : ''}
+              data-testid="project-chat-surface-tab"
+              aria-selected={!directPosterCanvasOpen}
+              onClick={showDirectPosterChat}
+            >
+              <Icon name="comment" size={15} />
+              <span>{t('chat.tabChat')}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={directPosterCanvasOpen ? 'is-active' : ''}
+              data-testid="project-mobile-design-files-toggle"
+              aria-selected={directPosterCanvasOpen}
+              onClick={showDirectPosterCanvas}
+            >
+              <Icon name="grid" size={15} />
+              <span>{t('workspace.canvas')}</span>
+            </button>
+          </div>
+        </header>
+      ) : null}
       <div
         ref={splitRef}
         className={[
-          projectSplitClassName(workspaceFocused),
-          resizingChatPanel && !workspaceFocused ? 'is-resizing-chat' : '',
+          projectSplitClassName(workspaceFocused, workspaceCollapsed),
+          resizingChatPanel && !workspaceFocused && !workspaceCollapsed
+            ? 'is-resizing-chat'
+            : '',
         ].filter(Boolean).join(' ')}
-        style={workspaceFocused
+        style={workspaceFocused || workspaceCollapsed
           ? undefined
           : {
               gridTemplateColumns:
@@ -3531,36 +3710,60 @@ export function ProjectView({
             }}
       >
         <div className="split-chat-slot" hidden={workspaceFocused}>
-          <div className="project-chat-chrome">
-            <button
-              type="button"
-              className="app-chrome-back"
-              onClick={onBack}
-              title={t('project.backToProjects')}
-              aria-label={t('project.backToProjects')}
-            >
-              <Icon name="arrow-left" size={16} />
-            </button>
+          {!directLoanPosterProject ? <div className="project-chat-chrome">
+            {showBackButton ? (
+              <button
+                type="button"
+                className="app-chrome-back"
+                onClick={onBack}
+                title={t('project.backToProjects')}
+                aria-label={t('project.backToProjects')}
+              >
+                <Icon name="arrow-left" size={16} />
+              </button>
+            ) : null}
             <div className="app-project-title">
               <span className="app-project-title-line">
-                <span
-                  className="title editable"
-                  data-testid="project-title"
-                  tabIndex={0}
-                  role="textbox"
-                  suppressContentEditableWarning
-                  contentEditable
-                  onBlur={(e) => handleProjectRename(e.currentTarget.textContent ?? '')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      (e.currentTarget as HTMLElement).blur();
-                    }
-                  }}
-                >
-                  {project.name}
-                </span>
-                <span className="meta" data-testid="project-meta">{projectMeta}</span>
+                {projectTitleEditing ? (
+                  <input
+                    className="project-title-input"
+                    data-testid="project-title-input"
+                    value={projectTitleDraft}
+                    aria-label={t('common.rename')}
+                    autoFocus
+                    onChange={(event) => setProjectTitleDraft(event.target.value)}
+                    onBlur={commitProjectTitle}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        commitProjectTitle();
+                      } else if (event.key === 'Escape') {
+                        event.preventDefault();
+                        setProjectTitleDraft(project.name);
+                        setProjectTitleEditing(false);
+                      }
+                    }}
+                  />
+                ) : (
+                  <>
+                    <span className="title" data-testid="project-title">
+                      {project.name}
+                    </span>
+                    <button
+                      type="button"
+                      className="project-title-edit"
+                      data-testid="project-title-edit"
+                      title={t('common.rename')}
+                      aria-label={t('common.rename')}
+                      onClick={() => {
+                        setProjectTitleDraft(project.name);
+                        setProjectTitleEditing(true);
+                      }}
+                    >
+                      <Icon name="edit" size={13} />
+                    </button>
+                  </>
+                )}
                 {(project.customInstructions ?? '').trim() ? (
                   <button
                     type="button"
@@ -3576,7 +3779,7 @@ export function ProjectView({
                 ) : (
                   <button
                     type="button"
-                    className="project-instructions-toggle"
+                    className="project-instructions-chip"
                     data-testid="project-instructions-add"
                     title={t('project.customInstructions')}
                     aria-expanded={instructionsMode !== 'closed'}
@@ -3585,7 +3788,8 @@ export function ProjectView({
                       setInstructionsMode((m) => (m === 'closed' ? 'edit' : 'closed'));
                     }}
                   >
-                    <Icon name="edit" size={13} />
+                    <Icon name="file" size={11} />
+                    <span>{t('project.customInstructions')}</span>
                   </button>
                 )}
               </span>
@@ -3602,7 +3806,7 @@ export function ProjectView({
               <Icon name="grid" size={15} />
               <span>{t('workspace.designFiles')}</span>
             </button>
-          </div>
+          </div> : null}
           {instructionsMode === 'review' && (
             <div className="project-instructions-bar project-instructions-review">
               <div className="project-instructions-bar-head">
@@ -3664,7 +3868,7 @@ export function ProjectView({
               </div>
             </div>
           )}
-          {activeConversationId || conversationLoadError ? (
+          {directLoanPosterProject || activeConversationId || conversationLoadError ? (
             <ChatPane
               // The conversation id is part of the key so switching conversations
               // resets internal scroll/draft state inside ChatPane and ChatComposer.
@@ -3676,6 +3880,7 @@ export function ProjectView({
               projectId={project.id}
               projectKindForTracking={projectKindToTracking(project.metadata?.kind)}
               projectFiles={projectFiles}
+              projectFilesInitialized={projectFilesInitialized}
               hasActiveDesignSystem={!!project.designSystemId}
               projectFileNames={projectFileNames}
               skills={skills}
@@ -3688,6 +3893,11 @@ export function ProjectView({
               onSend={handleSend}
               onStop={handleStop}
               onRequestOpenFile={requestOpenFile}
+              onDeleteProjectFile={async (name) => {
+                const deleted = await deleteProjectFile(project.id, name);
+                if (deleted) await refreshWorkspaceItems();
+                return deleted;
+              }}
               onRequestPluginFolderAgentAction={handlePluginFolderAgentAction}
               initialDraft={chatInitialDraft}
               onSubmitForm={(text) => {
@@ -3724,7 +3934,10 @@ export function ProjectView({
                 onProjectChange({ ...project, skillId });
               }}
               activePluginSnapshot={activePluginSnapshot}
-              onCollapse={() => setWorkspaceFocused(true)}
+              onCollapse={() => {
+                setWorkspaceCollapsed(false);
+                setWorkspaceFocused(true);
+              }}
             />
           ) : (
             <div className="pane" data-testid="chat-pane-loading">
@@ -3732,7 +3945,7 @@ export function ProjectView({
             </div>
           )}
         </div>
-        {!workspaceFocused ? (
+        {!workspaceFocused && !workspaceCollapsed ? (
           <div
             className="split-resize-handle"
             role="separator"
@@ -3774,14 +3987,18 @@ export function ProjectView({
           onFocusModeChange={(next) => {
             if (mobileWorkspaceOpen) {
               setMobileWorkspaceOpen(false);
+              if (directLoanPosterProject) setWorkspaceCollapsed(true);
               return;
             }
+            if (next) setWorkspaceCollapsed(false);
             setWorkspaceFocused(next);
           }}
           designSystemProject={designSystemProject}
           onDesignSystemNeedsWork={sendDesignSystemFeedback}
           designSystemReview={project.metadata?.designSystemReview}
           onDesignSystemReviewDecision={persistDesignSystemReviewDecision}
+          simplifiedImageActions={directLoanPosterProject}
+          canvasOnly={directLoanPosterProject}
         />
       </div>
       {projectActionsToast ? (

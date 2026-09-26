@@ -547,6 +547,7 @@ export const ja: Dict = {
   'avatar.codeAgent': 'コードエージェント',
   'avatar.rescan': 'PATH を再スキャン',
   'avatar.settings': '設定',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'プロジェクトに戻る',
   'avatar.metaActive': 'アクティブ',
   'avatar.metaOffline': 'オフライン',

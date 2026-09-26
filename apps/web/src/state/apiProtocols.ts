@@ -38,6 +38,13 @@ export const SUGGESTED_MODELS_BY_PROTOCOL: Record<ApiProtocol, readonly string[]
     'mimo-v2.5-pro',
   ],
   openai: [
+    'gpt-5.6-sol',
+    'gpt-5.6-terra',
+    'gpt-5.6-luna',
+    'gpt-5.5',
+    'gpt-5.4',
+    'gpt-5.4-mini',
+    'gpt-5.4-nano',
     'gpt-4o',
     'gpt-4o-mini',
     'o3',
@@ -135,12 +142,12 @@ export const SUGGESTED_MODELS_BY_PROTOCOL: Record<ApiProtocol, readonly string[]
 };
 
 // "Fast / cheap" model recommendation for each protocol. Used by the
-// memory extractor's auto-mode pill ("we'll quietly run gpt-4o-mini on
+// memory extractor's auto-mode pill ("we'll quietly run gpt-5.6-luna on
 // your OpenAI key") and by anyone else who needs a one-pick default
 // that prioritises latency + cost over reasoning depth.
 export const FAST_MODEL_BY_PROTOCOL: Record<ApiProtocol, string> = {
   anthropic: 'claude-haiku-4-5',
-  openai: 'gpt-4o-mini',
+  openai: 'gpt-5.6-luna',
   azure: 'gpt-4o-mini',
   google: 'gemini-2.0-flash',
   kimi: 'kimi-k3',

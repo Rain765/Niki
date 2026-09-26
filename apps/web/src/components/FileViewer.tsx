@@ -35,6 +35,7 @@ import {
   fetchProjectFileText,
   uploadProjectFiles,
   liveArtifactPreviewUrl,
+  projectFileDownloadUrl,
   projectFileUrl,
   projectRawUrl,
   LiveArtifactRefreshError,
@@ -1812,16 +1813,13 @@ function FileActions({
     <div className="viewer-toolbar-actions">
       <a
         className="ghost-link"
-        href={projectFileUrl(projectId, file.name)}
-        download={file.name}
+        href={projectFileDownloadUrl(projectId, file.name)}
       >
         {t('fileViewer.download')}
       </a>
       <a
         className="ghost-link"
         href={projectFileUrl(projectId, file.name)}
-        target="_blank"
-        rel="noreferrer noopener"
       >
         {t('fileViewer.open')}
       </a>
@@ -6896,16 +6894,13 @@ function ImageViewer({
         <div className="viewer-toolbar-actions">
           <a
             className="ghost-link"
-            href={projectFileUrl(projectId, file.name)}
-            download={file.name}
+            href={projectFileDownloadUrl(projectId, file.name)}
           >
             {t('fileViewer.download')}
           </a>
           <a
             className="ghost-link"
             href={projectFileUrl(projectId, file.name)}
-            target="_blank"
-            rel="noreferrer noopener"
           >
             {t('fileViewer.open')}
           </a>
@@ -7085,16 +7080,13 @@ export function SvgViewer({
           </button>
           <a
             className="ghost-link"
-            href={projectFileUrl(projectId, file.name)}
-            download={file.name}
+            href={projectFileDownloadUrl(projectId, file.name)}
           >
             {t('fileViewer.download')}
           </a>
           <a
             className="ghost-link"
             href={projectFileUrl(projectId, file.name)}
-            target="_blank"
-            rel="noreferrer noopener"
           >
             {t('fileViewer.open')}
           </a>

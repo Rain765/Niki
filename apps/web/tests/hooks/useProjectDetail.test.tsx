@@ -21,6 +21,16 @@ function mockFetchOnce(body: unknown, init?: { ok?: boolean; status?: number }) 
 }
 
 describe('useProjectDetail', () => {
+  it('skips the project request when project details are disabled', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    const { result } = renderHook(() => useProjectDetail('p1', false));
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.project).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('surfaces resolvedDir when the daemon includes it in the response', async () => {
     mockFetchOnce({
       project: { id: 'p1', name: 'Acme', skillId: null, designSystemId: null, createdAt: 1, updatedAt: 1 },

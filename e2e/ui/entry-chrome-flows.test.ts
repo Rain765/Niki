@@ -157,16 +157,35 @@ test('entry top navigation matches the current home tab structure', async ({ pag
   await expect(page.getByTestId('entry-nav-new-project')).toHaveCount(0);
   await expect(page.getByTestId('entry-nav-home')).toHaveAttribute('aria-current', 'page');
   await expect(page.getByTestId('entry-nav-projects')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-menu-toggle')).toHaveCount(0);
   await expect(page.getByTestId('entry-nav-tasks')).toHaveCount(0);
   await expect(page.getByTestId('entry-nav-plugins')).toHaveCount(0);
   await expect(page.getByTestId('entry-nav-design-systems')).toHaveCount(0);
   await expect(page.getByTestId('entry-nav-integrations')).toHaveCount(0);
+  await page.getByTestId('home-hero-send-menu').click();
   await expect(page.getByTestId('home-hero-rail')).toBeVisible();
   await expect(page.getByTestId('home-hero-rail-prototype')).toBeVisible();
   await expect(page.getByTestId('home-hero-rail-live-artifact')).toHaveCount(0);
   await expect(page.getByTestId('home-hero-rail-deck')).toBeVisible();
   await expect(page.getByTestId('home-hero-rail-image')).toBeVisible();
   await expect(page.getByTestId('home-hero-rail-video')).toBeVisible();
+});
+
+test('mobile entry navigation keeps Home and Projects directly available', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoEntryHome(page);
+
+  await expect(page.getByTestId('entry-nav-home')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-projects')).toBeVisible();
+  await expect(page.getByTestId('entry-nav-menu-toggle')).toHaveCount(0);
+
+  await page.getByTestId('entry-nav-projects').click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByTestId('entry-nav-projects')).toHaveAttribute('aria-current', 'page');
+
+  await page.getByTestId('entry-nav-home').click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId('entry-nav-home')).toHaveAttribute('aria-current', 'page');
 });
 
 test('home view exposes the redesigned hero, recent projects, starters, and modal entry points', async ({ page }) => {

@@ -47,7 +47,7 @@ function renderHero(overrides: Partial<React.ComponentProps<typeof HomeHero>> = 
 }
 
 describe('HomeHero intent rail', () => {
-  it('offers count, size, and brand selectors in order for one-click poster generation', () => {
+  it('offers count, size, and brand through one compact filter menu', () => {
     const onAutoPoster = vi.fn();
     const onAutoPosterCountChange = vi.fn();
     const onAutoPosterAspectRatioChange = vi.fn();
@@ -72,22 +72,33 @@ describe('HomeHero intent rail', () => {
     expect(size.value).toBe('16:9');
     expect(Array.from(brand.options).map((option) => option.value)).toEqual(['zamloan', 'biumoney']);
     expect(brand.value).toBe('zamloan');
-    expect(Array.from(controls.querySelectorAll('select')).map((select) => select.dataset.testid))
-      .toEqual([
-        'home-hero-auto-poster-count',
-        'home-hero-auto-poster-size',
-        'home-hero-auto-poster-brand',
-      ]);
-    expect(controls.querySelectorAll('.home-hero__auto-poster-select-icon')).toHaveLength(3);
+    expect(screen.getByTestId('home-hero-auto-poster-trigger').textContent)
+      .toContain('1');
+    expect(screen.queryByTestId('home-hero-auto-poster-menu')).toBeNull();
 
-    fireEvent.change(count, { target: { value: '7' } });
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
+    expect(screen.getByTestId('home-hero-auto-poster-menu')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('menuitem')[0]!);
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-count-option-7'));
     expect(onAutoPosterCountChange).toHaveBeenCalledWith(7);
-    fireEvent.change(size, { target: { value: '1:1' } });
+
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
+    fireEvent.click(screen.getAllByRole('menuitem')[1]!);
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-size-option-1:1'));
     expect(onAutoPosterAspectRatioChange).toHaveBeenCalledWith('1:1');
-    fireEvent.change(brand, { target: { value: 'biumoney' } });
+
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
+    fireEvent.click(screen.getAllByRole('menuitem')[2]!);
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-brand-option-biumoney'));
     expect(onAutoPosterBrandChange).toHaveBeenCalledWith('biumoney');
 
-    fireEvent.click(screen.getByTestId('home-hero-submit'));
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-trigger'));
+    fireEvent.click(screen.getAllByRole('menuitem')[0]!);
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-submenu-close'));
+    expect(screen.queryByTestId('home-hero-auto-poster-menu')).toBeNull();
+
+    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-generate'));
     expect(onAutoPoster).toHaveBeenCalledTimes(1);
   });
 
@@ -104,10 +115,26 @@ describe('HomeHero intent rail', () => {
     fireEvent.click(screen.getByTestId('home-hero-send-menu'));
     expect(screen.getByTestId('home-hero-resource-picker')).toBeTruthy();
     expect(screen.getByTestId('home-hero-attach')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('home-hero-send-menu-close'));
+    expect(screen.getByTestId('home-hero-send-menu-panel').hasAttribute('hidden')).toBe(true);
 
     fireEvent.click(screen.getByTestId('home-hero-submit'));
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onAutoPoster).not.toHaveBeenCalled();
+  });
+
+  it('keeps extension registries out of the light homepage until requested', () => {
+    const onLoadExtensions = vi.fn();
+    renderHero({
+      extensionsRequested: false,
+      onLoadExtensions,
+    });
+
+    fireEvent.click(screen.getByTestId('home-hero-send-menu'));
+    expect(screen.queryByTestId('home-hero-resource-picker')).toBeNull();
+    expect(screen.queryByTestId('home-hero-rail')).toBeNull();
+    fireEvent.click(screen.getByTestId('home-hero-load-extensions'));
+    expect(onLoadExtensions).toHaveBeenCalledTimes(1);
   });
 
   it('disables all auto-poster controls while a batch is being prepared', () => {
@@ -117,6 +144,20 @@ describe('HomeHero intent rail', () => {
     expect((screen.getByTestId('home-hero-auto-poster-count') as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByTestId('home-hero-auto-poster-size') as HTMLSelectElement).disabled).toBe(true);
     expect((screen.getByTestId('home-hero-auto-poster-brand') as HTMLSelectElement).disabled).toBe(true);
+    expect((screen.getByTestId('home-hero-auto-poster-generate') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('keeps poster controls at the right edge immediately before send', () => {
+    renderHero();
+
+    const controls = screen.getByTestId('home-hero-auto-poster-controls');
+    const submit = screen.getByTestId('home-hero-submit');
+    const rightActions = controls.closest('.home-hero__foot-right');
+
+    expect(rightActions).toBeTruthy();
+    expect(rightActions?.lastElementChild).toBe(submit);
+    expect(controls.nextElementSibling).toBe(submit);
+    expect(rightActions?.contains(screen.getByTestId('home-hero-send-menu'))).toBe(false);
   });
 
   it('renders one chip per HOME_HERO_CHIPS entry', () => {
@@ -129,18 +170,21 @@ describe('HomeHero intent rail', () => {
     }
   });
 
-  it('keeps the intent rail in the input footer before the send control', () => {
+  it('portals the intent rail above footer overflow while keeping its trigger before send', () => {
     renderHero();
     const rail = screen.getByTestId('home-hero-rail');
+    const trigger = screen.getByTestId('home-hero-send-menu');
     const submit = screen.getByTestId('home-hero-submit');
     const footer = submit.closest('.home-hero__input-foot');
 
     expect(footer).toBeTruthy();
-    expect(footer?.contains(rail)).toBe(true);
+    expect(footer?.contains(trigger)).toBe(true);
+    expect(footer?.contains(rail)).toBe(false);
+    expect(rail.closest('.composer-add__portal')).toBeTruthy();
     expect(
-      rail.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING,
+      trigger.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByText(/Shift/).closest('.home-hero__subtitle')).toBeTruthy();
+    expect(document.querySelector('.home-hero__subtitle')).toBeNull();
     expect(footer?.querySelector('.home-hero__hint')).toBeNull();
   });
 

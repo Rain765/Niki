@@ -423,6 +423,16 @@ export interface ListPluginsOptions {
   includeHidden?: boolean;
 }
 
+export async function getPlugin(id: string): Promise<InstalledPluginRecord | null> {
+  try {
+    const resp = await fetch(`/api/plugins/${encodeURIComponent(id)}`);
+    if (!resp.ok) return null;
+    return (await resp.json()) as InstalledPluginRecord;
+  } catch {
+    return null;
+  }
+}
+
 export async function listPlugins(
   options: ListPluginsOptions = {},
 ): Promise<InstalledPluginRecord[]> {

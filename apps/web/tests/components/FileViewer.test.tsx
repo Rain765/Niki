@@ -250,6 +250,9 @@ describe('FileViewer SVG artifacts', () => {
     expect(markup).toContain('class="viewer image-viewer"');
     expect(markup).not.toContain('class="viewer svg-viewer"');
     expect(markup).not.toContain('class="viewer-tabs"');
+    expect(markup).toContain('href="/api/projects/project-1/raw/photo.png?download=1"');
+    expect(markup).toContain('href="/api/projects/project-1/raw/photo.png"');
+    expect(markup).not.toContain('target="_blank"');
   });
 
   it('renders sketch json files through the static sketch preview instead of the image viewer', async () => {

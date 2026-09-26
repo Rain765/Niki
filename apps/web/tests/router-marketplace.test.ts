@@ -50,8 +50,8 @@ describe('router /marketplace', () => {
 
 describe('router entry sub-views', () => {
   it('parses /projects (no id) as the projects entry view', () => {
-    expect(parseRoute('/projects')).toEqual({ kind: 'home', view: 'projects' });
-    expect(parseRoute('/projects/')).toEqual({ kind: 'home', view: 'projects' });
+    expect(parseRoute('/projects')).toEqual({ kind: 'home', view: 'home' });
+    expect(parseRoute('/projects/')).toEqual({ kind: 'home', view: 'home' });
   });
 
   it('parses /design-systems as the design-systems entry view', () => {
@@ -79,7 +79,7 @@ describe('router entry sub-views', () => {
     for (const route of [
       { kind: 'home', view: 'home' } as Route,
       { kind: 'home', view: 'onboarding' } as Route,
-      { kind: 'home', view: 'projects' } as Route,
+      { kind: 'home', view: 'home' } as Route,
       { kind: 'home', view: 'tasks' } as Route,
       { kind: 'home', view: 'plugins' } as Route,
       { kind: 'home', view: 'design-systems' } as Route,
@@ -92,5 +92,11 @@ describe('router entry sub-views', () => {
   it('parses /onboarding as the global onboarding panel', () => {
     expect(parseRoute('/onboarding')).toEqual({ kind: 'home', view: 'onboarding' });
     expect(buildPath({ kind: 'home', view: 'onboarding' })).toBe('/onboarding');
+  });
+
+  it('round-trips the global design files route', () => {
+    const route = { kind: 'design-files' } as Route;
+    expect(buildPath(route)).toBe('/design-files');
+    expect(parseRoute(buildPath(route))).toEqual(route);
   });
 });

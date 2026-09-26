@@ -70,6 +70,7 @@ const execFile = promisify(execFileCb);
 type ProviderConfig = { apiKey?: string; baseUrl?: string; model?: string };
 type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
+type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
 type MediaContext = {
   surface: MediaSurface;
   /**
@@ -99,6 +100,7 @@ type MediaContext = {
   provider: MediaProvider | null;
   prompt: string;
   aspect: string | undefined;
+  quality: ImageQuality | undefined;
   length: number | undefined;
   duration: number | undefined;
   voice: string;
@@ -284,6 +286,7 @@ function clampWithWarning(value: unknown, allowed: number[], flagName: string): 
 export async function generateMedia(args: {
   projectRoot: string; projectsRoot: string; projectId: string; surface: MediaSurface; model: string;
   prompt?: string; output?: string; aspect?: string; length?: number; duration?: number; voice?: string;
+  quality?: ImageQuality;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
   compositionDir?: string; image?: string; onProgress?: ProgressFn;
 }) {
@@ -296,6 +299,7 @@ export async function generateMedia(args: {
     prompt,
     output,
     aspect,
+    quality,
     length,
     duration,
     voice,
@@ -322,6 +326,12 @@ export async function generateMedia(args: {
     throw new Error(
       `unsupported audioKind: ${audioKind}. Allowed: music | speech | sfx.`,
     );
+  }
+  if (
+    quality !== undefined
+    && !(['low', 'medium', 'high', 'auto'] as const).includes(quality)
+  ) {
+    throw new Error('unsupported image quality. Allowed: low | medium | high | auto.');
   }
   const def = findMediaModel(model);
   if (!def) {
@@ -398,6 +408,7 @@ export async function generateMedia(args: {
     provider: findProvider(def.provider),
     prompt: prompt || '',
     aspect: aspect || defaultAspectFor(surface),
+    quality: surface === 'image' ? quality : undefined,
     length: clampedLength,
     duration: clampedDuration,
     voice: voice || '',
@@ -728,7 +739,7 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     body.quality = ctx.model === 'dall-e-3' ? 'hd' : 'standard';
   } else {
     // gpt-image-* accepts quality 'high' | 'medium' | 'low'.
-    body.quality = 'high';
+    body.quality = ctx.quality === 'auto' ? 'medium' : (ctx.quality ?? 'high');
   }
 
   const headers: Record<string, string> = {

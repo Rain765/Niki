@@ -634,6 +634,7 @@ export const th: Dict = {
   'avatar.codeAgent': 'เอเจนต์โค้ด',
   'avatar.rescan': 'สแกนหาใหม่',
   'avatar.settings': 'การตั้งค่า',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'กลับไปยังโปรเจกต์',
   'avatar.metaActive': 'เปิดใช้งาน',
   'avatar.metaOffline': 'ออฟไลน์',

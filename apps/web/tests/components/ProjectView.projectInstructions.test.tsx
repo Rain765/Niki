@@ -190,6 +190,19 @@ describe('ProjectView – saved Project instructions surface (#1822)', () => {
     expect(container.querySelector('.app > .app-chrome-header')).toBeNull();
   });
 
+  it('keeps skill metadata out of the title bar and edits the title in an input', async () => {
+    render(<ProjectViewHarness initialProject={{ ...baseProject, skillId: 'skill-1' }} />);
+
+    expect(await screen.findByTestId('project-title')).toBeTruthy();
+    expect(screen.queryByTestId('project-meta')).toBeNull();
+    fireEvent.click(screen.getByTestId('project-title-edit'));
+    const input = screen.getByTestId('project-title-input') as HTMLInputElement;
+    expect(input.value).toBe(baseProject.name);
+    fireEvent.change(input, { target: { value: 'Updated title' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(await screen.findByText('Updated title')).toBeTruthy();
+  });
+
   it('shows a persistent saved-state chip (not just a bare pencil) when instructions exist', async () => {
     render(<ProjectViewHarness initialProject={{ ...baseProject, customInstructions: SAVED }} />);
 

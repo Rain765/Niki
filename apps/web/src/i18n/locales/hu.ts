@@ -660,6 +660,7 @@ export const hu: Dict = {
   'avatar.codeAgent': 'Kód-ügynök',
   'avatar.rescan': 'PATH újraellenőrzése',
   'avatar.settings': 'Beállítások',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': 'Vissza a projektekhez',
   'avatar.metaActive': 'aktív',
   'avatar.metaOffline': 'offline',

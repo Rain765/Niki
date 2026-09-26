@@ -37,6 +37,11 @@ import {
   ZAMBIA_POSTER_DEFAULT_COUNT,
 } from './home-hero/zambia-posters';
 import { AutoPosterControls } from './AutoPosterControls';
+import {
+  ComposerAddAction,
+  ComposerAddMenu,
+  ComposerAddSection,
+} from './ComposerAddMenu';
 
 export interface HomeHeroSubmitHandler {
   (): void;
@@ -82,6 +87,9 @@ interface Props {
   mcpOptions?: McpServerConfig[];
   mcpLoading?: boolean;
   connectorOptions?: ConnectorDetail[];
+  extensionsRequested?: boolean;
+  extensionsLoading?: boolean;
+  onLoadExtensions?: () => Promise<void> | void;
   pendingPluginId: string | null;
   pendingChipId: string | null;
   submitDisabled?: boolean;
@@ -154,6 +162,9 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     mcpOptions = [],
     mcpLoading = false,
     connectorOptions = [],
+    extensionsRequested = true,
+    extensionsLoading = false,
+    onLoadExtensions,
     pendingPluginId,
     pendingChipId,
     submitDisabled = false,
@@ -174,21 +185,16 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
   const [promptScrollTop, setPromptScrollTop] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const [openInlineInputName, setOpenInlineInputName] = useState<string | null>(null);
-  const [sendActionsOpen, setSendActionsOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const composingRef = useRef(false);
   const inputElementRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const sendActionsRef = useRef<HTMLDivElement | null>(null);
   const hasManualSubmission = prompt.trim().length > 0 || stagedFiles.length > 0;
-  const canAutoPoster = !autoPosterPending && !autoPosterDisabled;
-  const canSubmit = !submitDisabled && (hasManualSubmission || canAutoPoster);
+  const canSubmit = !submitDisabled && hasManualSubmission;
   const submitPrimaryAction = useCallback(() => {
-    if (!hasManualSubmission) {
-      onAutoPoster();
-      return;
-    }
+    if (!canSubmit) return;
     onSubmit();
-  }, [hasManualSubmission, onAutoPoster, onSubmit]);
+  }, [canSubmit, onSubmit]);
   const placeholder = activePluginTitle || activeSkillTitle
     ? t('homeHero.placeholderActive')
     : t('homeHero.placeholder');
@@ -372,17 +378,6 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     setPromptScrollTop(inputElementRef.current?.scrollTop ?? 0);
   }, [prompt, promptOverlayParts]);
 
-  useEffect(() => {
-    if (!sendActionsOpen) return;
-    function closeSendActions(event: PointerEvent) {
-      if (!sendActionsRef.current?.contains(event.target as Node)) {
-        setSendActionsOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', closeSendActions);
-    return () => document.removeEventListener('pointerdown', closeSendActions);
-  }, [sendActionsOpen]);
-
   const setInputRef = useCallback(
     (node: HTMLTextAreaElement | null) => {
       inputElementRef.current = node;
@@ -456,7 +451,7 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
     const nextPrompt = `${prompt}${spacer}@`;
     onPromptChange(nextPrompt);
     setSelectedIndex(0);
-    setSendActionsOpen(false);
+    setAddMenuOpen(false);
     requestAnimationFrame(() => {
       const input = inputElementRef.current;
       if (!input) return;
@@ -483,11 +478,6 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
           NIKI / VISUAL AGENT
         </div>
         <h1 className="home-hero__title">{t('homeHero.title')}</h1>
-        <p className="home-hero__subtitle">
-          {t('homeHero.subtitlePrefix')} <kbd>Enter</kbd> {t('homeHero.toRun')}
-          {' · '}
-          <kbd>Shift</kbd>+<kbd>Enter</kbd> {t('homeHero.forNewLine')}.
-        </p>
       </div>
 
       <div
@@ -881,6 +871,86 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
             }}
           />
           <div className="home-hero__foot-left">
+            <ComposerAddMenu
+              open={addMenuOpen}
+              testId="home-hero-send-menu"
+              label={t('homeHero.railAria')}
+              closeLabel={t('common.close')}
+              className="home-hero__add-menu"
+              keepMounted
+              onOpenChange={setAddMenuOpen}
+            >
+              {addMenuOpen ? (
+                <ComposerAddSection label={t('homeHero.contextSurfaces')}>
+                  {extensionsRequested ? (
+                    <ComposerAddAction
+                      icon="sparkles"
+                      label={t('homeHero.contextSurfaces')}
+                      description={t('homeHero.searchPrompt')}
+                      testId="home-hero-resource-picker"
+                      onClick={openContextPicker}
+                    />
+                  ) : (
+                    <ComposerAddAction
+                      icon={extensionsLoading ? 'spinner' : 'grid'}
+                      label={extensionsLoading
+                        ? t('homeHero.loadingContext')
+                        : t('homeHero.loadExtensions')}
+                      description={t('homeHero.loadExtensionsDescription')}
+                      disabled={extensionsLoading}
+                      testId="home-hero-load-extensions"
+                      onClick={() => {
+                        void onLoadExtensions?.();
+                      }}
+                    />
+                  )}
+                  <ComposerAddAction
+                    icon="attach"
+                    label={t('chat.attachAria')}
+                    testId="home-hero-attach"
+                    onClick={() => {
+                      setAddMenuOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                  />
+                </ComposerAddSection>
+              ) : null}
+              {extensionsRequested ? (
+                <ComposerAddSection label={t('homeHero.railAria')}>
+                  <div
+                    className="home-hero__rail"
+                    role="toolbar"
+                    aria-label={t('homeHero.railAria')}
+                    data-testid="home-hero-rail"
+                  >
+                    <RailGroup
+                      group="create"
+                      activeChipId={activeChipId}
+                      pendingChipId={pendingChipId}
+                      pendingPluginId={pendingPluginId}
+                      pluginsLoading={pluginsLoading}
+                      onPickChip={(chip) => {
+                        setAddMenuOpen(false);
+                        onPickChip(chip);
+                      }}
+                    />
+                    <RailGroup
+                      group="migrate"
+                      activeChipId={activeChipId}
+                      pendingChipId={pendingChipId}
+                      pendingPluginId={pendingPluginId}
+                      pluginsLoading={pluginsLoading}
+                      onPickChip={(chip) => {
+                        setAddMenuOpen(false);
+                        onPickChip(chip);
+                      }}
+                    />
+                  </div>
+                </ComposerAddSection>
+              ) : null}
+            </ComposerAddMenu>
+          </div>
+          <div className="home-hero__foot-right">
             <AutoPosterControls
               count={autoPosterCount}
               aspectRatio={autoPosterAspectRatio}
@@ -891,91 +961,19 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
               onCountChange={onAutoPosterCountChange}
               onAspectRatioChange={onAutoPosterAspectRatioChange}
               onBrandChange={onAutoPosterBrandChange}
+              onGenerate={onAutoPoster}
             />
-            <div className="home-hero__rail-shell">
-              <div
-                className="home-hero__rail"
-                role="toolbar"
-                aria-label={t('homeHero.railAria')}
-                data-testid="home-hero-rail"
-              >
-                <RailGroup
-                  group="create"
-                  activeChipId={activeChipId}
-                  pendingChipId={pendingChipId}
-                  pendingPluginId={pendingPluginId}
-                  pluginsLoading={pluginsLoading}
-                  onPickChip={onPickChip}
-                />
-                <span className="home-hero__rail-divider" aria-hidden />
-                <RailGroup
-                  group="migrate"
-                  activeChipId={activeChipId}
-                  pendingChipId={pendingChipId}
-                  pendingPluginId={pendingPluginId}
-                  pluginsLoading={pluginsLoading}
-                  onPickChip={onPickChip}
-                />
-              </div>
-            </div>
-          </div>
-          <div
-            ref={sendActionsRef}
-            className="composer-send-wrap home-hero__send-wrap"
-          >
-            {sendActionsOpen ? (
-              <div
-                className="composer-send-menu home-hero__send-menu"
-                role="menu"
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="home-hero-resource-picker"
-                  onClick={openContextPicker}
-                >
-                  <span className="composer-tools-at" aria-hidden>@</span>
-                  <span>{t('homeHero.contextSurfaces')}</span>
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  data-testid="home-hero-attach"
-                  onClick={() => {
-                    setSendActionsOpen(false);
-                    fileInputRef.current?.click();
-                  }}
-                >
-                  <Icon name="attach" size={17} />
-                  <span>{t('chat.attachAria')}</span>
-                </button>
-              </div>
-            ) : null}
-            <div className="composer-send-split home-hero__send-split">
-              <button
-                type="button"
-                className="composer-send composer-send-primary home-hero__submit"
-                data-testid="home-hero-submit"
-                onClick={submitPrimaryAction}
-                disabled={!canSubmit}
-                title={canSubmit ? t('chat.send') : t('homeHero.typeSomethingToRun')}
-                aria-label={t('chat.send')}
-              >
-                <Icon name="send" size={18} />
-              </button>
-              <button
-                type="button"
-                className="composer-send-chevron home-hero__send-chevron"
-                data-testid="home-hero-send-menu"
-                onClick={() => setSendActionsOpen((open) => !open)}
-                title={t('homeHero.contextSurfaces')}
-                aria-label={t('homeHero.contextSurfaces')}
-                aria-haspopup="menu"
-                aria-expanded={sendActionsOpen}
-              >
-                <Icon name="chevron-down" size={15} />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="composer-send composer-send--arrow home-hero__submit"
+              data-testid="home-hero-submit"
+              onClick={submitPrimaryAction}
+              disabled={!canSubmit}
+              title={canSubmit ? t('chat.send') : t('homeHero.typeSomethingToRun')}
+              aria-label={t('chat.send')}
+            >
+              <Icon name="arrow-up" size={20} />
+            </button>
           </div>
         </div>
       </div>
@@ -1624,8 +1622,20 @@ function RailGroup({
             aria-pressed={isActive}
             title={homeHeroChipTitle(chip, t)}
           >
-            <Icon name={chip.icon} size={14} className="home-hero__rail-chip-icon" />
-            <span className="home-hero__rail-chip-label">{homeHeroChipLabel(chip.id, t)}</span>
+            <span className="composer-add__action-icon" aria-hidden>
+              <Icon
+                name={isActive ? 'check' : chip.icon}
+                size={18}
+                className="home-hero__rail-chip-icon"
+              />
+            </span>
+            <span className="composer-add__action-copy">
+              <strong className="home-hero__rail-chip-label">
+                {homeHeroChipLabel(chip.id, t)}
+              </strong>
+              {chip.hint ? <span>{homeHeroChipTitle(chip, t)}</span> : null}
+            </span>
+            <Icon name="chevron-right" size={15} className="composer-add__action-chevron" />
           </button>
         );
       })}

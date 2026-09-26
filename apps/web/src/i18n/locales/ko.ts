@@ -660,6 +660,7 @@ export const ko: Dict = {
   'avatar.codeAgent': '코드 에이전트',
   'avatar.rescan': 'PATH 다시 스캔',
   'avatar.settings': '설정',
+  'avatar.shortcuts': 'Keyboard shortcuts',
   'avatar.backToProjects': '프로젝트 목록으로 돌아가기',
   'avatar.metaActive': '활성',
   'avatar.metaOffline': '오프라인',

@@ -85,6 +85,9 @@ interface Props {
   designSystemsLoading?: boolean;
   projectsLoading?: boolean;
   promptTemplatesLoading?: boolean;
+  extensionsRequested?: boolean;
+  extensionsLoading?: boolean;
+  onLoadExtensions?: () => Promise<void> | void;
   onCreateProject: (
     input: CreateInput & {
       pendingPrompt?: string;
@@ -104,6 +107,7 @@ interface Props {
   onImportFolder?: (baseDir: string) => Promise<void> | void;
   onImportFolderResponse?: (response: OpenDesignHostProjectImportSuccess) => Promise<void> | void;
   onOpenProject: (id: string) => void;
+  onProjectCreated?: (project: Project) => void;
   onOpenLiveArtifact: (projectId: string, artifactId: string) => void;
   onDeleteProject: (id: string) => void;
   onRenameProject: (id: string, name: string) => void;
@@ -256,12 +260,16 @@ export function EntryView({
   designSystemsLoading = false,
   projectsLoading = false,
   promptTemplatesLoading: _promptTemplatesLoading = false,
+  extensionsRequested = true,
+  extensionsLoading = false,
+  onLoadExtensions,
   onCreateProject,
   onCreatePluginShareProject,
   onImportClaudeDesign,
   onImportFolder,
   onImportFolderResponse,
   onOpenProject,
+  onProjectCreated,
   onOpenLiveArtifact,
   onDeleteProject,
   onRenameProject,
@@ -283,10 +291,11 @@ export function EntryView({
   }, []);
 
   useEffect(() => {
+    if (!extensionsRequested) {
+      setConnectorsLoading(false);
+      return;
+    }
     let cancelled = false;
-    // Fetch connectors on mount so the New project modal can show
-    // already-configured connectors without waiting for the user to
-    // open the Settings → Connectors surface.
     setConnectorsLoading(true);
     (async () => {
       const next = await fetchConnectors();
@@ -297,7 +306,7 @@ export function EntryView({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [extensionsRequested]);
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
@@ -340,6 +349,9 @@ export function EntryView({
       skillsLoading={skillsLoading}
       designSystemsLoading={designSystemsLoading}
       projectsLoading={projectsLoading}
+      extensionsRequested={extensionsRequested}
+      extensionsLoading={extensionsLoading}
+      onLoadExtensions={onLoadExtensions}
       config={config}
       agents={agents}
       daemonLive={daemonLive}
@@ -357,6 +369,7 @@ export function EntryView({
       {...(onImportFolder ? { onImportFolder } : {})}
       {...(onImportFolderResponse ? { onImportFolderResponse } : {})}
       onOpenProject={onOpenProject}
+      {...(onProjectCreated ? { onProjectCreated } : {})}
       onOpenLiveArtifact={onOpenLiveArtifact}
       onDeleteProject={onDeleteProject}
       onRenameProject={onRenameProject}
