@@ -1,3 +1,41 @@
+# Personal Codex workflow
+
+## Automatic coding-task wrap-up
+
+- For requests that change code, use `$safe-task-commit` when it is available.
+- Record the Git baseline before editing.
+- After repository-required validation passes, automatically stage only task-owned changes and create a scoped commit unless the user explicitly asks not to commit.
+- In a dirty worktree, isolate substantial work on a `codex/<task-slug>` branch or separate worktree. Never mix, discard, reset, or overwrite unrelated user changes.
+- Review the complete staged diff before committing. Never add co-author metadata.
+- Do not push, open a pull request, amend, rebase, or force-push unless the user requests it.
+
+## User-provided copy and visible labels
+
+- Treat user-provided documents and approved copy as the source of truth. When placing them on a website or in another artifact, preserve wording, order, punctuation, spelling, and substantive meaning. Do not silently summarize, correct, omit, rearrange, or supplement the source text unless the user explicitly asks.
+- Do not add visible review or preview notices, approval-status labels, watermarks, source notes, disclaimers, badges, or other editorial marks on your own initiative. Keep business-review concerns in the conversation or internal project notes unless the user requests public-facing copy.
+- Change only the files and text needed for the user's explicit request. Do not make opportunistic copy edits or modify attached source originals. If a source conflicts with an earlier requirement or the intended product, identify the exact conflict and obtain direction before changing the copy; do not invent replacement wording.
+- Before delivery, compare transformed text against its source, inspect every affected page and variant for unrequested additions or omissions, review the complete diff, and run the project's required checks. A technical change is not approval to change business wording.
+
+## Mac mini Codex remote connection ownership
+
+- On `Mac-mini.local` (the Niki host), the ChatGPT/Codex desktop app is the sole provider of Codex remote access. Air and iMac connect to this host. Keep this arrangement unless the user explicitly requests a migration to standalone hosting.
+- Do not use `codex remote-control start` as a status check, enable standalone daemon remote control, or recreate/enable `com.openai.codex.remote-control-proxy-bootstrap` during routine troubleshooting. These operations can compete with the desktop app for the same remote device identity and cause HTTP 409 `Remote app server already online`.
+- Baseline established on 2026-09-07: standalone daemon `remoteControlEnabled` is false; the duplicate launchd bootstrap is persistently disabled. A standalone daemon may remain available for local CLI use without serving remote connections.
+- Diagnose with read-only process inspection, daemon version queries, desktop logs, and remote transport status. Separate connection conflicts from proxy/network failures; do not work around a desktop networking issue by enabling a second remote provider.
+- A future hosting migration must disable the previous remote provider before enabling the replacement. Recheck ownership after changing startup configuration or upgrading either installation.
+- Verify both project listing and historical task access from an actual remote client when available. Local reads plus a Connected transport establish server health only; do not claim remote UI acceptance without observing it.
+
+## Niki worktree and storage lifecycle
+
+- On the Niki Mac mini, apply `/Users/rain/.local/share/niki-runtime/OPERATIONS.md` at task wrap-up, after deployment, and during storage maintenance. The repository copy is `deploy/OPERATIONS.md`.
+- Keep the active deployment and one verified rollback release intact. Temporary worktrees are for active tasks; retire completed, delivered copies after the checks below. The user authorizes routine cleanup that satisfies these checks.
+- Before removal, verify the real path, task completion, delivered commit ancestry, clean tracked/untracked state, ignored files, processes, open files, runtime configuration and startup references. Keep busy, unmerged or uncertain worktrees; confirm task ownership before touching Codex-managed worktrees. Never remove the current task checkout.
+- Preserve source branches and commit records. Archive local databases, uploads, artifacts, environment files, credentials and validation evidence outside the repository with a provenance/restoration manifest. `.tmp` and `.od` are not blanket cache directories. Do not print or commit secret contents.
+- Stop task-owned development services only through `corepack pnpm tools-dev` with the correct namespace. Recheck immediately before `git worktree remove <path>`; do not force it, use `git clean -fdx`, or recursively delete a worktree as a fallback.
+- After cache cleanup, validate daily applications and the actual deployment. Do not reinstall dependencies in every retired copy. If one temporary verification runtime is needed, isolate its namespace, ports and data, then stop and retire it after verification.
+- Before large dependency installs or builds on this host, run `node /Users/rain/.local/share/niki-auth/storage-policy.ts preflight`; stop when it rejects the operation. The existing minute-by-minute monitor now uses 30/20/10 GiB warning/cleanup/critical levels, with 2 GiB recovery headroom. The deployment script also enforces the 10 GiB preflight. Report actual filesystem free space separately from directory sizes; do not automatically purge Time Machine snapshots or user data.
+- The existing host monitor now compares directory growth weekly and performs bounded allowlisted maintenance: old npm logs, idle generated npx caches, and closed monitor logs only. Do not broaden it to worktrees, application databases, artifacts, credentials or archived backups. Worktree retirement still follows the task-end checks above. Archived local data has no automatic expiry. Keep the desktop app as the sole Codex remote provider.
+
 # Directory guide
 
 This file is the single source of truth for agents entering this repository. Read this file first; after entering `apps/`, `packages/`, `tools/`, or `e2e/`, read that layer's `AGENTS.md` for module-level details. Do not copy module details back into the root file; root stays focused on cross-repository boundaries, workflow, and commands.
