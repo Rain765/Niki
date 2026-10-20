@@ -289,7 +289,7 @@ describe('poster app image layout', () => {
     expect(image).toContain('object-fit: contain;');
   });
 
-  it('uses aligned circular icon controls in the preview header and footer', () => {
+  it('uses aligned icon controls with the shared radius in the preview header and footer', () => {
     const headerButton = rule('.poster-preview__header button');
     const footer = rules('.poster-preview__footer');
     const footerButton = rule('.poster-preview__footer button');
@@ -300,7 +300,7 @@ describe('poster app image layout', () => {
 
     expect(headerButton).toContain('width: 48px;');
     expect(headerButton).toContain('height: 48px;');
-    expect(headerButton).toContain('border-radius: 999px;');
+    expect(headerButton).toContain('border-radius: var(--od-control-radius);');
     expect(headerButton).toContain('border: 0;');
     expect(headerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);');
     expect(headerButton).toContain('color: var(--poster-fill-7);');
@@ -310,7 +310,7 @@ describe('poster app image layout', () => {
     expect(footer).toContain('gap: 32px;');
     expect(footerButton).toContain('width: 52px;');
     expect(footerButton).toContain('height: 52px;');
-    expect(footerButton).toContain('border-radius: 999px;');
+    expect(footerButton).toContain('border-radius: var(--od-control-radius);');
     expect(footerButton).toContain('border: 0;');
     expect(footerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);');
     expect(footerButton).toContain('color: var(--poster-fill-7);');

@@ -889,13 +889,13 @@
   min-height: 26px;
   padding: 4px 7px;
   border: 0;
-  border-radius: 7px;
   background: color-mix(in srgb, var(--bg-panel) 12%, transparent);
   color: var(--bg-panel);
   cursor: pointer;
   font: inherit;
-  font-size: 10px;
   font-weight: 700;
+  border-radius: var(--od-control-radius);
+  font-size: var(--od-control-font-size);
 }
 
 .loan-video-screenshot__target-tools button.is-active {
@@ -1070,16 +1070,16 @@
   min-height: 28px;
   padding: 4px 9px;
   border: 0;
-  border-radius: 7px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
   font-weight: 700;
   transition:
     background-color 200ms cubic-bezier(0.23, 1, 0.32, 1),
     color 200ms cubic-bezier(0.23, 1, 0.32, 1);
+  border-radius: var(--od-control-radius);
+  font-size: var(--od-control-font-size);
 }
 
 .loan-video-step__advance-options button:hover,
@@ -1104,18 +1104,18 @@
   min-height: 28px;
   padding: 4px 9px;
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
   background: var(--bg-panel);
   color: var(--text);
   cursor: pointer;
   font: inherit;
-  font-size: 11px;
   font-weight: 700;
   transition:
     background-color 200ms cubic-bezier(0.23, 1, 0.32, 1),
     border-color 200ms cubic-bezier(0.23, 1, 0.32, 1),
     color 200ms cubic-bezier(0.23, 1, 0.32, 1),
     transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
+  border-radius: var(--od-control-radius);
+  font-size: var(--od-control-font-size);
 }
 
 .loan-video-transition-preview__toggle:hover:not(:disabled) {

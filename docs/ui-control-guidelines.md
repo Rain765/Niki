@@ -8,6 +8,7 @@ The rules are application-wide. Existing product pages, generation pages, and li
 
 - Use `SelectField` for a labelled form selector and `CustomSelect` only when the surrounding layout already owns the label.
 - The closed trigger uses the neutral fill, a 12 px radius, no visible border, and one clear focus outline.
+- Trigger text uses `--od-control-font-size` (13 px); its radius uses `--od-control-radius` (12 px). Adjacent inputs and action buttons consume these same tokens.
 - The menu opens below the trigger, remains within the viewport, and uses the same option hover, active, and selected states everywhere.
 - A field label is the accessible name. The selected value stays visible inside the trigger and is not repeated in the accessible name.
 - Keyboard behavior is inherited from `CustomSelect`: open with Enter, Space, or Arrow keys; move through options with Arrow keys; confirm with Enter; close with Escape.
@@ -15,6 +16,8 @@ The rules are application-wide. Existing product pages, generation pages, and li
 ## Buttons
 
 - Use `Button`; do not create page-specific primary or secondary button systems.
+- All action buttons use the selector's 12 px radius and 13 px font size through `--od-control-radius` and `--od-control-font-size`. This applies to primary, secondary, ghost, danger, compact, and loading/disabled variants on every page. Compact changes height and padding only; it does not shrink the text or radius.
+- Keep these values consistent on desktop and mobile. Page CSS must not override button font size or radius, including in editor panels, dialogs, and responsive rules. Existing native action controls must consume the same tokens until migrated to `Button`.
 - `primary` is reserved for the main action in a section. `secondary` is for supporting actions, `ghost` for low-emphasis utilities, and `danger` for destructive actions.
 - Use one primary action per toolbar. Primary actions sit after their required inputs and align to the same control height.
 - Loading buttons remain in place, expose `aria-busy`, and are disabled until the action completes.
@@ -42,4 +45,11 @@ The rules are application-wide. Existing product pages, generation pages, and li
 - This grid applies to adjacent selector/search groups. A single search field, editor/settings form, or horizontally scrollable chip/pill row keeps its task-specific layout.
 - The mobile-grid exception above is about layout only. Selectors, action buttons, and action-triggered feedback inside forms still use `SelectField`/`CustomSelect`, `Button`, and `Toast` respectively.
 - Shared visual and interaction states live in `src/styles/ui-controls.css`. Page styles may only define layout proportions or truly page-specific context.
+- This action-control rule does not turn navigation tabs, selectable content cards, color swatches, word exercises, or switch tracks into buttons with identical geometry. Preserve their semantic presentation; use the shared tokens for the actions within those surfaces.
 - The poster generation page is the reference implementation. Poster, video, lightweight image generation, Skills, prompt templates, plugins, and design-system library filters all use the shared responsive grid.
+
+## Verification
+
+- Check poster, video, PPT, brand, documents, English practice, and account/settings actions when changing shared tokens. Verify the computed radius and font size against a `SelectField`, including compact and disabled controls.
+- Inspect a desktop width and a narrow mobile width, plus any affected editor or dialog. Check for clipping and horizontal overflow without running paid generation or submitting real user data.
+- Keep existing copy, icon meanings, focus states, and action behavior intact. Run the repository guard/typecheck and relevant web tests before delivery.

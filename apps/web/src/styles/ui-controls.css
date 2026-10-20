@@ -4,6 +4,7 @@
   --od-control-height: 46px;
   --od-control-height-compact: 36px;
   --od-control-radius: 12px;
+  --od-control-font-size: 13px;
   --od-control-menu-radius: 14px;
   --od-control-gap: 8px;
   --od-control-fill: var(--poster-fill-0, var(--bg-panel));
@@ -77,7 +78,7 @@
   background: var(--od-control-fill);
   color: var(--od-control-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--od-control-font-size);
 }
 .od-control-input::placeholder { color: var(--od-control-muted); }
 .od-control-input:focus-visible { outline: 2px solid var(--od-control-focus); outline-offset: 2px; }
@@ -105,7 +106,7 @@
   box-shadow: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--od-control-font-size);
   font-weight: 650;
   text-align: left;
   transition:
@@ -240,9 +241,10 @@
   gap: 8px;
   padding: 0 12px;
   border: 0;
-  border-radius: 13px;
+  border-radius: var(--od-control-radius);
   cursor: pointer;
   font-family: inherit;
+  font-size: var(--od-control-font-size);
   font-weight: 750;
   white-space: nowrap;
   transition:
@@ -256,8 +258,6 @@
 .od-button--compact {
   min-height: var(--od-control-height-compact);
   padding-inline: 10px;
-  border-radius: 10px;
-  font-size: 12px;
 }
 
 .od-button--primary {

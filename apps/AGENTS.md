@@ -38,6 +38,8 @@ Follow the root `AGENTS.md` first. This file only records module-level boundarie
 
 ## Niki poster color governance
 
+- For selector and action-button styling, follow `docs/ui-control-guidelines.md`. Use the shared radius and font-size tokens in `apps/web/src/styles/ui-controls.css`; page CSS must not introduce separate button typography or corner radii.
+
 - `apps/web/src/poster/color-tokens.ts` is the only source for concrete colors used by the Niki poster route, its critical first paint, authentication states, and account manager.
 - Niki components and styles must consume the exported CSS variables. Do not add hexadecimal, `rgb()` / `rgba()`, `hsl()` / `hsla()`, or named UI colors outside the token source.
 - Use semantic variables such as `--poster-panel-raised`, `--poster-control-hover`, and `--poster-danger` in components. Do not choose primitive fill steps at individual call sites when a semantic variable exists.

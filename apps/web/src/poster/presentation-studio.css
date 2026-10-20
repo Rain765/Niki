@@ -658,7 +658,6 @@
 }
 .ppt-workbench__edit-heading .od-button {
   min-height: 36px;
-  font-size: 12px;
   padding: 0 10px;
 }
 .ppt-workbench__slide-form fieldset {
@@ -716,7 +715,6 @@
   background: var(--poster-panel);
 }
 .ppt-workbench__slide-form > footer .od-button {
-  font-size: 12px;
   padding: 0 12px;
 }
 .ppt-workbench__source-panel {
