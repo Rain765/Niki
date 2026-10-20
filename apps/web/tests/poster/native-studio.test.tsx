@@ -166,8 +166,8 @@ it('lets administrators select a verified model without changing template choice
   auth.role='admin';
   vi.mocked(prepareNativePresentation).mockResolvedValue({id:'provider-created',skillId:'html-ppt'} as never);
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
-  await waitFor(()=>expect(screen.getByRole('combobox',{name:'生成模型'}).getAttribute('disabled')).toBeNull());
-  choose('生成模型','Qwen3.8-Max');
+  await waitFor(()=>expect(screen.getByRole('combobox',{name:'创作模型'}).getAttribute('disabled')).toBeNull());
+  choose('创作模型','Qwen3.8-Max');
   choose('模板与风格','瑞士国际主义');
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'保持原版设计'}});
   fireEvent.click(screen.getByRole('button',{name:'创建 PPT'}));
