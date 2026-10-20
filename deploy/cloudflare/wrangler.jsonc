@@ -1,0 +1,13 @@
+{
+  "name": "niki",
+  "main": "worker.ts",
+  "account_id": "cf33b6a10430f835d22a85bd9526b639",
+  "compatibility_date": "2026-10-20",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vpc_services": [{
+    "binding": "NIKI_WEB",
+    "service_id": "01a15706-086b-7901-8ce9-ad878456fdc0"
+  }],
+  "observability": { "enabled": true }
+}

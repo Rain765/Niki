@@ -1,0 +1,6 @@
+{
+  "name": "niki-work-app",
+  "pages_build_output_dir": "../../.tmp/cloudflare-pages",
+  "compatibility_date": "2026-10-20",
+  "services": [{ "binding": "NIKI_PROXY", "service": "niki" }]
+}
