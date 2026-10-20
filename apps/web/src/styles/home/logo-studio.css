@@ -1,3 +1,8 @@
+/* Disclosures can cross the viewport height without moving the centered shell. */
+html:has(.poster-app.is-logo) {
+  overflow-y: scroll;
+}
+
 .logo-studio {
   width: 100%;
   max-width: 1220px;
