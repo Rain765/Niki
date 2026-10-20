@@ -231,7 +231,7 @@ describe('loan video UI', () => {
 
     expect(manage).toContain('flex: 0 0 auto;');
     expect(manage).toContain('min-height: 38px;');
-    expect(count).toContain('border-radius: 999px;');
+    expect(count).toContain('border-radius: var(--od-control-radius);');
     expect(count).toContain('font-variant-numeric: tabular-nums;');
   });
 

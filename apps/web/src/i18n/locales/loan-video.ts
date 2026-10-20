@@ -21,7 +21,7 @@ export const loanVideoEn: LoanVideoDict = {
   'loanVideo.presetReadyHint': 'One-click generation will use the latest approved pages for this product and purpose.',
   'loanVideo.presetRequired': 'Page plan required',
   'loanVideo.presetRequiredHint': 'Configure and generate this product and purpose once in Edit mode.',
-  'loanVideo.quickGenerate': 'Generate video',
+  'loanVideo.quickGenerate': 'Generate',
   'loanVideo.generating': 'Generating…',
   'loanVideo.videoTitle': 'Video title',
   'loanVideo.videoTitlePlaceholder': 'How to apply for a loan',
@@ -97,7 +97,7 @@ export const loanVideoEn: LoanVideoDict = {
   'loanVideo.errorInteractionTarget': 'Mark the input field for every input interaction.',
   'loanVideo.errorTap': 'Mark a tap target for every tap transition.',
   'loanVideo.outputHint': '{n} steps · MP4 output · editable project',
-  'loanVideo.generate': 'Generate video',
+  'loanVideo.generate': 'Generate',
 };
 
 export const loanVideoZhCn: LoanVideoDict = {
@@ -119,7 +119,7 @@ export const loanVideoZhCn: LoanVideoDict = {
   'loanVideo.presetReadyHint': '将使用该产品和用途最近一次审核通过的页面生成。',
   'loanVideo.presetRequired': '需要先配置页面',
   'loanVideo.presetRequiredHint': '请在编辑模式中为该产品和用途配置并生成一次。',
-  'loanVideo.quickGenerate': '生成视频',
+  'loanVideo.quickGenerate': '生成',
   'loanVideo.generating': '生成中…',
   'loanVideo.videoTitle': '视频标题',
   'loanVideo.videoTitlePlaceholder': '如何申请贷款',
@@ -195,7 +195,7 @@ export const loanVideoZhCn: LoanVideoDict = {
   'loanVideo.errorInteractionTarget': '输入交互需要在图片上标记输入区域。',
   'loanVideo.errorTap': '选择点击进入时，请在图片上标记点击目标。',
   'loanVideo.outputHint': '{n} 个步骤 · MP4 输出 · 可继续编辑',
-  'loanVideo.generate': '生成视频',
+  'loanVideo.generate': '生成',
 };
 
 export const loanVideoZhTw: LoanVideoDict = {
@@ -217,7 +217,7 @@ export const loanVideoZhTw: LoanVideoDict = {
   'loanVideo.presetReadyHint': '將使用該產品和用途最近一次審核通過的頁面生成。',
   'loanVideo.presetRequired': '需要先配置頁面',
   'loanVideo.presetRequiredHint': '請在編輯模式中為該產品和用途配置並生成一次。',
-  'loanVideo.quickGenerate': '生成影片',
+  'loanVideo.quickGenerate': '生成',
   'loanVideo.generating': '生成中…',
   'loanVideo.videoTitle': '影片標題',
   'loanVideo.videoTitlePlaceholder': '如何申請貸款',
@@ -230,5 +230,5 @@ export const loanVideoZhTw: LoanVideoDict = {
   'loanVideo.screenshot': 'App 截圖',
   'loanVideo.uploadScreenshot': '上傳截圖',
   'loanVideo.replaceScreenshot': '更換截圖',
-  'loanVideo.generate': '生成影片',
+  'loanVideo.generate': '生成',
 };

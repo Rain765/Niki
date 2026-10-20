@@ -184,7 +184,7 @@ export function LiteImageHome({
             disabled={pending}
             onClick={() => void submit()}
           >
-            {pending ? '正在启动出图…' : '立即出图'}
+            {pending ? '正在启动出图…' : '生成'}
           </Button>
         </div>
 

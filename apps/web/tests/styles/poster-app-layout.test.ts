@@ -196,7 +196,7 @@ describe('poster app image layout', () => {
 
     expect(app).toContain('background: var(--poster-fill-0);');
     expect(generator).toContain('border: 0;');
-    expect(generator).toContain('border-radius: 16px;');
+    expect(generator).toContain('border-radius: var(--od-surface-radius);');
     expect(generator).toContain('background: var(--poster-panel-muted, var(--bg-subtle));');
     expect(select).toContain('border: 0;');
     expect(select).toContain('border-radius: var(--od-control-radius);');

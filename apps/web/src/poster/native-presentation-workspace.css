@@ -7,7 +7,7 @@
 .native-ppt-workspace__settings { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--poster-border); }
 .native-ppt-workspace__settings select { margin-left: 8px; }
 .native-ppt-workspace__settings p { width: 100%; }
-.native-ppt-workspace button, .native-ppt-workspace select { font: inherit; }
+.native-ppt-workspace button, .native-ppt-workspace select { font: inherit; font-weight: var(--od-control-font-weight); }
 
 .native-ppt-workspace .df-preview-thumb:has(.native-player) { height: auto; aspect-ratio: auto; }
 .native-ppt-workspace .viewer-body:has(> .native-player) { overflow-y: auto; display: block; }

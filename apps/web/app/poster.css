@@ -28,6 +28,7 @@ input {
 }
 
 button {
+  font-weight: var(--od-control-font-weight);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -51,7 +52,7 @@ button {
   width: min(100%, 440px);
   padding: 36px;
   border: 0;
-  border-radius: 24px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel);
   box-shadow: 0 30px 80px color-mix(in srgb, var(--poster-mask-dark) 10%, transparent);
 }
@@ -77,7 +78,7 @@ button {
 .niki-auth button,
 .niki-auth__password-form input {
   min-height: 50px;
-  border-radius: 14px;
+  border-radius: var(--od-control-radius);
 }
 
 .niki-auth button {
@@ -92,7 +93,7 @@ button {
   border: 0;
   background: var(--poster-accent);
   color: var(--poster-text-inverse);
-  font-weight: 650;
+  font-weight: var(--od-control-font-weight);
   cursor: pointer;
   transition:
     background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
@@ -171,7 +172,7 @@ button {
   width: 42px;
   min-height: 42px;
   padding: 0;
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   background: transparent;
   color: var(--poster-text-placeholder);
   transform: translateY(-50%);
@@ -207,6 +208,7 @@ button {
   color: var(--poster-text-secondary);
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
+  font-weight: var(--od-control-font-weight);
 }
 
 .niki-auth .niki-auth__text-button:hover:not(:disabled) {
@@ -256,7 +258,7 @@ button {
   margin: -8px 0 18px;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--poster-danger) 28%, transparent);
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-danger-surface);
   color: var(--poster-danger);
   font-size: 13px;
@@ -349,7 +351,7 @@ button {
   cursor: pointer;
   font: inherit;
   font-size: 14px;
-  font-weight: 680;
+  font-weight: var(--od-control-font-weight);
   text-decoration: none;
   white-space: nowrap;
   transition:
@@ -408,7 +410,7 @@ button {
   grid-template-columns: repeat(2, auto);
   padding: 3px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-fill-1);
 }
 
@@ -422,7 +424,7 @@ button {
   cursor: pointer;
   font: inherit;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
   transition:
     background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
     color 140ms cubic-bezier(0.23, 1, 0.32, 1),
@@ -496,6 +498,7 @@ button {
   cursor: pointer;
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
+  font-weight: var(--od-control-font-weight);
 }
 
 .document-workspace__sidebar-head button {
@@ -531,9 +534,9 @@ button {
   align-self: start;
   min-height: 44px;
   padding: 0 11px;
-  border-radius: 11px;
+  border-radius: var(--od-control-radius);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
 }
 
 .document-workspace__new:hover,
@@ -574,7 +577,7 @@ button {
   gap: 9px;
   min-height: 38px;
   padding: 0 10px;
-  border-radius: 9px;
+  border-radius: var(--od-control-radius);
   font-size: 13px;
 }
 
@@ -671,7 +674,7 @@ button {
   min-height: 64px;
   padding: 7px 8px 7px 18px;
   border: 1px solid var(--poster-border);
-  border-radius: 24px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel);
   box-shadow:
     0 16px 42px color-mix(in srgb, var(--poster-mask-dark) 8%, transparent),
@@ -697,7 +700,7 @@ button {
 
 .document-search__form.is-compact {
   min-height: 58px;
-  border-radius: 20px;
+  border-radius: var(--od-surface-radius);
 }
 
 .document-search__leading {
@@ -737,6 +740,7 @@ button {
     transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
+  font-weight: var(--od-control-font-weight);
 }
 
 .document-search__form button:hover:not(:disabled) {
@@ -814,7 +818,7 @@ button {
   min-height: 78px;
   padding: 13px 15px;
   border: 1px solid transparent;
-  border-radius: 15px;
+  border-radius: var(--od-surface-radius);
   color: var(--poster-text);
   text-decoration: none;
   transition:
@@ -836,7 +840,7 @@ button {
   width: 42px;
   height: 42px;
   place-items: center;
-  border-radius: 12px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
   color: var(--poster-text-secondary);
 }
@@ -939,7 +943,7 @@ button {
   justify-content: center;
   gap: 9px;
   padding: 24px;
-  border-radius: 18px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-muted);
   text-align: center;
@@ -986,7 +990,7 @@ button {
   width: 52px;
   height: 52px;
   place-items: center;
-  border-radius: 15px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
   color: var(--poster-text-secondary);
 }
@@ -1020,7 +1024,7 @@ button {
   background: var(--poster-text);
   color: var(--poster-text-inverse);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
 }
@@ -1039,7 +1043,7 @@ button {
   min-height: 82px;
   padding: 13px 15px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 15px;
+  border-radius: var(--od-control-radius);
   background: transparent;
   color: var(--poster-text);
   cursor: pointer;
@@ -1132,7 +1136,7 @@ button {
   max-width: min(78%, 920px);
   justify-self: end;
   padding: 13px 17px;
-  border-radius: 18px 18px 4px 18px;
+  border-radius: var(--od-surface-radius) var(--od-surface-radius) 4px var(--od-surface-radius);
   background: var(--poster-panel-raised);
 }
 
@@ -1185,7 +1189,7 @@ button {
   margin: 18px 0 0;
   padding: 20px;
   overflow: auto;
-  border-radius: 14px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-text-secondary);
   font-family: inherit;
@@ -1265,7 +1269,7 @@ button {
   padding: 6px;
   visibility: hidden;
   border: 0;
-  border-radius: 13px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
   box-shadow: 0 18px 46px color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
   opacity: 0;
@@ -1296,7 +1300,7 @@ button {
   background: transparent;
   color: var(--poster-text);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
   text-align: left;
   transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
@@ -1476,12 +1480,12 @@ button {
 .poster-app__video .icon-btn,
 .poster-app__video .primary {
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-text);
   cursor: pointer;
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
   transition:
     background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
     color 140ms cubic-bezier(0.23, 1, 0.32, 1),
@@ -1562,6 +1566,7 @@ button {
   cursor: pointer;
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
+  font-weight: var(--od-control-font-weight);
 }
 
 .poster-app__video-action:hover:not(:disabled) {
@@ -1582,7 +1587,7 @@ button {
   display: block;
   width: 100%;
   max-height: min(72vh, 760px);
-  border-radius: 12px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-text-primary);
 }
 
@@ -1610,7 +1615,7 @@ button {
   max-width: min(82%, 430px);
   gap: var(--poster-space-2);
   padding: var(--poster-space-4);
-  border-radius: 14px;
+  border-radius: var(--od-surface-radius);
   background: color-mix(in srgb, var(--poster-fill-0) 84%, transparent);
   color: var(--poster-text);
   box-shadow: 0 12px 34px color-mix(in srgb, var(--poster-mask-dark) 9%, transparent);
@@ -1724,7 +1729,7 @@ button {
   margin: var(--poster-space-4) 0 0;
   padding: var(--poster-space-3) var(--poster-space-4);
   border: 1px solid var(--poster-border);
-  border-radius: 13px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
   color: var(--poster-text);
   text-align: left;
@@ -1805,7 +1810,7 @@ button {
   background: transparent;
   color: var(--poster-muted);
   cursor: pointer;
-  font-weight: 680;
+  font-weight: var(--od-control-font-weight);
   transition: color 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -1873,7 +1878,7 @@ button {
   gap: 12px;
   min-height: 360px;
   padding: 48px 20px;
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel);
   text-align: center;
 }
@@ -2129,7 +2134,7 @@ button {
   min-height: 48px;
   padding: 11px 14px;
   border: 1px solid var(--poster-border);
-  border-radius: 14px;
+  border-radius: var(--od-surface-radius);
   background: color-mix(in srgb, var(--poster-fill-0) 96%, transparent);
   color: var(--poster-text);
   text-align: left;
@@ -2152,6 +2157,7 @@ button {
   color: var(--poster-fill-7);
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
+  font-weight: var(--od-control-font-weight);
 }
 
 .poster-preview__stage {
@@ -2208,6 +2214,7 @@ button {
   color: var(--poster-fill-7);
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
+  font-weight: var(--od-control-font-weight);
 }
 
 .poster-preview__header button,
@@ -2328,7 +2335,7 @@ button {
   border: 0;
   background: var(--poster-panel-raised);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
   transition:
     background-color 140ms cubic-bezier(0.23, 1, 0.32, 1),
     transform 140ms cubic-bezier(0.23, 1, 0.32, 1);
@@ -2350,7 +2357,7 @@ button {
   min-width: 22px;
   height: 22px;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-fill-0);
   color: var(--poster-accent);
   font-size: 11px;
@@ -2376,7 +2383,7 @@ button {
   margin: var(--poster-space-2) 0 var(--poster-space-7);
   padding: 20px 22px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 20px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
   box-shadow: 0 14px 42px color-mix(in srgb, var(--poster-mask-dark) 6%, transparent);
 }
@@ -2387,7 +2394,7 @@ button {
   width: 62px;
   height: 62px;
   place-items: center;
-  border-radius: 17px;
+  border-radius: var(--od-surface-radius);
   background: color-mix(in srgb, var(--poster-accent) 10%, var(--poster-panel-muted));
   font-size: 29px;
 }
@@ -2468,7 +2475,7 @@ button {
   gap: 14px;
   padding: 17px 18px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 17px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
   text-align: left;
 }
@@ -2504,7 +2511,7 @@ button {
   height: 44px;
   flex: 0 0 44px;
   place-items: center;
-  border-radius: 13px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
   font-size: 22px;
 }
@@ -2552,7 +2559,7 @@ button {
   display: inline-block;
   margin-bottom: 8px;
   padding: 3px 7px;
-  border-radius: 999px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-text-secondary);
 }
@@ -2591,7 +2598,7 @@ button {
   position: relative;
   padding: 20px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 17px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
 }
 
@@ -2652,7 +2659,7 @@ button {
   align-content: center;
   padding: 40px;
   border: 1px dashed var(--poster-line-divide);
-  border-radius: 22px;
+  border-radius: var(--od-surface-radius);
   color: var(--poster-muted);
   text-align: center;
 }
@@ -2686,7 +2693,7 @@ button {
 .english-lesson__intro {
   gap: 18px;
   padding: 26px 28px;
-  border-radius: 22px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
 }
 
@@ -2736,7 +2743,7 @@ button {
   background: transparent;
   color: var(--poster-muted);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
 }
 
 .english-lesson__tabs button[aria-selected='true'] {
@@ -2750,7 +2757,7 @@ button {
   margin-bottom: 10px;
   padding: 12px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 15px;
+  border-radius: var(--od-surface-radius);
 }
 
 .english-lesson__playback,
@@ -2761,7 +2768,7 @@ button {
 .english-lesson__rate {
   display: flex;
   padding: 3px;
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
 }
 
@@ -2774,7 +2781,7 @@ button {
   color: var(--poster-muted);
   cursor: pointer;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
 }
 
 .english-lesson__rate button.is-active {
@@ -2872,13 +2879,13 @@ button {
 .english-line__bubble {
   padding: 14px 16px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 6px 17px 17px;
+  border-radius: 6px var(--od-surface-radius) var(--od-surface-radius);
   background: var(--poster-fill-0);
 }
 
 .english-line.is-a .english-line__bubble {
   border-color: transparent;
-  border-radius: 17px 6px 17px 17px;
+  border-radius: var(--od-surface-radius) 6px var(--od-surface-radius) var(--od-surface-radius);
   background: color-mix(in srgb, var(--poster-accent) 9%, var(--poster-fill-0));
 }
 
@@ -2904,6 +2911,7 @@ button {
   background: transparent;
   cursor: pointer;
   font: inherit;
+  font-weight: var(--od-control-font-weight);
 }
 
 .english-line__english button:hover,
@@ -2952,7 +2960,7 @@ button {
   gap: 11px;
   padding: 14px 17px;
   border: 1px dashed var(--poster-line-divide);
-  border-radius: 15px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-text-secondary);
   cursor: pointer;
@@ -2996,7 +3004,7 @@ button {
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   cursor: pointer;
 }
@@ -3028,7 +3036,7 @@ button {
   width: 38px;
   height: 38px;
   place-items: center;
-  border-radius: 11px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-accent);
   font: 800 11px/1 ui-monospace, monospace;
@@ -3050,7 +3058,7 @@ button {
 .english-exercise blockquote {
   margin: 10px 0 0;
   padding: 18px;
-  border-radius: 13px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
   font-size: 19px;
   font-weight: 650;
@@ -3078,7 +3086,7 @@ button {
   align-items: center;
   gap: 7px;
   padding: 10px;
-  border-radius: 13px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
 }
 
@@ -3092,7 +3100,7 @@ button {
   min-height: 34px;
   padding: 0 11px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 9px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-fill-0);
   cursor: pointer;
   font-size: 13px;
@@ -3131,7 +3139,7 @@ button {
   z-index: 1;
   width: min(600px, 100%);
   padding: 24px 28px max(30px, env(safe-area-inset-bottom));
-  border-radius: 24px 24px 0 0;
+  border-radius: var(--od-surface-radius) var(--od-surface-radius) 0 0;
   background: var(--poster-fill-0);
   box-shadow: 0 -20px 60px color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
   animation: english-sheet-in 200ms cubic-bezier(0.23, 1, 0.32, 1);
@@ -3190,7 +3198,7 @@ button {
   padding: 0;
   place-items: center;
   border: 0;
-  border-radius: 50%;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   cursor: pointer;
 }
@@ -3242,7 +3250,7 @@ button {
   color: var(--poster-muted);
   cursor: pointer;
   font-size: 14px;
-  font-weight: 680;
+  font-weight: var(--od-control-font-weight);
   transition: color 140ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -3316,7 +3324,7 @@ button {
   gap: 3px;
   padding: 16px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 17px;
+  border-radius: var(--od-surface-radius);
   background: color-mix(in srgb, var(--poster-fill-0) 74%, transparent);
 }
 
@@ -3335,7 +3343,7 @@ button {
   grid-template-columns: repeat(7, minmax(0, 1fr));
   margin: 22px 0;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 17px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
 }
 
@@ -3396,7 +3404,7 @@ button {
 .ielts-coach__panel {
   padding: clamp(22px, 4vw, 38px);
   border: 1px solid var(--poster-line-divide);
-  border-radius: 24px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
   box-shadow: 0 16px 44px color-mix(in srgb, var(--poster-mask-dark) 5%, transparent);
 }
@@ -3461,7 +3469,7 @@ button {
   border: 1px solid var(--poster-line-divide);
   background: var(--poster-panel-muted);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
 }
@@ -3479,7 +3487,7 @@ button {
   gap: 8px;
   margin: 18px 0 0;
   padding: 12px 14px;
-  border-radius: 12px;
+  border-radius: var(--od-surface-radius);
   background: color-mix(in srgb, var(--poster-accent) 7%, var(--poster-panel-muted));
   color: var(--poster-text-secondary);
   font-size: 12px;
@@ -3495,7 +3503,7 @@ button {
 .ielts-coach__session-summary span,
 .ielts-coach__transfer-labels span {
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-muted);
   font-size: 10px;
@@ -3524,7 +3532,7 @@ button {
 .ielts-coach__cue-card,
 .ielts-chunk-card {
   padding: clamp(20px, 4vw, 32px);
-  border-radius: 20px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
 }
 
@@ -3571,7 +3579,7 @@ button {
   width: 100%;
   resize: vertical;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 14px;
+  border-radius: var(--od-control-radius);
   outline: 0;
   background: var(--poster-panel-raised);
   color: var(--poster-text);
@@ -3587,7 +3595,7 @@ button {
   gap: 10px;
   padding: 8px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 13px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-fill-0);
 }
 
@@ -3601,7 +3609,7 @@ button {
   border: 0;
   background: var(--poster-panel-muted);
   cursor: pointer;
-  font-weight: 750;
+  font-weight: var(--od-control-font-weight);
   border-radius: var(--od-control-radius);
   font-size: var(--od-control-font-size);
 }
@@ -3664,7 +3672,7 @@ button {
   margin: 24px 0 0;
   padding: 16px 18px;
   border-left: 3px solid var(--poster-accent);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 var(--od-surface-radius) var(--od-surface-radius) 0;
   background: var(--poster-fill-0);
   font-size: 16px;
   line-height: 1.55;
@@ -3692,7 +3700,7 @@ button {
   margin-top: 16px;
   padding: 14px 16px;
   border: 1px dashed color-mix(in srgb, var(--poster-accent) 45%, var(--poster-line-divide));
-  border-radius: 13px;
+  border-radius: var(--od-surface-radius);
   background: color-mix(in srgb, var(--poster-accent) 5%, var(--poster-fill-0));
 }
 
@@ -3738,7 +3746,7 @@ button {
   gap: 6px 16px;
   padding: 16px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 15px;
+  border-radius: var(--od-surface-radius);
 }
 
 .ielts-coach__timers span {
@@ -3761,7 +3769,7 @@ button {
   margin-top: 20px;
   padding: 18px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 15px;
+  border-radius: var(--od-surface-radius);
 }
 
 .ielts-coach__repair h4 {
@@ -3792,7 +3800,7 @@ button {
 .ielts-coach__tomorrow {
   padding: 18px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 15px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
 }
 
@@ -3845,7 +3853,7 @@ button {
 .ielts-coach__review-list em {
   margin-left: auto;
   padding: 5px 8px;
-  border-radius: 999px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   color: var(--poster-muted);
   font-size: 9px;

@@ -102,7 +102,7 @@ describe('LogoStudioView', () => {
     expect(screen.getByLabelText('Industry')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Logo architecture' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Brand personality' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Generate Logo' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Generate' })).toBeTruthy();
 
     const toggle = screen.getByRole('button', { name: 'Advanced settings' });
     const advanced = document.querySelector('.logo-studio__advanced');
@@ -149,7 +149,7 @@ describe('LogoStudioView', () => {
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
     fireEvent.click(screen.getByRole('combobox', { name: 'Logo architecture' }));
     fireEvent.click(screen.getByRole('option', { name: /^Symbol$/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Logo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
 
     const history = await screen.findByRole('region', { name: 'Generation history' });
     expect(fetchMock).toHaveBeenCalledWith('/api/logo/brief', expect.objectContaining({ method: 'POST', body: expect.stringContaining('"architecture":"symbol"') }));
@@ -199,7 +199,7 @@ describe('LogoStudioView', () => {
 
     fireEvent.change(screen.getByLabelText('Brand name'), { target: { value: 'Northstar' } });
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Logo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
 
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Image provider is unavailable'));
     expect(screen.queryByText('Generation complete. Four images are ready.')).toBeNull();
@@ -536,7 +536,7 @@ describe('LogoStudioView', () => {
     fireEvent.change(screen.getByLabelText('Brand name'), { target: { value: 'Northstar' } });
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
     fireEvent.click(screen.getByRole('tab', { name: /History/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Logo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
 
     const skeleton = await screen.findByTestId('logo-generation-skeleton');
     expect(screen.getByRole('tab', { name: 'Latest batch' }).getAttribute('aria-selected')).toBe('true');
@@ -548,7 +548,7 @@ describe('LogoStudioView', () => {
     await waitFor(() => expect(screen.queryByTestId('logo-generation-skeleton')).toBeNull());
     const history = screen.getByRole('region', { name: 'Generation history' });
     expect(within(history).getAllByRole('img', { name: /Northstar Logo direction/ })).toHaveLength(4);
-    expect((screen.getByRole('button', { name: 'Generate Logo' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Generate' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('keeps the user on the form when required fields are empty', () => {
@@ -557,7 +557,7 @@ describe('LogoStudioView', () => {
         <LogoStudioView />
       </I18nProvider>,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Generate Logo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }));
     expect(screen.getByRole('alert').textContent).toContain('brand name and industry');
     expect(createProjectMock).not.toHaveBeenCalled();
   });

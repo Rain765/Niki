@@ -62,7 +62,7 @@
 .ppt-workbench__mark {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
   display: grid;
   place-items: center;
@@ -82,7 +82,7 @@
   display: flex;
   gap: 4px;
   padding: 4px;
-  border-radius: 14px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted);
 }
 .ppt-workbench__bar nav button {
@@ -92,7 +92,7 @@
   min-height: 42px;
   padding: 8px 16px;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   background: transparent;
   font-size: 13px;
   white-space: nowrap;
@@ -154,7 +154,7 @@
 .ppt-workbench__compose-main > section {
   min-width: 0;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 18px;
+  border-radius: var(--od-surface-radius);
   padding: 24px;
 }
 .ppt-workbench__section-label {
@@ -184,7 +184,7 @@
 .ppt-workbench__upload {
   position: relative;
   border: 1px dashed var(--poster-border);
-  border-radius: 14px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-muted);
   transition: background 200ms var(--ppt-ease);
 }
@@ -209,7 +209,7 @@
   min-height: 258px;
   padding: 32px;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--od-surface-radius);
   background: transparent;
   text-align: center;
 }
@@ -220,7 +220,7 @@
   height: 60px;
   background: var(--poster-panel);
   border: 1px solid var(--poster-line-divide);
-  border-radius: 18px;
+  border-radius: var(--od-surface-radius);
   margin-bottom: 8px;
 }
 .ppt-workbench__drop strong {
@@ -273,7 +273,7 @@
   border: 1px solid var(--poster-line-divide);
   background: var(--poster-panel-muted);
   color: var(--poster-text);
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   padding: 11px 12px;
   font-size: 13px;
   line-height: 1.7;
@@ -292,7 +292,7 @@
 .ppt-workbench__style-preview {
   position: relative;
   padding: 16px 32px 32px;
-  border-radius: 12px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
 }
 .ppt-workbench__style-preview img {
@@ -323,7 +323,7 @@
   min-width: 0;
   padding: 12px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 12px;
+  border-radius: var(--od-control-radius);
   text-align: left;
   background: var(--poster-panel);
 }
@@ -392,7 +392,7 @@
   border: 0;
   padding: 0;
   background: transparent;
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
 }
 .ppt-workbench__palette button > span {
   display: grid;
@@ -434,7 +434,7 @@
   gap: 12px;
   padding: 14px 16px;
   margin: 16px 0;
-  border-radius: 12px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
   color: var(--poster-muted);
   font-size: 13px;
@@ -491,7 +491,7 @@
   padding: 12px 16px;
   margin-bottom: 12px;
   background: var(--poster-panel-raised);
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -499,7 +499,7 @@
   display: grid;
   grid-template-columns: 152px minmax(0, 1fr);
   border: 1px solid var(--poster-line-divide);
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
   overflow: hidden;
   background: var(--poster-panel-muted);
 }
@@ -736,14 +736,14 @@
   font: inherit;
   padding: 12px;
   background: var(--poster-panel-muted);
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
 }
 .ppt-workbench__progress {
   max-width: 720px;
   margin: 56px auto;
   padding: 32px;
   border: 1px solid var(--poster-line-divide);
-  border-radius: 20px;
+  border-radius: var(--od-surface-radius);
   text-align: center;
 }
 .ppt-workbench__progress-icon {
@@ -751,7 +751,7 @@
   place-items: center;
   width: 56px;
   height: 56px;
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
   color: var(--poster-muted);
 }
@@ -779,7 +779,7 @@
   padding: 14px 16px;
   margin: 28px 0 0;
   background: var(--poster-panel-muted);
-  border-radius: 12px;
+  border-radius: var(--od-surface-radius);
   text-align: left;
   font-size: 13px;
 }
@@ -858,7 +858,7 @@
   margin: 0;
   line-height: 1.8;
   background: var(--poster-panel-muted);
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   overflow-wrap: anywhere;
 }
 .ppt-workbench__usage {
@@ -898,7 +898,7 @@
   text-align: left;
   background: var(--poster-panel);
   border: 1px solid var(--poster-line-divide);
-  border-radius: 16px;
+  border-radius: var(--od-control-radius);
   min-width: 0;
 }
 .ppt-workbench__library > div > button:hover {
@@ -910,7 +910,7 @@
   place-items: center;
   height: 64px;
   width: 64px;
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
 }
 .ppt-workbench__library strong {
@@ -1167,7 +1167,7 @@
   text-align: left;
   padding: 14px;
   border: 0;
-  border-radius: 12px;
+  border-radius: var(--od-control-radius);
   color: var(--poster-text-primary);
   background: var(--poster-panel-raised);
   cursor: pointer;
@@ -1202,7 +1202,7 @@
   min-height: 46px;
   padding: 12px;
   border: 1px solid var(--poster-border);
-  border-radius: 12px;
+  border-radius: var(--od-control-radius);
   background: var(--poster-panel-raised);
   color: var(--poster-text-primary);
   font: inherit;
@@ -1220,7 +1220,7 @@
   margin-block: 20px;
   padding: 20px;
   border: 1px solid var(--poster-border);
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
 }
 .ppt-quality summary {
   display: flex;
@@ -1269,7 +1269,7 @@
 }
 .ppt-model-settings {
   padding: 20px;
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-raised);
 }
 .ppt-model-settings summary {

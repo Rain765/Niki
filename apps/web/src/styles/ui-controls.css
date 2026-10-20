@@ -3,9 +3,11 @@
 :root {
   --od-control-height: 46px;
   --od-control-height-compact: 36px;
-  --od-control-radius: 12px;
+  --od-control-radius: 8px;
+  --od-surface-radius: 12px;
   --od-control-font-size: 13px;
-  --od-control-menu-radius: 14px;
+  --od-control-font-weight: 650;
+  --od-control-menu-radius: var(--od-surface-radius);
   --od-control-gap: 8px;
   --od-control-fill: var(--poster-fill-0, var(--bg-panel));
   --od-control-hover: var(--poster-control-hover, var(--bg-subtle));
@@ -63,7 +65,7 @@
   gap: 16px;
   padding: 16px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
   background: var(--poster-panel-muted, var(--bg-subtle));
 }
 
@@ -107,7 +109,7 @@
   cursor: pointer;
   font-family: inherit;
   font-size: var(--od-control-font-size);
-  font-weight: 650;
+  font-weight: var(--od-control-font-weight);
   text-align: left;
   transition:
     background-color 140ms var(--od-control-ease),
@@ -197,13 +199,13 @@
   gap: 8px;
   padding: 10px 12px;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--od-control-radius);
   background: transparent;
   color: var(--od-control-text);
   cursor: pointer;
   font-family: inherit;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--od-control-font-weight);
   text-align: left;
 }
 
@@ -215,7 +217,7 @@
 
 .od-control-select__menu .od-select-option.selected {
   color: var(--od-control-text);
-  font-weight: 700;
+  font-weight: var(--od-control-font-weight);
 }
 
 .od-control-select__menu .od-select-option-check {
@@ -245,7 +247,7 @@
   cursor: pointer;
   font-family: inherit;
   font-size: var(--od-control-font-size);
-  font-weight: 750;
+  font-weight: var(--od-control-font-weight);
   white-space: nowrap;
   transition:
     background-color 140ms var(--od-control-ease),
@@ -352,7 +354,7 @@
   gap: 12px;
   padding: 13px 14px;
   border: 0;
-  border-radius: 16px;
+  border-radius: var(--od-surface-radius);
   background: var(--od-control-fill);
   color: var(--od-control-text);
   box-shadow: 0 12px 32px color-mix(
@@ -437,7 +439,7 @@
   margin: 8px 0 0;
   padding: 8px 10px;
   overflow: auto;
-  border-radius: 9px;
+  border-radius: var(--od-control-radius);
   background: var(--od-control-hover);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
@@ -454,7 +456,7 @@
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 9px;
+  border-radius: var(--od-control-radius);
   background: transparent;
   color: var(--od-control-muted);
 }

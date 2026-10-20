@@ -83,7 +83,7 @@ const firstPaintStyle = `
   box-sizing: border-box;
   padding: 36px;
   border: 0;
-  border-radius: 24px;
+  border-radius: var(--od-surface-radius, 12px);
   background: var(--poster-panel);
 }
 :where(.niki-auth__logo) {

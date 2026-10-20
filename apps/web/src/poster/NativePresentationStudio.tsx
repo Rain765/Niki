@@ -94,7 +94,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
         <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
         <SelectField label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
         <div className="native-ppt__generation-actions">
-          <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '创建 PPT' : 'Create PPT')}</Button>
+          <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '生成' : 'Generate')}</Button>
         </div>
       </section>
       <div className="native-ppt__generation-status">{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>

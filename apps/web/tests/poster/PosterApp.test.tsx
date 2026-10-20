@@ -347,7 +347,7 @@ describe('PosterApp mobile-safe flow', () => {
       ...currentProject.metadata.directGeneration, status: 'interrupted', batches: [{ ...batch, status: 'interrupted' }],
     } } };
     fireEvent(window, new Event('online'));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(false));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Generate' }).hasAttribute('disabled')).toBe(false));
     expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
   });
 
@@ -362,7 +362,7 @@ describe('PosterApp mobile-safe flow', () => {
       : new Response('', { status: 404 }));
     render(<PosterApp />);
     await within(await screen.findByTestId('poster-app-generation-status')).findByText('The previous task is no longer available. You can generate a new poster.');
-    expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Generate' }).hasAttribute('disabled')).toBe(false);
     expect(startDirectLoanPosterProjectMock).not.toHaveBeenCalled();
   });
 
@@ -413,7 +413,7 @@ describe('PosterApp mobile-safe flow', () => {
       return { projectId: project.id };
     });
     listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:cross-page:0', status: 'running', progress: ['image:slow'] }] });
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     await within(screen.getByTestId('poster-app-generation-status')).findByText('Generation is taking longer, but is still processing…');
     selectWorkspace('Videos');
     expect(screen.getByTestId('poster-app-generation-status')).toBeTruthy();
@@ -447,7 +447,7 @@ describe('PosterApp mobile-safe flow', () => {
       return { projectId: project.id };
     });
     listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:dismiss:0', status: 'running', progress: ['image:slow'] }] });
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     await within(screen.getByTestId('poster-app-generation-status')).findByText('Generation is taking longer, but is still processing…');
     fireEvent.click(within(screen.getByTestId('poster-app-generation-status')).getByRole('button', { name: 'Close status' }));
     selectWorkspace('Videos');
@@ -505,7 +505,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.getByRole('combobox', { name: '类型' }).textContent).toContain('防欺诈');
     expect(screen.getByRole('combobox', { name: '数量' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '比例' })).toBeTruthy();
-    expect(await screen.findByRole('button', { name: '生成海报' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '生成' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /最新一批/ }).getAttribute('aria-selected')).toBe('true');
     const historyTab = screen.getByRole('tab', { name: /历史生成/ });
     fireEvent.click(historyTab);
@@ -523,7 +523,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(screen.queryByText('Create campaign-ready loan posters from approved business templates.')).toBeNull();
     expect(screen.getByRole('region', { name: 'Poster generation settings' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Product' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Generate posters' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Generate' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Latest batch/ })).toBeTruthy();
     expect(screen.getByRole('tab', { name: /History/ }).getAttribute('aria-selected')).toBe('true');
     expect(screen.queryByText('产品')).toBeNull();
@@ -1147,7 +1147,7 @@ describe('PosterApp mobile-safe flow', () => {
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
     render(<PosterApp />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
 
     await waitFor(() => {
       expect(startDirectLoanPosterProjectMock).toHaveBeenCalledWith(
@@ -1189,7 +1189,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect((screen.getByTestId('loan-video-quick-brand') as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByTestId('loan-video-quick-purpose') as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByTestId('loan-video-quick-generate') as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByTestId('loan-video-quick-generate').textContent).toContain('Generate video');
+    expect(screen.getByTestId('loan-video-quick-generate').textContent).toContain('Generate');
   });
 
   it('reuses restored poster and video state when switching workspaces', async () => {
@@ -1259,7 +1259,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(within(screen.getByRole('tab', { name: /^Latest batch/ })).getByText('3:4 × 0')).toBeTruthy();
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
     startDirectLoanPosterProjectMock.mockResolvedValue({ projectId: 'project-1' });
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     await waitFor(() => expect(startDirectLoanPosterProjectMock).toHaveBeenCalledOnce());
   });
 
@@ -1335,7 +1335,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     expect(screen.queryByTestId('poster-app-generation-status')).toBeNull();
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
 
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generating posters…')).toBeTruthy();
@@ -1371,7 +1371,7 @@ describe('PosterApp mobile-safe flow', () => {
     ['image:slow', 'Generation is taking longer, but is still processing…'],
   ])('shows live %s progress without allowing a duplicate batch', async (marker, message) => {
     render(<PosterApp />);
-    await screen.findByRole('button', { name: 'Generate posters' });
+    await screen.findByRole('button', { name: 'Generate' });
     const queuedProject = { ...project, metadata: { kind: 'image', directGeneration: {
       kind: 'loan-poster', status: 'queued', activeBatchId: 'recovery', expectedOutputs: 1,
       batches: [{ id: 'recovery', status: 'queued', requestedAt: Date.now(), expectedOutputs: 1, outputNames: ['zamloan-poster-new.png'] }],
@@ -1384,7 +1384,7 @@ describe('PosterApp mobile-safe flow', () => {
       return { projectId: 'project-1' };
     });
     listProjectMediaTasksMock.mockResolvedValue({ tasks: [{ taskId: 'loan-poster:recovery:0', status: 'running', progress: [marker] }] });
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     await waitFor(() => expect(within(screen.getByTestId('poster-app-generation-status')).getByText(message)).toBeTruthy());
     const button = screen.getByRole('button', { name: 'Generating…' });
     expect(button.hasAttribute('disabled')).toBe(true);
@@ -1397,7 +1397,7 @@ describe('PosterApp mobile-safe flow', () => {
     startDirectLoanPosterProjectMock.mockRejectedValue(new Error('Provider unavailable'));
     render(<PosterApp />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     expect(within(generationStatus).getByText('Generation failed: Provider unavailable')).toBeTruthy();
     expect(generationStatus.querySelector('[data-status="error"]')).toBeTruthy();
@@ -1411,14 +1411,14 @@ describe('PosterApp mobile-safe flow', () => {
       'Poster layout not accepted; base image saved as .poster-layout-drafts/layout-123/base.png. Anti-fraud hand layout: arm connection is uncertain',
     ));
     render(<PosterApp />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     await waitFor(() => expect(within(generationStatus).getByText(
       'We could not complete this poster. Please generate again; completed posters are kept.',
     )).toBeTruthy());
     expect(generationStatus.textContent).not.toContain('arm connection');
     expect(generationStatus.textContent).not.toContain('.poster-layout-drafts');
-    expect(screen.getByRole('button', { name: 'Generate posters' }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Generate' }).hasAttribute('disabled')).toBe(false);
   });
 
   it('shows and automatically dismisses a successful generation after 3 seconds', async () => {
@@ -1451,7 +1451,7 @@ describe('PosterApp mobile-safe flow', () => {
     const setTimeoutSpy = vi.spyOn(window, 'setTimeout');
     render(<PosterApp />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     const generationStatus = await screen.findByTestId('poster-app-generation-status');
     await within(generationStatus).findByText('1 poster generated');
     const autoDismissCall = setTimeoutSpy.mock.calls
@@ -1624,7 +1624,7 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
     const name = 'biumoney-poster-20260804-001.png';
     await screen.findByRole('img', { name });
-    fireEvent.click(await screen.findByRole('button', { name: 'Generate posters' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
     expect(screen.getByRole('img', { name })).toBeTruthy();
     expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
     await act(async () => rejectRequest(new Error('Request failed')));

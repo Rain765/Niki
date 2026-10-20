@@ -4,11 +4,18 @@ These rules define the shared interaction language for product selectors, action
 
 The rules are application-wide. Existing product pages, generation pages, and library/filter pages use the same primitives; page CSS may size or position them but must not redefine their visual or interaction states.
 
+## Corner radius
+
+- Use `--od-control-radius` (8 px) for buttons, selectors, inputs, and small interactive controls.
+- Use `--od-surface-radius` (12 px) for toolbar backgrounds, cards, dialogs, menus, and notices. Avoid larger page-specific radii or pill-shaped rectangular controls.
+- Preserve intentional circles for avatars, color swatches, progress indicators and slider thumbs, and preserve the shape of generated content. Small details may retain radii of 8 px or less.
+- Desktop, mobile sheets, and critical first-paint CSS follow the same scale.
+
 ## Selectors
 
 - Use `SelectField` for a labelled form selector and `CustomSelect` only when the surrounding layout already owns the label.
-- The closed trigger uses the neutral fill, a 12 px radius, no visible border, and one clear focus outline.
-- Trigger text uses `--od-control-font-size` (13 px); its radius uses `--od-control-radius` (12 px). Adjacent inputs and action buttons consume these same tokens.
+- The closed trigger uses the neutral fill, an 8 px radius, no visible border, and one clear focus outline.
+- Trigger text uses `--od-control-font-size` (13 px); its radius uses `--od-control-radius` (8 px). Adjacent inputs and action buttons consume these same tokens.
 - The menu opens below the trigger, remains within the viewport, and uses the same option hover, active, and selected states everywhere.
 - A field label is the accessible name. The selected value stays visible inside the trigger and is not repeated in the accessible name.
 - Keyboard behavior is inherited from `CustomSelect`: open with Enter, Space, or Arrow keys; move through options with Arrow keys; confirm with Enter; close with Escape.
@@ -16,11 +23,12 @@ The rules are application-wide. Existing product pages, generation pages, and li
 ## Buttons
 
 - Use `Button`; do not create page-specific primary or secondary button systems.
-- All action buttons use the selector's 12 px radius and 13 px font size through `--od-control-radius` and `--od-control-font-size`. This applies to primary, secondary, ghost, danger, compact, and loading/disabled variants on every page. Compact changes height and padding only; it does not shrink the text or radius.
-- Keep these values consistent on desktop and mobile. Page CSS must not override button font size or radius, including in editor panels, dialogs, and responsive rules. Existing native action controls must consume the same tokens until migrated to `Button`.
+- All action buttons use the selector's 8 px radius, 13 px font size, and 650 font weight through `--od-control-radius`, `--od-control-font-size`, and `--od-control-font-weight`. This applies to primary, secondary, ghost, danger, compact, and loading/disabled variants on every page. Compact changes height and padding only; it does not shrink the text or radius.
+- Keep these values consistent on desktop and mobile. Page CSS must not override button font size, font weight, or radius, including in editor panels, dialogs, and responsive rules. Existing native action controls must consume the same tokens until migrated to `Button`.
 - `primary` is reserved for the main action in a section. `secondary` is for supporting actions, `ghost` for low-emphasis utilities, and `danger` for destructive actions.
 - Use one primary action per toolbar. Primary actions sit after their required inputs and align to the same control height.
 - Loading buttons remain in place, expose `aria-busy`, and are disabled until the action completes.
+- Main creation actions across poster, video, PPT, brand, and image pages use “生成” (English: “Generate”). Busy states still describe the actual operation; non-creation actions keep their own semantic labels.
 - Name text actions with a concise verb and object; use the same term for the same action and describe the actual busy state. Text actions do not carry decorative icons.
 - Use `IconButton` for familiar utilities such as close, play, copy, download, delete, and back. Its required `label` supplies both the accessible name and hover hint. Keep text for actions whose meaning depends on the workflow (generation, refinement, or submission).
 - Buttons fit their content with 12 px horizontal padding (10 px for compact controls). Keep touch targets large enough; do not stretch actions to fill a toolbar or mobile row. Content cards and selection controls retain their own layout.
@@ -50,6 +58,6 @@ The rules are application-wide. Existing product pages, generation pages, and li
 
 ## Verification
 
-- Check poster, video, PPT, brand, documents, English practice, and account/settings actions when changing shared tokens. Verify the computed radius and font size against a `SelectField`, including compact and disabled controls.
+- Check poster, video, PPT, brand, documents, English practice, and account/settings actions when changing shared tokens. Verify the computed radius, font size, and font weight against a `SelectField`, including compact and disabled controls.
 - Inspect a desktop width and a narrow mobile width, plus any affected editor or dialog. Check for clipping and horizontal overflow without running paid generation or submitting real user data.
 - Keep existing copy, icon meanings, focus states, and action behavior intact. Run the repository guard/typecheck and relevant web tests before delivery.
