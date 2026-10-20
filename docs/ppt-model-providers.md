@@ -1,6 +1,6 @@
 # PPT model providers
 
-Administrators open **account menu → Model settings** to save, replace, test, or delete a provider key. The PPT **Generation model** filter selects a model for a new presentation. Members use the administrator's default and cannot read or change provider settings. Existing-model behavior remains available and is the initial default.
+Administrators open **account menu → Model settings** to save, replace, test, or delete a provider key. The PPT creation page uses the administrator's default without a model selector. Administrators can change that default in Model settings; members cannot read or change provider settings. Existing-model behavior remains available and is the initial default.
 
 | Label | API model | Endpoint |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ od ppt provider-delete --provider qwen --json
 - `apps/daemon/tests/ppt-models.test.ts`: permissions, key persistence and masking, test invalidation, concurrent providers, stream and multimodal forwarding, expired run credentials.
 - `apps/daemon/tests/ppt-model-projects.test.ts`: real project APIs stamp canonical bindings and prevent later changes.
 - `apps/daemon/tests/ppt-opencode.test.ts`: opt-in installed OpenCode test against a local fake provider. It executes actual image-reading and HTML-writing tools and verifies reasoning survives tool round trips. Run with `OD_TEST_OPENCODE_BIN=/absolute/path/to/opencode`.
-- Web tests cover the administrator filter, unchanged original brief, upload binding preservation, and key-entry behavior.
+- Web tests cover creation without a model override, unchanged original brief, upload binding preservation, and key-entry behavior.
 - Real provider quality still requires actual credentials and representative documents compared with the original template and Guizang references. Mock tests do not establish that quality.
 
 Model identifiers checked against [Qwen documentation](https://help.aliyun.com/zh/model-studio/vision-model), [Kimi model list](https://platform.kimi.com/docs/models), and [DeepSeek model details](https://api-docs.deepseek.com/quick_start/pricing/) on 2026-09-20.

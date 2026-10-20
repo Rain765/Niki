@@ -7,7 +7,6 @@ import { prepareNativePresentation } from '../../src/poster/native-presentations
 import { I18nProvider } from '../../src/i18n';
 const auth = vi.hoisted(() => ({ role: 'member' }));
 vi.mock('../../src/auth/NikiAuth', () => ({ useNikiAuth: () => ({user: {role: auth.role}}) }));
-vi.mock('../../src/poster/ppt-model-api', () => ({ pptModelRequest: async () => ({defaultProvider:'existing',providers:[{provider:'qwen',configured:true,testedAt:1},{provider:'kimi',configured:false},{provider:'deepseek',configured:false}]}) }));
 vi.mock('../../src/providers/registry', () => ({ fetchSkills: async () => [{id:'guizang-ppt-skill',hasBody:true}], fetchDesignTemplates: async () => [{id:'html-ppt',hasBody:true}] }));
 vi.mock('../../src/poster/NativePresentationResult', () => ({NativePresentationResult: ({projectId}:{projectId:string}) => <div data-testid={`result-${projectId}`}/> }));
 vi.mock('../../src/state/projects', () => ({ listProjects: async () => [], createProject: vi.fn(), patchProject: vi.fn() }));
@@ -162,14 +161,15 @@ it('supports keyboard preview and selection while keeping the content and action
   expect(trigger.textContent).toBe('电子杂志');
 });
 
-it('lets administrators select a verified model without changing template choices', async () => {
+it('uses the server default without exposing a model selector to administrators', async () => {
   auth.role='admin';
   vi.mocked(prepareNativePresentation).mockResolvedValue({id:'provider-created',skillId:'html-ppt'} as never);
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
-  await waitFor(()=>expect(screen.getByRole('combobox',{name:'创作模型'}).getAttribute('disabled')).toBeNull());
-  choose('创作模型','Qwen3.8-Max');
+  await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
+  expect(screen.queryByRole('combobox',{name:'创作模型'})).toBeNull();
   choose('模板与风格','瑞士国际主义');
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'保持原版设计'}});
   fireEvent.click(screen.getByRole('button',{name:'创建 PPT'}));
-  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({provider:'qwen',skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null));
+  expect(vi.mocked(prepareNativePresentation).mock.calls[0]![0].provider).toBeUndefined();
 });
