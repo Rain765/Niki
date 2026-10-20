@@ -76,7 +76,7 @@ it('keeps content, file and common settings through cross-workflow template chan
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'补充后的架构与流程'}});
   choose('模板与风格','技术分享');
   expect(screen.getByText('source.md')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button',{name:'开始创作'}));
+  fireEvent.click(screen.getByRole('button',{name:'创建 PPT'}));
   await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'html-ppt',topic:'补充后的架构与流程',audience:'',pages:'15',style:'tech-sharing',theme:'',duration:''},file));
 });
 
@@ -89,7 +89,7 @@ it.each([
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
   choose('模板与风格',label);
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'发布计划'}});
-  fireEvent.click(screen.getByRole('button',{name:'开始创作'}));
+  fireEvent.click(screen.getByRole('button',{name:'创建 PPT'}));
   await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'guizang-ppt-skill',topic:'发布计划',audience:'',pages:'auto',style,theme,duration:''},null));
 });
 
@@ -146,7 +146,7 @@ it('supports keyboard preview and selection while keeping the content and action
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
   const region=screen.getByRole('region',{name:'创作筛选'});
   expect(within(region).getByRole('textbox',{name:'创作内容'}).tagName).toBe('INPUT');
-  expect(within(region).getByRole('button',{name:'开始创作'})).toBeTruthy();
+  expect(within(region).getByRole('button',{name:'创建 PPT'})).toBeTruthy();
   expect(screen.queryByRole('region',{name:'生成区'})).toBeNull();
   const trigger=screen.getByRole('combobox',{name:'模板与风格'});
   fireEvent.keyDown(trigger,{key:'ArrowDown'});
@@ -170,6 +170,6 @@ it('lets administrators select a verified model without changing template choice
   choose('生成模型','Qwen3.8-Max');
   choose('模板与风格','瑞士国际主义');
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'保持原版设计'}});
-  fireEvent.click(screen.getByRole('button',{name:'开始创作'}));
+  fireEvent.click(screen.getByRole('button',{name:'创建 PPT'}));
   await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({provider:'qwen',skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null));
 });

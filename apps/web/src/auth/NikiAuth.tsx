@@ -376,7 +376,7 @@ function NikiAuthScreen({
                       type="button"
                       className="niki-auth__password-visibility"
                       disabled={submitting}
-                      aria-label={passwordVisible ? copy.hidePassword : copy.showPassword}
+                      aria-label={passwordVisible ? copy.hidePassword : copy.showPassword} title={passwordVisible ? copy.hidePassword : copy.showPassword}
                       aria-pressed={passwordVisible}
                       onClick={() => setPasswordVisible((visible) => !visible)}
                     >
@@ -415,12 +415,7 @@ function NikiAuthScreen({
                   disabled={feishuSubmitting}
                   aria-busy={feishuSubmitting}
                 >
-                  {feishuSubmitting ? (
-                    <>
-                      <span className="niki-auth__button-spinner" aria-hidden />
-                      <span>{copy.openingFeishu}</span>
-                    </>
-                  ) : copy.feishuSignIn}
+                  {feishuSubmitting ? copy.openingFeishu : copy.feishuSignIn}
                 </button>
                 <button
                   type="button"

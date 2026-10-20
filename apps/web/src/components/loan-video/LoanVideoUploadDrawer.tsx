@@ -6,6 +6,7 @@ import {
 } from 'react';
 
 import { useT } from '../../i18n';
+import { Button } from '../Button';
 import { Icon } from '../Icon';
 import { LoanVideoAssetField } from './LoanVideoAssetField';
 import { LoanVideoStepCard } from './LoanVideoStepCard';
@@ -103,7 +104,7 @@ export function LoanVideoUploadDrawer({
             type="button"
             className="icon-btn loan-video-drawer__close"
             onClick={onClose}
-            aria-label={t('common.close')}
+            aria-label={t('common.close')} title={t('common.close')}
           >
             <Icon name="close" size={18} />
           </button>
@@ -113,12 +114,12 @@ export function LoanVideoUploadDrawer({
           </div>
           <button
             type="button"
-            className="ghost loan-video-drawer__add"
+            className="ghost loan-video-drawer__add od-icon-button"
+            aria-label={t('loanVideo.addStep')} title={t('loanVideo.addStep')}
             onClick={onAddStep}
             data-testid="loan-video-add-step"
           >
             <Icon name="plus" size={16} />
-            {t('loanVideo.addStep')}
           </button>
         </header>
 
@@ -180,16 +181,15 @@ export function LoanVideoUploadDrawer({
           ) : null}
           <div className="loan-video-drawer__footer-actions">
             <span>{outputHint}</span>
-            <button
-              type="button"
-              className="primary loan-video-generate"
+            <Button
+              type="button" variant="primary" loading={disabled}
+              className="loan-video-generate"
               data-testid="loan-video-generate"
               disabled={disabled}
               onClick={onGenerate}
             >
-              <Icon name="play" size={16} />
-              {t('loanVideo.generate')}
-            </button>
+              {disabled ? t('loanVideo.generating') : t('loanVideo.generate')}
+            </Button>
           </div>
         </footer>
       </aside>

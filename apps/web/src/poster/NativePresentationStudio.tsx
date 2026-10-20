@@ -4,12 +4,12 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { PPT_MODEL_PROVIDERS, type PptModelSettings, type PptModelProvider } from '@open-design/contracts';
 import { useNikiAuth } from '../auth/NikiAuth';
 import { pptModelRequest } from './ppt-model-api';
-import { ArrowRight, FileText, Paperclip, X } from 'lucide-react';
+import { ArrowLeft, FileText, Paperclip, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { fetchDesignTemplates, fetchSkills } from '../providers/registry';
 import { listProjects } from '../state/projects';
 import type { Project, SkillSummary } from '../types';
-import { Button } from '../components/Button';
+import { Button, IconButton } from '../components/Button';
 import { SelectField } from '../components/SelectField';
 import { NativePresentationResult } from './NativePresentationResult';
 import { NativeTemplatePicker } from './NativeTemplatePicker';
@@ -106,11 +106,11 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
               <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFile(selected); }} disabled={busy} />
             </label>
             <input type="text" id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '主题、受众、场景与重点要求' : 'Topic, audience, occasion and priorities'} />
-            {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
+            {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} title={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
           </div>
         </div>
         <div className="native-ppt__generation-actions">
-          <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '正在保存资料…' : 'Saving source…') : (zh ? '开始创作' : 'Start creating')}<ArrowRight size={18} /></Button>
+          <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '创建 PPT' : 'Create PPT')}</Button>
         </div>
       </section>
       <div className="native-ppt__generation-status">{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>
@@ -123,9 +123,9 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
       {busy ? <div className="native-ppt__pending" role="status" aria-label={zh?'正在保存资料':'Saving source'}><div className="native-player__skeleton"><span/><span/><span/></div></div> : projectId ? <NativePresentationResult key={projectId} projectId={projectId}/> : <p className="native-ppt__empty">{zh?'生成的文稿会显示在这里':'Your presentation will appear here'}</p>}
     </section>
     <section id="ppt-panel-history" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-history" hidden={view !== 'history'}>
-      {historyId ? <><Button variant="ghost" onClick={()=>setHistoryId(null)}>{zh?'← 返回历史':'← Back to history'}</Button><NativePresentationResult key={historyId} projectId={historyId}/></> : <div className="native-ppt__history">
+      {historyId ? <><IconButton label={zh?'返回历史':'Back to history'} onClick={()=>setHistoryId(null)}><ArrowLeft size={18}/></IconButton><NativePresentationResult key={historyId} projectId={historyId}/></> : <div className="native-ppt__history">
         {!projects.length && <p>{zh?'暂无历史生成记录':'No generation history yet'}</p>}
-        {projects.map(project=><button type="button" key={project.id} onClick={()=>{if(project.id===projectId){setView('latest');}else{setHistoryId(project.id);}}}><FileText size={22}/><span><strong>{project.name}</strong><small>{project.skillId==='html-ppt'?(zh?'模板创作':'Template creation'):(zh?'设计创作':'Design creation')} · {new Date(project.updatedAt).toLocaleDateString(locale)}</small></span><ArrowRight size={18}/></button>)}
+        {projects.map(project=><button type="button" key={project.id} onClick={()=>{if(project.id===projectId){setView('latest');}else{setHistoryId(project.id);}}}><FileText size={22}/><span><strong>{project.name}</strong><small>{project.skillId==='html-ppt'?(zh?'模板创作':'Template creation'):(zh?'设计创作':'Design creation')} · {new Date(project.updatedAt).toLocaleDateString(locale)}</small></span></button>)}
       </div>}
     </section>
   </section>;

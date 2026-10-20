@@ -105,7 +105,7 @@
     minmax(150px, 0.8fr)
     minmax(210px, 1.15fr)
     minmax(140px, 0.7fr)
-    minmax(190px, 0.82fr);
+    auto;
 }
 
 .loan-video-quick__generate {
@@ -1430,7 +1430,7 @@
 
 .loan-video-generate {
   min-height: 42px;
-  padding-inline: 17px;
+  padding-inline: 12px;
 }
 
 @media (max-width: 900px) {
@@ -1570,7 +1570,8 @@
   }
 
   .loan-video-generate {
-    width: 100%;
+    width: fit-content;
+    align-self: flex-start;
   }
 }
 

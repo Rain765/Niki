@@ -38,3 +38,16 @@ export function Button({
     </button>
   );
 }
+
+/** Familiar utility actions use a compact target with a visible hover hint. */
+export function IconButton({
+  label,
+  className,
+  size = 'compact',
+  variant = 'ghost',
+  ...props
+}: Omit<ButtonProps, 'aria-label' | 'title'> & { label: string }) {
+  return <Button {...props} size={size} variant={variant}
+    className={['od-icon-button', className].filter(Boolean).join(' ')}
+    aria-label={label} title={label} />;
+}

@@ -130,15 +130,15 @@ describe('EnglishPractice', () => {
     fireEvent.click(screen.getByRole('tab', { name: /IELTS 口语教练/ }));
     fireEvent.click(screen.getByRole('button', { name: /开始 Part 1 诊断/ }));
 
-    fireEvent.click(screen.getByRole('button', { name: '完成回答，下一题' }));
-    fireEvent.click(screen.getByRole('button', { name: '完成回答，下一题' }));
-    fireEvent.click(screen.getByRole('button', { name: '完成诊断，查看目标语块' }));
+    fireEvent.click(screen.getByRole('button', { name: '下一题' }));
+    fireEvent.click(screen.getByRole('button', { name: '下一题' }));
+    fireEvent.click(screen.getByRole('button', { name: '完成诊断' }));
 
     expect(screen.getByRole('heading', { name: 'play a major role in [something]' })).toBeTruthy();
     expect(screen.getByText('[something] 可替换为名词或动名词短语')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: '保存并练下一个语块' }));
-    fireEvent.click(screen.getByRole('button', { name: '保存并练下一个语块' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存并继续' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存并继续' }));
     fireEvent.click(screen.getByRole('button', { name: '进入跨题迁移' }));
 
     expect(screen.getByRole('heading', { name: 'What helps you stay productive?' })).toBeTruthy();

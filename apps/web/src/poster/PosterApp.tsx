@@ -1093,7 +1093,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
           <button disabled={presentationLocked}
             type="button"
             className="poster-app__brand"
-            aria-label={t('app.brand')}
+            aria-label={t('app.brand')} title={t('app.brand')}
             onClick={() => {
               setCreationMode('poster');
               updateCreationModeUrl('poster');
@@ -1550,22 +1550,22 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                 {videoResultAvailable ? (
                   <div className="poster-app__video-actions">
                     <a
-                      className="poster-app__video-action"
+                      className="poster-app__video-action od-icon-button" aria-label={copy.downloadVideo} title={copy.downloadVideo}
                       href={projectFileDownloadUrl(
                         videoGeneration.state.projectId!,
                         videoGeneration.latestVideo!.name,
                       )}
                       download
                     >
-                      {copy.downloadVideo}
+                      <Icon name="download" size={18} />
                     </a>
                     <button
                       type="button"
-                      className="poster-app__video-action is-danger"
+                      className="poster-app__video-action is-danger od-icon-button" aria-label={copy.delete} title={copy.delete}
                       disabled={deletingVideoName !== null}
                       onClick={() => void removeVideo(videoGeneration.latestVideo!)}
                     >
-                      {deletingVideoName === videoGeneration.latestVideo!.name ? copy.deleting : copy.delete}
+                      <Icon name={deletingVideoName === videoGeneration.latestVideo!.name ? 'spinner' : 'trash'} size={18} />
                     </button>
                   </div>
                 ) : null}
@@ -1611,7 +1611,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                 type="button"
                 className="poster-app__history-toggle"
                 aria-expanded={showVideoHistory}
-                aria-label={showVideoHistory ? copy.collapseVideoHistory : copy.expandVideoHistory}
+                aria-label={showVideoHistory ? copy.collapseVideoHistory : copy.expandVideoHistory} title={showVideoHistory ? copy.collapseVideoHistory : copy.expandVideoHistory}
                 onClick={() => setShowVideoHistory((current) => !current)}
               >
                 <span className="poster-app__section-heading">
@@ -1639,19 +1639,19 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                       <footer>
                         <span title={file.name}>{file.name}</span>
                         <a
-                          className="poster-app__video-action"
+                          className="poster-app__video-action od-icon-button" aria-label={copy.downloadVideo} title={copy.downloadVideo}
                           href={projectFileDownloadUrl(videoGeneration.state.projectId!, file.name)}
                           download
                         >
-                          {copy.download}
+                          <Icon name="download" size={18} />
                         </a>
                         <button
                           type="button"
-                          className="poster-app__video-action is-danger"
+                          className="poster-app__video-action is-danger od-icon-button" aria-label={copy.delete} title={copy.delete}
                           disabled={deletingVideoName !== null}
                           onClick={() => void removeVideo(file)}
                         >
-                          {deletingVideoName === file.name ? copy.deleting : copy.delete}
+                          <Icon name={deletingVideoName === file.name ? 'spinner' : 'trash'} size={18} />
                         </button>
                       </footer>
                     </article>

@@ -18,7 +18,7 @@ import { fetchProjectFiles, projectFileUrl } from '../providers/registry';
 import { createProject, listProjects } from '../state/projects';
 import { randomUUID } from '../utils/uuid';
 import { Icon } from './Icon';
-import { Button } from './Button';
+import { Button, IconButton } from './Button';
 import { SelectField } from './SelectField';
 import { LogoColorPicker } from './LogoColorPicker';
 
@@ -83,8 +83,8 @@ const COPY = {
     avoidPlaceholder: 'Competitor tropes, symbols, colors…',
     notes: 'Anything else?',
     notesPlaceholder: 'Origin story, naming meaning, cultural context, hard constraints…',
-    submit: 'Generate 4 directions',
-    submitting: 'Preparing studio…',
+    submit: 'Generate Logo',
+    submitting: 'Preparing…',
     generatingButton: 'Generating…',
     preview: 'Preview',
     markPreview: (brand: string) => `${brand} mark preview`,
@@ -110,8 +110,8 @@ const COPY = {
     openSource: 'Open source image',
     refinementNotes: 'Refinement notes',
     refinementPlaceholder: 'What should be preserved, simplified, or adjusted?',
-    refine: 'Refine and build brand kit',
-    vectorize: 'Vectorize and build brand kit',
+    refine: 'Refine & package',
+    vectorize: 'Vectorize & package',
     refining: 'Building brand kit…',
     faithfulMode: 'Faithful vectorization',
     faithfulHint: 'Preserves the source canvas, geometry, placement, and sampled colors. The result must pass render-back validation.',
@@ -159,8 +159,8 @@ const COPY = {
     avoidPlaceholder: '竞品套路、禁用符号、颜色或表达……',
     notes: '补充说明',
     notesPlaceholder: '品牌故事、命名含义、文化语境、硬性限制……',
-    submit: '生成 4 个方向',
-    submitting: '正在准备工作台……',
+    submit: '生成 Logo',
+    submitting: '准备中…',
     generatingButton: '生成中…',
     preview: '预览',
     markPreview: (brand: string) => `${brand} 标志预览`,
@@ -186,9 +186,9 @@ const COPY = {
     openSource: '打开原图',
     refinementNotes: '精修要求',
     refinementPlaceholder: '哪些特征需要保留、简化或调整？',
-    refine: '精修并生成品牌包',
-    vectorize: '忠实矢量化并生成品牌包',
-    refining: '正在生成品牌包…',
+    refine: '精修并打包',
+    vectorize: '矢量化并打包',
+    refining: '生成中…',
     faithfulMode: '忠实矢量化',
     faithfulHint: '保留原图画布、轮廓、位置和采样颜色，并通过回渲相似度校验。',
     designRefinementMode: '设计精修',
@@ -770,10 +770,10 @@ export function LogoStudioView() {
             options={ARCHITECTURES.map((value) => ({ value, label: copy.architectureLabels[value] }))} />
           <Button className="od-filter-grid__action" variant="primary" type="submit" loading={submitting || generating}>
             <span>{submitting ? copy.submitting : generating ? copy.generatingButton : copy.submit}</span>
-            <Icon name="chevron-right" size={17} />
           </Button>
         </div>
         <div className="logo-studio__options">
+          <span className="logo-studio__output-count">{copy.briefMeta}</span>
           <fieldset className="logo-studio__fieldset">
             <legend>{copy.personality}</legend>
             <div className="logo-studio__chips">
@@ -792,17 +792,17 @@ export function LogoStudioView() {
           </fieldset>
 
           <div className="logo-studio__utilities">
-            <Button variant="ghost" size="compact" className="logo-studio__disclosure-toggle"
-              aria-label={copy.advanced} aria-controls="logo-studio-advanced-settings"
-              aria-expanded={advancedOpen} title={copy.advancedHint}
+            <IconButton label={copy.advanced} className="logo-studio__disclosure-toggle"
+              aria-controls="logo-studio-advanced-settings"
+              aria-expanded={advancedOpen}
               onClick={() => { setAdvancedOpen((current) => !current); setOpenPaletteIndex(null); }}>
-              {copy.advanced}<Icon name="chevron-down" size={16} />
-            </Button>
-            <Button variant="ghost" size="compact" className="logo-studio__disclosure-toggle"
+              <Icon name="sliders" size={18} />
+            </IconButton>
+            <IconButton label={copy.preview} className="logo-studio__disclosure-toggle"
               aria-controls="logo-studio-preview" aria-expanded={previewOpen}
               onClick={() => setPreviewOpen((current) => !current)}>
-              {copy.preview}<Icon name="chevron-down" size={16} />
-            </Button>
+              <Icon name="eye" size={18} />
+            </IconButton>
           </div>
         </div>
         <div
@@ -1095,7 +1095,7 @@ function LogoHistoryBatch({
               key={output}
               type="button"
               aria-pressed={selectedDirection === index + 1}
-              aria-label={`${copy.selectDirection} ${entry.name} direction ${index + 1}`}
+              aria-label={`${copy.selectDirection} ${entry.name} direction ${index + 1}`} title={`${copy.selectDirection} ${entry.name} direction ${index + 1}`}
               onClick={() => onSelectDirection((index + 1) as LogoDirection)}
             >
               <img
@@ -1121,8 +1121,9 @@ function LogoHistoryBatch({
               href={projectFileUrl(entry.projectId, `logo-direction-${String(selectedDirection).padStart(2, '0')}.png`)}
               target="_blank"
               rel="noreferrer"
+              className="od-button od-button--ghost od-icon-button" aria-label={copy.openSource} title={copy.openSource}
             >
-              {copy.openSource}
+              <Icon name="external-link" size={18} />
             </a>
           </div>
           <div className="logo-studio__refinement-mode" role="group" aria-label={copy.refinementNotes}>
@@ -1162,9 +1163,9 @@ function LogoHistoryBatch({
             </label>
           ) : null}
           <div className="logo-studio__refinement-actions">
-            <button type="button" onClick={onRefine} disabled={refining}>
+            <Button variant="primary" type="button" onClick={onRefine} loading={refining}>
               {refining ? copy.refining : refinementMode === 'faithful' ? copy.vectorize : copy.refine}
-            </button>
+            </Button>
             {refinementStatusLabel ? (
               <span className={`is-${refinementStatus}`}>{refinementStatusLabel}</span>
             ) : null}
@@ -1198,7 +1199,7 @@ function LogoHistoryBatch({
                   ? ` · ${(finalization.similarityScore * 100).toFixed(2)}%`
                   : ''}</small>
                 {finalization.archiveUrl ? (
-                  <a href={finalization.archiveUrl}>{copy.downloadBrandKit}</a>
+                  <a className="od-button od-button--ghost od-icon-button" href={finalization.archiveUrl} aria-label={copy.downloadBrandKit} title={copy.downloadBrandKit}><Icon name="download" size={18} /></a>
                 ) : null}
               </span>
             ))}

@@ -2,7 +2,7 @@ import { nativePresentationWorkspaceUrl, type ChatRunStatusResponse, type Projec
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { NativePresentationPreview } from '../components/NativePresentationPreview';
-import { Button } from '../components/Button';
+import { Button, IconButton } from '../components/Button';
 import { X } from 'lucide-react';
 import { NativePresentationQuestionForm } from './NativePresentationQuestionForm';
 import type { PresentationQuestionRequest } from './native-presentation-questions';
@@ -114,7 +114,7 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
     {entry && question && mode !== 'question' && <Button onClick={()=>setMode('question')}>{zh?'回答问题':'Answer questions'}</Button>}
     <dialog ref={dialog} className="native-ppt__dialog" aria-labelledby={`ppt-dialog-title-${projectId}`} onCancel={()=>setMode(null)} onClose={()=>setMode(null)}>
       <header><h2 id={`ppt-dialog-title-${projectId}`}>{zh?(mode==='question'?'确认内容':configurationRequired?'生成设置':'修改文稿'):(mode==='question'?'Confirm details':configurationRequired?'Generation settings':'Revise presentation')}</h2>
-        <Button variant="ghost" aria-label={zh?'关闭':'Close'} onClick={()=>setMode(null)}><X size={18}/></Button></header>
+        <IconButton label={zh?'关闭':'Close'} onClick={()=>setMode(null)}><X size={18}/></IconButton></header>
       {question && <div hidden={mode !== 'question'}><NativePresentationQuestionForm key={question.id} request={question} busy={answerBusy} error={answerError} onSubmit={content=>{
         if (answerBusy) return;
         setAnswerBusy(true); setAnswerError('');

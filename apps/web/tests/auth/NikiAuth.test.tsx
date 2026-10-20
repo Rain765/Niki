@@ -157,7 +157,6 @@ describe('NikiAuthGate', () => {
     expect(loginButton.getAttribute('aria-busy')).toBe('true');
     expect((loginButton as HTMLButtonElement).disabled).toBe(true);
     expect(loginButton.textContent).toContain('正在前往飞书');
-    expect(loginButton.querySelector('.niki-auth__button-spinner')).toBeTruthy();
     expect(screen.getByRole('button', { name: '账号密码登录' })).toHaveProperty('disabled', true);
   });
 

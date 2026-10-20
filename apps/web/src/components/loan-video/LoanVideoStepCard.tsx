@@ -71,7 +71,7 @@ export function LoanVideoStepCard({
             className="icon-btn"
             disabled={index === 0}
             onClick={() => onMove(-1)}
-            aria-label={t('loanVideo.moveUp')}
+            aria-label={t('loanVideo.moveUp')} title={t('loanVideo.moveUp')}
           >
             <Icon name="arrow-up" size={15} />
           </button>
@@ -80,7 +80,7 @@ export function LoanVideoStepCard({
             className="icon-btn"
             disabled={index === count - 1}
             onClick={() => onMove(1)}
-            aria-label={t('loanVideo.moveDown')}
+            aria-label={t('loanVideo.moveDown')} title={t('loanVideo.moveDown')}
           >
             <Icon name="chevron-down" size={15} />
           </button>
@@ -88,7 +88,7 @@ export function LoanVideoStepCard({
             type="button"
             className="icon-btn"
             onClick={onRemove}
-            aria-label={t('common.delete')}
+            aria-label={t('common.delete')} title={t('common.delete')}
           >
             <Icon name="trash" size={15} />
           </button>
@@ -132,7 +132,6 @@ export function LoanVideoStepCard({
                 <span>{t('loanVideo.screenshot')}</span>
                 <small>{t('loanVideo.screenshotHint')}</small>
                 <span className="loan-video-screenshot__upload-prompt">
-                  <Icon name="upload" size={15} />
                   {t('loanVideo.uploadScreenshot')}
                 </span>
               </button>
@@ -143,9 +142,9 @@ export function LoanVideoStepCard({
                 className="loan-video-screenshot__upload"
                 data-testid={`loan-video-replace-screenshot-${index + 1}`}
                 onClick={openScreenshotPicker}
+                aria-label={t('loanVideo.replaceScreenshot')} title={t('loanVideo.replaceScreenshot')}
               >
-                <Icon name="upload" size={15} />
-                {t('loanVideo.replaceScreenshot')}
+                <Icon name="upload" size={18} />
               </button>
             ) : null}
           </div>

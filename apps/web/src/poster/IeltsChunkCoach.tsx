@@ -239,10 +239,8 @@ function VoiceRecorder({ language }: { language: 'zh' | 'en' }) {
 
   return (
     <div className="ielts-coach__recorder">
-      <button type="button" className={recording ? 'is-recording' : ''} onClick={recording ? stopRecording : () => void startRecording()}>
-        <Icon name={recording ? 'stop' : 'mic'} size={15} /> {recording
-          ? coachText(language, '结束录音', 'Stop recording')
-          : coachText(language, '开始录音', 'Start recording')}
+      <button type="button" className={`od-icon-button${recording ? ' is-recording' : ''}`} aria-label={recording ? coachText(language, '结束录音', 'Stop recording') : coachText(language, '开始录音', 'Start recording')} title={recording ? coachText(language, '结束录音', 'Stop recording') : coachText(language, '开始录音', 'Start recording')} onClick={recording ? stopRecording : () => void startRecording()}>
+        <Icon name={recording ? 'stop' : 'mic'} size={18} />
       </button>
       {audioUrl ? <audio controls src={audioUrl} aria-label={coachText(language, '本题录音回放', 'Answer recording playback')} /> : <span>{coachText(language, '录音仅保留在当前浏览器，不会自动上传。', 'Recordings stay in this browser and are never uploaded automatically.')}</span>}
       {error ? <small role="status">{error}</small> : null}
@@ -421,7 +419,7 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
             <span>{coachText(language, `当前 ${level}`, `Current ${level === '不确定' ? 'not sure' : level}`)}</span><span>{coachText(language, `目标 ${target}`, `Target ${target}`)}</span><span>{language === 'zh' ? topic : ENGLISH_TOPIC_LABELS[topic] ?? topic}</span><span>{coachText(language, '3 个语块', '3 chunks')}</span>
           </div>
           <button type="button" className="english-practice__primary ielts-coach__continue" onClick={startSession}>
-            {coachText(language, '开始 Part 1 诊断', 'Start Part 1 diagnosis')} <Icon name="chevron-right" size={17} />
+            {coachText(language, '开始 Part 1 诊断', 'Start Part 1 diagnosis')}
           </button>
         </div>
       ) : null}
@@ -442,7 +440,7 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
             placeholder={coachText(language, '先开口回答，再在这里记录你的原话或关键词…', 'Answer aloud first, then record your original words or keywords here…')}
           />
           <button type="button" className="english-practice__primary ielts-coach__continue" onClick={continueDiagnostic}>
-            {diagnosticIndex < 2 ? coachText(language, '完成回答，下一题', 'Finish and continue') : coachText(language, '完成诊断，查看目标语块', 'Finish diagnosis and view target chunks')} <Icon name="chevron-right" size={17} />
+            {diagnosticIndex < 2 ? coachText(language, '下一题', 'Next question') : coachText(language, '完成诊断', 'Finish diagnosis')}
           </button>
         </div>
       ) : null}
@@ -471,7 +469,7 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
             placeholder={coachText(language, '不要照抄例句；把方括号里的部分换成你自己的内容…', 'Do not copy the example; replace the bracketed part with your own content…')}
           />
           <button type="button" className="english-practice__primary ielts-coach__continue" onClick={continueChunkPractice}>
-            {chunkIndex < 2 ? coachText(language, '保存并练下一个语块', 'Save and practice the next chunk') : coachText(language, '进入跨题迁移', 'Start cross-question transfer')} <Icon name="chevron-right" size={17} />
+            {chunkIndex < 2 ? coachText(language, '保存并继续', 'Save and continue') : coachText(language, '进入跨题迁移', 'Start cross-question transfer')}
           </button>
         </div>
       ) : null}
@@ -504,7 +502,7 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
             <button type="button" onClick={() => setTransferHints((current) => current.map((hint, index) => index === transferIndex ? Math.min(3, hint + 1) : hint))} disabled={currentHintLevel >= 3}>
               {currentHintLevel === 0 ? coachText(language, '我卡住了，给提示', 'I’m stuck—give me a hint') : currentHintLevel < 3 ? coachText(language, '再给一点提示', 'Give me another hint') : coachText(language, '已显示完整表达', 'Full expression shown')}
             </button>
-            <button type="button" className="english-practice__primary" onClick={continueTransfer}>{transferIndex < 8 ? coachText(language, '换一道题', 'Next question') : coachText(language, '进入 Part 2', 'Continue to Part 2')} <Icon name="chevron-right" size={17} /></button>
+            <button type="button" className="english-practice__primary" onClick={continueTransfer}>{transferIndex < 8 ? coachText(language, '换一道题', 'Next question') : coachText(language, '进入 Part 2', 'Continue to Part 2')}</button>
           </div>
         </div>
       ) : null}
@@ -529,7 +527,7 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
             <p>{coachText(language, '先从原回答里选 1–2 句你最不满意的表达，再用今天的语块或近义转述重说。这里不替你编造经历。', 'Choose one or two weak sentences, then repeat them with today’s chunks or a paraphrase. The coach will not invent experiences for you.')}</p>
             <textarea rows={3} value={part2Revision} onChange={(event) => setPart2Revision(event.target.value)} placeholder={coachText(language, '把需要重说的部分写在这里…', 'Write the part you want to repeat here…')} />
           </div>
-          <button type="button" className="english-practice__primary ielts-coach__continue" onClick={() => setStage('part3')}>{coachText(language, '进入 Part 3 深挖', 'Continue to Part 3')} <Icon name="chevron-right" size={17} /></button>
+          <button type="button" className="english-practice__primary ielts-coach__continue" onClick={() => setStage('part3')}>{coachText(language, '进入 Part 3 深挖', 'Continue to Part 3')}</button>
         </div>
       ) : null}
 
@@ -543,7 +541,7 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
           </div>
           <AnswerComposer language={language} key={`part3-${part3Index}`} value={part3Answers[part3Index] ?? ''} onChange={(value) => updateList(setPart3Answers, part3Index, value)} placeholder={coachText(language, '尝试自然调用一个旧语块，并把理由说具体…', 'Use a previous chunk naturally and make your reason concrete…')} />
           <label className="ielts-coach__check"><input type="checkbox" checked={paraphraseTried} onChange={(event) => setParaphraseTried(event.target.checked)} /><span>{coachText(language, '我尝试把今天的一个语块换一种说法', 'I paraphrased one of today’s chunks')}</span></label>
-          <button type="button" className="english-practice__primary ielts-coach__continue" onClick={continuePart3}>{part3Index < 2 ? coachText(language, '完成回答，下一题', 'Finish and continue') : coachText(language, '完成训练并复盘', 'Finish and review')} <Icon name="chevron-right" size={17} /></button>
+          <button type="button" className="english-practice__primary ielts-coach__continue" onClick={continuePart3}>{part3Index < 2 ? coachText(language, '下一题', 'Next question') : coachText(language, '完成训练并复盘', 'Finish and review')}</button>
         </div>
       ) : null}
 
@@ -582,7 +580,7 @@ export function IeltsChunkCoach({ language = 'zh' }: { language?: 'zh' | 'en' })
             <h3>{coachText(language, '明天盲测的 3 个新问题', 'Three new blind-test questions for tomorrow')}</h3>
             <ol><li>What makes a place feel comfortable to you?</li><li>Describe a decision that changed your daily routine.</li><li>Why do some habits last longer than others?</li></ol>
           </section>
-          <button type="button" className="english-practice__primary ielts-coach__continue" onClick={() => setStage('setup')}>{coachText(language, '开始新的训练', 'Start a new session')}</button>
+          <button type="button" className="english-practice__primary ielts-coach__continue" onClick={() => setStage('setup')}>{coachText(language, '开始新训练', 'Start new session')}</button>
         </div>
       ) : null}
     </section>

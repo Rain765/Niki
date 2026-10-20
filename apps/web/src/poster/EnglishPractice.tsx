@@ -609,7 +609,6 @@ export function EnglishPractice() {
             <p>{copy.subtitle}</p>
           </div>
           <button type="button" className="english-practice__vocab-link" onClick={() => setView('vocabulary')}>
-            <Icon name="star" size={17} />
             {copy.vocabulary}
             <span>{progress.favorites.length}</span>
           </button>
@@ -628,7 +627,6 @@ export function EnglishPractice() {
           </div>
           <button type="button" className="english-practice__primary" onClick={openLesson}>
             {lessonPercent > 0 ? copy.continue : copy.start}
-            <Icon name="chevron-right" size={17} />
           </button>
         </article>
 
@@ -675,8 +673,8 @@ export function EnglishPractice() {
   if (view === 'vocabulary') {
     return (
       <section className="english-practice english-practice--subpage" aria-label={copy.vocabularyTitle}>
-        <button type="button" className="english-practice__back" onClick={() => setView('home')}>
-          <Icon name="arrow-left" size={17} /> {copy.returnCourses}
+        <button type="button" className="english-practice__back od-icon-button" aria-label={copy.returnCourses} title={copy.returnCourses} onClick={() => setView('home')}>
+          <Icon name="arrow-left" size={18} />
         </button>
         <div className="english-practice__subhead">
           <span className="english-practice__kicker">VOCABULARY</span>
@@ -687,14 +685,14 @@ export function EnglishPractice() {
           <div className="english-practice__vocab-grid">
             {favoriteWords.map((info) => (
               <article key={normalizeWord(info.word)}>
-              <button type="button" className="english-practice__vocab-speak" aria-label={copy.pronounce(info.word)} onClick={() => void speech.speak(info.word, `word:${info.word}`)}>
+              <button type="button" className="english-practice__vocab-speak" aria-label={copy.pronounce(info.word)} title={copy.pronounce(info.word)} onClick={() => void speech.speak(info.word, `word:${info.word}`)}>
                   <Icon name="play" size={15} />
                 </button>
                 <strong>{info.word}</strong>
                 <span>{info.ipa}</span>
                 <p>{info.meaning}</p>
                 <small>{info.context}</small>
-                <button type="button" onClick={() => toggleFavorite(info.word)}>{copy.removeVocabulary}</button>
+                <button type="button" className="od-icon-button" aria-label={copy.removeVocabulary} title={copy.removeVocabulary} onClick={() => toggleFavorite(info.word)}><Icon name="trash" size={18} /></button>
               </article>
             ))}
           </div>
@@ -713,8 +711,8 @@ export function EnglishPractice() {
   return (
     <section className="english-practice english-practice--lesson" aria-label={copy.lessonLabel}>
       <div className="english-lesson__topbar">
-        <button type="button" className="english-practice__back" onClick={() => { speech.stop(); setView('home'); }}>
-          <Icon name="arrow-left" size={17} /> {copy.allScenarios}
+        <button type="button" className="english-practice__back od-icon-button" aria-label={copy.allScenarios} title={copy.allScenarios} onClick={() => { speech.stop(); setView('home'); }}>
+          <Icon name="arrow-left" size={18} />
         </button>
         <div className="english-lesson__progress"><span><i style={{ width: `${lessonPercent}%` }} /></span><b>{lessonPercent}%</b></div>
       </div>
@@ -741,12 +739,11 @@ export function EnglishPractice() {
         <>
           <div className="english-lesson__controls">
             <div className="english-lesson__playback">
-              <button type="button" className="english-practice__primary" onClick={() => {
+              <button type="button" className="english-practice__primary od-icon-button" aria-label={speech.speakingId ? copy.stopPlayback : copy.playAll} title={speech.speakingId ? copy.stopPlayback : copy.playAll} onClick={() => {
                 if (speech.speakingId) speech.stop();
                 else void speech.speakSequence(dialogue);
               }}>
                 <Icon name={speech.speakingId ? 'stop' : 'play'} size={16} />
-                {speech.speakingId ? copy.stopPlayback : copy.playAll}
               </button>
               <div className="english-lesson__rate" aria-label={copy.speed}>
                 {([0.75, 1, 1.25] as const).map((value) => (
@@ -755,11 +752,11 @@ export function EnglishPractice() {
               </div>
             </div>
             <div className="english-lesson__toggles">
-              <button type="button" className={showChinese ? 'is-active' : ''} onClick={() => setShowChinese((current) => !current)}>
-                <Icon name={showChinese ? 'eye' : 'eye-off'} size={15} /> {copy.chinese}
+              <button type="button" className={showChinese ? 'is-active' : ''} aria-pressed={showChinese} onClick={() => setShowChinese((current) => !current)}>
+                {copy.chinese}
               </button>
-              <button type="button" className={listenOnly ? 'is-active' : ''} onClick={() => setListenOnly((current) => !current)}>
-                <Icon name="play" size={15} /> {copy.listenOnly}
+              <button type="button" className={listenOnly ? 'is-active' : ''} aria-pressed={listenOnly} onClick={() => setListenOnly((current) => !current)}>
+                {copy.listenOnly}
               </button>
             </div>
           </div>
@@ -804,7 +801,7 @@ export function EnglishPractice() {
                     )}
                   </div>
                   {!listenOnly && !isYourTurn ? (
-                    <button type="button" className="english-line__play" aria-label={copy.playLine(index + 1)} onClick={() => void speech.speak(line.english, line.id, line.speaker)}>
+                    <button type="button" className="english-line__play" aria-label={copy.playLine(index + 1)} title={copy.playLine(index + 1)} onClick={() => void speech.speak(line.english, line.id, line.speaker)}>
                       <Icon name={speech.speakingId === line.id ? 'stop' : 'play'} size={15} />
                     </button>
                   ) : null}
@@ -818,7 +815,7 @@ export function EnglishPractice() {
             <div className="english-lesson__phrase-grid">
               {PHRASES.map((phrase) => (
                 <article key={phrase.phrase}>
-                  <button type="button" onClick={() => void speech.speak(phrase.phrase.replace('…', ''), `word:${phrase.phrase}`)}><Icon name="play" size={14} /></button>
+                  <button type="button" className="od-icon-button" aria-label={copy.pronounce(phrase.phrase)} title={copy.pronounce(phrase.phrase)} onClick={() => void speech.speak(phrase.phrase.replace('…', ''), `word:${phrase.phrase}`)}><Icon name="play" size={14} /></button>
                   <strong>{phrase.phrase}</strong>
                   <p>{phrase.meaning}</p>
                   <small>{phrase.alternatives.join(' · ')}</small>
@@ -834,8 +831,8 @@ export function EnglishPractice() {
             <div><h3>{copy.shadowing}</h3><p>{copy.shadowingHint}</p></div>
             <blockquote>“I’d like a medium latte, please.”</blockquote>
             <div className="english-exercise__actions">
-              <button type="button" onClick={() => void speech.speak("I'd like a medium latte, please.", 'shadowing', 'A')}><Icon name="play" size={16} /> {copy.listenReference}</button>
-              <button type="button" className={progress.shadowingCompleted ? 'is-complete' : ''} onClick={() => setProgress((current) => ({ ...current, shadowingCompleted: true }))}><Icon name={progress.shadowingCompleted ? 'check' : 'mic'} size={16} /> {progress.shadowingCompleted ? copy.complete : copy.markShadowed}</button>
+              <button type="button" className="od-icon-button" aria-label={copy.listenReference} title={copy.listenReference} onClick={() => void speech.speak("I'd like a medium latte, please.", 'shadowing', 'A')}><Icon name="play" size={18} /></button>
+              <button type="button" className={progress.shadowingCompleted ? 'is-complete' : ''} onClick={() => setProgress((current) => ({ ...current, shadowingCompleted: true }))}>{progress.shadowingCompleted ? copy.complete : copy.markShadowed}</button>
             </div>
           </article>
 
@@ -860,7 +857,7 @@ export function EnglishPractice() {
               ))}
             </div>
             <div className="english-exercise__actions">
-              <button type="button" onClick={() => { setOrderedWords([]); setOrderFeedback(null); }}>{copy.reset}</button>
+              <button type="button" className="od-icon-button" aria-label={copy.reset} title={copy.reset} onClick={() => { setOrderedWords([]); setOrderFeedback(null); }}><Icon name="reload" size={18} /></button>
               <button type="button" onClick={checkOrder}>{copy.checkAnswer}</button>
             </div>
             {orderFeedback ? <p className={progress.sentenceOrderCompleted ? 'is-correct' : 'is-error'}>{orderFeedback}</p> : null}
@@ -873,11 +870,11 @@ export function EnglishPractice() {
           <button type="button" className="english-word-sheet__scrim" onClick={() => setSelectedWord(null)} aria-label={copy.closeWordCard} />
           <article>
             <div className="english-word-sheet__handle" />
-            <button type="button" className="english-word-sheet__close" onClick={() => setSelectedWord(null)} aria-label={copy.close}><Icon name="close" size={18} /></button>
+            <button type="button" className="english-word-sheet__close" onClick={() => setSelectedWord(null)} aria-label={copy.close} title={copy.close}><Icon name="close" size={18} /></button>
             <div className="english-word-sheet__word-row">
               <div><strong>{selectedWord.word}</strong><span>{selectedWord.ipa}</span></div>
-              <button type="button" aria-label={copy.pronounce(selectedWord.word)} onClick={() => void speech.speak(selectedWord.word, `word:${selectedWord.word}`)}><Icon name="play" size={18} /></button>
-              <button type="button" aria-label={progress.favorites.includes(normalizeWord(selectedWord.word)) ? copy.removeFavorite : copy.addFavorite} className={progress.favorites.includes(normalizeWord(selectedWord.word)) ? 'is-active' : ''} onClick={() => toggleFavorite(selectedWord.word)}><Icon name="star" size={18} /></button>
+              <button type="button" aria-label={copy.pronounce(selectedWord.word)} title={copy.pronounce(selectedWord.word)} onClick={() => void speech.speak(selectedWord.word, `word:${selectedWord.word}`)}><Icon name="play" size={18} /></button>
+              <button type="button" aria-label={progress.favorites.includes(normalizeWord(selectedWord.word)) ? copy.removeFavorite : copy.addFavorite} title={progress.favorites.includes(normalizeWord(selectedWord.word)) ? copy.removeFavorite : copy.addFavorite} className={progress.favorites.includes(normalizeWord(selectedWord.word)) ? 'is-active' : ''} onClick={() => toggleFavorite(selectedWord.word)}><Icon name="star" size={18} /></button>
             </div>
             <div className="english-word-sheet__meaning"><span>{copy.chineseMeaning}</span><p>{selectedWord.meaning}</p></div>
             <div className="english-word-sheet__context"><span>{copy.currentContext}</span><p>{selectedWord.context}</p></div>

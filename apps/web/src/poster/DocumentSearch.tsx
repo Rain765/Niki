@@ -377,6 +377,8 @@ function DocumentComposer({
       <button
         type="submit"
         aria-label={documentUrl ? copy.readDocument : copy.searchDocuments}
+        title={documentUrl ? copy.readDocument : copy.searchDocuments}
+        aria-busy={loading}
         disabled={!value.trim() || loading}
       >
         {loading ? <Icon name="spinner" size={19} /> : <Icon name="arrow-up" size={20} />}
@@ -661,7 +663,7 @@ export function DocumentSearch() {
     <aside className="document-workspace__sidebar" aria-label={copy.navigation}>
       <div className="document-workspace__sidebar-head">
         <strong>NIKI DOCS</strong>
-        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={copy.closeNavigation}>
+        <button type="button" onClick={() => setSidebarOpen(false)} aria-label={copy.closeNavigation} title={copy.closeNavigation}>
           <Icon name="close" size={17} />
         </button>
       </div>
@@ -670,13 +672,12 @@ export function DocumentSearch() {
         className={`document-workspace__new${view === 'new' ? ' is-active' : ''}`}
         onClick={() => startNewChat()}
       >
-        <Icon name="plus" size={17} />
         <span>{copy.newChat}</span>
       </button>
 
       <div className="document-workspace__section-heading">
         <span>{copy.projects}</span>
-        <button type="button" onClick={() => void createWorkspaceProject()} aria-label={copy.newProject}>
+        <button type="button" onClick={() => void createWorkspaceProject()} aria-label={copy.newProject} title={copy.newProject}>
           <Icon name="plus" size={15} />
         </button>
       </div>
@@ -734,7 +735,7 @@ export function DocumentSearch() {
         type="button"
         className="document-workspace__mobile-menu"
         onClick={() => setSidebarOpen(true)}
-        aria-label={copy.openNavigation}
+        aria-label={copy.openNavigation} title={copy.openNavigation}
       >
         <Icon name="menu" size={20} />
       </button>
@@ -759,7 +760,6 @@ export function DocumentSearch() {
                 <p>{copy.savedSummaries(activeProjectThreads.length)}</p>
               </div>
               <button type="button" onClick={() => startNewChat(activeProjectId)}>
-                <Icon name="plus" size={16} />
                 {copy.newChat}
               </button>
             </header>
@@ -803,8 +803,7 @@ export function DocumentSearch() {
                     <small>{activeProject?.name ?? copy.myDocuments}</small>
                     <h2>{document.title}</h2>
                   </div>
-                  <a href={document.url} target="_blank" rel="noreferrer">
-                    {copy.openFeishu}
+                  <a href={document.url} target="_blank" rel="noreferrer" className="od-icon-button" aria-label={copy.openFeishu} title={copy.openFeishu}>
                     <Icon name="external-link" size={16} />
                   </a>
                 </header>

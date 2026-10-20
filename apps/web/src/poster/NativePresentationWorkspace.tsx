@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PPT_MODEL_PROVIDERS, type PptApiProvider } from '@open-design/contracts';
+import { IconButton } from '../components/Button';
+import { Icon } from '../components/Icon';
 import { ProjectView } from '../components/ProjectView';
 import { useRoute } from '../router';
 import { fetchAgents, fetchSkills, fetchDesignTemplates, fetchDesignSystems } from '../providers/registry';
@@ -71,7 +73,7 @@ function Workspace() {
   const back = () => { window.location.assign('/?mode=ppt'); };
   return <div className={`native-ppt-workspace${embedded?' native-ppt-workspace--embedded':''}`}>
     <header className="native-ppt-workspace__bar">
-      <a href="/?mode=ppt" target="_top">← {zh ? '演示文稿' : 'Presentations'}</a>
+      <a href="/?mode=ppt" target="_top" className="od-button od-button--ghost od-icon-button" aria-label={zh ? '返回 PPT' : 'Back to PPT'} title={zh ? '返回 PPT' : 'Back to PPT'}><Icon name="arrow-left" size={18}/></a>
       <strong>{project?.name}</strong>
       <button onClick={() => setSettings(!settings)}>{external ? PPT_MODEL_PROVIDERS[external.provider as PptApiProvider].label : agent?.name ?? (zh ? '选择执行代理' : 'Choose agent')}</button>
     </header>
@@ -88,7 +90,7 @@ function Workspace() {
       <label>{zh ? '思考强度' : 'Reasoning'} <select value={config.agentModels?.[agent?.id ?? '']?.reasoning ?? 'default'} onChange={(event) => agent && update({ ...config, agentModels: { ...config.agentModels, [agent.id]: { ...config.agentModels?.[agent.id], reasoning: event.target.value } } })}>
         {agent?.reasoningOptions?.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
       </select></label>
-      <button onClick={refreshAgents}>{zh ? '重新检测' : 'Refresh'}</button>
+      <IconButton label={zh ? '重新检测' : 'Refresh'} onClick={refreshAgents}><Icon name="refresh" size={18}/></IconButton>
       {!ready && <p role="status">{zh ? '选择可用的执行代理与模型后继续。原流程需要本地代理完成文件读取、设计和检查，资料已保存。' : 'Choose an available local agent and model to continue. The original workflow needs file and validation tools. Your source is saved.'}</p>}
     </div>}
     {error ? <p role="alert">{error}</p> : project && config && (ready || !project.pendingPrompt) ? <div className="native-ppt-workspace__body">

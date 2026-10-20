@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { useT } from '../../i18n';
-import { Button } from '../Button';
+import { Button, IconButton } from '../Button';
 import { Icon } from '../Icon';
 import { SelectField } from '../SelectField';
 import { Toast } from '../Toast';
@@ -171,7 +171,8 @@ export function LoanVideoComposer({
 
       <div className="loan-video-composer">
         <header className="loan-video-composer__header">
-          <Button
+          <IconButton
+            label={mode === 'quick' ? t('loanVideo.editorMode') : t('loanVideo.backToQuick')}
             variant="secondary"
             size="compact"
             className="loan-video-composer__mode"
@@ -183,9 +184,8 @@ export function LoanVideoComposer({
               setMode((current) => current === 'quick' ? 'editor' : 'quick');
             }}
           >
-            <Icon name={mode === 'quick' ? 'edit' : 'arrow-left'} size={16} />
-            {mode === 'quick' ? t('loanVideo.editorMode') : t('loanVideo.backToQuick')}
-          </Button>
+            <Icon name={mode === 'quick' ? 'edit' : 'arrow-left'} size={18} />
+          </IconButton>
         </header>
 
         {mode === 'quick' ? (
@@ -252,7 +252,6 @@ export function LoanVideoComposer({
                 });
               }}
             >
-              <Icon name={disabled ? 'spinner' : 'play'} size={17} />
               {disabled ? t('loanVideo.generating') : t('loanVideo.quickGenerate')}
             </Button>
           </div>
@@ -345,7 +344,6 @@ export function LoanVideoComposer({
               aria-expanded={uploadDrawerOpen}
               aria-controls="loan-video-upload-drawer"
             >
-              <Icon name="upload" size={16} />
               <span>{t('loanVideo.manageSteps')}</span>
               <span
                 className="loan-video-steps__count"

@@ -360,7 +360,7 @@ export function PasswordAccountManager({
             <span className="niki-account-manager__eyebrow">{copy.admin}</span>
             <h2 id="niki-account-manager-title">{copy.title}</h2>
           </div>
-          <button type="button" aria-label={copy.close} onClick={onClose}>
+          <button type="button" aria-label={copy.close} title={copy.close} onClick={onClose}>
             <svg viewBox="0 0 20 20" aria-hidden="true">
               <path d="M4 4l12 12M16 4L4 16" />
             </svg>
@@ -468,7 +468,7 @@ export function PasswordAccountManager({
                   <button
                     type="button"
                     className="is-secondary"
-                    aria-label={copy.editPasswordLabel(account.username ?? account.user.name)}
+                    aria-label={copy.editPasswordLabel(account.username ?? account.user.name)} title={copy.editPasswordLabel(account.username ?? account.user.name)}
                     onClick={() => startPasswordUpdate(account)}
                   >
                     {copy.editPassword}

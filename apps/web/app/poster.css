@@ -76,12 +76,15 @@ button {
 
 .niki-auth button,
 .niki-auth__password-form input {
-  width: 100%;
   min-height: 50px;
   border-radius: 14px;
 }
 
 .niki-auth button {
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  padding-inline: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -123,16 +126,6 @@ button {
   opacity: 1;
 }
 
-.niki-auth__button-spinner {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
-  border: 2px solid color-mix(in srgb, var(--poster-text-inverse) 34%, transparent);
-  border-top-color: var(--poster-text-inverse);
-  border-radius: 50%;
-  animation: poster-spin 700ms linear infinite;
-}
-
 .niki-auth__password-form {
   display: grid;
   gap: 14px;
@@ -155,6 +148,7 @@ button {
 }
 
 .niki-auth__password-form input {
+  width: 100%;
   padding: 0 52px 0 14px;
   border: 1px solid var(--poster-border);
   outline: none;
@@ -204,6 +198,7 @@ button {
 }
 
 .niki-auth .niki-auth__text-button {
+  display: flex;
   min-height: 42px;
   margin-top: 8px;
   background: transparent;
@@ -527,8 +522,9 @@ button {
 }
 
 .document-workspace__new {
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: 10px;
+  display: inline-flex;
+  width: fit-content;
+  align-self: start;
   min-height: 44px;
   padding: 0 11px;
   border-radius: 11px;
@@ -2312,12 +2308,14 @@ button {
 .english-lesson__roleplay button,
 .english-exercise__actions button,
 .english-exercise__role-buttons button {
+  width: fit-content;
+  align-self: start;
   display: inline-flex;
   min-height: 42px;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 0 15px;
+  padding: 0 12px;
   border: 0;
   border-radius: 12px;
   background: var(--poster-panel-raised);
@@ -2350,9 +2348,10 @@ button {
 }
 
 .english-practice__primary {
+  width: fit-content;
   flex: 0 0 auto;
   min-height: 46px;
-  padding: 0 20px;
+  padding: 0 12px;
   background: var(--poster-accent);
   color: var(--poster-text-inverse) !important;
 }
@@ -4111,7 +4110,9 @@ button {
 
   .ielts-coach__actions > button,
   .ielts-coach__continue {
-    width: 100%;
+    width: fit-content;
+    align-self: flex-start;
+    margin-left: 0;
   }
 
   .english-practice__hero {
@@ -4142,7 +4143,7 @@ button {
   }
 
   .english-practice__today .english-practice__primary {
-    justify-self: stretch;
+    justify-self: start;
   }
 
   .english-practice__scenarios,
@@ -4188,7 +4189,7 @@ button {
   }
 
   .english-lesson__playback .english-practice__primary {
-    flex: 1;
+    flex: 0 0 auto;
   }
 
   .english-lesson__rate button {
@@ -4196,7 +4197,7 @@ button {
   }
 
   .english-lesson__toggles button {
-    flex: 1;
+    flex: 0 0 auto;
   }
 
   .english-lesson__roleplay {
@@ -4237,8 +4238,8 @@ button {
 
   .english-exercise__actions,
   .english-exercise__role-buttons {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    flex-wrap: wrap;
   }
 
   .english-word-sheet > article {
@@ -4352,7 +4353,6 @@ button {
   .poster-app__poster,
   .poster-app__poster-skeleton,
   .niki-auth__spinner,
-  .niki-auth__button-spinner,
   .document-search .icon-spin {
     animation: none !important;
   }
