@@ -13,10 +13,9 @@ html:has(.poster-app.is-logo) {
 }
 .logo-studio *, .logo-studio *::before, .logo-studio *::after { box-sizing: border-box; }
 .logo-studio__toolbar.od-generation-toolbar { grid-template-columns: repeat(4, minmax(0, 1fr)) auto; }
-.logo-studio__options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; padding: 16px; }
+.logo-studio__options { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px 24px; padding: 16px; }
 .logo-studio__utilities { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 .logo-studio__disclosure-toggle[aria-expanded='true'] { background: var(--poster-control-hover); color: var(--text-strong); }
-.logo-studio__output-count { color: var(--text-muted); font-size: 12px; }
 .logo-studio__advanced-content { padding: 16px; }
 .logo-studio__preview-head { display: flex; justify-content: space-between; gap: 12px; color: var(--text-muted); font-size: 12px; }
 

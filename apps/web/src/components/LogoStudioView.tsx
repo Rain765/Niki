@@ -66,7 +66,6 @@ interface LogoHistoryEntry {
 const COPY = {
   en: {
     brief: 'Brand brief',
-    briefMeta: '4 directions · 1 system',
     brand: 'Brand name',
     brandPlaceholder: 'e.g. Northstar',
     industry: 'Industry',
@@ -142,7 +141,6 @@ const COPY = {
   },
   zh: {
     brief: '品牌简报',
-    briefMeta: '4 个方向 · 1 套系统',
     brand: '品牌名称',
     brandPlaceholder: '例如：北辰',
     industry: '行业 / 品类',
@@ -777,8 +775,6 @@ export function LogoStudioView() {
           </Button>
         </div>
         <div className="logo-studio__options">
-          <span className="logo-studio__output-count">{copy.briefMeta}</span>
-
           <div className="logo-studio__utilities">
             <IconButton label={copy.advanced} className="logo-studio__disclosure-toggle"
               aria-controls="logo-studio-advanced-settings"
@@ -904,7 +900,6 @@ export function LogoStudioView() {
                   <span style={{ backgroundColor: paperColor, color: inkColor }}>{initials}</span>
                   <span style={{ backgroundColor: primaryColor, color: paperColor }}>{initials}</span>
                 </div>
-                <p>{copy.briefMeta}</p>
                 <p>{copy.previewHint}</p>
               </div>
             </aside>
