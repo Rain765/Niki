@@ -101,7 +101,7 @@ describe('LogoStudioView', () => {
     expect(screen.getByLabelText('Brand name')).toBeTruthy();
     expect(screen.getByLabelText('Industry')).toBeTruthy();
     expect(screen.getByRole('combobox', { name: 'Logo architecture' })).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Brand personality' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Brand personality' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Generate Logo' })).toBeTruthy();
 
     const toggle = screen.getByRole('button', { name: 'Advanced settings' });

@@ -4,32 +4,32 @@ import {
   CustomSelect,
   type CustomSelectItem,
   type SelectRenderers,
+  type SelectSelection,
 } from './CustomSelect';
 
-export interface SelectFieldProps extends SelectRenderers {
+interface SelectFieldBaseProps extends SelectRenderers {
   className?: string;
   disabled?: boolean;
   label: string;
   menuMinWidth?: number;
-  onChange: (value: string) => void;
   onFocus?: () => void;
   options: CustomSelectItem[];
   testId?: string;
-  value: string;
 }
+
+export type SelectFieldProps = SelectFieldBaseProps & SelectSelection;
 
 export function SelectField({
   className,
   disabled = false,
   label,
   menuMinWidth = 224,
-  onChange,
   onFocus,
   options,
   testId,
-  value,
   renderValue,
   renderOption,
+  ...selection
 }: SelectFieldProps) {
   const reactId = useId();
   const labelId = `${reactId.replace(/:/g, '')}-label`;
@@ -38,6 +38,7 @@ export function SelectField({
     <div className={['od-field', className].filter(Boolean).join(' ')}>
       <span className="od-field__label" id={labelId}>{label}</span>
       <CustomSelect
+        {...selection}
         renderValue={renderValue}
         renderOption={renderOption}
         ariaLabel={label}
@@ -48,12 +49,10 @@ export function SelectField({
         menuGap={8}
         menuMinWidth={menuMinWidth}
         menuPlacement="bottom"
-        onChange={onChange}
         onFocus={onFocus}
         options={options}
         testId={testId}
         triggerClassName="od-control-select__trigger"
-        value={value}
       />
     </div>
   );

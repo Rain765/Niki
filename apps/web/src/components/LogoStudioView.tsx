@@ -764,32 +764,20 @@ export function LogoStudioView() {
               onChange={(event) => setIndustry(event.target.value)}
               placeholder={copy.industryPlaceholder} maxLength={100} />
           </label>
-          <SelectField className="od-filter-grid__item od-filter-grid__wide"
+          <SelectField className="od-filter-grid__item"
             label={copy.architecture} value={architecture}
             onChange={(value) => setArchitecture(value as LogoArchitecture)}
             options={ARCHITECTURES.map((value) => ({ value, label: copy.architectureLabels[value] }))} />
+          <SelectField className="od-filter-grid__item"
+            multiple label={copy.personality} value={personality}
+            onChange={(values) => setPersonality(values as typeof personality)}
+            options={PERSONALITIES.map((value) => ({ value, label: PERSONALITY_LABELS[value][language] }))} />
           <Button className="od-filter-grid__action" variant="primary" type="submit" loading={submitting || generating}>
             <span>{submitting ? copy.submitting : generating ? copy.generatingButton : copy.submit}</span>
           </Button>
         </div>
         <div className="logo-studio__options">
           <span className="logo-studio__output-count">{copy.briefMeta}</span>
-          <fieldset className="logo-studio__fieldset">
-            <legend>{copy.personality}</legend>
-            <div className="logo-studio__chips">
-              {PERSONALITIES.map((item) => (
-                <button
-                  type="button"
-                  key={item}
-                  className={personality.includes(item) ? 'is-selected' : ''}
-                  aria-pressed={personality.includes(item)}
-                  onClick={() => setPersonality((current) => toggleValue(current, item))}
-                >
-                  {PERSONALITY_LABELS[item][language]}
-                </button>
-              ))}
-            </div>
-          </fieldset>
 
           <div className="logo-studio__utilities">
             <IconButton label={copy.advanced} className="logo-studio__disclosure-toggle"

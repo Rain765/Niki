@@ -21,10 +21,12 @@ export interface SelectRenderers {
   renderOption?: (option: CustomSelectOption, keyboardActive: boolean, keyboardNavigation: boolean) => ReactNode;
 }
 
-interface Props extends SelectRenderers {
-  value: string;
+export type SelectSelection =
+  | { multiple?: false; value: string; onChange: (value: string) => void }
+  | { multiple: true; value: string[]; onChange: (value: string[]) => void };
+
+interface BaseProps extends SelectRenderers {
   options: CustomSelectItem[];
-  onChange: (value: string) => void;
   ariaLabel: string;
   labelledBy?: string;
   className?: string;
@@ -40,6 +42,8 @@ interface Props extends SelectRenderers {
   testId?: string;
   onFocus?: () => void;
 }
+
+type Props = BaseProps & SelectSelection;
 
 interface FlatOption extends CustomSelectOption {
   group?: string;
@@ -65,6 +69,7 @@ function flattenOptions(items: CustomSelectItem[]): FlatOption[] {
 }
 
 export function CustomSelect({
+  multiple,
   value,
   options,
   onChange,
@@ -89,15 +94,19 @@ export function CustomSelect({
   const idBase = reactId.replace(/:/g, '');
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const activeSourceValueRef = useRef(value);
+  const firstValue = multiple ? value[0] ?? '' : value;
+  const activeSourceValueRef = useRef(firstValue);
   const [open, setOpen] = useState(false);
   const [keyboardNavigation, setKeyboardNavigation] = useState(false);
-  const [activeValue, setActiveValue] = useState(value);
+  const [activeValue, setActiveValue] = useState(firstValue);
   const [position, setPosition] = useState<MenuPosition | null>(null);
 
   const flatOptions = useMemo(() => flattenOptions(options), [options]);
-  const selected = flatOptions.find((option) => option.value === value);
-  const selectedLabel = selected?.label ?? placeholder ?? value;
+  const selected = flatOptions.find((option) => option.value === firstValue);
+  const selectedLabel = multiple
+    ? flatOptions.filter((option) => value.includes(option.value)).map((option) => option.label).join(' / ') || placeholder || ariaLabel
+    : selected?.label ?? placeholder ?? value;
+  const isSelected = (optionValue: string) => multiple ? value.includes(optionValue) : optionValue === value;
   const enabledOptions = useMemo(
     () => flatOptions.filter((option) => !option.disabled),
     [flatOptions],
@@ -153,14 +162,14 @@ export function CustomSelect({
 
   useEffect(() => {
     if (!open) {
-      activeSourceValueRef.current = value;
+      activeSourceValueRef.current = firstValue;
       return;
     }
-    if (activeSourceValueRef.current === value) return;
-    const selectedOption = flatOptionsRef.current.find((option) => option.value === value && !option.disabled);
+    if (multiple || activeSourceValueRef.current === firstValue) return;
+    const selectedOption = flatOptionsRef.current.find((option) => option.value === firstValue && !option.disabled);
     setActiveValue(selectedOption?.value ?? enabledOptionsRef.current[0]?.value ?? '');
-    activeSourceValueRef.current = value;
-  }, [open, value]);
+    activeSourceValueRef.current = firstValue;
+  }, [open, firstValue, multiple]);
 
   useEffect(() => {
     if (!open) return;
@@ -185,8 +194,13 @@ export function CustomSelect({
   const choose = (nextValue: string) => {
     const next = flatOptions.find((option) => option.value === nextValue);
     if (!next || next.disabled) return;
-    onChange(next.value);
-    setOpen(false);
+    if (multiple) {
+      setActiveValue(next.value);
+      onChange(value.includes(next.value) ? value.filter((item) => item !== next.value) : [...value, next.value]);
+    } else {
+      onChange(next.value);
+      setOpen(false);
+    }
     buttonRef.current?.focus();
   };
 
@@ -201,9 +215,9 @@ export function CustomSelect({
   };
 
   const openMenu = () => {
-    const selectedOption = flatOptions.find(option => option.value === value && !option.disabled);
+    const selectedOption = flatOptions.find(option => option.value === firstValue && !option.disabled);
     setActiveValue(selectedOption?.value ?? enabledOptions[0]?.value ?? '');
-    activeSourceValueRef.current = value;
+    activeSourceValueRef.current = firstValue;
     setOpen(true);
   };
 
@@ -221,7 +235,7 @@ export function CustomSelect({
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       if (open) {
-        choose(activeValue || value);
+        choose(activeValue || firstValue);
       } else {
         openMenu();
       }
@@ -247,6 +261,7 @@ export function CustomSelect({
       ].filter(Boolean).join(' ')}
       role="listbox"
       aria-label={ariaLabel}
+      aria-multiselectable={multiple || undefined}
       style={
         portal && position
           ? {
@@ -267,7 +282,7 @@ export function CustomSelect({
                 <SelectOptionButton
                   key={option.value}
                   option={option}
-                  selected={option.value === value}
+                  selected={isSelected(option.value)}
                   active={option.value === activeValue}
                   id={optionIdByValue.get(option.value)}
                   onChoose={choose}
@@ -283,7 +298,7 @@ export function CustomSelect({
           <SelectOptionButton
             key={item.value}
             option={item}
-            selected={item.value === value}
+            selected={isSelected(item.value)}
             active={item.value === activeValue}
             id={optionIdByValue.get(item.value)}
             onChoose={choose}
@@ -303,7 +318,7 @@ export function CustomSelect({
         type="button"
         className={['od-select-trigger', triggerClassName].filter(Boolean).join(' ')}
         role="combobox"
-        value={value}
+        value={multiple ? value.join(',') : value}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={`${idBase}-menu`}
@@ -318,7 +333,7 @@ export function CustomSelect({
         onFocus={onFocus}
       >
         <span id={`${idBase}-value`} className="od-select-value">
-          {selected && renderValue ? renderValue(selected) : selectedLabel}
+          {!multiple && selected && renderValue ? renderValue(selected) : selectedLabel}
         </span>
         <Icon name="chevron-down" size={14} />
       </button>

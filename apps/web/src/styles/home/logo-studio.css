@@ -12,10 +12,8 @@ html:has(.poster-app.is-logo) {
   font-size: 14px;
 }
 .logo-studio *, .logo-studio *::before, .logo-studio *::after { box-sizing: border-box; }
-.logo-studio__toolbar.od-generation-toolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(180px, .8fr) auto; }
+.logo-studio__toolbar.od-generation-toolbar { grid-template-columns: repeat(4, minmax(0, 1fr)) auto; }
 .logo-studio__options { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; padding: 16px; }
-.logo-studio__options > .logo-studio__fieldset { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; margin: 0; }
-.logo-studio__options > .logo-studio__fieldset legend { float: left; margin: 0; line-height: 36px; }
 .logo-studio__utilities { display: flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 .logo-studio__disclosure-toggle[aria-expanded='true'] { background: var(--poster-control-hover); color: var(--text-strong); }
 .logo-studio__output-count { color: var(--text-muted); font-size: 12px; }
@@ -721,8 +719,6 @@ html:has(.poster-app.is-logo) {
   .logo-studio__options { padding: 16px 0; }
   .logo-studio__utilities { margin-left: 0; }
   .logo-studio__chips button { min-height: 46px; }
-  .logo-studio__options > .logo-studio__fieldset { width: 100%; }
-  .logo-studio__options .logo-studio__chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
   .logo-studio__utilities .od-button { min-height: 46px; }
   .logo-studio__preview-card { grid-template-columns: 120px minmax(0, 1fr); gap: 16px; padding: 12px 0; }
   .logo-studio__generation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
