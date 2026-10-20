@@ -100,7 +100,7 @@ describe('LogoStudioView', () => {
 
     expect(screen.getByLabelText('Brand name')).toBeTruthy();
     expect(screen.getByLabelText('Industry')).toBeTruthy();
-    expect(screen.getByRole('group', { name: 'Logo architecture' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Logo architecture' })).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Brand personality' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Generate 4 directions' })).toBeTruthy();
 
@@ -147,10 +147,12 @@ describe('LogoStudioView', () => {
 
     fireEvent.change(screen.getByLabelText('Brand name'), { target: { value: 'Northstar' } });
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Logo architecture' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Symbol', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
 
     const history = await screen.findByRole('region', { name: 'Generation history' });
-    expect(fetchMock).toHaveBeenCalledWith('/api/logo/brief', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/logo/brief', expect.objectContaining({ method: 'POST', body: expect.stringContaining('"architecture":"symbol"') }));
     expect(createProjectMock).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Northstar Logo',
@@ -171,6 +173,8 @@ describe('LogoStudioView', () => {
     expect(waitForMediaTaskMock).toHaveBeenCalledTimes(4);
     expect(within(history).getAllByRole('img', { name: /Northstar Logo direction/ })).toHaveLength(4);
     expect(screen.queryByTestId('logo-result-grid')).toBeNull();
+    expect(screen.queryByRole('img', { name: 'Northstar mark preview' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
     expect(screen.getByRole('img', { name: 'Northstar mark preview' })).toBeTruthy();
   });
 
@@ -298,11 +302,24 @@ describe('LogoStudioView', () => {
     );
 
     const history = await screen.findByRole('region', { name: 'Generation history' });
+    await waitFor(() => expect(within(history).getAllByRole('article')).toHaveLength(1));
+    expect(screen.getByRole('tabpanel', { name: 'Latest batch' }).textContent).toContain('AMIZ Logo actual generation');
+    expect(screen.queryByText('Atlas Logo')).toBeNull();
+    const latestTab = screen.getByRole('tab', { name: 'Latest batch' });
+    latestTab.focus();
+    fireEvent.keyDown(latestTab, { key: 'ArrowRight' });
+    expect(screen.getByRole('tab', { name: 'History 2' }).getAttribute('aria-selected')).toBe('true');
+    expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'History 2' }));
     const batches = within(history).getAllByRole('article');
     expect(batches).toHaveLength(2);
     expect(batches[0]?.textContent).toContain('AMIZ Logo actual generation');
     expect(batches[1]?.textContent).toContain('Atlas Logo');
     expect(history.textContent).not.toContain('Poster project');
+    fireEvent.change(screen.getByLabelText('Brand name'), { target: { value: 'Draft brand' } });
+    fireEvent.keyDown(document.activeElement!, { key: 'Home' });
+    expect(screen.getByRole('tabpanel', { name: 'Latest batch' })).toBeTruthy();
+    expect((screen.getByLabelText('Brand name') as HTMLInputElement).value).toBe('Draft brand');
+    expect(createProjectMock).not.toHaveBeenCalled();
   });
 
   it('loads saved logo projects six at a time', async () => {
@@ -329,6 +346,7 @@ describe('LogoStudioView', () => {
     );
 
     const history = await screen.findByRole('region', { name: 'Generation history' });
+    fireEvent.click(await screen.findByRole('tab', { name: 'History 7' }));
     await waitFor(() => expect(within(history).getAllByRole('article')).toHaveLength(6));
     expect(fetchProjectFilesMock).toHaveBeenCalledTimes(6);
 
@@ -517,9 +535,11 @@ describe('LogoStudioView', () => {
 
     fireEvent.change(screen.getByLabelText('Brand name'), { target: { value: 'Northstar' } });
     fireEvent.change(screen.getByLabelText('Industry'), { target: { value: 'Climate analytics' } });
+    fireEvent.click(screen.getByRole('tab', { name: /History/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Generate 4 directions' }));
 
     const skeleton = await screen.findByTestId('logo-generation-skeleton');
+    expect(screen.getByRole('tab', { name: 'Latest batch' }).getAttribute('aria-selected')).toBe('true');
     expect(skeleton.textContent).toContain('Generating 4 directions');
     expect((screen.getByRole('button', { name: 'Generating…' }) as HTMLButtonElement).disabled).toBe(true);
 
