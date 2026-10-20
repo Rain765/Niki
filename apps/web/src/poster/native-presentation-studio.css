@@ -5,10 +5,9 @@
 .native-ppt__nav { margin-bottom: 24px; }
 .native-ppt__nav button { border: 0; background: transparent; color: var(--poster-muted); padding: 12px 22px; border-radius: 8px; }
 .native-ppt__nav button[aria-selected=true] { background: var(--poster-panel-raised); color: var(--poster-text); }
-/* Selectors share the first row; the content row reserves only the button width. */
-.native-ppt__filters.od-generation-toolbar { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-.native-ppt__selectors { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
-.native-ppt__compose-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 16px; min-width: 0; }
+/* Content, selectors and the action share one row. */
+.native-ppt__filters.od-generation-toolbar { grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(0, 180px)) auto; align-items: end; gap: 16px; }
+.native-ppt__filters.od-generation-toolbar:has(> :nth-child(5)) { grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(0, 160px)) auto; }
 .native-ppt__filters :is(.od-control-select__trigger, .od-control-input, .od-button) { height: var(--od-control-height); }
 .native-ppt__source { min-width: 0; }
 .native-ppt__composer { display: flex; align-items: center; gap: 6px; height: var(--od-control-height); min-width: 0; padding: 0 8px; border-radius: var(--od-control-radius); background: var(--od-control-fill); }
@@ -40,15 +39,18 @@
 .native-ppt__history span { flex: 1; display: grid; gap: 8px; }
 .native-ppt__history small { color: var(--poster-muted); }
 .native-ppt__error { color: var(--poster-danger); }
+@media (max-width: 900px) {
+  .native-ppt__filters.od-generation-toolbar,
+  .native-ppt__filters.od-generation-toolbar:has(> :nth-child(5)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .native-ppt__source { grid-column: 1 / -1; }
+  .native-ppt__generation-actions { grid-column: -2 / -1; justify-self: end; }
+}
 @media (max-width: 760px) {
   .native-ppt { padding: 12px 16px 32px; }
-  .native-ppt__selectors { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .native-ppt__selectors > :last-child:nth-child(odd) { grid-column: 1 / -1; }
-  .native-ppt__compose-row { grid-template-columns: minmax(0, 1fr); }
-  .native-ppt__generation-actions { justify-self: end; }
 }
 @media (max-width: 380px) {
-  .native-ppt__selectors { grid-template-columns: minmax(0, 1fr); }
+  .native-ppt__filters.od-generation-toolbar,
+  .native-ppt__filters.od-generation-toolbar:has(> :nth-child(5)) { grid-template-columns: minmax(0, 1fr); }
 }
 
 .native-ppt__result-tabs { margin-top: 28px; scroll-margin-top: 90px; }

@@ -21,7 +21,7 @@ it('combines every original template and both styles in one filter without workf
   expect(screen.queryByRole('spinbutton',{name:'分享时长（分钟）'})).toBeNull();
   expect(screen.getByPlaceholderText('主题、受众、场景与重点要求')).toBeTruthy();
   const filters=screen.getByRole('region',{name:'创作筛选'});
-  expect(Array.from(filters.querySelectorAll('.od-field__label')).map(el=>el.textContent)).toEqual(['模板与风格','目标页数','创作内容']);
+  expect(Array.from(filters.querySelectorAll('.od-field__label')).map(el=>el.textContent)).toEqual(['创作内容','模板与风格','目标页数']);
   expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toContain('白底编辑风');
   fireEvent.click(screen.getByRole('combobox',{name:'模板与风格'}));
   expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(18);

@@ -80,25 +80,21 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   return <section className="native-ppt" aria-label={zh ? '演示文稿工作室' : 'Presentation studio'}>
     <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
       <section className="native-ppt__filters od-generation-toolbar" aria-label={zh ? '创作筛选' : 'Creation settings'}>
-        <div className="native-ppt__selectors">
-          <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
-          <SelectField label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
+        <div className="native-ppt__source od-field">
+          <label className="od-field__label" htmlFor="ppt-creation-content">{zh ? '创作内容' : 'Content'}</label>
+          <div className="native-ppt__composer">
+            <label className="native-ppt__upload" title={zh ? '添加或替换文档 · PDF / Word / PPTX / Markdown / TXT / CSV / Excel' : 'Add or replace a document'}>
+              <Paperclip size={16} aria-hidden="true" />
+              <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFile(selected); }} disabled={busy} />
+            </label>
+            <input type="text" id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '主题、受众、场景与重点要求' : 'Topic, audience, occasion and priorities'} />
+            {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} title={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
+          </div>
         </div>
-        <div className="native-ppt__compose-row">
-          <div className="native-ppt__source od-field">
-            <label className="od-field__label" htmlFor="ppt-creation-content">{zh ? '创作内容' : 'Content'}</label>
-            <div className="native-ppt__composer">
-              <label className="native-ppt__upload" title={zh ? '添加或替换文档 · PDF / Word / PPTX / Markdown / TXT / CSV / Excel' : 'Add or replace a document'}>
-                <Paperclip size={16} aria-hidden="true" />
-                <input key={`${skill}:${file?.name ?? 'empty'}`} aria-label={zh ? '添加文档' : 'Add document'} type="file" accept=".pdf,.docx,.pptx,.md,.txt,.csv,.xlsx" onChange={event => { const selected = event.target.files?.[0]; if (selected) setFile(selected); }} disabled={busy} />
-              </label>
-              <input type="text" id="ppt-creation-content" value={brief.topic} disabled={busy} onChange={event => edit({topic:event.target.value})} placeholder={zh ? '主题、受众、场景与重点要求' : 'Topic, audience, occasion and priorities'} />
-              {file && <span className="native-ppt__attachment"><span title={file.name}>{file.name}</span><button type="button" disabled={busy} aria-label={zh ? '移除文档' : 'Remove document'} title={zh ? '移除文档' : 'Remove document'} onClick={() => setFile(undefined)}><X size={14} aria-hidden="true" /></button></span>}
-            </div>
-          </div>
-          <div className="native-ppt__generation-actions">
-            <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '创建 PPT' : 'Create PPT')}</Button>
-          </div>
+        <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
+        <SelectField label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
+        <div className="native-ppt__generation-actions">
+          <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '创建 PPT' : 'Create PPT')}</Button>
         </div>
       </section>
       <div className="native-ppt__generation-status">{!available && <p role="status">{zh ? '模板资源尚未就绪' : 'Template resources unavailable'}</p>}{error && <p className="native-ppt__error" role="alert">{error}</p>}</div>
