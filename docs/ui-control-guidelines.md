@@ -45,11 +45,14 @@ The rules are application-wide. Existing product pages, generation pages, and li
 
 ## Layout and ownership
 
+- The Niki navigation-to-content gap is owned by `.poster-app__content` through `--poster-nav-content-gap`: 24 px on desktop, 16 px at 760 px and below. Measure from the navigation bottom edge to the first content surface. Embedded PPT and brand studios must not add top padding to that gap.
+- In video quick mode, group the edit icon immediately above Generate with an 8 px gap and matching right edges. Keep this order and alignment on mobile; editor mode retains its back control above the settings.
+
 - Use `.od-generation-toolbar` for a compact row of selectors followed by one primary action.
 - Add `.od-filter-grid` to every adjacent filter or generation-control group that should follow the shared responsive layout.
 - At 760 px and below, `.od-filter-grid` always uses two equal columns with a 12 px gap. Controls retain a minimum 46 px touch target.
 - Add `.od-filter-grid__item` to each filter. When a group has an odd number of filters, add `.od-filter-grid__wide` to the final filter so it spans both columns.
-- Add `.od-filter-grid__action` to the primary action and `.od-filter-grid__meta` to supporting result counts; both occupy their own row on mobile, with the action itself sized to its content and aligned to the start.
+- Add `.od-filter-grid__action` to the primary action and `.od-filter-grid__meta` to supporting result counts; both occupy their own row on mobile, with the action itself sized to its content and aligned to the start. The video edit/Generate group is the explicit exception: both actions remain right-aligned.
 - This grid applies to adjacent selector/search groups. A single search field, editor/settings form, or horizontally scrollable chip/pill row keeps its task-specific layout.
 - The mobile-grid exception above is about layout only. Selectors, action buttons, and action-triggered feedback inside forms still use `SelectField`/`CustomSelect`, `Button`, and `Toast` respectively.
 - Shared visual and interaction states live in `src/styles/ui-controls.css`. Page styles may only define layout proportions or truly page-specific context.

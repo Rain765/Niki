@@ -276,12 +276,18 @@ button {
 }
 
 .poster-app__content {
+  --poster-nav-content-gap: 24px;
   width: min(100%, var(--poster-shell-width));
   margin: 0 auto;
   padding:
-    var(--poster-space-6)
+    var(--poster-nav-content-gap)
     var(--poster-space-5)
     max(var(--poster-space-7), env(safe-area-inset-bottom));
+}
+
+/* The shared shell owns navigation spacing, including embedded studios. */
+.poster-app__content > :is(.native-ppt, .logo-studio) {
+  padding-top: 0;
 }
 
 .poster-app__topbar {
@@ -4047,6 +4053,7 @@ button {
   }
 
   .poster-app__content {
+    --poster-nav-content-gap: 16px;
     padding-right: var(--poster-space-4);
     padding-left: var(--poster-space-4);
   }

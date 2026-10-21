@@ -51,8 +51,11 @@ describe('LoanVideoComposer', () => {
     expect(toolbar.querySelector('.loan-video-quick__readiness')).toBeNull();
     expect(screen.queryByTestId('loan-video-editor-settings')).toBeNull();
     const generate = screen.getByTestId('loan-video-quick-generate') as HTMLButtonElement;
-    expect(generate.className).toContain('od-filter-grid__action');
-    expect(toolbar.lastElementChild).toBe(generate);
+    const actions = generate.parentElement;
+    expect(actions?.className).toContain('od-filter-grid__action');
+    expect(toolbar.lastElementChild).toBe(actions);
+    expect(actions?.firstElementChild).toBe(screen.getByTestId('loan-video-editor-mode'));
+    expect(actions?.lastElementChild).toBe(generate);
     expect(generate.disabled).toBe(false);
     fireEvent.click(screen.getByRole('combobox', { name: 'Purpose' }));
     fireEvent.click(screen.getByRole('option', { name: 'Loan guide' }));

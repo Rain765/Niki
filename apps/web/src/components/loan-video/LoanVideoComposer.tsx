@@ -162,6 +162,24 @@ export function LoanVideoComposer({
     setUploadDrawerOpen(false);
   }, []);
 
+  const modeToggle = (
+    <IconButton
+      label={mode === 'quick' ? t('loanVideo.editorMode') : t('loanVideo.backToQuick')}
+      variant="secondary"
+      size="compact"
+      className="loan-video-composer__mode"
+      data-testid="loan-video-editor-mode"
+      aria-pressed={mode === 'editor'}
+      onClick={() => {
+        setValidationErrors([]);
+        setQuickNotice(null);
+        setMode((current) => current === 'quick' ? 'editor' : 'quick');
+      }}
+    >
+      <Icon name={mode === 'quick' ? 'edit' : 'arrow-left'} size={18} />
+    </IconButton>
+  );
+
   return (
     <section className="home-hero loan-video-hero" data-testid="loan-video-composer">
       <div className="home-hero__backdrop" aria-hidden>
@@ -170,23 +188,9 @@ export function LoanVideoComposer({
       </div>
 
       <div className="loan-video-composer">
-        <header className="loan-video-composer__header">
-          <IconButton
-            label={mode === 'quick' ? t('loanVideo.editorMode') : t('loanVideo.backToQuick')}
-            variant="secondary"
-            size="compact"
-            className="loan-video-composer__mode"
-            data-testid="loan-video-editor-mode"
-            aria-pressed={mode === 'editor'}
-            onClick={() => {
-              setValidationErrors([]);
-              setQuickNotice(null);
-              setMode((current) => current === 'quick' ? 'editor' : 'quick');
-            }}
-          >
-            <Icon name={mode === 'quick' ? 'edit' : 'arrow-left'} size={18} />
-          </IconButton>
-        </header>
+        {mode === 'editor' && (
+          <header className="loan-video-composer__header">{modeToggle}</header>
+        )}
 
         {mode === 'quick' ? (
           <div
@@ -233,27 +237,30 @@ export function LoanVideoComposer({
               disabled={disabled}
             />
 
-            <Button
-              variant="primary"
-              className="od-filter-grid__action loan-video-quick__generate"
-              data-testid="loan-video-quick-generate"
-              disabled={disabled || !onQuickGenerate}
-              loading={disabled}
-              onClick={() => {
-                if (!restoring && !presetConfigured) {
-                  setQuickNotice(t('loanVideo.presetRequiredHint'));
-                  setMode('editor');
-                  return;
-                }
-                onQuickGenerate?.({
-                  brand: draft.brand,
-                  purpose: draft.purpose,
-                  aspectRatio: draft.aspectRatio,
-                });
-              }}
-            >
-              {disabled ? t('loanVideo.generating') : t('loanVideo.quickGenerate')}
-            </Button>
+            <div className="od-filter-grid__action loan-video-quick__actions">
+              {modeToggle}
+              <Button
+                variant="primary"
+                className="loan-video-quick__generate"
+                data-testid="loan-video-quick-generate"
+                disabled={disabled || !onQuickGenerate}
+                loading={disabled}
+                onClick={() => {
+                  if (!restoring && !presetConfigured) {
+                    setQuickNotice(t('loanVideo.presetRequiredHint'));
+                    setMode('editor');
+                    return;
+                  }
+                  onQuickGenerate?.({
+                    brand: draft.brand,
+                    purpose: draft.purpose,
+                    aspectRatio: draft.aspectRatio,
+                  });
+                }}
+              >
+                {disabled ? t('loanVideo.generating') : t('loanVideo.quickGenerate')}
+              </Button>
+            </div>
           </div>
         ) : (
           <>
