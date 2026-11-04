@@ -37,8 +37,8 @@ export const NATIVE_INSPECTION_SCRIPT = String.raw`(index) => {
     if (!el.textContent.trim() || el.closest('.notes,aside,[hidden],[aria-hidden="true"],.ghost,script,style')) continue;
     const b = el.getBoundingClientRect();
     const style = getComputedStyle(el);
-    if (!b.width || !b.height || style.visibility === 'hidden' || style.display === 'none') continue;
     const text = el.textContent.trim().slice(0, 160);
+    if (!b.width || !b.height || style.visibility === 'hidden' || style.display === 'none') { add('dim-text', text); continue; }
     if (b.x < -2 || b.right > innerWidth + 2 || b.y < -2 || b.bottom > innerHeight + 2) add('overflow', text);
     let opacity = 1;
     for (let p = el; p && p !== document.documentElement; p = p.parentElement) opacity *= Number(getComputedStyle(p).opacity);

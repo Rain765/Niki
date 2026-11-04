@@ -6,7 +6,7 @@ export const NATIVE_PRESENTATION_RESOURCES = {
 } as const;
 
 export type NativePresentationWorkflow = keyof typeof NATIVE_PRESENTATION_RESOURCES;
-export const NATIVE_PRESENTATION_INSPECTOR_VERSION = '4';
+export const NATIVE_PRESENTATION_INSPECTOR_VERSION = '5';
 export interface NativePresentationInspection {
   inspectorVersion?: string;
   version: 1;

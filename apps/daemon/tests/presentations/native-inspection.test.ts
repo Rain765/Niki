@@ -23,7 +23,7 @@ it('invalidates a saved review when its entry or a local dependency changes', as
   const { createHash } = await import('node:crypto');
   const { nativeInspectionIsStale } = await import('../../src/presentations/native-inspection.js');
   const digest = (value: string) => createHash('sha256').update(value).digest('hex');
-  const report = {inspectorVersion:'4',version:1 as const,entry:'index.html',sourceHash:digest('original'),resourceHashes:{'theme.css':digest('blue')},stale:false,viewport:{width:1280,height:720},reportFile:'report.json',visualReviewRequired:true as const,slides:[],blockedResources:[],failedResources:[]};
+  const report = {inspectorVersion:'5',version:1 as const,entry:'index.html',sourceHash:digest('original'),resourceHashes:{'theme.css':digest('blue')},stale:false,viewport:{width:1280,height:720},reportFile:'report.json',visualReviewRequired:true as const,slides:[],blockedResources:[],failedResources:[]};
   try {
     await writeFile(path.join(root,'index.html'),'original');
     await writeFile(path.join(root,'theme.css'),'blue');
@@ -55,5 +55,39 @@ it('renders every page and reports overlap, clipping, complex backgrounds and mi
     expect(report.slides[1]!.design?.elements.length).toBeGreaterThan(0);
     expect(report.visualReviewRequired).toBe(true);
     expect(await readFile(path.join(root,'index.html'),'utf8')).toBe(source);
+  } finally { await rm(root,{recursive:true,force:true}); }
+},30000);
+
+it('does not accept stable but invisible animated text as a settled slide', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'native-hidden-animation-'));
+  try {
+    await writeFile(path.join(root,'index.html'),`<!doctype html><style>body{margin:0}.slide{width:1280px;height:720px;background:white}.hidden{transform:scaleX(0);transform-origin:left}</style><div id="deck"><section class="slide"><div class="hidden"><h2>隐藏标题必须被验收发现</h2></div><p>普通正文</p></section></div>`);
+    const report = await inspectNativePresentation({projectDir:root,entry:'index.html',save:async()=>{}});
+    expect(report.failedResources).toContain('page-1:entrance-animation-not-settled');
+    expect(report.slides[0]!.issues).toContainEqual({kind:'dim-text',text:'隐藏标题必须被验收发现'});
+  } finally { await rm(root,{recursive:true,force:true}); }
+},30000);
+
+it('waits for a delayed ancestor entrance without changing the original animation or source', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'native-delayed-animation-'));
+  const source = `<!doctype html><style>body{margin:0}.slide{width:1280px;height:720px;background:white}#title{opacity:0;transform:scaleX(0)}</style><div id="deck"><section class="slide"><div id="title"><h2>延迟入场后完整显示</h2></div></section></div><script>setTimeout(()=>{title.animate([{opacity:0,transform:'scaleX(0)'},{opacity:1,transform:'scaleX(1)'}],{duration:600,fill:'forwards'});},3500);</script>`;
+  try {
+    await writeFile(path.join(root,'index.html'),source);
+    const report = await inspectNativePresentation({projectDir:root,entry:'index.html',save:async()=>{}});
+    expect(report.failedResources).toEqual([]);
+    expect(report.slides[0]!.issues).not.toContainEqual({kind:'dim-text',text:'延迟入场后完整显示'});
+    const {readFile} = await import('node:fs/promises');
+    expect(await readFile(path.join(root,'index.html'),'utf8')).toBe(source);
+  } finally { await rm(root,{recursive:true,force:true}); }
+},30000);
+
+it('reveals a manual pipeline without advancing to the next slide before capture', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'native-manual-pipeline-'));
+  try {
+    await writeFile(path.join(root,'index.html'),`<!doctype html><style>body{margin:0}.slide{width:1280px;height:720px;background:white}.slide:not(.active){display:none}</style><nav id="nav"><button>1</button><button>2</button></nav><div id="deck"><section class="slide active" data-animate="pipeline"><p data-anim="step">第一步</p><p data-anim="step" style="opacity:.15">第二步</p></section><section class="slide"><h2>下一页</h2></section></div><script>let index=0;const slides=[...document.querySelectorAll('.slide')];window.go=(i)=>{index=i;slides.forEach((s,n)=>s.classList.toggle('active',n===i));};document.querySelectorAll('#nav button').forEach((b,i)=>b.onclick=()=>go(i));window.__pipeAdvance=()=>{const step=slides[index].querySelector('[style]');if(!step||step.style.opacity==='1')return false;step.style.opacity='1';return true;};addEventListener('keydown',e=>{if(e.key==='ArrowRight'&&!window.__pipeAdvance())go(Math.min(index+1,1));});</script>`);
+    const report = await inspectNativePresentation({projectDir:root,entry:'index.html',save:async()=>{}});
+    expect(report.failedResources).toEqual([]);
+    expect(report.slides[0]!.design?.elements.map(el=>el.text)).toContain('第二步');
+    expect(report.slides[1]!.design?.elements.map(el=>el.text)).toContain('下一页');
   } finally { await rm(root,{recursive:true,force:true}); }
 },30000);

@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
+import { NATIVE_PRESENTATION_INSPECTOR_VERSION } from '@open-design/contracts';
 import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, mkdir, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -32,13 +34,15 @@ describe('document to PPT HTTP workflow', () => {
     const owner = upsertFeishuUser(db, {tenantKey:'test',openId:'owner',name:'Owner'});
     const other = upsertFeishuUser(db, {tenantKey:'test',openId:'other',name:'Other'});
     runAsNikiUser(owner, () => insertProject(db, {id:'deck',name:'Public deck',skillId:'html-ppt',createdAt:1,updatedAt:1}));
+    await mkdir(path.join(root,'projects/deck'),{recursive:true});
+    await writeFile(path.join(root,'projects/deck/index.html'),'fixture');
     const app=express(); app.use(express.json());
     app.use((req,_res,next)=>runAsNikiUser(req.headers['x-test-user']==='other'?other:owner,next));
     let release!:()=>void;
     const gate=new Promise<void>(resolve=>{release=resolve;});
     registerPresentationRoutes(app, {db,projectRoot:root,projectsRoot:path.join(root,'projects'),inspectNative:async ({save})=>{
       await gate;
-      const report={version:1 as const,entry:'index.html',sourceHash:'abc',resourceHashes:{},stale:false,viewport:{width:1280,height:720},reportFile:'native-review/report.json',visualReviewRequired:true as const,slides:[],blockedResources:[],failedResources:[]};
+      const report={inspectorVersion:NATIVE_PRESENTATION_INSPECTOR_VERSION,version:1 as const,entry:'index.html',sourceHash:createHash('sha256').update('fixture').digest('hex'),resourceHashes:{},stale:false,viewport:{width:1280,height:720},reportFile:'native-review/report.json',visualReviewRequired:true as const,slides:[],blockedResources:[],failedResources:['page-1:entrance-animation-not-settled']};
       await save(report.reportFile,Buffer.from(JSON.stringify(report)));
       return report;
     }});
@@ -56,6 +60,11 @@ describe('document to PPT HTTP workflow', () => {
     await expect.poll(async()=>((await (await fetch(url)).json()) as NativePresentationInspectionJob).status).toBe('completed');
     const saved=JSON.parse(await readFile(path.join(root,'projects/deck/native-review/report.json'),'utf8'));
     expect(saved.visualReviewRequired).toBe(true);
+    const retry=await start();
+    expect(retry.status).toBe(202);
+    const retried=await retry.json() as NativePresentationInspectionJob;
+    expect(retried.id).not.toBe(job.id);
+    await expect.poll(async()=>((await (await fetch(`${base}/api/projects/deck/native-presentation/inspections/${retried.id}`)).json()) as NativePresentationInspectionJob).status).toBe('completed');
   });
   it('persists an owned job, prevents duplicate generation, saves revisions and recovers interrupted work', async () => {
     root = await mkdtemp(path.join(tmpdir(), 'niki-ppt-http-'));

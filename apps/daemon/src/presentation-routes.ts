@@ -97,6 +97,7 @@ export function registerPresentationRoutes(
     const previous = [...inspections.values()].find(job => job.projectId === project.id);
     if (previous?.status === 'running' && inspectionEntries.get(previous.id) === req.body.entry) return res.status(202).json(previous);
     if (previous?.status === 'completed' && previous.report && previous.report.entry === req.body.entry &&
+        !previous.report.failedResources.length && !previous.report.blockedResources.length &&
         !await nativeInspectionIsStale(resolveProjectDir(projectsRoot, project.id, project.metadata), previous.report)) return res.json(previous);
     if (inspecting.has(project.id)) return res.status(409).json({ error: 'This presentation is already being inspected' });
     inspecting.add(project.id);

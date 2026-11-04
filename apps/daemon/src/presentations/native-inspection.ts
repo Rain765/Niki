@@ -102,7 +102,10 @@ export async function inspectNativePresentation(input: {
     const slides: NativePresentationInspection['slides'] = [];
     for (let i = 0; i < count; i++) {
       if (html) await page.evaluate(`window.postMessage({type:'preview-goto',idx:${i}},'*')`);
-      else if (await page.locator('#nav button').count() > i) await page.locator('#nav button').nth(i).click();
+      else if (await page.locator('#nav button').count() > i) {
+        // Follow the original keyboard path; clicking off-screen nav controls can scroll the deck.
+        if (i > 0) await page.keyboard.press('ArrowRight');
+      }
       else await page.evaluate(`if (typeof window.go === 'function') window.go(${i},{force:true})`);
       await page.evaluate(`(async () => {
         let timer;
@@ -114,10 +117,14 @@ export async function inspectNativePresentation(input: {
         } finally { clearTimeout(timer); }
       })()`).catch(() => { failed.add('fonts-or-images-not-ready'); });
       await page.waitForTimeout(2000);
-      // Respect the original manual pipeline: reveal every step using its own keyboard interaction.
+      // Run the same step hook as the native keyboard handler, without its next-slide fallback.
       const pipeline = page.locator(selector).nth(i).locator('[data-anim="step"]');
       if (!html && await page.locator(selector).nth(i).getAttribute('data-animate') === 'pipeline') {
-        for (let j = 0; j < await pipeline.count(); j++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(100); }
+        const steps = await pipeline.count();
+        for (let j = 0; j < steps; j++) {
+          if (!await page.evaluate(`typeof window.__pipeAdvance === 'function' && window.__pipeAdvance()`)) break;
+          await page.waitForTimeout(100);
+        }
         await page.waitForTimeout(600);
       }
       // Wait for finite entrance animations, but never stop or rewrite original background motion.
@@ -128,8 +135,24 @@ export async function inspectNativePresentation(input: {
           const running = document.getAnimations().some(animation =>
             animation.effect?.getComputedTiming().iterations !== Infinity && (animation.playState === 'running' || animation.pending));
           const active = document.querySelectorAll('${selector}')[${i}];
-          const sample = [...active.querySelectorAll('h1,h2,h3,p,li,td,span')].map(el => { const s = getComputedStyle(el); return s.opacity + '/' + s.transform; }).join('|');
-          stable = !running && sample === previous ? stable + 1 : 0;
+          const text = [...active.querySelectorAll('*')].filter(el =>
+            [...el.childNodes].some(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim())
+            && !el.closest('.notes,aside,[hidden],[aria-hidden="true"],.ghost,script,style'));
+          const nodes = new Set();
+          const bounds = active.getBoundingClientRect();
+          let visible = bounds.width > 0 && bounds.left >= -2 && bounds.right <= innerWidth + 2;
+          for (const el of text) {
+            const rect = el.getBoundingClientRect();
+            // Ancestor scale/opacity can hide otherwise stable text. Never reveal it by rewriting CSS.
+            if (rect.width < .5 || rect.height < .5) visible = false;
+            for (let parent = el; parent && parent !== active.parentElement; parent = parent.parentElement) {
+              nodes.add(parent);
+              const style = getComputedStyle(parent);
+              if (Number(style.opacity) < .01 || style.visibility === 'hidden' || style.display === 'none') visible = false;
+            }
+          }
+          const sample = [...nodes].map(el => { const s = getComputedStyle(el), r = el.getBoundingClientRect(); return [s.opacity,s.transform,r.x,r.y,r.width,r.height].join('/'); }).join('|');
+          stable = visible && !running && sample === previous ? stable + 1 : 0;
           if (stable >= 3) return true;
           previous = sample;
           await new Promise(resolve => setTimeout(resolve, 150));
