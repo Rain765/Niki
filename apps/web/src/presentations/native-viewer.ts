@@ -81,11 +81,14 @@ export function nativeDeckSrcdoc(deck: NativeDeckDocument, projectId: string, in
       else { const thumbs=document.querySelectorAll('.overview .thumb'); if(thumbs[index]) thumbs[index].click(); else if(index!==current()) document.dispatchEvent(new KeyboardEvent('keydown',{key:index<current()?'ArrowLeft':'ArrowRight',bubbles:true})); }
       send();
     }
-    function key(key){ document.dispatchEvent(new KeyboardEvent('keydown',{key,bubbles:true})); send(); }
+    function turn(offset){
+      if(document.querySelector('#deck') && typeof window.go==='function') goto(current()+offset);
+      else { document.dispatchEvent(new KeyboardEvent('keydown',{key:offset>0?'ArrowRight':'ArrowLeft',bubbles:true})); send(); }
+    }
     addEventListener('message',event=>{if(event.source!==parent)return;const data=event.data;if(!data || data.type!=='niki:ppt:command')return;
       if(data.action==='goto' && Number.isInteger(data.index)) goto(data.index);
-      if(data.action==='next') key('ArrowRight');
-      if(data.action==='prev') key('ArrowLeft');
+      if(data.action==='next') turn(1);
+      if(data.action==='prev') turn(-1);
     });
     addEventListener('keydown',event=>{if(event.target?.closest?.('input,textarea,select,[contenteditable=true]'))return;
       if(event.key==='Escape' || event.key.toLowerCase()==='f'){event.preventDefault();event.stopImmediatePropagation();parent.postMessage({type:'niki:ppt:fullscreen',exit:event.key==='Escape'},'*');}

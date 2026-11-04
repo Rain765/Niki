@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { nativePresentationSelectionError } from '@open-design/contracts';
 import { ArrowLeft, FileText, Paperclip, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { fetchDesignTemplates, fetchSkills } from '../providers/registry';
@@ -12,6 +13,8 @@ import { NativePresentationResult } from './NativePresentationResult';
 import { NativeTemplatePicker } from './NativeTemplatePicker';
 import { isNativePresentation, prepareNativePresentation, type NativePptBrief, type NativePptSkill } from './native-presentations';
 import './native-presentation-studio.css';
+
+const SLIDE_COUNTS = ['5', '10', '15', '20'];
 
 const INITIAL: Record<NativePptSkill, NativePptBrief> = {
   'html-ppt': { skill: 'html-ppt', topic: '', audience: '', pages: 'auto', style: 'xhs-white-editorial', theme: '', duration: '' },
@@ -38,7 +41,14 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     refresh();
     const query = new URLSearchParams(window.location.search);
     const flow = query.get('pptWorkflow');
-    if (flow === 'html-ppt' || flow === 'guizang-ppt-skill') setBrief(INITIAL[flow]);
+    if (flow === 'html-ppt' || flow === 'guizang-ppt-skill') {
+      const defaults = INITIAL[flow];
+      const style = query.get('pptTemplate') || defaults.style;
+      const theme = query.get('pptTheme') ?? defaults.theme;
+      setBrief(nativePresentationSelectionError(flow, style, theme) ? defaults : { ...defaults, style, theme });
+    }
+    const pages = query.get('pptPages');
+    if (pages && SLIDE_COUNTS.includes(pages)) setBrief(current => ({ ...current, pages }));
     const id = query.get('pptProject');
     if (id) { setProjectId(id); setView('latest'); }
   }, []);
@@ -67,7 +77,16 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   };
   const selectTemplate = (next: NativePptSkill, style: string, theme: string) => {
     edit({skill:next, style, theme});
-    const url = new URL(window.location.href); url.searchParams.set('pptWorkflow', next);
+    const url = new URL(window.location.href);
+    url.searchParams.set('pptWorkflow', next);
+    url.searchParams.set('pptTemplate', style);
+    url.searchParams.set('pptTheme', theme);
+    window.history.replaceState(null, '', url);
+  };
+  const selectPages = (pages: string) => {
+    edit({ pages });
+    const url = new URL(window.location.href);
+    url.searchParams.set('pptPages', pages);
     window.history.replaceState(null, '', url);
   };
   const tabKeys = (event: KeyboardEvent<HTMLElement>) => {
@@ -92,7 +111,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
           </div>
         </div>
         <NativeTemplatePicker workflow={skill} template={brief.style} theme={brief.theme} disabled={busy} onChange={selectTemplate} />
-        <SelectField label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={pages => edit({pages})} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...[5,10,15,20].map(n=>({value:String(n),label:String(n)}))]} />
+        <SelectField label={zh ? '目标页数' : 'Target slides'} value={brief.pages} disabled={busy} onChange={selectPages} options={[{value:'auto',label:zh ? '按内容建议' : 'Recommend from content'}, ...SLIDE_COUNTS.map(n=>({value:n,label:n}))]} />
         <div className="native-ppt__generation-actions">
           <Button type="submit" variant="primary" loading={busy} disabled={!available || (!brief.topic.trim() && !file)}>{busy ? (zh ? '保存中…' : 'Saving…') : (zh ? '生成' : 'Generate')}</Button>
         </div>

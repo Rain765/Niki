@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { NATIVE_HTML_TEMPLATES, nativePresentationThemes, NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project, type PptModelProvider } from '@open-design/contracts';
+import { nativePresentationSelectionError, NATIVE_PRESENTATION_RESOURCES, nativePresentationDesignInstructions, nativePresentationWorkspaceUrl, type NativePresentationWorkflow, type Project, type PptModelProvider } from '@open-design/contracts';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -126,10 +126,8 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       const inputBrief = await readInput(values['prompt-file']);
       if (!inputBrief.trim()) throw new Error('Brief must not be empty');
       const template = values.template === 'auto' ? '' : values.template ?? '';
-      if (template && workflow === 'html-ppt' && template !== 'custom' && !NATIVE_HTML_TEMPLATES.some(id => id === template)) throw new Error('Unknown native template; use od ppt native-templates --json');
-      if (workflow === 'guizang-ppt-skill' && template && !/^[AB](?:$| · )/.test(template)) throw new Error('Guizang template must be A or B');
-      const themes: readonly string[] = nativePresentationThemes(workflow, template);
-      if (values.theme && !themes.includes(values.theme)) throw new Error('Unknown theme for this workflow/style; use od ppt native-templates --json');
+      const selectionError = nativePresentationSelectionError(workflow, template, values.theme ?? '');
+      if (selectionError) throw new Error(`${selectionError}; use od ppt native-templates --json`);
       const brief = `${inputBrief}\n\n${nativePresentationDesignInstructions(workflow, template, values.theme ?? '')}`;
       const registry = workflow === 'html-ppt' ? 'design-templates' : 'skills';
       await request(`/api/${registry}/${workflow}`);

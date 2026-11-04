@@ -33,11 +33,17 @@ export function NativeTemplatePicker({ workflow, template, theme, onChange, disa
     {value:'html-ppt:custom',label:zh ? '自由编排' : 'Compose from layouts',workflow:'html-ppt' as const,template:'custom'},
   ];
   const selected = options.find(option => option.workflow === workflow && option.template === template) ?? options[0]!;
+  const preview = (option: CustomSelectOption, asset: PreviewAsset, keyboardActive = false, keyboardNavigation = false) =>
+    <NativeTemplateOption label={option.label} asset={asset} keyboardActive={keyboardActive} keyboardNavigation={keyboardNavigation} disabled={disabled} />;
+  const previewVariants = (item: typeof selected) => previews[item.workflow === 'html-ppt' ? item.template : `guizang-${item.template[0]}`] ?? previews.recommend!;
   const renderOption = (option: CustomSelectOption, keyboardActive = false, keyboardNavigation = false) => {
     const item = options.find(candidate => candidate.value === option.value)!;
-    const variants = previews[item.workflow === 'html-ppt' ? item.template : 'guizang'] ?? previews.recommend!;
-    const asset = variants[item.value === selected.value && html && theme ? theme : 'default'] ?? variants.default!;
-    return <NativeTemplateOption label={option.label} asset={asset} keyboardActive={keyboardActive} keyboardNavigation={keyboardNavigation} disabled={disabled} />;
+    const variants = previewVariants(item);
+    return preview(option, variants[item.value === selected.value ? theme : 'default'] ?? variants.default!, keyboardActive, keyboardNavigation);
+  };
+  const renderTheme = (option: CustomSelectOption, keyboardActive = false, keyboardNavigation = false) => {
+    const variants = previewVariants(selected);
+    return preview(option, variants[option.value || 'default'] ?? variants.default!, keyboardActive, keyboardNavigation);
   };
   return <>
     <SelectField className="od-filter-grid__item" disabled={disabled} label={zh ? '模板与风格' : 'Template & style'} value={selected.value} onChange={value => {
@@ -46,7 +52,7 @@ export function NativeTemplatePicker({ workflow, template, theme, onChange, disa
       const nextTheme = next.workflow === 'html-ppt' ? '' : next.template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A[0] : NATIVE_GUIZANG_THEMES.B[0];
       onChange(next.workflow, next.template, nextTheme);
     }} options={options} menuMinWidth={280} renderValue={renderOption} renderOption={renderOption} />
-    {themes.length > 0 && <SelectField className="od-filter-grid__item" label={zh ? '配色与字体' : 'Colors & type'} value={theme} disabled={disabled} onChange={value => onChange(workflow,template,value)} options={[...(html ? [{value:'',label:zh ? '模板默认' : 'Template default'}] : []), ...themes.map(value=>({value,label:zh ? THEME_LABELS[value] ?? value : value}))]} />}
+    {themes.length > 0 && <SelectField className="od-filter-grid__item" label={zh ? '配色与字体' : 'Colors & type'} value={theme} disabled={disabled} onChange={value => onChange(workflow,template,value)} renderValue={renderTheme} renderOption={renderTheme} options={[...(html ? [{value:'',label:zh ? '模板默认' : 'Template default'}] : []), ...themes.map(value=>({value,label:zh ? THEME_LABELS[value] ?? value : value}))]} />}
   </>;
 }
 

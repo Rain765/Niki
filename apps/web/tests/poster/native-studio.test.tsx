@@ -34,7 +34,7 @@ it('combines every original template and both styles in one filter without workf
   expect(screen.queryByRole('link',{name:/查看原/})).toBeNull();
   choose('模板与风格', '电子杂志');
   expect(window.location.search).toContain('guizang-ppt-skill');
-  expect(screen.getByRole('combobox',{name:'模板与风格'}).querySelector('img')!.getAttribute('src')).toBe(previewAssets.guizang.default.thumb);
+  expect(screen.getByRole('combobox',{name:'模板与风格'}).querySelector('img')!.getAttribute('src')).toBe(previewAssets['guizang-A'].Monocle.thumb);
   expect(screen.getByRole('region',{name:'创作筛选'}).compareDocumentPosition(screen.getByRole('tablist')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.queryByText('旧版文稿')).toBeNull();
 });
@@ -90,6 +90,21 @@ it.each([
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'发布计划'}});
   fireEvent.click(screen.getByRole('button',{name:'生成'}));
   await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'guizang-ppt-skill',topic:'发布计划',audience:'',pages:'auto',style,theme,duration:''},null));
+});
+
+it('restores the selected style, theme and slide count after remount', async () => {
+  const studio = <I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>;
+  const {unmount} = render(studio);
+  choose('模板与风格', '瑞士国际主义');
+  choose('配色与字体', '安全橙');
+  choose('目标页数', '10');
+  unmount();
+  render(studio);
+  expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toBe('瑞士国际主义');
+  const theme = screen.getByRole('combobox',{name:'配色与字体'});
+  expect(theme.textContent).toBe('安全橙');
+  expect(theme.querySelector('img')?.getAttribute('src')).toBe(previewAssets['guizang-B']['Safety Orange'].thumb);
+  expect(screen.getByRole('combobox',{name:'目标页数'}).textContent).toBe('10');
 });
 
 it('opens existing Guizang workflow links with an explicit style and theme', async () => {

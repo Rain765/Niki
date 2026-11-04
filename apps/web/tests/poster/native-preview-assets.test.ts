@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
-import { NATIVE_HTML_TEMPLATES, NATIVE_HTML_THEMES } from '@open-design/contracts';
+import { NATIVE_GUIZANG_THEMES, NATIVE_HTML_TEMPLATES, NATIVE_HTML_THEMES } from '@open-design/contracts';
 import manifest from '../../src/poster/native-preview-assets.json';
 
 it('ships a small, immutable image for every selectable template/theme without missing or orphaned assets', () => {
@@ -11,7 +11,9 @@ it('ships a small, immutable image for every selectable template/theme without m
     for (const theme of ['default', ...NATIVE_HTML_THEMES]) expect(previews[template]?.[theme]).toBeTruthy();
   }
   expect(previews.recommend?.default).toBeTruthy();
-  expect(previews.guizang?.default).toBeTruthy();
+  const guizangThumbs = Object.entries(NATIVE_GUIZANG_THEMES).flatMap(([style, themes]) =>
+    themes.map(theme => previews[`guizang-${style}`]![theme]!.thumb));
+  expect(new Set(guizangThumbs).size).toBe(9);
   const root = fileURLToPath(new URL('../../public/presentation-previews/',import.meta.url));
   const referenced = new Set<string>();
   for (const variants of Object.values(previews)) for (const asset of Object.values(variants)) {

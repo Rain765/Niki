@@ -66,6 +66,23 @@ export function nativePresentationThemes(workflow: NativePresentationWorkflow, t
   return template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A : template.startsWith('B') ? NATIVE_GUIZANG_THEMES.B : [];
 }
 
+/** Return the same selection error to the UI, API and CLI. Empty values retain the native discovery flow. */
+export function nativePresentationSelectionError(workflow: unknown, template: unknown, theme: unknown): string | undefined {
+  if (workflow !== 'html-ppt' && workflow !== 'guizang-ppt-skill') return 'Unknown presentation workflow';
+  if (typeof template !== 'string' || typeof theme !== 'string') return 'Template and theme must be strings';
+  if (workflow === 'html-ppt' && template && template !== 'custom' && !NATIVE_HTML_TEMPLATES.some(id => id === template)) {
+    return 'Unknown native template';
+  }
+  if (workflow === 'guizang-ppt-skill' && template && !/^[AB](?:$| · .+)$/.test(template)) {
+    return 'Guizang template must be A or B';
+  }
+  if (theme && !nativePresentationThemes(workflow, template).includes(theme)) {
+    return 'Unknown theme for this workflow/style';
+  }
+}
+
+export const NATIVE_SAFETY_ORANGE_INK = '#0a0a0a';
+
 export function nativePresentationDesignInstructions(workflow: NativePresentationWorkflow, template: string, theme = ''): string {
   if (workflow === 'html-ppt') {
     const start = !template ? '起点尚未选择，按原流程推荐整稿模板或自由编排，并与用户确认。'
@@ -83,6 +100,9 @@ export function nativePresentationDesignInstructions(workflow: NativePresentatio
     style === 'A' ? '用户选择 Guizang A：assets/template.html、references/layouts.md、references/themes.md。'
       : '用户选择 Guizang B：assets/template-swiss.html、references/swiss-layout-lock.md、references/layouts-swiss.md、references/themes-swiss.md。',
     theme ? `选定主题：${theme}。` : '主题按所选风格原流程推荐并确认。',
+    style === 'B' && theme === 'Safety Orange'
+      ? `安全橙文字对比度要求：保留原有 #FF6B35 强调色及深浅背景节奏。将主题 --accent-on 设为 ${NATIVE_SAFETY_ORANGE_INK}，橙色封面、强调块和分屏上的标题、正文及标签均使用 var(--accent-on)，替换直接写死的白字。纸白背景上的强调文字使用深色正文，橙色保留用于装饰、线条和图标。保留真正深色背景上的浅色文字。逐页检查实际背景上的计算样式，确认文字对比度至少 4.5:1。`
+      : '',
     '完整沿用所选风格的原规则、主题节奏、字体、版式、图片和动效流程，A/B 分别使用自己的参考文件。按原流程运行校验器，并对照原始效果参考逐页检查。',
   ].join('\n');
 }

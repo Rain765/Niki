@@ -10,11 +10,13 @@ const {chromium}=requireE2E('@playwright/test');
 const requireNext=createRequire(createRequire(path.join(root,'apps/web/package.json')).resolve('next/package.json'));
 const sharp=requireNext('sharp');
 // Run against an isolated tools-dev daemon; these are public reference assets only.
-const [origin, guizangShowcase] = process.argv.slice(2);
-if (!origin || !guizangShowcase) throw Error('Usage: pnpm exec tsx scripts/bake-native-ppt-previews.ts <daemon-origin> <original-guizang-showcase.png>');
+const [origin] = process.argv.slice(2);
+if (!origin) throw Error('Usage: pnpm exec tsx scripts/bake-native-ppt-previews.ts <daemon-origin>');
 const base=origin+'/api/native-presentation-resources/html-ppt/';
 const catalog = await (await fetch(origin+'/api/native-presentation-templates')).json() as { html: string[]; htmlThemes: string[] };
 const out=path.join(root,'apps/web/public/presentation-previews');
+const manifestPath = path.join(root, 'apps/web/src/poster/native-preview-assets.json');
+const existing = JSON.parse(await readFile(manifestPath, 'utf8'));
 const manifest:Record<string,Record<string,unknown>>={};
 await mkdir(out, { recursive: true });
 async function save(buffer:Buffer){
@@ -62,6 +64,6 @@ await Promise.all(Array.from({length:4},async()=>{
 } finally {
   await browser.close();
 }
-manifest.guizang={default:await save(await readFile(guizangShowcase))};
-await writeFile(path.join(root,'apps/web/src/poster/native-preview-assets.json'),JSON.stringify(manifest,null,2)+'\n');
+for (const style of ['guizang-A', 'guizang-B']) manifest[style] = existing[style];
+await writeFile(manifestPath,JSON.stringify(manifest,null,2)+'\n');
 console.log('Wrote the preview catalog. Remove unreferenced WebP files before committing; the asset test checks this.');

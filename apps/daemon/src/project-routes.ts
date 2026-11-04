@@ -7,7 +7,9 @@ import type { Express, Request, Response } from 'express';
 import sharp from 'sharp';
 import {
   defaultScenarioPluginIdForKind,
+  nativePresentationSelectionError,
   type PluginManifest,
+  type ProjectMetadata,
 } from '@open-design/contracts';
 import { createProjectArtifactFile } from './artifact-create.js';
 import { ArtifactRegressionError } from './artifact-stub-guard.js';
@@ -27,6 +29,13 @@ import {
 } from './niki-quota.js';
 import { listSkills } from './skills.js';
 import { auditDesignSystemPackage } from './tools-connectors-cli.js';
+
+function projectPresentationSelectionError(metadata: ProjectMetadata | null | undefined, skillId: unknown): string | undefined {
+  const native = metadata?.nativePresentation;
+  if (native?.selection === undefined) return;
+  if (native.workflow !== skillId) return 'Presentation workflow must match the project skill';
+  return nativePresentationSelectionError(native.workflow, native.selection?.template, native.selection?.theme);
+}
 
 export interface RegisterProjectRoutesDeps extends RouteDeps<'db' | 'design' | 'http' | 'paths' | 'projectStore' | 'projectFiles' | 'conversations' | 'templates' | 'status' | 'events' | 'ids' | 'telemetry' | 'validation'> {
   pptModels?: PptModels;
@@ -178,6 +187,8 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
       if (typeof name !== 'string' || !name.trim()) {
         return sendApiError(res, 400, 'BAD_REQUEST', 'name required');
       }
+      const selectionError = projectPresentationSelectionError(metadata, skillId);
+      if (selectionError) return sendApiError(res, 400, 'BAD_REQUEST', selectionError);
       // baseDir is privileged: it lets a project root directly inside the
       // user's filesystem. The /api/import/folder endpoint is the only
       // path that's allowed to set it, because that's where realpath() +
@@ -372,6 +383,15 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
   app.patch('/api/projects/:id', async (req, res) => {
     try {
       const patch = req.body || {};
+      if ('metadata' in patch || 'skillId' in patch) {
+        const existing = getProject(db, req.params.id);
+        if (!existing) return sendApiError(res, 404, 'PROJECT_NOT_FOUND', 'not found');
+        const selectionError = projectPresentationSelectionError(
+          'metadata' in patch ? patch.metadata : existing.metadata,
+          'skillId' in patch ? patch.skillId : existing.skillId,
+        );
+        if (selectionError) return sendApiError(res, 400, 'BAD_REQUEST', selectionError);
+      }
       if ('metadata' in patch && ctx.pptModels) {
         const previous = getProject(db, req.params.id)?.metadata?.nativePresentation?.modelBinding;
         const requested = patch.metadata?.nativePresentation?.modelBinding;

@@ -3591,12 +3591,74 @@
       "full": "/presentation-previews/a2f0e5bee3c7a4ee426d.webp"
     }
   },
-  "guizang": {
+  "guizang-A": {
+    "Monocle": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ac651c7da504754a3105.webp",
+      "full": "/presentation-previews/6c9c64bed0b9f776289b.webp"
+    },
     "default": {
-      "width": 2400,
-      "height": 1350,
-      "thumb": "/presentation-previews/d4ef03026ff0c16478a3.webp",
-      "full": "/presentation-previews/34d8d63e36e5e245bf05.webp"
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ac651c7da504754a3105.webp",
+      "full": "/presentation-previews/6c9c64bed0b9f776289b.webp"
+    },
+    "Indigo Porcelain": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/030e9ddd3f1298c52cc9.webp",
+      "full": "/presentation-previews/5eb0950f04b66daadca2.webp"
+    },
+    "Forest Ink": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/ca49147679729cbcbd7a.webp",
+      "full": "/presentation-previews/414711391c07d60c4555.webp"
+    },
+    "Kraft Paper": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5fac6d45dda241ae9f1a.webp",
+      "full": "/presentation-previews/73a2c0f8bd4dd20b9bc4.webp"
+    },
+    "Dune": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/5fc5925f9184d2a4497a.webp",
+      "full": "/presentation-previews/be8277fe4f5fc94ed105.webp"
+    }
+  },
+  "guizang-B": {
+    "IKB": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/94354b74db2628fbfc59.webp",
+      "full": "/presentation-previews/30f975ef1a9ba3286240.webp"
+    },
+    "default": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/94354b74db2628fbfc59.webp",
+      "full": "/presentation-previews/30f975ef1a9ba3286240.webp"
+    },
+    "Lemon": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/fd40ccc2e737e5fc25db.webp",
+      "full": "/presentation-previews/27e3db5f593b921d1176.webp"
+    },
+    "Lemon Green": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/3c27184ff37c68a5ab0b.webp",
+      "full": "/presentation-previews/05e375c051af3251524e.webp"
+    },
+    "Safety Orange": {
+      "width": 1280,
+      "height": 720,
+      "thumb": "/presentation-previews/750089d8639ae8334fd2.webp",
+      "full": "/presentation-previews/d11ea12a393826711430.webp"
     }
   }
 }

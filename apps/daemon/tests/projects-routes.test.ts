@@ -12,6 +12,7 @@
  * than expanding any of them.
  */
 import type http from 'node:http';
+import type { ProjectResponse } from '@open-design/contracts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -70,6 +71,24 @@ describe('GET /api/projects/:id resolvedDir', () => {
     tempDirs.push(d);
     return d;
   }
+
+  it('rejects incompatible native palettes on create and patch', async () => {
+    const id = `native-palette-${Date.now()}`;
+    const workflow = 'guizang-ppt-skill';
+    const project = (template: string, theme: string) => ({
+      id, name: 'Native palette fixture', skillId: workflow,
+      metadata: { kind: 'deck', nativePresentation: { version: 1, workflow, brief: '', resourceVersion: 'fixture', selection: { template, theme } } },
+    });
+    const request = (method: string, suffix: string, body: unknown) => fetch(`${baseUrl}/api/projects${suffix}`, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    expect((await request('POST', '', project('A', 'Safety Orange'))).status).toBe(400);
+    expect((await request('POST', '', project('B', 'Safety Orange'))).status).toBe(200);
+    expect((await request('PATCH', `/${id}`, project('B', 'Forest Ink'))).status).toBe(400);
+    expect((await request('PATCH', `/${id}`, { skillId: 'html-ppt' })).status).toBe(400);
+    const saved = await (await fetch(`${baseUrl}/api/projects/${id}`)).json() as ProjectResponse;
+    expect(saved.project.metadata?.nativePresentation?.selection).toEqual({ template: 'B', theme: 'Safety Orange' });
+  });
 
   it('returns resolvedDir === metadata.baseDir for an imported-folder project', async () => {
     const folder = makeFolder();
