@@ -40,3 +40,6 @@
 .native-player button:focus-visible, .native-player input:focus-visible, .native-player summary:focus-visible, .native-player a:focus-visible { outline: 2px solid var(--poster-accent); outline-offset: -2px; }
 
 .native-player__toolbar a { text-decoration: none; }
+.native-player__export { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.native-player__export span { font-size: 12px; color: var(--poster-muted); }
+.native-player__export [role=alert] { color: var(--poster-danger); }

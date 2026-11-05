@@ -34,6 +34,11 @@ export interface NativePresentationInspectionJob {
   report?: NativePresentationInspection;
   error?: string;
 }
+export type NativePptxExportJob = { id: string; pages: number } & (
+  | { status: 'running' }
+  | { status: 'ready'; downloadUrl: string; warnings: string[] }
+  | { status: 'failed'; error: string }
+);
 export interface NativePresentationMetadata {
   modelBinding?: PptModelBinding;
   version: 1;

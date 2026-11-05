@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Maximize, Minimize, PanelLeft, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Maximize, Minimize, PanelLeft, RefreshCw } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { projectFileUrl } from '../providers/registry';
 import { loadNativeDeck, nativeDeckSrcdoc, NativeDeckPendingError, type NativeDeckDocument } from '../presentations/native-viewer';
 import { NativePresentationEditor } from './NativePresentationEditor';
 import { NativePresentationInspectionPanel } from './NativePresentationInspectionPanel';
+import { NativePptxDownload } from './NativePptxDownload';
 import { Button, IconButton } from './Button';
 import './native-presentation-player.css';
 
-export function NativePresentationPreview({ projectId, name, revision = 0, editingDisabled = false, onRevise }: { projectId: string; name: string; revision?: number | string; editingDisabled?: boolean; onRevise?: () => void }) {
+export function NativePresentationPreview({ projectId, name, revision = 0, editingDisabled = false, autoDownload = false, onRevise }: { projectId: string; name: string; revision?: number | string; editingDisabled?: boolean; autoDownload?: boolean; onRevise?: () => void }) {
   const { locale } = useI18n(); const zh = locale.startsWith('zh');
   const [deck, setDeck] = useState<NativeDeckDocument | null>(null);
   const [error, setError] = useState('');
@@ -115,7 +116,7 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
       <span className="native-player__title" title={deck?.titles[index]}>{deck?.titles[index] || name}</span>
       <Button disabled={!ready || editing || editingDisabled} onClick={()=>{try{sessionStorage.removeItem(`native-ppt-inspection:${projectId}:${deck?.name??name}`);}catch{/* Optional. */}setEditing(true);}}>{zh?'编辑本页':'Edit slide'}</Button>
       {onRevise && <Button disabled={editingDisabled} onClick={onRevise}>{zh?'修改文稿':'Revise deck'}</Button>}
-      <a className="od-button od-button--ghost od-icon-button" aria-label={zh?'下载文稿':'Download deck'} title={zh?'下载文稿':'Download deck'} href={`/api/projects/${encodeURIComponent(projectId)}/archive`}><Download size={18}/></a>
+      <NativePptxDownload key={`${projectId}:${name}`} projectId={projectId} entry={name} revision={`${name}:${revision}:${retry}`} disabled={!ready || editing || editingDisabled} autoDownload={autoDownload}/>
       <button ref={fullscreenButton} type="button" className="od-button od-button--ghost od-icon-button" title={expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')} onClick={expanded?closeFullscreen:openFullscreen} aria-label={expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')}>
         {expanded?<Minimize size={18}/>:<Maximize size={18}/>}
       </button>

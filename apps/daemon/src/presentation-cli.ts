@@ -7,6 +7,7 @@ import type {
   PresentationJob,
   PresentationListResponse,
   NativePresentationInspectionJob,
+  NativePptxExportJob,
 } from '@open-design/contracts';
 import { resolveDaemonUrl } from './daemon-url.js';
 
@@ -31,6 +32,7 @@ od ppt list [--json]
 od ppt status --project ID [--json]
 od ppt edit --project ID --page 1 --revision N --slide-file slide.json|- [--json]
 od ppt download --project ID --output deck.pptx [--format pptx|html] [--json]
+od ppt export-native --project ID --output deck.pptx [--file index.html] [--json]
 od ppt preview --project ID --page 1 --output slide.svg [--json]
 All commands accept --daemon-url URL. Feishu instances use OD_NIKI_SESSION_TOKEN.
 Edit expects a PresentationSlide JSON object; get the current slide and revision with status.
@@ -105,6 +107,23 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       const suffix = command === 'default-model' ? '/default' : `/${values.provider}${command === 'provider-test' ? '/test' : ''}`;
       const body = command === 'provider-save' ? { apiKey: (await readInput(values['key-file']!)).trim() } : command === 'default-model' ? { provider: values.provider } : undefined;
       result = await request(`/api/ppt-models${suffix}`, { method: command === 'provider-delete' ? 'DELETE' : command === 'provider-test' ? 'POST' : 'PUT', headers: { 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    } else if (command === 'export-native') {
+      if (!id || !values.output) throw new Error('--project and --output are required');
+      const endpoint = `/api/projects/${encodeURIComponent(id)}/native-presentation/pptx`;
+      let job = await request<NativePptxExportJob>(endpoint, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ entry: values.file ?? 'index.html' }),
+      });
+      while (job.status === 'running') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        job = await request<NativePptxExportJob>(`${endpoint}/jobs/${encodeURIComponent(job.id)}`);
+      }
+      if (job.status === 'failed') throw new Error(job.error);
+      if (!job.downloadUrl.startsWith(endpoint + '/file/')) throw new Error('Invalid export URL');
+      const response = await fetch(base + job.downloadUrl);
+      if (!response.ok) throw new Error(`Download failed: HTTP ${response.status}`);
+      await writeFile(values.output, Buffer.from(await response.arrayBuffer()), { flag: 'wx' });
+      result = { projectId: id, pages: job.pages, output: path.resolve(values.output), warnings: job.warnings };
     } else if (command === 'inspect-native') {
       if (!id || !values.file) throw new Error('--project and --file are required');
       let inspection = await request<NativePresentationInspectionJob>(`/api/projects/${encodeURIComponent(id)}/native-presentation/inspect`, {

@@ -1,10 +1,27 @@
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import { runPresentationCli } from '../src/presentation-cli.js';
 
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); process.exitCode = 0; });
+it('exports native PPTX through the same async API and writes the actual binary file', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'native-export-cli-'));
+  try {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const download = '/api/projects/p/native-presentation/pptx/file/hash';
+    const fetcher = vi.fn(async (url: string) => url.endsWith('/file/hash')
+      ? new Response('PK-binary')
+      : Response.json({ id: 'job', status: 'ready', pages: 18, downloadUrl: download, warnings: [] }));
+    vi.stubGlobal('fetch', fetcher);
+    const output = path.join(dir, 'deck.pptx');
+    await runPresentationCli(['export-native', '--project', 'p', '--output', output, '--json', '--daemon-url', 'http://127.0.0.1:12345']);
+    expect(process.exitCode ?? 0).toBe(0);
+    expect(await readFile(output, 'utf8')).toBe('PK-binary');
+    expect(fetcher).toHaveBeenCalledWith('http://127.0.0.1:12345/api/projects/p/native-presentation/pptx', expect.objectContaining({ method: 'POST', body: JSON.stringify({ entry: 'index.html' }) }));
+    expect(JSON.parse(log.mock.calls.at(-1)![0])).toMatchObject({ projectId: 'p', pages: 18, output });
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
 it('uses the same project-local inspection API as the native preview', async () => {
   vi.spyOn(console, 'log').mockImplementation(() => {});
   const fetchMock = vi.fn().mockResolvedValue(Response.json({id:'r1',projectId:'p1',status:'completed',report:{visualReviewRequired:true,slides:[],stale:false}}));

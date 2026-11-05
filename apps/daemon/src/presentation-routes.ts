@@ -51,11 +51,13 @@ import {
 } from './presentations/render.js';
 import { attachPresentationSources } from './presentations/source.js';
 import { fitPresentationDeck } from './presentations/layout.js';
+import { registerNativePptxExportRoutes } from './native-pptx-export-routes.js';
 
 interface Dependencies {
   db: Database.Database;
   projectsRoot: string;
   projectRoot: string;
+  isNativeProjectRunning?: (id: string) => boolean;
   plan?: typeof planPresentation;
   inspectNative?: typeof inspectNativePresentation;
   review?: typeof reviewPresentation;
@@ -74,6 +76,7 @@ export function registerPresentationRoutes(
   deps: Dependencies,
 ): void {
   const { db, projectsRoot, projectRoot } = deps;
+  registerNativePptxExportRoutes(app, { db, projectsRoot, ...(deps.isNativeProjectRunning ? { isProjectRunning: deps.isNativeProjectRunning } : {}) });
   const activeProjects = new Set<string>();
   const activeUsers = new Set<string>();
   const editing = new Set<string>();

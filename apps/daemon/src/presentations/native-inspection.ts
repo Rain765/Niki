@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { readFile, realpath } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
-import { chromium, type BrowserServer } from 'playwright-core';
+import { chromium, type BrowserServer, type Page } from 'playwright-core';
 import { NATIVE_PRESENTATION_INSPECTOR_VERSION, type NativePresentationInspection } from '@open-design/contracts';
 import { mimeFor } from '../projects.js';
 import { NATIVE_INSPECTION_SCRIPT } from './native-inspection-script.js';
@@ -29,6 +29,7 @@ export async function inspectNativePresentation(input: {
   projectDir: string;
   entry: string;
   save: (name: string, bytes: Buffer) => Promise<void>;
+  visitSlide?: (page: Page, selector: string, index: number) => Promise<void>;
 }): Promise<NativePresentationInspection> {
   const root = await realpath(input.projectDir);
   const resolve = async (name: string) => {
@@ -90,15 +91,33 @@ export async function inspectNativePresentation(input: {
     page.on('response', response => { if (response.status() >= 400) failed.add(response.url()); });
     page.on('requestfailed', request => { failed.add(request.url()); });
     page.setDefaultTimeout(10_000);
-    await page.goto(url, { waitUntil: 'load', timeout: 30_000 });
     const selector = '#deck > .slide, .deck > .slide, body > .slide';
+    let deckUrl = url;
+    await page.goto(deckUrl, { waitUntil: 'load', timeout: 30_000 });
+    const seen = new Set([deckUrl]);
+    while (input.visitSlide && !await page.locator(selector).count() && await page.locator('iframe[src]').count() === 1) {
+      const src = await page.locator('iframe[src]').getAttribute('src');
+      const next = new URL(src ?? '', deckUrl);
+      if (next.origin !== origin || !next.pathname.startsWith(prefix) || !/\.html?$/i.test(next.pathname) || seen.has(next.href) || seen.size >= 8) break;
+      seen.add(next.href);
+      deckUrl = next.href;
+      await page.goto(deckUrl, { waitUntil: 'load', timeout: 30_000 });
+    }
     const count = await page.locator(selector).count();
     if (!count) throw new Error('No native slides found; select the actual deck HTML');
     const html = await page.locator('.deck').count() > 0;
     const portrait = await page.locator('body.tpl-xhs-post').count() > 0;
     const viewport = portrait ? {width: 960, height: 1280} : {width: 1280, height: 720};
     await page.setViewportSize(viewport);
-    if (html) await page.goto(url + '?preview=1', { waitUntil: 'load', timeout: 30_000 });
+    if (html) {
+      const preview = new URL(deckUrl);
+      preview.searchParams.set('preview', '1');
+      await page.goto(preview.href, { waitUntil: 'load', timeout: 30_000 });
+    }
+    if (input.visitSlide && portrait) {
+      const canvas = await page.locator(selector).first().boundingBox();
+      if (canvas) await page.setViewportSize({ width: Math.round(canvas.width), height: Math.round(canvas.height) });
+    }
     const slides: NativePresentationInspection['slides'] = [];
     for (let i = 0; i < count; i++) {
       if (html) await page.evaluate(`window.postMessage({type:'preview-goto',idx:${i}},'*')`);
@@ -167,6 +186,10 @@ export async function inspectNativePresentation(input: {
         return false;
       })()`);
       if (!settled) failed.add(`page-${i+1}:entrance-animation-not-settled`);
+      if (input.visitSlide) {
+        await input.visitSlide(page, selector, i);
+        continue;
+      }
       const observed = await page.evaluate(`(${NATIVE_INSPECTION_SCRIPT})(${i})`) as Pick<NativePresentationInspection['slides'][number], 'text' | 'issues' | 'design'>;
       const screenshot = `${review}/page-${String(i + 1).padStart(2, '0')}.png`;
       await input.save(screenshot, await page.screenshot());
@@ -180,7 +203,7 @@ export async function inspectNativePresentation(input: {
       version: 1, inspectorVersion: NATIVE_PRESENTATION_INSPECTOR_VERSION, entry: input.entry, sourceHash: hash(original), resourceHashes, stale: resourceChanged || hash(await readFile(file)) !== hash(original), viewport,
       reportFile: `${review}/report.json`, visualReviewRequired: true, slides, blockedResources: [...blocked], failedResources: [...failed],
     };
-    await input.save(result.reportFile, Buffer.from(JSON.stringify(result, null, 2)));
+    if (!input.visitSlide) await input.save(result.reportFile, Buffer.from(JSON.stringify(result, null, 2)));
     return result;
   } finally {
     if (browserServer) {

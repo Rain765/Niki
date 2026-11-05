@@ -4534,7 +4534,10 @@ export async function startServer({
   });
   registerDeviceBridgeRoutes(app, deviceBridge);
   registerCanvasRoutes(app, { db, http: httpDeps });
-  registerPresentationRoutes(app, { db, projectsRoot: PROJECTS_DIR, projectRoot: PROJECT_ROOT });
+  registerPresentationRoutes(app, {
+    db, projectsRoot: PROJECTS_DIR, projectRoot: PROJECT_ROOT,
+    isNativeProjectRunning: id => design.runs.list({ projectId: id }).some(run => run.status === 'running' || run.status === 'queued'),
+  });
   registerLogoRoutes(app, {
     db,
     http: httpDeps,

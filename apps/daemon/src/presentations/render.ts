@@ -1031,7 +1031,7 @@ export async function renderPresentation(
 /** PptxGenJS 4 declares one master per slide but writes a single shared master.
  * Remove only those nonexistent master declarations; real parts and relationships stay intact.
  */
-async function normalizePresentationPackage(buffer: Buffer): Promise<Buffer> {
+export async function normalizePresentationPackage(buffer: Buffer): Promise<Buffer> {
   const zip = await JSZip.loadAsync(buffer);
   const entry = zip.file('[Content_Types].xml');
   if (!entry) throw new PresentationError('Missing PPTX content types', 422);

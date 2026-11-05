@@ -77,7 +77,7 @@ export function NativePresentationResult({ projectId, requestedAt }: { projectId
         const visible = active && !hadEntry.current ? null : next;
         setEntry(visible); setRunning(active); setFailed(!active && (latestRun?.status === 'failed' || latestRun?.status === 'canceled')); setHasRun(runs.length > 0); setLoading(false); setError('');
         // Wait for a write burst to finish before replacing a readable deck. Inspection files never reload it.
-        if (!active || !hadEntry.current) setRevision(files.filter(file => /\.(html?|css|js|mjs|svg)$/i.test(file.name) && !file.name.startsWith('native-review/')).map(file => `${file.name}:${file.mtime}:${file.size}`).sort().join('|'));
+        if (!active || !hadEntry.current) setRevision(files.filter(file => /\.(html?|css|js|mjs|svg|png|jpe?g|webp|gif|avif|woff2?|ttf|otf)$/i.test(file.name) && !file.name.startsWith('native-review/')).map(file => `${file.name}:${file.mtime}:${file.size}`).sort().join('|'));
         if (visible && !hadEntry.current) { hadEntry.current = true; }
         if (!visible) setOpened(true);
       } catch (cause) {
@@ -144,7 +144,7 @@ export function NativePresentationResult({ projectId, requestedAt }: { projectId
           : (failed || paused || configurationRequired) && <Button onClick={openWorkspace}>{zh?(configurationRequired?'生成设置':'查看进度'):(configurationRequired?'Generation settings':'View progress')}</Button>}
       </div>
     </div>}
-    {entry && <NativePresentationPreview projectId={projectId} name={entry.name} revision={revision} editingDisabled={running} onRevise={openWorkspace}/>}
+    {entry && <NativePresentationPreview projectId={projectId} name={entry.name} revision={revision} editingDisabled={running} autoDownload={requestedAt !== undefined && !failed} onRevise={openWorkspace}/>}
     {entry && activeQuestion && mode !== 'question' && <Button onClick={()=>setMode('question')}>{zh?'回答问题':'Answer questions'}</Button>}
     <dialog ref={dialog} className="native-ppt__dialog" aria-labelledby={`ppt-dialog-title-${projectId}`} onCancel={()=>setMode(null)} onClose={()=>setMode(null)}>
       <header><h2 id={`ppt-dialog-title-${projectId}`}>{zh?(mode==='question'?'确认内容':configurationRequired?'生成设置':'修改文稿'):(mode==='question'?'Confirm details':configurationRequired?'Generation settings':'Revise presentation')}</h2>
