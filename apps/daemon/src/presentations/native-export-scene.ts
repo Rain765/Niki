@@ -1,7 +1,7 @@
 export type ExportBox = { x: number; y: number; w: number; h: number };
 export type ExportColor = { hex: string; alpha: number };
 type TextStyle = {
-  font: string; size: number; bold: boolean; italic: boolean; underline: boolean;
+  font: string; sourceFamily: string; weight: number; sourceItalic: boolean; size: number; bold: boolean; italic: boolean; underline: boolean;
   caps: boolean; spacing: number; color: ExportColor;
 };
 export type ExportText = ExportBox & { kind: 'text'; lines: Array<{
@@ -23,7 +23,7 @@ export type NativeExportSlide = {
 };
 
 /** Runs in the isolated Chromium document. All coordinates are CSS pixels. */
-export const NATIVE_EXPORT_CAPTURE = String.raw`function captureNativeExportSlide({ selector, index, cjkSans, cjkSerif }) {
+export const NATIVE_EXPORT_CAPTURE = String.raw`function captureNativeExportSlide({ selector, index, fontMap }) {
     const slide = document.querySelectorAll(selector)[index];
     if (!slide)
         throw new Error('Slide not found');
@@ -87,18 +87,17 @@ export const NATIVE_EXPORT_CAPTURE = String.raw`function captureNativeExportSlid
         for (const e of ancestors.reverse()) background = merge(color(styleOf(e).backgroundColor), background);
         return merge(foreground, background);
     };
-    const eastAsian = /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]/;
     const textStyle = (element, text = element.textContent ?? '') => {
         const style = styleOf(element);
-        const family = style.fontFamily;
-        // Portable equivalents for browser-only template fonts.
-        const firstFamily = family.split(',')[0];
-        const serif = /serif|playfair|times|georgia|song/i.test(firstFamily) && !/sans/i.test(firstFamily);
-        const font = eastAsian.test(text) ? (serif ? cjkSerif : cjkSans)
-            : /mono|courier/i.test(firstFamily) ? 'Courier New'
-            : serif ? 'Georgia' : 'Arial';
+        const weight = Number(style.fontWeight) || 400;
+        const italic = style.fontStyle === 'italic';
+        const map = fontMap[JSON.stringify([style.fontFamily, weight, italic])] ?? {};
+        const face = map[Array.from(text).find(char => char.trim())] ?? Object.values(map)[0];
+        if (!face && text.trim()) throw new Error('没有读取到原字体');
         return {
-            font, size: parseFloat(style.fontSize), bold: Number(style.fontWeight) >= 600, italic: style.fontStyle === 'italic',
+            font: face?.family ?? style.fontFamily.split(',')[0].replace(/['"]/g,''),
+            sourceFamily: style.fontFamily, weight, sourceItalic: italic,
+            size: parseFloat(style.fontSize), bold: face?.bold ?? false, italic: face?.italic ?? false,
             underline: style.textDecorationLine.includes('underline'), caps: style.textTransform === 'uppercase',
             spacing: parseFloat(style.letterSpacing) || 0, color: textColor(element, style.color),
         };
@@ -282,7 +281,6 @@ export const NATIVE_EXPORT_CAPTURE = String.raw`function captureNativeExportSlid
             group = group.parentElement;
         const css = styleOf(el);
         const style = textStyle(el, '');
-        const cjkStyle = textStyle(el, '文');
         const area = scrollArea(el);
         const scale = area?.scale ?? 1;
         if (style.size < 1)
@@ -310,7 +308,7 @@ export const NATIVE_EXPORT_CAPTURE = String.raw`function captureNativeExportSlid
             glyphs.push({
                 text: /[\t\r\n]/.test(char) ? ' ' : char, box,
                 baseline: box.y + ascent * scale, lineHeight: (parseFloat(css.lineHeight) || style.size * 1.2) * scale,
-                style: { ...(eastAsian.test(char) ? cjkStyle : style), size: style.size * scale, spacing: style.spacing * scale },
+                style: { ...textStyle(el,char), size: style.size * scale, spacing: style.spacing * scale },
             });
         }
     }
@@ -344,7 +342,7 @@ export const NATIVE_EXPORT_CAPTURE = String.raw`function captureNativeExportSlid
                 boxes.push(glyph.box);
             }
             const fitted = runs.map(({ text, style, left, right }) => {
-                ctx.font = [style.italic ? 'italic' : 'normal', style.bold ? 'bold' : 'normal', style.size + 'px', '"' + style.font + '"'].join(' ');
+                ctx.font = [style.sourceItalic ? 'italic' : 'normal', style.weight, style.size + 'px', style.sourceFamily].join(' ');
                 const count = Array.from(text).length;
                 const natural = ctx.measureText(style.caps ? text.toUpperCase() : text).width;
                 const spacing = count > 1 ? Math.max(-style.size * .12, (right - left - natural) / count) : style.spacing;

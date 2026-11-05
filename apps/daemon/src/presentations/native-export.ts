@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 import { inspectNativePresentation } from './native-inspection.js';
 import { NATIVE_EXPORT_CAPTURE, type ExportBox, type ExportColor, type ExportText, type NativeExportSlide } from './native-export-scene.js';
 import { normalizePresentationPackage } from './render.js';
+import { NativeExportFonts } from './native-export-fonts.js';
 
 const PptxGenJS = createRequire(import.meta.url)('pptxgenjs') as typeof import('pptxgenjs').default;
 const px = (value: number) => value / 96;
@@ -28,7 +29,7 @@ function textBody(box: ExportText): string {
   return `<p:txBody><a:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody>`;
 }
 
-export async function writeNativePptx(pages: NativeExportSlide[], title: string): Promise<Buffer> {
+export async function writeNativePptx(pages: NativeExportSlide[], title: string, fonts?: NativeExportFonts): Promise<Buffer> {
   const canvas = pages[0];
   if (!canvas) throw new Error('文稿没有可导出的幻灯片');
   const pptx = new PptxGenJS();
@@ -109,18 +110,19 @@ export async function writeNativePptx(pages: NativeExportSlide[], title: string)
     if (count !== boxes.length) throw new Error(`第 ${index + 1} 页：可编辑文字写入不完整`);
     zip.file(name, contents);
   }
+  await fonts?.embed(zip);
   return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
 export async function exportNativePresentation(projectDir: string, entry: string, title: string, onPage: (pages: number) => void) {
   const pages: NativeExportSlide[] = [];
-  const cjkSans = process.platform === 'darwin' ? 'PingFang SC' : 'Microsoft YaHei';
-  const cjkSerif = process.platform === 'darwin' ? 'Songti SC' : 'SimSun';
+  const fonts = new NativeExportFonts();
   const report = await inspectNativePresentation({
     projectDir, entry, save: async () => {},
     async visitSlide(page, selector, index) {
       try {
-        const scene = await page.evaluate<NativeExportSlide>(`(${NATIVE_EXPORT_CAPTURE})(${JSON.stringify({ selector, index, cjkSans, cjkSerif })})`);
+        const fontMap = await fonts.capture(page, selector, index);
+        const scene = await page.evaluate<NativeExportSlide>(`(${NATIVE_EXPORT_CAPTURE})(${JSON.stringify({ selector, index, fontMap })})`);
         for (const element of scene.elements) {
           if (element.kind !== 'image') continue;
           if (element.data) continue;
@@ -163,6 +165,6 @@ export async function exportNativePresentation(projectDir: string, entry: string
   if (report.stale) throw new Error('文稿在导出期间已修改，请重新导出');
   if (report.failedResources.some(resource => /\.(css|m?js|svg|png|jpe?g|webp|gif|avif)(?:[?#]|$)/i.test(resource)))
     throw new Error('文稿资源未加载完整，请修复后重新导出');
-  const pptx = await writeNativePptx(pages, title);
-  return { pptx, report, pages: pages.length, warnings: [...new Set(pages.flatMap(p => p.warnings))] };
+  const pptx = await writeNativePptx(pages, title, fonts);
+  return { pptx, report, pages: pages.length, warnings: [...new Set([...pages.flatMap(p => p.warnings), ...fonts.warnings])] };
 }

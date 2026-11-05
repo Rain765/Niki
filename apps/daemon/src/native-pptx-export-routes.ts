@@ -12,7 +12,7 @@ import { exportNativePresentation } from './presentations/native-export.js';
 const prefix = '/api/projects/:id/native-presentation/pptx';
 const manifestPath = 'native-export/state.json';
 const pptxPath = 'native-export/presentation.pptx';
-const exporterVersion = 1;
+const exporterVersion = 2;
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 type Cache = { version: number; hash: string; pages: number; warnings: string[]; report: NativePresentationInspection };
 
