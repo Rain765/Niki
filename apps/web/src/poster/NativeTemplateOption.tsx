@@ -4,8 +4,8 @@ import { createPortal } from 'react-dom';
 type Asset = { thumb: string; full: string; width: number; height: number };
 
 /** Preview stays outside the scrolling listbox; selecting the label retains normal select behavior. */
-export function NativeTemplateOption({ label, asset, keyboardActive, keyboardNavigation, disabled }: {
-  label: string; asset: Asset; keyboardActive: boolean; keyboardNavigation: boolean; disabled: boolean;
+export function NativeTemplateOption({ label, asset, keyboardActive, keyboardNavigation, disabled, previewable = true }: {
+  label: string; asset: Asset; keyboardActive: boolean; keyboardNavigation: boolean; disabled: boolean; previewable?: boolean;
 }) {
   const id = useId();
   const anchor = useRef<HTMLSpanElement>(null);
@@ -15,7 +15,7 @@ export function NativeTemplateOption({ label, asset, keyboardActive, keyboardNav
   const [pinned, setPinned] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number; width: number }>();
-  const visible = !disabled && !dismissed && (keyboardActive || (!keyboardNavigation && (hovered || pinned)));
+  const visible = previewable && !disabled && !dismissed && (keyboardActive || (!keyboardNavigation && (hovered || pinned)));
   const cancelHide = () => clearTimeout(timer.current);
   const enter = () => { cancelHide(); setDismissed(false); setHovered(true); };
   const leave = () => { cancelHide(); timer.current = setTimeout(() => setHovered(false), 140); };
@@ -58,9 +58,10 @@ export function NativeTemplateOption({ label, asset, keyboardActive, keyboardNav
 
   return <span className="native-template-option">
     <span ref={anchor} className="native-template-option__thumb" aria-describedby={visible ? id : undefined}
-      onMouseEnter={enter} onMouseLeave={leave}
-      onMouseDown={event => { event.preventDefault(); event.stopPropagation(); }}
-      onClick={event => { event.stopPropagation(); setHovered(false); setDismissed(pinned); setPinned(old => !old); }}>
+      data-previewable={previewable}
+      onMouseEnter={previewable ? enter : undefined} onMouseLeave={previewable ? leave : undefined}
+      onMouseDown={previewable ? event => { event.preventDefault(); event.stopPropagation(); } : undefined}
+      onClick={previewable ? event => { event.stopPropagation(); setHovered(false); setDismissed(pinned); setPinned(old => !old); } : undefined}>
       <img src={asset.thumb} alt="" width={asset.width} height={asset.height} loading="lazy" decoding="async" />
     </span>
     <span className="native-template-option__label">{label}</span>

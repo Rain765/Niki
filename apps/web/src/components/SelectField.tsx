@@ -12,6 +12,7 @@ interface SelectFieldBaseProps extends SelectRenderers {
   disabled?: boolean;
   label: string;
   menuMinWidth?: number;
+  submenuLabel?: string;
   onFocus?: () => void;
   options: CustomSelectItem[];
   testId?: string;
@@ -24,6 +25,7 @@ export function SelectField({
   disabled = false,
   label,
   menuMinWidth = 224,
+  submenuLabel,
   onFocus,
   options,
   testId,
@@ -48,6 +50,7 @@ export function SelectField({
         menuClassName="od-control-select__menu"
         menuGap={8}
         menuMinWidth={menuMinWidth}
+        submenuLabel={submenuLabel}
         menuPlacement="bottom"
         onFocus={onFocus}
         options={options}

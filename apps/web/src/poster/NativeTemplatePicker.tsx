@@ -1,8 +1,7 @@
 import { NativeTemplateOption } from './NativeTemplateOption';
 import previewAssets from './native-preview-assets.json';
-import { NATIVE_HTML_TEMPLATES, nativePresentationThemes, NATIVE_GUIZANG_THEMES, type NativePresentationWorkflow } from '@open-design/contracts';
+import { NATIVE_HTML_TEMPLATES, nativePresentationThemes, type NativePresentationWorkflow } from '@open-design/contracts';
 import { useI18n } from '../i18n';
-import type { CustomSelectOption } from '../components/CustomSelect';
 import { SelectField } from '../components/SelectField';
 
 const LABELS = ['融资路演', '产品发布', '技术分享', '周报汇报', '图文分享', '培训课程', '演讲者模式', '白底编辑风', '深色关系图', '架构蓝图', '终端风', '渐变叙事', '测试报告', '柔和卡片', '极简导航'];
@@ -22,38 +21,69 @@ export function NativeTemplatePicker({ workflow, template, theme, onChange, disa
 }) {
   const { locale } = useI18n();
   const zh = locale.startsWith('zh');
-  const html = workflow === 'html-ppt';
-  const themes: readonly string[] = nativePresentationThemes(workflow, template);
   const htmlOptions = NATIVE_HTML_TEMPLATES.map((id, index) => ({ value: `html-ppt:${id}`, label: zh ? LABELS[index]! : id, workflow: 'html-ppt' as const, template: id as string }));
-  const options = [
+  const templates = [
     ...htmlOptions.filter(option => option.template === 'xhs-white-editorial'),
     {value:'guizang-ppt-skill:A',label:zh ? '电子杂志' : 'Editorial',workflow:'guizang-ppt-skill' as const,template:'A · 电子杂志'},
     {value:'guizang-ppt-skill:B',label:zh ? '瑞士国际主义' : 'Swiss',workflow:'guizang-ppt-skill' as const,template:'B · 瑞士国际主义'},
     ...htmlOptions.filter(option => option.template !== 'xhs-white-editorial'),
     {value:'html-ppt:custom',label:zh ? '自由编排' : 'Compose from layouts',workflow:'html-ppt' as const,template:'custom'},
   ];
-  const selected = options.find(option => option.workflow === workflow && option.template === template) ?? options[0]!;
-  const preview = (option: CustomSelectOption, asset: PreviewAsset, keyboardActive = false, keyboardNavigation = false) =>
-    <NativeTemplateOption label={option.label} asset={asset} keyboardActive={keyboardActive} keyboardNavigation={keyboardNavigation} disabled={disabled} />;
-  const previewVariants = (item: typeof selected) => previews[item.workflow === 'html-ppt' ? item.template : `guizang-${item.template[0]}`] ?? previews.recommend!;
-  const renderOption = (option: CustomSelectOption, keyboardActive = false, keyboardNavigation = false) => {
-    const item = options.find(candidate => candidate.value === option.value)!;
-    const variants = previewVariants(item);
-    return preview(option, variants[item.value === selected.value ? theme : 'default'] ?? variants.default!, keyboardActive, keyboardNavigation);
-  };
-  const renderTheme = (option: CustomSelectOption, keyboardActive = false, keyboardNavigation = false) => {
-    const variants = previewVariants(selected);
-    return preview(option, variants[option.value || 'default'] ?? variants.default!, keyboardActive, keyboardNavigation);
-  };
-  return <>
-    <SelectField className="od-filter-grid__item" disabled={disabled} label={zh ? '模板与风格' : 'Template & style'} value={selected.value} onChange={value => {
-      const next = options.find(option => option.value === value);
-      if (!next || next.value === selected.value) return;
-      const nextTheme = next.workflow === 'html-ppt' ? '' : next.template.startsWith('A') ? NATIVE_GUIZANG_THEMES.A[0] : NATIVE_GUIZANG_THEMES.B[0];
-      onChange(next.workflow, next.template, nextTheme);
-    }} options={options} menuMinWidth={280} renderValue={renderOption} renderOption={renderOption} />
-    {themes.length > 0 && <SelectField className="od-filter-grid__item" label={zh ? '配色与字体' : 'Colors & type'} value={theme} disabled={disabled} onChange={value => onChange(workflow,template,value)} renderValue={renderTheme} renderOption={renderTheme} options={[...(html ? [{value:'',label:zh ? '模板默认' : 'Template default'}] : []), ...themes.map(value=>({value,label:zh ? THEME_LABELS[value] ?? value : value}))]} />}
-  </>;
+  const options = templates.map(item => {
+    const themes = nativePresentationThemes(item.workflow, item.template);
+    const variants = previews[item.workflow === 'html-ppt' ? item.template : `guizang-${item.template[0]}`] ?? previews.recommend!;
+    const subOptions = themes.length ? (item.workflow === 'html-ppt' ? ['', ...themes] : themes).map(themeValue => ({
+      value: `${item.value}/${themeValue}`,
+      label: themeValue ? (zh ? THEME_LABELS[themeValue] ?? themeValue : themeValue) : (zh ? '模板默认' : 'Template default'),
+      theme: themeValue,
+      asset: variants[themeValue || 'default'] ?? variants.default!,
+    })) : undefined;
+    return { ...item, subOptions, asset: variants.default! };
+  });
+  const selected = options.find(item => item.workflow === workflow && item.template === template) ?? options[0]!;
+  const selectedTheme = selected.subOptions?.find(item => item.theme === theme);
+  const chosenValue = selectedTheme?.value ?? selected.value;
+  return (
+    <SelectField
+      className="od-filter-grid__item"
+      disabled={disabled}
+      label={zh ? '模板与风格' : 'Template & style'}
+      submenuLabel={zh ? '配色与字体' : 'Colors & type'}
+      value={chosenValue}
+      onChange={value => {
+        const item = options.find(item => item.value === value || item.subOptions?.some(child => child.value === value));
+        if (!item) return;
+        const palette = item.subOptions?.find(child => child.value === value);
+        onChange(item.workflow, item.template, palette?.theme ?? '');
+      }}
+      options={options}
+      menuMinWidth={240}
+      renderValue={() => (
+        <NativeTemplateOption
+          label={selectedTheme ? `${selected.label} · ${selectedTheme.label}` : selected.label}
+          asset={selectedTheme?.asset ?? selected.asset}
+          keyboardActive={false}
+          keyboardNavigation={false}
+          disabled={disabled}
+        />
+      )}
+      renderOption={(option, keyboardActive, keyboardNavigation) => {
+        const item = options.find(item => item.value === option.value);
+        const palette = options.flatMap(item => item.subOptions ?? []).find(child => child.value === option.value);
+        const asset = item?.value === selected.value ? selectedTheme?.asset ?? item.asset : item?.asset ?? palette!.asset;
+        return (
+          <NativeTemplateOption
+            label={option.label}
+            asset={asset}
+            keyboardActive={keyboardActive}
+            keyboardNavigation={keyboardNavigation}
+            disabled={disabled}
+            previewable={!item?.subOptions}
+          />
+        );
+      }}
+    />
+  );
 }
 
 type PreviewAsset = { thumb: string; full: string; width: number; height: number };

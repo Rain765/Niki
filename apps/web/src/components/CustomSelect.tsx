@@ -7,6 +7,7 @@ export interface CustomSelectOption {
   value: string;
   label: string;
   disabled?: boolean;
+  subOptions?: CustomSelectOption[];
 }
 
 export interface CustomSelectGroup {
@@ -34,6 +35,7 @@ interface BaseProps extends SelectRenderers {
   menuClassName?: string;
   menuGap?: number;
   menuMinWidth?: number;
+  submenuLabel?: string;
   menuPlacement?: 'adaptive' | 'bottom';
   disabled?: boolean;
   placeholder?: string;
@@ -49,7 +51,11 @@ interface FlatOption extends CustomSelectOption {
   group?: string;
 }
 
+const VIEWPORT_PADDING = 12;
+const SUBMENU_GAP = 6;
+
 interface MenuPosition {
+  viewportWidth: number;
   top: number;
   left: number;
   width: number;
@@ -80,6 +86,7 @@ export function CustomSelect({
   menuClassName,
   menuGap = 4,
   menuMinWidth,
+  submenuLabel,
   menuPlacement = 'adaptive',
   disabled = false,
   placeholder,
@@ -93,38 +100,50 @@ export function CustomSelect({
   const reactId = useId();
   const idBase = reactId.replace(/:/g, '');
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const submenuRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const firstValue = multiple ? value[0] ?? '' : value;
   const activeSourceValueRef = useRef(firstValue);
   const [open, setOpen] = useState(false);
+  const [submenuValue, setSubmenuValue] = useState<string>();
   const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [activeValue, setActiveValue] = useState(firstValue);
   const [position, setPosition] = useState<MenuPosition | null>(null);
 
   const flatOptions = useMemo(() => flattenOptions(options), [options]);
-  const selected = flatOptions.find((option) => option.value === firstValue);
+  const submenu = open && !multiple ? flatOptions.find(option => option.value === submenuValue) : undefined;
+  const submenuOptions = submenu?.subOptions;
+  const selectedParent = multiple ? undefined : flatOptions.find(option => option.subOptions?.some(child => child.value === firstValue));
+  const selected = selectedParent?.subOptions?.find(option => option.value === firstValue)
+    ?? flatOptions.find(option => option.value === firstValue);
+  const rootValue = selectedParent?.value ?? firstValue;
   const selectedLabel = multiple
     ? flatOptions.filter((option) => value.includes(option.value)).map((option) => option.label).join(' / ') || placeholder || ariaLabel
     : selected?.label ?? placeholder ?? value;
   const isSelected = (optionValue: string) => multiple ? value.includes(optionValue) : optionValue === value;
   const enabledOptions = useMemo(
-    () => flatOptions.filter((option) => !option.disabled),
-    [flatOptions],
+    () => (submenuOptions ?? flatOptions).filter((option) => !option.disabled),
+    [flatOptions, submenuOptions],
   );
   const flatOptionsRef = useRef(flatOptions);
   const enabledOptionsRef = useRef(enabledOptions);
   flatOptionsRef.current = flatOptions;
   enabledOptionsRef.current = enabledOptions;
   const optionIdByValue = useMemo(
-    () => new Map(flatOptions.map((option, index) => [option.value, `${idBase}-option-${index}`])),
+    () => new Map(flatOptions.flatMap(option => [option, ...(option.subOptions ?? [])]).map((option, index) => [option.value, `${idBase}-option-${index}`])),
     [flatOptions, idBase],
   );
   const activeOptionId = open && activeValue ? optionIdByValue.get(activeValue) : undefined;
 
+  useEffect(() => {
+    if (!open || !keyboardNavigation || (!submenuLabel && !submenuOptions) || !activeOptionId) return;
+    document.getElementById(activeOptionId)?.scrollIntoView?.({ block: 'nearest' });
+  }, [open, keyboardNavigation, submenuLabel, submenuOptions, activeOptionId]);
+
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const viewportPad = 12;
+    const viewportPad = VIEWPORT_PADDING;
     const below = window.innerHeight - rect.bottom - viewportPad;
     const above = rect.top - viewportPad;
     const availableHeight = menuPlacement === 'bottom'
@@ -134,11 +153,13 @@ export function CustomSelect({
       ? Math.min(300, availableHeight)
       : Math.max(160, Math.min(300, availableHeight));
     const openAbove = menuPlacement === 'adaptive' && below < 180 && above > below;
+    const availableWidth = Math.max(0, window.innerWidth - viewportPad * 2);
     const width = Math.min(
       Math.max(rect.width, menuMinWidth ?? 0),
-      Math.max(0, window.innerWidth - viewportPad * 2),
+      availableWidth,
     );
     setPosition({
+      viewportWidth: window.innerWidth,
       top: openAbove
         ? Math.max(viewportPad, rect.top - maxHeight - menuGap)
         : rect.bottom + menuGap,
@@ -166,16 +187,17 @@ export function CustomSelect({
       return;
     }
     if (multiple || activeSourceValueRef.current === firstValue) return;
-    const selectedOption = flatOptionsRef.current.find((option) => option.value === firstValue && !option.disabled);
+    setSubmenuValue(undefined);
+    const selectedOption = flatOptionsRef.current.find((option) => option.value === rootValue && !option.disabled);
     setActiveValue(selectedOption?.value ?? enabledOptionsRef.current[0]?.value ?? '');
     activeSourceValueRef.current = firstValue;
-  }, [open, firstValue, multiple]);
+  }, [open, firstValue, multiple, rootValue]);
 
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target) || submenuRef.current?.contains(target)) return;
       setOpen(false);
     };
     const onScrollOrResize = () => {
@@ -192,8 +214,15 @@ export function CustomSelect({
   }, [open, portal, updatePosition]);
 
   const choose = (nextValue: string) => {
-    const next = flatOptions.find((option) => option.value === nextValue);
+    const next = submenuOptions?.find(option => option.value === nextValue) ?? flatOptions.find(option => option.value === nextValue);
     if (!next || next.disabled) return;
+    if (!multiple && next.subOptions?.length) {
+      setSubmenuValue(next.value);
+      setActiveValue(next.subOptions.find(option => option.value === value && !option.disabled)?.value
+        ?? next.subOptions.find(option => !option.disabled)?.value ?? '');
+      buttonRef.current?.focus();
+      return;
+    }
     if (multiple) {
       setActiveValue(next.value);
       onChange(value.includes(next.value) ? value.filter((item) => item !== next.value) : [...value, next.value]);
@@ -215,9 +244,10 @@ export function CustomSelect({
   };
 
   const openMenu = () => {
-    const selectedOption = flatOptions.find(option => option.value === firstValue && !option.disabled);
+    const selectedOption = flatOptions.find(option => option.value === rootValue && !option.disabled);
     setActiveValue(selectedOption?.value ?? enabledOptions[0]?.value ?? '');
     activeSourceValueRef.current = firstValue;
+    setSubmenuValue(undefined);
     setOpen(true);
   };
 
@@ -230,6 +260,18 @@ export function CustomSelect({
         return;
       }
       moveActive(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+    if (open && event.key === 'ArrowRight' && !submenu && flatOptions.some(option => option.value === activeValue && option.subOptions?.length)) {
+      event.preventDefault();
+      choose(activeValue);
+      return;
+    }
+    if (submenu && (event.key === 'ArrowLeft' || event.key === 'Escape')) {
+      event.preventDefault();
+      event.stopPropagation();
+      setActiveValue(submenu.value);
+      setSubmenuValue(undefined);
       return;
     }
     if (event.key === 'Enter' || event.key === ' ') {
@@ -250,6 +292,44 @@ export function CustomSelect({
     if (event.key === 'Tab' && open) setOpen(false);
   };
 
+  const renderRow = (option: CustomSelectOption, inSubmenu = false) => (
+    <SelectOptionButton
+      key={option.value}
+      option={option}
+      selected={isSelected(option.value) || selectedParent?.value === option.value}
+      active={option.value === activeValue || (!inSubmenu && submenuValue === option.value)}
+      expanded={option.subOptions?.length ? submenuValue === option.value : undefined}
+      submenuId={`${idBase}-submenu`}
+      id={optionIdByValue.get(option.value)}
+      onChoose={choose}
+      onActive={next => {
+        setKeyboardNavigation(false);
+        if (!submenu || inSubmenu) setActiveValue(next);
+      }}
+      renderOption={renderOption}
+      keyboardNavigation={keyboardNavigation && (!submenu || inSubmenu)}
+    />
+  );
+  const menuWidth = position && submenuOptions
+    ? Math.min(position.width, Math.max(0, (position.viewportWidth - 2 * VIEWPORT_PADDING - SUBMENU_GAP) / 2))
+    : position?.width;
+  const menuLeft = position && submenuOptions && menuWidth !== undefined
+    ? Math.max(VIEWPORT_PADDING, Math.min(position.left, position.viewportWidth - 2 * menuWidth - SUBMENU_GAP - VIEWPORT_PADDING))
+    : position?.left;
+  const submenuMenu = submenuOptions && position && menuWidth !== undefined && menuLeft !== undefined && (
+    <div
+      ref={submenuRef}
+      id={`${idBase}-submenu`}
+      className={['od-select-menu', 'portal', menuClassName, 'od-select-submenu'].filter(Boolean).join(' ')}
+      role="listbox"
+      aria-label={submenuLabel}
+      style={{ top: position.top, left: menuLeft + menuWidth + SUBMENU_GAP, width: menuWidth, maxHeight: position.maxHeight }}
+    >
+      <div className="od-select-group-label">{submenuLabel}</div>
+      {submenuOptions.map(option => renderRow(option, true))}
+    </div>
+  );
+
   const menu = (
     <div
       ref={menuRef}
@@ -266,8 +346,8 @@ export function CustomSelect({
         portal && position
           ? {
               top: position.top,
-              left: position.left,
-              width: position.width,
+              left: menuLeft,
+              width: menuWidth,
               maxHeight: position.maxHeight,
             }
           : undefined
@@ -278,35 +358,11 @@ export function CustomSelect({
           return (
             <div className="od-select-group" key={`group:${item.label}`}>
               <div className="od-select-group-label">{item.label}</div>
-              {item.options.map((option) => (
-                <SelectOptionButton
-                  key={option.value}
-                  option={option}
-                  selected={isSelected(option.value)}
-                  active={option.value === activeValue}
-                  id={optionIdByValue.get(option.value)}
-                  onChoose={choose}
-                  onActive={next => { setKeyboardNavigation(false); setActiveValue(next); }}
-                  renderOption={renderOption}
-                  keyboardNavigation={keyboardNavigation}
-                />
-              ))}
+              {item.options.map(option => renderRow(option))}
             </div>
           );
         }
-        return (
-          <SelectOptionButton
-            key={item.value}
-            option={item}
-            selected={isSelected(item.value)}
-            active={item.value === activeValue}
-            id={optionIdByValue.get(item.value)}
-            onChoose={choose}
-            onActive={next => { setKeyboardNavigation(false); setActiveValue(next); }}
-            renderOption={renderOption}
-            keyboardNavigation={keyboardNavigation}
-          />
-        );
+        return renderRow(item);
       })}
     </div>
   );
@@ -321,7 +377,7 @@ export function CustomSelect({
         value={multiple ? value.join(',') : value}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-controls={`${idBase}-menu`}
+        aria-controls={submenuOptions ? `${idBase}-menu ${idBase}-submenu` : `${idBase}-menu`}
         aria-activedescendant={activeOptionId}
         aria-labelledby={labelledBy}
         aria-label={`${ariaLabel}: ${selectedLabel}`}
@@ -337,7 +393,7 @@ export function CustomSelect({
         </span>
         <Icon name="chevron-down" size={14} />
       </button>
-      {open ? (portal ? (position ? createPortal(menu, document.body) : null) : menu) : null}
+      {open ? (portal ? (position ? createPortal(<>{menu}{submenuMenu}</>, document.body) : null) : menu) : null}
     </div>
   );
 }
@@ -346,6 +402,8 @@ function SelectOptionButton({
   option,
   selected,
   active,
+  expanded,
+  submenuId,
   id,
   onChoose,
   onActive,
@@ -355,6 +413,8 @@ function SelectOptionButton({
   option: CustomSelectOption;
   selected: boolean;
   active: boolean;
+  expanded?: boolean;
+  submenuId: string;
   id?: string;
   onChoose: (value: string) => void;
   onActive: (value: string) => void;
@@ -372,15 +432,19 @@ function SelectOptionButton({
       ].filter(Boolean).join(' ')}
       role="option"
       aria-selected={selected}
+      aria-haspopup={expanded === undefined ? undefined : 'listbox'}
+      aria-expanded={expanded}
+      aria-controls={expanded ? submenuId : undefined}
       tabIndex={-1}
       disabled={option.disabled}
       onMouseMove={() => onActive(option.value)}
       onClick={() => onChoose(option.value)}
     >
       <span className="od-select-option-label">{renderOption ? renderOption(option, active && keyboardNavigation, keyboardNavigation) : option.label}</span>
-      <span className="od-select-option-check" aria-hidden>
-        <Icon name="check" size={13} />
-      </span>
+      {expanded === undefined ? (
+        <span className="od-select-option-check" aria-hidden><Icon name="check" size={13} /></span>
+      ) : <Icon name="chevron-right" size={14} aria-hidden />}
+
     </button>
   );
 }

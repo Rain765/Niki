@@ -12,6 +12,10 @@ vi.mock('../../src/poster/NativePresentationResult', () => ({NativePresentationR
 vi.mock('../../src/state/projects', () => ({ listProjects: async () => [], createProject: vi.fn(), patchProject: vi.fn() }));
 vi.mock('../../src/poster/native-presentations', async importOriginal => ({...await importOriginal<typeof import('../../src/poster/native-presentations')>(), prepareNativePresentation:vi.fn()}));
 function choose(label: string, option: string) { fireEvent.click(screen.getByRole('combobox',{name:label})); fireEvent.click(screen.getByRole('option',{name:option})); }
+function chooseTheme(style: string, theme: string) {
+  choose('模板与风格', style);
+  fireEvent.click(within(screen.getByRole('listbox', { name: '配色与字体' })).getByRole('option', { name: theme }));
+}
 afterEach(() => {auth.role='member';cleanup();vi.clearAllMocks(); window.history.replaceState(null,'','/');});
 it('combines every original template and both styles in one filter without workflow or recommendation choices', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
@@ -32,33 +36,37 @@ it('combines every original template and both styles in one filter without workf
   expect(screen.getByRole('combobox',{name:'模板与风格'}).querySelector('img')!.getAttribute('src')).toBe(previewAssets['tech-sharing'].default.thumb);
   expect(document.querySelector('iframe')).toBeNull();
   expect(screen.queryByRole('link',{name:/查看原/})).toBeNull();
-  choose('模板与风格', '电子杂志');
+  chooseTheme('电子杂志', '经典杂志');
   expect(window.location.search).toContain('guizang-ppt-skill');
   expect(screen.getByRole('combobox',{name:'模板与风格'}).querySelector('img')!.getAttribute('src')).toBe(previewAssets['guizang-A'].Monocle.thumb);
   expect(screen.getByRole('region',{name:'创作筛选'}).compareDocumentPosition(screen.getByRole('tablist')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(screen.queryByText('旧版文稿')).toBeNull();
 });
 
-it('only shows themes belonging to the selected original template/style and clears incompatible themes', async () => {
+it('opens palettes beside their template and only commits when a palette is chosen', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  expect(screen.queryByRole('combobox',{name:'配色与字体'})).toBeNull();
-  choose('模板与风格','自由编排');
-  fireEvent.click(screen.getByRole('combobox',{name:'配色与字体'}));
-  expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(37);
-  expect(screen.queryByRole('option',{name:/推荐/})).toBeNull();
-  fireEvent.click(screen.getByRole('option',{name:'冰川蓝'}));
-  choose('模板与风格', '电子杂志');
-  expect(screen.getByRole('combobox',{name:'配色与字体'}).textContent).toBe('经典杂志');
-  choose('配色与字体','沙丘暖色');
+  const trigger = screen.getByRole('combobox', { name: '模板与风格' });
+  expect(screen.queryByRole('combobox', { name: '配色与字体' })).toBeNull();
+  choose('模板与风格', '自由编排');
+  const primary = screen.getByRole('listbox', { name: '模板与风格' });
+  const secondary = screen.getByRole('listbox', { name: '配色与字体' });
+  expect(primary.nextElementSibling).toBe(secondary);
+  expect(within(secondary).getAllByRole('option')).toHaveLength(37);
+  expect(trigger.textContent).toBe('白底编辑风');
+  fireEvent.click(within(secondary).getByRole('option', { name: '冰川蓝' }));
+  expect(trigger.textContent).toBe('自由编排 · 冰川蓝');
+  chooseTheme('电子杂志', '沙丘暖色');
+  expect(trigger.textContent).toBe('电子杂志 · 沙丘暖色');
   choose('模板与风格', '瑞士国际主义');
-  expect(screen.getByRole('combobox',{name:'配色与字体'}).textContent).toBe('克莱因蓝');
-  fireEvent.click(screen.getByRole('combobox',{name:'配色与字体'}));
-  expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(4);
-  expect(screen.queryByRole('option',{name:'沙丘暖色'})).toBeNull();
-  fireEvent.click(screen.getByRole('option',{name:'克莱因蓝'}));
-  choose('模板与风格','技术分享');
-  expect(screen.queryByRole('combobox',{name:'配色与字体'})).toBeNull();
+  const swiss = screen.getByRole('listbox', { name: '配色与字体' });
+  expect(within(swiss).getAllByRole('option')).toHaveLength(4);
+  expect(within(swiss).queryByRole('option', { name: '沙丘暖色' })).toBeNull();
+  fireEvent.click(within(swiss).getByRole('option', { name: '克莱因蓝' }));
+  expect(trigger.textContent).toBe('瑞士国际主义 · 克莱因蓝');
+  choose('模板与风格', '技术分享');
+  expect(trigger.textContent).toBe('技术分享');
+  expect(screen.queryByRole('listbox')).toBeNull();
 });
 
 it('keeps content, file and common settings through cross-workflow template changes and sends original HTML values', async () => {
@@ -69,7 +77,7 @@ it('keeps content, file and common settings through cross-workflow template chan
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'架构与流程'}});
   const file=new File(['All source facts'], 'source.md', {type:'text/markdown'});
   fireEvent.change(screen.getByLabelText('添加文档'),{target:{files:[file]}});
-  choose('模板与风格','电子杂志');
+  chooseTheme('电子杂志', '经典杂志');
   expect((screen.getByRole('textbox',{name:'创作内容'}) as HTMLInputElement).value).toBe('架构与流程');
   expect(screen.getByText('source.md')).toBeTruthy();
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'补充后的架构与流程'}});
@@ -80,13 +88,13 @@ it('keeps content, file and common settings through cross-workflow template chan
 });
 
 it.each([
-  ['电子杂志','A · 电子杂志','Monocle'],
-  ['瑞士国际主义','B · 瑞士国际主义','IKB'],
-])('routes %s through the original Guizang workflow', async (label,style,theme) => {
+  ['电子杂志','经典杂志','A · 电子杂志','Monocle'],
+  ['瑞士国际主义','克莱因蓝','B · 瑞士国际主义','IKB'],
+])('routes %s through the original Guizang workflow', async (label,palette,style,theme) => {
   vi.mocked(prepareNativePresentation).mockResolvedValue({id:'design',skillId:'guizang-ppt-skill'} as never);
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
-  choose('模板与风格',label);
+  chooseTheme(label, palette);
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'发布计划'}});
   fireEvent.click(screen.getByRole('button',{name:'生成'}));
   await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'guizang-ppt-skill',topic:'发布计划',audience:'',pages:'auto',style,theme,duration:''},null));
@@ -95,23 +103,20 @@ it.each([
 it('restores the selected style, theme and slide count after remount', async () => {
   const studio = <I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>;
   const {unmount} = render(studio);
-  choose('模板与风格', '瑞士国际主义');
-  choose('配色与字体', '安全橙');
+  chooseTheme('瑞士国际主义', '安全橙');
   choose('目标页数', '10');
   unmount();
   render(studio);
-  expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toBe('瑞士国际主义');
-  const theme = screen.getByRole('combobox',{name:'配色与字体'});
-  expect(theme.textContent).toBe('安全橙');
-  expect(theme.querySelector('img')?.getAttribute('src')).toBe(previewAssets['guizang-B']['Safety Orange'].thumb);
+  const template = screen.getByRole('combobox',{name:'模板与风格'});
+  expect(template.textContent).toBe('瑞士国际主义 · 安全橙');
+  expect(template.querySelector('img')?.getAttribute('src')).toBe(previewAssets['guizang-B']['Safety Orange'].thumb);
   expect(screen.getByRole('combobox',{name:'目标页数'}).textContent).toBe('10');
 });
 
 it('opens existing Guizang workflow links with an explicit style and theme', async () => {
   window.history.replaceState(null,'','/?pptWorkflow=guizang-ppt-skill');
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
-  await waitFor(() => expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toBe('电子杂志'));
-  expect(screen.getByRole('combobox',{name:'配色与字体'}).textContent).toBe('经典杂志');
+  await waitFor(() => expect(screen.getByRole('combobox',{name:'模板与风格'}).textContent).toBe('电子杂志 · 经典杂志'));
 });
 
 it('keeps document replacement and removal inside the content composer without losing text', async () => {
@@ -166,14 +171,20 @@ it('supports keyboard preview and selection while keeping the content and action
   fireEvent.keyDown(trigger,{key:'ArrowDown'});
   expect(await screen.findByRole('tooltip',{name:'白底编辑风'})).toBeTruthy();
   fireEvent.keyDown(trigger,{key:'ArrowDown'});
-  expect(await screen.findByRole('tooltip',{name:'电子杂志'})).toBeTruthy();
+  expect(screen.getByRole('option',{name:'电子杂志'}).getAttribute('aria-haspopup')).toBe('listbox');
   fireEvent.keyDown(trigger,{key:'Escape'});
   expect(screen.queryByRole('tooltip')).toBeNull();
   expect(trigger.textContent).toBe('白底编辑风');
   fireEvent.keyDown(trigger,{key:'ArrowDown'});
   fireEvent.keyDown(trigger,{key:'ArrowDown'});
+  fireEvent.keyDown(trigger,{key:'ArrowRight'});
+  expect(screen.getByRole('listbox',{name:'配色与字体'})).toBeTruthy();
+  fireEvent.keyDown(trigger,{key:'ArrowLeft'});
+  expect(screen.queryByRole('listbox',{name:'配色与字体'})).toBeNull();
   fireEvent.keyDown(trigger,{key:'Enter'});
-  expect(trigger.textContent).toBe('电子杂志');
+  fireEvent.keyDown(trigger,{key:'ArrowDown'});
+  fireEvent.keyDown(trigger,{key:'Enter'});
+  expect(trigger.textContent).toBe('电子杂志 · 靛蓝瓷白');
 });
 
 it('uses the server default without exposing a model selector to administrators', async () => {
@@ -182,7 +193,7 @@ it('uses the server default without exposing a model selector to administrators'
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
   expect(screen.queryByRole('combobox',{name:'创作模型'})).toBeNull();
-  choose('模板与风格','瑞士国际主义');
+  chooseTheme('瑞士国际主义', '克莱因蓝');
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'保持原版设计'}});
   fireEvent.click(screen.getByRole('button',{name:'生成'}));
   await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null));
