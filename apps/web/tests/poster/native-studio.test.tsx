@@ -84,7 +84,7 @@ it('keeps content, file and common settings through cross-workflow template chan
   choose('模板与风格','技术分享');
   expect(screen.getByText('source.md')).toBeTruthy();
   fireEvent.click(screen.getByRole('button',{name:'生成'}));
-  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'html-ppt',topic:'补充后的架构与流程',audience:'',pages:'15',style:'tech-sharing',theme:'',duration:''},file));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'html-ppt',topic:'补充后的架构与流程',audience:'',pages:'15',style:'tech-sharing',theme:'',duration:''},file,expect.any(Function)));
 });
 
 it.each([
@@ -97,7 +97,7 @@ it.each([
   chooseTheme(label, palette);
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'发布计划'}});
   fireEvent.click(screen.getByRole('button',{name:'生成'}));
-  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'guizang-ppt-skill',topic:'发布计划',audience:'',pages:'auto',style,theme,duration:''},null));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith({skill:'guizang-ppt-skill',topic:'发布计划',audience:'',pages:'auto',style,theme,duration:''},null,expect.any(Function)));
 });
 
 it('restores the selected style, theme and slide count after remount', async () => {
@@ -196,6 +196,6 @@ it('uses the server default without exposing a model selector to administrators'
   chooseTheme('瑞士国际主义', '克莱因蓝');
   fireEvent.change(screen.getByRole('textbox',{name:'创作内容'}),{target:{value:'保持原版设计'}});
   fireEvent.click(screen.getByRole('button',{name:'生成'}));
-  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null));
+  await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null,expect.any(Function)));
   expect(vi.mocked(prepareNativePresentation).mock.calls[0]![0].provider).toBeUndefined();
 });

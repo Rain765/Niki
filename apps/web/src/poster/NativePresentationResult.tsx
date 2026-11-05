@@ -5,15 +5,18 @@ import { NativePresentationPreview } from '../components/NativePresentationPrevi
 import { Button, IconButton } from '../components/Button';
 import { X } from 'lucide-react';
 import { NativePresentationQuestionForm } from './NativePresentationQuestionForm';
+import { NativePresentationProgress, type NativePresentationStage } from './NativePresentationProgress';
 import type { PresentationQuestionRequest } from './native-presentation-questions';
 
 /** Observe the original workflow; the embedded workspace remains its sole run/confirmation owner. */
-export function NativePresentationResult({ projectId }: { projectId: string }) {
+export function NativePresentationResult({ projectId, requestedAt }: { projectId: string; requestedAt?: number }) {
   const { locale } = useI18n(); const zh = locale.startsWith('zh');
   const [entry, setEntry] = useState<ProjectFile | null>(null);
   const [revision, setRevision] = useState('');
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [launchPending, setLaunchPending] = useState(requestedAt !== undefined);
+  const [progress, setProgress] = useState<{ stage: NativePresentationStage; startedAt: number; checkedPages?: number } | null>(null);
   const [failed, setFailed] = useState(false);
   const [error, setError] = useState('');
   const [mode, setMode] = useState<'question' | 'workspace' | null>(null);
@@ -24,16 +27,18 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const questionId = useRef<string | null>(null);
-  const [opened, setOpened] = useState(false);
+  const [opened, setOpened] = useState(requestedAt !== undefined);
   const [configurationRequired, setConfigurationRequired] = useState(false);
   const workspaceFrame = useRef<HTMLIFrameElement>(null);
   const [retry, setRetry] = useState(0);
   const hadEntry = useRef(false);
-  const conversationInitialized = useRef(false);
+  const mountedAt = useRef(Date.now());
+  const firstRunId = useRef<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
+      let delay = 3000;
       try {
         const [filesResponse, runsResponse] = await Promise.all([
           fetch(`/api/projects/${encodeURIComponent(projectId)}/files`, { signal: controller.signal, cache: 'no-store' }),
@@ -43,8 +48,28 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
         const { files } = await filesResponse.json() as { files: ProjectFile[] };
         const { runs } = await runsResponse.json() as { runs: ChatRunStatusResponse[] };
         if (controller.signal.aborted) return;
-        const active = runs.some(run => run.status === 'running' || run.status === 'queued');
-        const latestRun = [...runs].sort((a,b) => b.createdAt - a.createdAt)[0];
+        const orderedRuns = [...runs].sort((a,b) => b.createdAt - a.createdAt);
+        const latestRun = orderedRuns[0];
+        firstRunId.current ??= orderedRuns.at(-1)?.id ?? null;
+        const activeRun = orderedRuns.find(run => run.status === 'running' || run.status === 'queued');
+        const active = Boolean(activeRun);
+        if (activeRun) {
+          const currentFiles = files.filter(file => file.mtime >= activeRun.createdAt);
+          const screenshots = currentFiles.filter(file => /^native-review\/[^/]+\/page-\d+\.png$/.test(file.name));
+          const reviewFolder = screenshots[0]?.name.split('/').slice(0, 2).join('/');
+          const checkedPages = reviewFolder ? screenshots.filter(file => file.name.startsWith(reviewFolder + '/')).length : undefined;
+          const stage = activeRun.status === 'queued' ? 'queued'
+            : checkedPages ? 'review'
+            : files.some(file => file.name === 'content-plan.md' && (!hadEntry.current || file.mtime >= activeRun.createdAt)) ? 'layout'
+            : 'planning';
+          const startedAt = activeRun.id === firstRunId.current
+            ? Math.min(requestedAt ?? activeRun.createdAt, activeRun.createdAt)
+            : activeRun.createdAt;
+          setProgress({ stage, startedAt, checkedPages });
+        } else setProgress(null);
+        const starting = !latestRun && requestedAt !== undefined && Date.now() - mountedAt.current < 20_000;
+        setLaunchPending(starting);
+        if (active || starting) delay = 1500;
         // Original workflows publish index.html; allow named decks, excluding copied source and review files.
         const html = files.filter(file => /\.html?$/i.test(file.name) && !/^(native-review|source|references|node_modules|assets)\//.test(file.name));
         const next = html.find(file => file.name === 'index.html') ?? html.find(file => file.artifactKind === 'deck') ?? html[0] ?? null;
@@ -53,16 +78,16 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
         // Wait for a write burst to finish before replacing a readable deck. Inspection files never reload it.
         if (!active || !hadEntry.current) setRevision(files.filter(file => /\.(html?|css|js|mjs|svg)$/i.test(file.name) && !file.name.startsWith('native-review/')).map(file => `${file.name}:${file.mtime}:${file.size}`).sort().join('|'));
         if (visible && !hadEntry.current) { hadEntry.current = true; }
-        if (!visible && !conversationInitialized.current) { setOpened(true); conversationInitialized.current = true; }
+        if (!visible) setOpened(true);
       } catch (cause) {
         if (!controller.signal.aborted) { setLoading(false); setError(cause instanceof Error ? cause.message : String(cause)); }
       } finally {
-        if (!controller.signal.aborted) timer = setTimeout(() => void poll(), 3000);
+        if (!controller.signal.aborted) timer = setTimeout(() => void poll(), delay);
       }
     };
     void poll();
     return () => { controller.abort(); clearTimeout(timer); };
-  }, [projectId, retry, zh]);
+  }, [projectId, requestedAt, retry, zh]);
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== workspaceFrame.current?.contentWindow || event.data?.projectId !== projectId) return;
@@ -94,19 +119,23 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
     }
   }, [mode]);
   const openWorkspace = () => { setOpened(true); setMode('workspace'); };
-  const paused = !loading && !running && !entry && (hasRun || Boolean(question?.continuation));
+  const paused = !loading && !running && !entry && (hasRun || !launchPending || Boolean(question?.continuation));
   const activeQuestion = question && (!question.continuation || (paused && !failed)) ? question : null;
+  const showProgress = !error && !activeQuestion && !configurationRequired && !failed && !paused && (!entry || running);
   const status = activeQuestion?.continuation ? (zh ? '可继续生成' : 'Ready to continue')
     : activeQuestion ? (zh ? '等待你的回答' : 'Waiting for your answer')
     : configurationRequired ? (zh ? '请先完成生成设置' : 'Finish setup to continue')
     : failed ? (zh ? '生成未完成' : 'Generation did not finish')
-    : paused ? (zh ? '尚未生成文稿' : 'No presentation generated yet')
-    : running ? (zh ? '正在生成 PPT…' : 'Generating presentation…')
-    : (zh ? '正在准备文稿…' : 'Preparing presentation…');
+    : (zh ? '尚未生成文稿' : 'No presentation generated yet');
   return <div className="native-ppt__result">
     {error && <p role="alert">{error} <Button size="compact" onClick={()=>setRetry(n=>n+1)}>{zh?'重试':'Retry'}</Button></p>}
-    {!entry && !error && <div className="native-ppt__pending" role="status" aria-label={status}>
-      {!activeQuestion && !failed && !paused && !configurationRequired && <div className="native-player__skeleton"><span/><span/><span/></div>}
+    {showProgress && <NativePresentationProgress
+      stage={progress?.stage ?? (running ? 'planning' : requestedAt !== undefined ? 'starting' : 'preparing')}
+      startedAt={progress?.startedAt ?? requestedAt}
+      checkedPages={progress?.checkedPages}
+      compact={Boolean(entry)}
+    />}
+    {!entry && !error && !showProgress && <div className="native-ppt__pending" role="status" aria-label={status}>
       <div className="native-ppt__stage-status"><span>{status}</span>
         {activeQuestion ? <Button onClick={()=>setMode('question')}>{activeQuestion.continuation
           ? (zh ? '查看方案并继续' : 'Review and continue')

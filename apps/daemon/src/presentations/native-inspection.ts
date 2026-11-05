@@ -116,7 +116,14 @@ export async function inspectNativePresentation(input: {
           ]);
         } finally { clearTimeout(timer); }
       })()`).catch(() => { failed.add('fonts-or-images-not-ready'); });
-      await page.waitForTimeout(2000);
+      // The original HTML PPT preview switches slides synchronously on preview-goto.
+      // Fall back to the full grace period for Guizang and unrecognized runtimes.
+      const previewReached = html && await page.evaluate(`(async () => {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        return document.documentElement.dataset.preview === '1'
+          && document.querySelectorAll('${selector}')[${i}]?.classList.contains('is-active');
+      })()`);
+      if (!previewReached) await page.waitForTimeout(2000);
       // Run the same step hook as the native keyboard handler, without its next-slide fallback.
       const pipeline = page.locator(selector).nth(i).locator('[data-anim="step"]');
       if (!html && await page.locator(selector).nth(i).getAttribute('data-animate') === 'pipeline') {

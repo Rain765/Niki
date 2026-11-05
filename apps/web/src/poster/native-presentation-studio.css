@@ -60,7 +60,20 @@
 
 .native-ppt__workspace { border: 1px solid var(--poster-border); border-radius: var(--od-surface-radius); overflow: hidden; }
 .native-ppt__stage-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: var(--poster-muted); }
-.native-ppt__pending:has(.native-player__skeleton) .native-ppt__stage-status { justify-content: flex-end; padding-bottom: 24px; }
+.native-ppt__progress { display: grid; align-content: center; gap: 16px; min-height: clamp(160px, 24vw, 280px); padding: 24px clamp(16px, 4vw, 48px); border: 1px solid var(--poster-border); border-radius: var(--od-surface-radius); background: var(--poster-panel-raised); }
+.native-ppt__progress.is-compact { min-height: 0; margin-bottom: 12px; padding-block: 14px; gap: 10px; }
+.native-ppt__progress-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; color: var(--poster-text); }
+.native-ppt__progress-heading strong { font-size: 16px; }
+.native-ppt__progress-heading small { display: block; margin-top: 4px; color: var(--poster-muted); }
+.native-ppt__elapsed { margin-inline-start: auto; color: var(--poster-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.native-ppt__progress-spinner { flex: none; color: var(--poster-accent); animation: native-ppt-spin 1s linear infinite; }
+.native-ppt__progress-track { overflow: hidden; height: 4px; border-radius: 4px; background: var(--poster-border); }
+.native-ppt__progress-track span { display: block; width: 28%; height: 100%; border-radius: inherit; background: var(--poster-accent); animation: native-ppt-indeterminate 1.6s ease-in-out infinite alternate; }
+@keyframes native-ppt-spin { to { transform: rotate(360deg); } }
+@keyframes native-ppt-indeterminate { to { transform: translateX(257%); } }
+@media (prefers-reduced-motion: reduce) {
+  .native-ppt__progress-spinner, .native-ppt__progress-track span { animation: none; }
+}
 .native-ppt__dialog { width: min(640px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 40px)); padding: 0; border: 1px solid var(--poster-border); border-radius: var(--od-surface-radius); color: var(--poster-text); background: var(--poster-panel); box-shadow: 0 20px 70px color-mix(in srgb, var(--poster-text) 18%, transparent); }
 .native-ppt__dialog::backdrop { background: color-mix(in srgb, var(--poster-text) 30%, transparent); }
 .native-ppt__dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--poster-line-divide); }

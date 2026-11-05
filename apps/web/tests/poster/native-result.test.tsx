@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { NativePresentationResult } from '../../src/poster/NativePresentationResult';
 import { I18nProvider } from '../../src/i18n';
@@ -10,13 +10,13 @@ it('shows real generation skeletons and keeps the original conversation mounted 
  let completed=false;
  vi.stubGlobal('fetch',vi.fn(async(input:string)=>Response.json(input.includes('/files')?{files:completed?[{name:'index.html',kind:'html',mtime:10,size:100}]:[]}:{runs:[{id:'r',status:completed?'succeeded':'running',createdAt:1}]})));
  render(<I18nProvider defaultLocale="zh-CN"><NativePresentationResult projectId="p"/></I18nProvider>);
- await screen.findByRole('status',{name:'正在生成 PPT…'});
+ await screen.findByRole('status',{name:'正在读取资料和规划页面…'});
  const workspace=screen.getByTitle('生成与修改工作区');
  expect(workspace).toBeTruthy();
  expect(workspace.parentElement?.hidden).toBe(true);
  completed=true;
  expect((await screen.findByTestId('deck',{}, {timeout:5000})).textContent).toContain('index.html');
- expect(screen.queryByRole('status',{name:'正在生成 PPT…'})).toBeNull();
+ expect(screen.queryByRole('status',{name:'正在读取资料和规划页面…'})).toBeNull();
  expect(screen.getByTitle('生成与修改工作区')).toBe(workspace);
  expect(workspace.parentElement?.hidden).toBe(true);
  fireEvent.click(screen.getByRole('button',{name:'修改文稿'}));
@@ -93,7 +93,30 @@ it('opens a real question in a dialog, preserves its answer on failure, and clos
 it('keeps copied template scaffolding behind the loader until the first generation settles',async()=>{
  vi.stubGlobal('fetch',vi.fn(async(input:string)=>Response.json(input.includes('/files')?{files:[{name:'index.html',mtime:1,size:100}]}:{runs:[{id:'r',status:'running',createdAt:1}]})));
  render(<I18nProvider defaultLocale="zh-CN"><NativePresentationResult projectId="p"/></I18nProvider>);
- expect(await screen.findByRole('status',{name:'正在生成 PPT…'})).toBeTruthy();
+ expect(await screen.findByRole('status',{name:'正在读取资料和规划页面…'})).toBeTruthy();
  expect(screen.queryByTestId('deck')).toBeNull();
  expect(screen.getByTitle('生成与修改工作区').parentElement?.hidden).toBe(true);
+});
+
+it('updates layout and review progress from the current run without counting old screenshots', async () => {
+ vi.useFakeTimers();
+ const start = Date.now();
+ const files = [{name:'native-review/old/page-01.png',mtime:start-1}];
+ vi.stubGlobal('fetch', vi.fn(async (url: string) => Response.json(url.includes('/files')
+   ? {files}
+   : {runs:[{id:'r',status:'running',createdAt:start}]})));
+ render(<I18nProvider defaultLocale="zh-CN"><NativePresentationResult projectId="p" requestedAt={start-2000}/></I18nProvider>);
+ expect(screen.getByRole('status',{name:'正在启动生成…'})).toBeTruthy();
+ expect(screen.getByTitle('生成与修改工作区')).toBeTruthy();
+ await act(async()=>{ await vi.advanceTimersByTimeAsync(0); });
+ expect(screen.getByRole('status',{name:'正在读取资料和规划页面…'})).toBeTruthy();
+ files.unshift({name:'content-plan.md',mtime:start+1});
+ await act(async()=>{ await vi.advanceTimersByTimeAsync(1500); });
+ expect(screen.getByRole('status',{name:'正在排版…'})).toBeTruthy();
+ files.unshift({name:'native-review/new/page-01.png',mtime:start+2});
+ await act(async()=>{ await vi.advanceTimersByTimeAsync(1500); });
+ expect(screen.getByRole('status',{name:'正在逐页检查…'})).toBeTruthy();
+ expect(screen.getByText('已渲染 1 页供检查')).toBeTruthy();
+ expect(screen.getByText('已用时 0:05')).toBeTruthy();
+ expect(screen.queryByTestId('deck')).toBeNull();
 });

@@ -10,6 +10,7 @@ import type { Project, SkillSummary } from '../types';
 import { Button, IconButton } from '../components/Button';
 import { SelectField } from '../components/SelectField';
 import { NativePresentationResult } from './NativePresentationResult';
+import { NativePresentationProgress } from './NativePresentationProgress';
 import { NativeTemplatePicker } from './NativeTemplatePicker';
 import { isNativePresentation, prepareNativePresentation, type NativePptBrief, type NativePptSkill } from './native-presentations';
 import './native-presentation-studio.css';
@@ -32,7 +33,8 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   const [view, setView] = useState<'latest' | 'history'>('latest');
   const [historyId, setHistoryId] = useState<string | null>(null);
   const results = useRef<HTMLDivElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [request, setRequest] = useState<{ startedAt: number; phase?: 'preparing' | 'uploading'; projectId?: string } | null>(null);
+  const busy = Boolean(request?.phase);
   const [error, setError] = useState('');
   const available = catalog.some((item) => item.id === skill && item.hasBody);
   const refresh = () => { void listProjects().then((items) => { const decks = items.filter(isNativePresentation).sort((a,b) => b.updatedAt - a.updatedAt); setProjects(decks); setProjectId(current => current ?? decks[0]?.id ?? null); }); };
@@ -66,14 +68,15 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     setView(next); refresh();
   };
   const create = async () => {
-    setBusy(true); setError(''); setView('latest');
+    if (busy) return;
+    const startedAt = Date.now();
+    setRequest({ startedAt, phase: 'preparing' }); setError(''); setView('latest');
     results.current?.scrollIntoView?.({behavior:'smooth',block:'start'});
     try {
-      const project = await prepareNativePresentation(brief, file ?? null);
+      const project = await prepareNativePresentation(brief, file ?? null, () => setRequest({ startedAt, phase: 'uploading' }));
       try { window.sessionStorage.setItem(`od:auto-send-first:${project.id}`, '1'); } catch { /* The original composer still opens with the saved brief. */ }
-      open(project.id); refresh();
-    } catch (err) { setError(err instanceof Error ? err.message : String(err)); refresh(); }
-    finally { setBusy(false); }
+      setRequest({ startedAt, projectId: project.id }); open(project.id); refresh();
+    } catch (err) { setRequest(null); setError(err instanceof Error ? err.message : String(err)); refresh(); }
   };
   const selectTemplate = (next: NativePptSkill, style: string, theme: string) => {
     edit({skill:next, style, theme});
@@ -123,7 +126,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
       <button type="button" id="ppt-tab-history" role="tab" aria-controls="ppt-panel-history" className={view === 'history' ? 'is-active' : undefined} tabIndex={view === 'history' ? 0 : -1} aria-selected={view === 'history'} onClick={() => show('history')}>{zh ? '历史生成' : 'History'} <small>{projects.length}</small></button>
     </div>
     <section id="ppt-panel-latest" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-latest" hidden={view !== 'latest'}>
-      {busy ? <div className="native-ppt__pending" role="status" aria-label={zh?'正在保存资料':'Saving source'}><div className="native-player__skeleton"><span/><span/><span/></div></div> : projectId ? <NativePresentationResult key={projectId} projectId={projectId}/> : <p className="native-ppt__empty">{zh?'生成的文稿会显示在这里':'Your presentation will appear here'}</p>}
+      {request?.phase ? <NativePresentationProgress stage={request.phase} startedAt={request.startedAt}/> : projectId ? <NativePresentationResult key={projectId} projectId={projectId} requestedAt={request?.projectId === projectId ? request.startedAt : undefined}/> : <p className="native-ppt__empty">{zh?'生成的文稿会显示在这里':'Your presentation will appear here'}</p>}
     </section>
     <section id="ppt-panel-history" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-history" hidden={view !== 'history'}>
       {historyId ? <><IconButton label={zh?'返回历史':'Back to history'} onClick={()=>setHistoryId(null)}><ArrowLeft size={18}/></IconButton><NativePresentationResult key={historyId} projectId={historyId}/></> : <div className="native-ppt__history">

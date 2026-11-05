@@ -43,7 +43,7 @@ export function nativePresentationPrompt(brief: NativePptBrief, sourceName?: str
 }
 
 /** Upload finishes before any generation can start. A failed upload stays recoverable. */
-export async function prepareNativePresentation(brief: NativePptBrief, file: File | null): Promise<Project> {
+export async function prepareNativePresentation(brief: NativePptBrief, file: File | null, onUpload?: () => void): Promise<Project> {
   const created = await createProject({
     name: brief.topic.trim().slice(0, 70) || file?.name.replace(/\.[^.]+$/, '') || '演示文稿',
     skillId: brief.skill,
@@ -51,6 +51,7 @@ export async function prepareNativePresentation(brief: NativePptBrief, file: Fil
     metadata: { kind: 'deck', nativePresentation: { ...(brief.provider ? { modelBinding: { provider: brief.provider } } : {}), version: 1, workflow: brief.skill, selection: { template: brief.style, theme: brief.theme }, resourceVersion: NATIVE_PRESENTATION_RESOURCES[brief.skill], brief: nativePresentationPrompt(brief) } },
   });
   if (!created) throw new Error('无法创建文稿，请重试。 / Could not create presentation.');
+  if (file) onUpload?.();
   const uploaded = file ? await uploadProjectFile(created.project.id, file) : null;
   if (file && !uploaded) throw new Error('原文件上传失败，尚未开始生成。可从我的文稿打开草稿重新上传。 / Upload failed; generation has not started.');
   const project = await patchProject(created.project.id, {
