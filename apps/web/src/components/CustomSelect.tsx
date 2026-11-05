@@ -19,7 +19,7 @@ export type CustomSelectItem = CustomSelectOption | CustomSelectGroup;
 
 export interface SelectRenderers {
   renderValue?: (option: CustomSelectOption) => ReactNode;
-  renderOption?: (option: CustomSelectOption, keyboardActive: boolean, keyboardNavigation: boolean) => ReactNode;
+  renderOption?: (option: CustomSelectOption, keyboardActive: boolean, keyboardNavigation: boolean, inSheet: boolean) => ReactNode;
 }
 
 export type SelectSelection =
@@ -36,6 +36,7 @@ interface BaseProps extends SelectRenderers {
   menuGap?: number;
   menuMinWidth?: number;
   submenuLabel?: string;
+  touchSheet?: { backLabel: string; closeLabel: string };
   menuPlacement?: 'adaptive' | 'bottom';
   disabled?: boolean;
   placeholder?: string;
@@ -87,6 +88,7 @@ export function CustomSelect({
   menuGap = 4,
   menuMinWidth,
   submenuLabel,
+  touchSheet,
   menuPlacement = 'adaptive',
   disabled = false,
   placeholder,
@@ -100,11 +102,16 @@ export function CustomSelect({
   const reactId = useId();
   const idBase = reactId.replace(/:/g, '');
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const sheetRef = useRef<HTMLDialogElement>(null);
+  const sheetBackRef = useRef<HTMLButtonElement>(null);
+  const rootScroll = useRef(0);
+  const returnFocus = useRef<string>();
   const submenuRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const firstValue = multiple ? value[0] ?? '' : value;
   const activeSourceValueRef = useRef(firstValue);
   const [open, setOpen] = useState(false);
+  const [inSheet, setInSheet] = useState(false);
   const [submenuValue, setSubmenuValue] = useState<string>();
   const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [activeValue, setActiveValue] = useState(firstValue);
@@ -136,9 +143,9 @@ export function CustomSelect({
   const activeOptionId = open && activeValue ? optionIdByValue.get(activeValue) : undefined;
 
   useEffect(() => {
-    if (!open || !keyboardNavigation || (!submenuLabel && !submenuOptions) || !activeOptionId) return;
+    if (!open || inSheet || !keyboardNavigation || (!submenuLabel && !submenuOptions) || !activeOptionId) return;
     document.getElementById(activeOptionId)?.scrollIntoView?.({ block: 'nearest' });
-  }, [open, keyboardNavigation, submenuLabel, submenuOptions, activeOptionId]);
+  }, [open, inSheet, keyboardNavigation, submenuLabel, submenuOptions, activeOptionId]);
 
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
@@ -173,13 +180,35 @@ export function CustomSelect({
   }, [menuGap, menuMinWidth, menuPlacement]);
 
   useEffect(() => {
-    if (!portal) return;
+    if (!portal || inSheet) return;
     if (!open) {
       setPosition(null);
       return;
     }
     updatePosition();
-  }, [open, portal, updatePosition]);
+  }, [open, portal, inSheet, updatePosition]);
+
+  useEffect(() => {
+    const dialog = sheetRef.current;
+    if (!open || !inSheet || !dialog) return;
+    const trigger = buttonRef.current;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      trigger?.focus();
+    };
+  }, [open, inSheet]);
+
+  useEffect(() => {
+    if (!open || !inSheet) return;
+    if (submenu) {
+      sheetBackRef.current?.focus();
+    } else if (returnFocus.current) {
+      if (menuRef.current) menuRef.current.scrollTop = rootScroll.current;
+      document.getElementById(returnFocus.current)?.focus({ preventScroll: true });
+      returnFocus.current = undefined;
+    }
+  }, [open, inSheet, submenu]);
 
   useEffect(() => {
     if (!open) {
@@ -197,11 +226,11 @@ export function CustomSelect({
     if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target) || submenuRef.current?.contains(target)) return;
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target) || submenuRef.current?.contains(target) || sheetRef.current?.contains(target)) return;
       setOpen(false);
     };
     const onScrollOrResize = () => {
-      if (portal) updatePosition();
+      if (portal && !inSheet) updatePosition();
     };
     document.addEventListener('mousedown', onPointerDown);
     window.addEventListener('resize', onScrollOrResize);
@@ -211,16 +240,29 @@ export function CustomSelect({
       window.removeEventListener('resize', onScrollOrResize);
       window.removeEventListener('scroll', onScrollOrResize, true);
     };
-  }, [open, portal, updatePosition]);
+  }, [open, portal, inSheet, updatePosition]);
+
+  const openSubmenu = (option: CustomSelectOption) => {
+    if (option.disabled || !option.subOptions?.length || submenuValue === option.value) return;
+    if (inSheet) rootScroll.current = menuRef.current?.scrollTop ?? 0;
+    setSubmenuValue(option.value);
+    setActiveValue(option.subOptions.find(child => child.value === firstValue && !child.disabled)?.value
+      ?? option.subOptions.find(child => !child.disabled)?.value ?? '');
+  };
+
+  const backToOptions = () => {
+    if (!submenu) return;
+    if (inSheet) returnFocus.current = optionIdByValue.get(submenu.value);
+    setActiveValue(submenu.value);
+    setSubmenuValue(undefined);
+  };
 
   const choose = (nextValue: string) => {
     const next = submenuOptions?.find(option => option.value === nextValue) ?? flatOptions.find(option => option.value === nextValue);
     if (!next || next.disabled) return;
     if (!multiple && next.subOptions?.length) {
-      setSubmenuValue(next.value);
-      setActiveValue(next.subOptions.find(option => option.value === value && !option.disabled)?.value
-        ?? next.subOptions.find(option => !option.disabled)?.value ?? '');
-      buttonRef.current?.focus();
+      openSubmenu(next);
+      if (!inSheet) buttonRef.current?.focus();
       return;
     }
     if (multiple) {
@@ -247,6 +289,9 @@ export function CustomSelect({
     const selectedOption = flatOptions.find(option => option.value === rootValue && !option.disabled);
     setActiveValue(selectedOption?.value ?? enabledOptions[0]?.value ?? '');
     activeSourceValueRef.current = firstValue;
+    rootScroll.current = 0;
+    returnFocus.current = undefined;
+    setInSheet(Boolean(portal && touchSheet && window.matchMedia?.('(hover: none) and (pointer: coarse)').matches));
     setSubmenuValue(undefined);
     setOpen(true);
   };
@@ -270,8 +315,7 @@ export function CustomSelect({
     if (submenu && (event.key === 'ArrowLeft' || event.key === 'Escape')) {
       event.preventDefault();
       event.stopPropagation();
-      setActiveValue(submenu.value);
-      setSubmenuValue(undefined);
+      backToOptions();
       return;
     }
     if (event.key === 'Enter' || event.key === ' ') {
@@ -302,6 +346,11 @@ export function CustomSelect({
       submenuId={`${idBase}-submenu`}
       id={optionIdByValue.get(option.value)}
       onChoose={choose}
+      inSheet={inSheet}
+      onMouseEnter={!inSheet && touchSheet && option.subOptions?.length ? () => {
+        setKeyboardNavigation(false);
+        openSubmenu(option);
+      } : undefined}
       onActive={next => {
         setKeyboardNavigation(false);
         if (!submenu || inSubmenu) setActiveValue(next);
@@ -316,16 +365,18 @@ export function CustomSelect({
   const menuLeft = position && submenuOptions && menuWidth !== undefined
     ? Math.max(VIEWPORT_PADDING, Math.min(position.left, position.viewportWidth - 2 * menuWidth - SUBMENU_GAP - VIEWPORT_PADDING))
     : position?.left;
-  const submenuMenu = submenuOptions && position && menuWidth !== undefined && menuLeft !== undefined && (
+  const submenuMenu = submenuOptions && (inSheet || position) && (
     <div
       ref={submenuRef}
       id={`${idBase}-submenu`}
-      className={['od-select-menu', 'portal', menuClassName, 'od-select-submenu'].filter(Boolean).join(' ')}
+      className={['od-select-menu', inSheet ? 'od-select-sheet__list' : 'portal', menuClassName, 'od-select-submenu'].filter(Boolean).join(' ')}
       role="listbox"
       aria-label={submenuLabel}
-      style={{ top: position.top, left: menuLeft + menuWidth + SUBMENU_GAP, width: menuWidth, maxHeight: position.maxHeight }}
+      style={!inSheet && position && menuLeft !== undefined && menuWidth !== undefined
+        ? { top: position.top, left: menuLeft + menuWidth + SUBMENU_GAP, width: menuWidth, maxHeight: position.maxHeight }
+        : undefined}
     >
-      <div className="od-select-group-label">{submenuLabel}</div>
+      {!inSheet && <div className="od-select-group-label">{submenuLabel}</div>}
       {submenuOptions.map(option => renderRow(option, true))}
     </div>
   );
@@ -336,14 +387,15 @@ export function CustomSelect({
       id={`${idBase}-menu`}
       className={[
         'od-select-menu',
-        portal ? 'portal' : 'inline',
+        inSheet ? 'od-select-sheet__list' : portal ? 'portal' : 'inline',
         menuClassName,
       ].filter(Boolean).join(' ')}
       role="listbox"
       aria-label={ariaLabel}
       aria-multiselectable={multiple || undefined}
+      hidden={inSheet && Boolean(submenu)}
       style={
-        portal && position
+        portal && !inSheet && position
           ? {
               top: position.top,
               left: menuLeft,
@@ -367,6 +419,37 @@ export function CustomSelect({
     </div>
   );
 
+  const sheet = touchSheet && (
+    <dialog
+      ref={sheetRef}
+      id={`${idBase}-sheet`}
+      className="od-select-sheet"
+      aria-labelledby={`${idBase}-sheet-title`}
+      onCancel={event => {
+        event.preventDefault();
+        if (submenu) backToOptions();
+        else setOpen(false);
+      }}
+      onClick={event => { if (event.target === event.currentTarget) setOpen(false); }}
+    >
+      <div className="od-select-sheet__body">
+        <header className="od-select-sheet__header">
+          {submenu && (
+            <button ref={sheetBackRef} type="button" aria-label={touchSheet.backLabel} onClick={backToOptions}>
+              <Icon name="chevron-left" size={18} />
+            </button>
+          )}
+          <h2 id={`${idBase}-sheet-title`}>{submenu ? submenuLabel : ariaLabel}</h2>
+          <button type="button" aria-label={touchSheet.closeLabel} onClick={() => setOpen(false)}>
+            <Icon name="close" size={18} />
+          </button>
+        </header>
+        {menu}
+        {submenuMenu}
+      </div>
+    </dialog>
+  );
+
   return (
     <div className={['od-select', className].filter(Boolean).join(' ')}>
       <button
@@ -375,10 +458,10 @@ export function CustomSelect({
         className={['od-select-trigger', triggerClassName].filter(Boolean).join(' ')}
         role="combobox"
         value={multiple ? value.join(',') : value}
-        aria-haspopup="listbox"
+        aria-haspopup={inSheet ? 'dialog' : 'listbox'}
         aria-expanded={open}
-        aria-controls={submenuOptions ? `${idBase}-menu ${idBase}-submenu` : `${idBase}-menu`}
-        aria-activedescendant={activeOptionId}
+        aria-controls={inSheet ? `${idBase}-sheet` : submenuOptions ? `${idBase}-menu ${idBase}-submenu` : `${idBase}-menu`}
+        aria-activedescendant={inSheet ? undefined : activeOptionId}
         aria-labelledby={labelledBy}
         aria-label={`${ariaLabel}: ${selectedLabel}`}
         data-testid={testId}
@@ -393,7 +476,11 @@ export function CustomSelect({
         </span>
         <Icon name="chevron-down" size={14} />
       </button>
-      {open ? (portal ? (position ? createPortal(<>{menu}{submenuMenu}</>, document.body) : null) : menu) : null}
+      {open && (portal
+        ? inSheet
+          ? createPortal(sheet, document.body)
+          : position && createPortal(<>{menu}{submenuMenu}</>, document.body)
+        : menu)}
     </div>
   );
 }
@@ -407,6 +494,8 @@ function SelectOptionButton({
   id,
   onChoose,
   onActive,
+  onMouseEnter,
+  inSheet,
   renderOption,
   keyboardNavigation,
 }: {
@@ -418,6 +507,8 @@ function SelectOptionButton({
   id?: string;
   onChoose: (value: string) => void;
   onActive: (value: string) => void;
+  onMouseEnter?: () => void;
+  inSheet: boolean;
   renderOption?: SelectRenderers['renderOption'];
   keyboardNavigation: boolean;
 }) {
@@ -435,12 +526,13 @@ function SelectOptionButton({
       aria-haspopup={expanded === undefined ? undefined : 'listbox'}
       aria-expanded={expanded}
       aria-controls={expanded ? submenuId : undefined}
-      tabIndex={-1}
+      tabIndex={inSheet ? undefined : -1}
       disabled={option.disabled}
       onMouseMove={() => onActive(option.value)}
+      onPointerEnter={event => { if (event.pointerType === 'mouse') onMouseEnter?.(); }}
       onClick={() => onChoose(option.value)}
     >
-      <span className="od-select-option-label">{renderOption ? renderOption(option, active && keyboardNavigation, keyboardNavigation) : option.label}</span>
+      <span className="od-select-option-label">{renderOption ? renderOption(option, active && keyboardNavigation, keyboardNavigation, inSheet) : option.label}</span>
       {expanded === undefined ? (
         <span className="od-select-option-check" aria-hidden><Icon name="check" size={13} /></span>
       ) : <Icon name="chevron-right" size={14} aria-hidden />}

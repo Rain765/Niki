@@ -49,6 +49,7 @@ export function NativeTemplatePicker({ workflow, template, theme, onChange, disa
       disabled={disabled}
       label={zh ? '模板与风格' : 'Template & style'}
       submenuLabel={zh ? '配色与字体' : 'Colors & type'}
+      touchSheet={{ backLabel: zh ? '返回模板与风格' : 'Back to template & style', closeLabel: zh ? '关闭' : 'Close' }}
       value={chosenValue}
       onChange={value => {
         const item = options.find(item => item.value === value || item.subOptions?.some(child => child.value === value));
@@ -67,7 +68,7 @@ export function NativeTemplatePicker({ workflow, template, theme, onChange, disa
           disabled={disabled}
         />
       )}
-      renderOption={(option, keyboardActive, keyboardNavigation) => {
+      renderOption={(option, keyboardActive, keyboardNavigation, inSheet) => {
         const item = options.find(item => item.value === option.value);
         const palette = options.flatMap(item => item.subOptions ?? []).find(child => child.value === option.value);
         const asset = item?.value === selected.value ? selectedTheme?.asset ?? item.asset : item?.asset ?? palette!.asset;
@@ -78,7 +79,7 @@ export function NativeTemplatePicker({ workflow, template, theme, onChange, disa
             keyboardActive={keyboardActive}
             keyboardNavigation={keyboardNavigation}
             disabled={disabled}
-            previewable={!item?.subOptions}
+            previewable={!inSheet && !item?.subOptions}
           />
         );
       }}

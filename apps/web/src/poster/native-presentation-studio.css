@@ -80,10 +80,10 @@
 .native-ppt-question [role=alert] { margin: 12px 0 0; color: var(--poster-danger); font-size: 13px; }
 
 @media (max-width: 520px) {
-  .od-select-menu:has(+ .od-select-submenu) .native-template-option,
-  .od-select-submenu .native-template-option { gap: 6px; }
-  .od-select-menu:has(+ .od-select-submenu) .native-template-option__label,
-  .od-select-submenu .native-template-option__label { white-space: normal; overflow-wrap: anywhere; }
-  .od-select-menu:has(+ .od-select-submenu) .native-template-option__thumb,
-  .od-select-submenu .native-template-option__thumb { flex-basis: 24px; width: 24px; height: 16px; }
+  .od-select-menu:has(+ .od-select-submenu.portal) .native-template-option,
+  .od-select-submenu.portal .native-template-option { gap: 6px; }
+  .od-select-menu:has(+ .od-select-submenu.portal) .native-template-option__label,
+  .od-select-submenu.portal .native-template-option__label { white-space: normal; overflow-wrap: anywhere; }
+  .od-select-menu:has(+ .od-select-submenu.portal) .native-template-option__thumb,
+  .od-select-submenu.portal .native-template-option__thumb { flex-basis: 24px; width: 24px; height: 16px; }
 }

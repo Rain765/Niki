@@ -13,6 +13,7 @@ interface SelectFieldBaseProps extends SelectRenderers {
   label: string;
   menuMinWidth?: number;
   submenuLabel?: string;
+  touchSheet?: { backLabel: string; closeLabel: string };
   onFocus?: () => void;
   options: CustomSelectItem[];
   testId?: string;
@@ -26,6 +27,7 @@ export function SelectField({
   label,
   menuMinWidth = 224,
   submenuLabel,
+  touchSheet,
   onFocus,
   options,
   testId,
@@ -51,6 +53,7 @@ export function SelectField({
         menuGap={8}
         menuMinWidth={menuMinWidth}
         submenuLabel={submenuLabel}
+        touchSheet={touchSheet}
         menuPlacement="bottom"
         onFocus={onFocus}
         options={options}
