@@ -73,7 +73,7 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
       if (event.data.type === 'niki:ppt:question') {
         const next = event.data.question as PresentationQuestionRequest | null;
         setQuestion(next);
-        if (next?.id && next.id !== questionId.current) { setMode('question'); setAnswerError(''); setAnswerBusy(false); }
+        if (next?.id && !next.continuation && next.id !== questionId.current) { setMode('question'); setAnswerError(''); setAnswerBusy(false); }
         if (!next) { setMode(current => current === 'question' ? null : current); setAnswerBusy(false); }
         questionId.current = next?.id ?? null;
       }
@@ -94,8 +94,10 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
     }
   }, [mode]);
   const openWorkspace = () => { setOpened(true); setMode('workspace'); };
-  const paused = !loading && !running && !entry && hasRun;
-  const status = question ? (zh ? '等待你的回答' : 'Waiting for your answer')
+  const paused = !loading && !running && !entry && (hasRun || Boolean(question?.continuation));
+  const activeQuestion = question && (!question.continuation || (paused && !failed)) ? question : null;
+  const status = activeQuestion?.continuation ? (zh ? '可继续生成' : 'Ready to continue')
+    : activeQuestion ? (zh ? '等待你的回答' : 'Waiting for your answer')
     : configurationRequired ? (zh ? '请先完成生成设置' : 'Finish setup to continue')
     : failed ? (zh ? '生成未完成' : 'Generation did not finish')
     : paused ? (zh ? '尚未生成文稿' : 'No presentation generated yet')
@@ -104,21 +106,23 @@ export function NativePresentationResult({ projectId }: { projectId: string }) {
   return <div className="native-ppt__result">
     {error && <p role="alert">{error} <Button size="compact" onClick={()=>setRetry(n=>n+1)}>{zh?'重试':'Retry'}</Button></p>}
     {!entry && !error && <div className="native-ppt__pending" role="status" aria-label={status}>
-      {!question && !failed && !paused && !configurationRequired && <div className="native-player__skeleton"><span/><span/><span/></div>}
+      {!activeQuestion && !failed && !paused && !configurationRequired && <div className="native-player__skeleton"><span/><span/><span/></div>}
       <div className="native-ppt__stage-status"><span>{status}</span>
-        {question ? <Button onClick={()=>setMode('question')}>{zh?'回答问题':'Answer questions'}</Button>
+        {activeQuestion ? <Button onClick={()=>setMode('question')}>{activeQuestion.continuation
+          ? (zh ? '查看方案并继续' : 'Review and continue')
+          : (zh ? '回答问题' : 'Answer questions')}</Button>
           : (failed || paused || configurationRequired) && <Button onClick={openWorkspace}>{zh?(configurationRequired?'生成设置':'查看进度'):(configurationRequired?'Generation settings':'View progress')}</Button>}
       </div>
     </div>}
     {entry && <NativePresentationPreview projectId={projectId} name={entry.name} revision={revision} editingDisabled={running} onRevise={openWorkspace}/>}
-    {entry && question && mode !== 'question' && <Button onClick={()=>setMode('question')}>{zh?'回答问题':'Answer questions'}</Button>}
+    {entry && activeQuestion && mode !== 'question' && <Button onClick={()=>setMode('question')}>{zh?'回答问题':'Answer questions'}</Button>}
     <dialog ref={dialog} className="native-ppt__dialog" aria-labelledby={`ppt-dialog-title-${projectId}`} onCancel={()=>setMode(null)} onClose={()=>setMode(null)}>
       <header><h2 id={`ppt-dialog-title-${projectId}`}>{zh?(mode==='question'?'确认内容':configurationRequired?'生成设置':'修改文稿'):(mode==='question'?'Confirm details':configurationRequired?'Generation settings':'Revise presentation')}</h2>
         <IconButton label={zh?'关闭':'Close'} onClick={()=>setMode(null)}><X size={18}/></IconButton></header>
-      {question && <div hidden={mode !== 'question'}><NativePresentationQuestionForm key={question.id} request={question} busy={answerBusy} error={answerError} onSubmit={content=>{
+      {activeQuestion && <div hidden={mode !== 'question'}><NativePresentationQuestionForm key={activeQuestion.id} request={activeQuestion} busy={answerBusy} error={answerError} onSubmit={content=>{
         if (answerBusy) return;
         setAnswerBusy(true); setAnswerError('');
-        workspaceFrame.current?.contentWindow?.postMessage({type:'niki:ppt:answer',projectId,id:question.id,content},window.location.origin);
+        workspaceFrame.current?.contentWindow?.postMessage({type:'niki:ppt:answer',projectId,id:activeQuestion.id,content},window.location.origin);
       }}/></div>}
       {opened && <div className="native-ppt__workspace" hidden={mode !== 'workspace'}>
         <iframe ref={workspaceFrame} title={zh?'生成与修改工作区':'Generation and editing workspace'} src={`${nativePresentationWorkspaceUrl(projectId)}&embedded=1`} allowFullScreen />

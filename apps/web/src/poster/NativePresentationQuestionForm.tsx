@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useI18n } from '../i18n';
 import { Button } from '../components/Button';
+import { renderMarkdown } from '../runtime/markdown';
 import { QuestionFormView } from '../components/QuestionForm';
 import type { PresentationQuestionRequest } from './native-presentation-questions';
 
@@ -13,7 +14,18 @@ export function NativePresentationQuestionForm({ request, busy, error, onSubmit 
   const questions = request.questions ?? [];
   const ready = questions.every((_, index) => custom[index]?.trim() || choices[index]?.length);
   return <div className="native-ppt-question">
-    {request.form ? <fieldset disabled={busy} className="native-ppt-question__form">
+    {request.continuation ? <form onSubmit={event => {
+      event.preventDefault();
+      if (busy) return;
+      const feedback = custom[0]?.trim();
+      onSubmit(feedback
+        ? (zh ? `请根据以下补充要求继续生成演示稿。\n${feedback}` : `Continue generating the deck with this feedback.\n${feedback}`)
+        : (zh ? '确认按上述方案继续生成完整演示稿。' : 'Proceed with the plan above and generate the complete deck.'));
+    }}>
+      <div className="native-ppt-question__summary">{renderMarkdown(request.continuation)}</div>
+      <textarea rows={2} aria-label={zh ? '补充要求' : 'Additional requirements'} placeholder={zh ? '补充要求（可选）' : 'Additional requirements (optional)'} value={custom[0] ?? ''} disabled={busy} onChange={event => setCustom({ 0: event.target.value })} />
+      <div className="native-ppt-question__actions"><Button type="submit" variant="primary" disabled={busy} loading={busy}>{zh ? '继续生成' : 'Continue generating'}</Button></div>
+    </form> : request.form ? <fieldset disabled={busy} className="native-ppt-question__form">
       <QuestionFormView form={{ ...request.form, submitLabel: zh ? '继续生成' : 'Continue generating' }} interactive={!busy} onSubmit={text => onSubmit(text)} />
     </fieldset> : <form onSubmit={event => {
       event.preventDefault();

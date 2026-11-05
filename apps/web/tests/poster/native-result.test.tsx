@@ -31,6 +31,29 @@ it('shows the original interaction when a run pauses without an artifact, not a 
  expect(screen.queryByRole('dialog')).toBeNull();
  expect(screen.getByTitle('生成与修改工作区').parentElement?.hidden).toBe(true);
 });
+it('continues a prose-only plan without reopening or creating a new project', async () => {
+ vi.stubGlobal('fetch',vi.fn(async(input:string)=>Response.json(input.includes('/files')?{files:[]}:{runs:[]})));
+ render(<I18nProvider defaultLocale="zh-CN"><NativePresentationResult projectId="p"/></I18nProvider>);
+ const frame=await screen.findByTitle('生成与修改工作区') as HTMLIFrameElement;
+ const question={id:'m:continuation',continuation:'建议做 **18 页**，请确认。'};
+ fireEvent(window,new MessageEvent('message',{origin:location.origin,source:frame.contentWindow,data:{projectId:'p',type:'niki:ppt:question',question}}));
+ expect(screen.queryByRole('dialog')).toBeNull();
+ fireEvent.click(await screen.findByRole('button',{name:'查看方案并继续'}));
+ expect(await screen.findByText('18 页')).toBeTruthy();
+ const post=vi.spyOn(frame.contentWindow!,'postMessage');
+ fireEvent.click(screen.getByRole('button',{name:'继续生成'}));
+ expect(post).toHaveBeenCalledWith({type:'niki:ppt:answer',projectId:'p',id:'m:continuation',content:'确认按上述方案继续生成完整演示稿。'},location.origin);
+});
+
+it('keeps prose continuation hidden while generation is active', async () => {
+ vi.stubGlobal('fetch',vi.fn(async(input:string)=>Response.json(input.includes('/files')?{files:[]}:{runs:[{id:'r',status:'running',createdAt:1}]})));
+ render(<I18nProvider defaultLocale="zh-CN"><NativePresentationResult projectId="p"/></I18nProvider>);
+ const frame=await screen.findByTitle('生成与修改工作区') as HTMLIFrameElement;
+ fireEvent(window,new MessageEvent('message',{origin:location.origin,source:frame.contentWindow,data:{projectId:'p',type:'niki:ppt:question',question:{id:'m:continuation',continuation:'文稿已完成。'}}}));
+ expect(screen.queryByRole('dialog')).toBeNull();
+ expect(screen.queryByRole('button',{name:'查看方案并继续'})).toBeNull();
+});
+
 it('reports connection failures without claiming that generation is running',async()=>{
  vi.stubGlobal('fetch',vi.fn(async()=>new Response('',{status:503})));
  render(<I18nProvider defaultLocale="zh-CN"><NativePresentationResult projectId="p"/></I18nProvider>);

@@ -22,6 +22,13 @@ it('supports Codex questions without options and completed native question forms
  expect(pendingPresentationQuestion([form],new Set())).toBeNull();
  expect(pendingPresentationQuestion([{...form,runStatus:'succeeded'}],new Set())?.form?.id).toBe('brief');
 });
+it('offers a reply to a completed prose-only turn and suppresses it once submitted', () => {
+  const plan = {...turn, events: [], runStatus: 'succeeded' as const, content: '建议做 18 页，请确认。'};
+  expect(pendingPresentationQuestion([plan], new Set())).toEqual({id:'m:continuation',continuation:plan.content});
+  expect(pendingPresentationQuestion([plan], new Set(['m:continuation']))).toBeNull();
+  expect(pendingPresentationQuestion([{...plan, runStatus:'failed'}], new Set())).toBeNull();
+});
+
 function setup(canSend=false) {
  const parent=document.createElement('iframe');document.body.append(parent);
  vi.spyOn(window,'parent','get').mockReturnValue(parent.contentWindow!);

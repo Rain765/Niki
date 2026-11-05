@@ -5,6 +5,7 @@ export type PresentationQuestion = { question: string; multiSelect: boolean; opt
 export type PresentationQuestionRequest = {
   id: string; runId?: string; toolUseId?: string;
   questions?: PresentationQuestion[]; form?: QuestionForm;
+  continuation?: string;
 };
 
 /** Only unanswered questions from the current assistant turn can interrupt the presentation canvas. */
@@ -16,8 +17,11 @@ export function pendingPresentationQuestion(messages: ChatMessage[], submitted: 
     .map(event => event.kind === 'tool_result' ? event.toolUseId : '')));
   const active = latest.runStatus === 'running' || latest.runStatus === 'queued';
   const rejected = new Set((latest.events ?? []).filter(event => event.kind === 'tool_result' && event.isError).map(event => event.kind === 'tool_result' ? event.toolUseId : ''));
-  for (const event of latest.events ?? []) {
-    if (event.kind !== 'tool_use' || !/(?:AskUserQuestion|ask_user_question|request_user_input)$/.test(event.name) || answered.has(event.id) || (active && rejected.has(event.id))) continue;
+  const questionTools = (latest.events ?? [])
+    .filter(event => event.kind === 'tool_use')
+    .filter(event => /(?:AskUserQuestion|ask_user_question|request_user_input)$/.test(event.name));
+  for (const event of questionTools) {
+    if (answered.has(event.id) || (active && rejected.has(event.id))) continue;
     const id = `${latest.id}:${event.id}`;
     if (submitted.has(id)) continue;
     const input = event.input as { questions?: unknown } | null;
@@ -35,10 +39,15 @@ export function pendingPresentationQuestion(messages: ChatMessage[], submitted: 
   }
   // Text forms become actionable only when the turn is no longer producing content.
   if (latest.runStatus === 'running' || latest.runStatus === 'queued') return null;
-  for (const segment of splitOnQuestionForms(latest.content)) {
-    if (segment.kind !== 'form') continue;
+  const forms = splitOnQuestionForms(latest.content).filter(segment => segment.kind === 'form');
+  for (const segment of forms) {
     const id = `${latest.id}:form:${segment.form.id}`;
     if (!submitted.has(id)) return { id, form: segment.form };
+  }
+  // The canvas offers this reply only if the completed turn produced no deck.
+  const id = `${latest.id}:continuation`;
+  if (latest.runStatus === 'succeeded' && !questionTools.length && !forms.length && latest.content.trim() && !submitted.has(id)) {
+    return { id, continuation: latest.content };
   }
   return null;
 }
