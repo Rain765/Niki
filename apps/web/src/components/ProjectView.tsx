@@ -1810,6 +1810,10 @@ export function ProjectView({
         const needsTerminalReplay =
           message.runStatus === 'succeeded' &&
           (!message.content.trim() || producedFileCount === 0);
+        // Native presentations may finish a turn with a saved plan and no files.
+        // The plan remains actionable after the daemon forgets the completed run.
+        const hasSavedPresentationReply = message.runStatus === 'succeeded' &&
+          Boolean(project.metadata?.nativePresentation && message.content.trim());
         const needsFullReplay = needsTerminalReplay || isActiveRunStatus(message.runStatus);
         if (!isActiveRunStatus(message.runStatus) && !needsTerminalReplay) continue;
         const fallbackRun = !message.runId
@@ -1824,6 +1828,7 @@ export function ProjectView({
         // output — Working 24m+" UI the user reported. Mark it failed so
         // the composer is interactive again and the user can re-send.
         if (!runId) {
+          if (hasSavedPresentationReply) continue;
           updateMessageById(
             message.id,
             (prev) => ({
@@ -1849,12 +1854,13 @@ export function ProjectView({
         const status = fallbackRun ?? await fetchChatRunStatus(runId);
         if (cancelled) return;
         if (!status) {
+          completedReattachRunsRef.current.add(runId);
+          if (hasSavedPresentationReply) continue;
           updateMessageById(
             message.id,
             (prev) => ({ ...prev, runStatus: 'failed', endedAt: prev.endedAt ?? Date.now() }),
             true,
           );
-          completedReattachRunsRef.current.add(runId);
           continue;
         }
         updateMessageById(
@@ -2108,6 +2114,7 @@ export function ProjectView({
     streaming,
     messages,
     project.id,
+    project.metadata?.nativePresentation,
     updateMessageById,
     persistMessageById,
     auditDesignSystemWorkspaceAfterRun,
