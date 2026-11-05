@@ -32,6 +32,40 @@ it('preserves authenticated local module bytes through a preview-only import map
  expect(deck.source).toBe(source);expect(nativeDeckSrcdoc(deck,'p',0)).toContain('type="importmap"');
 });
 
+it('carries local styles, nested styles and classic scripts into an opaque preview in their original order', async () => {
+ const source='<html><head><link rel="stylesheet" href="assets/base.css"><link rel="stylesheet" href="style.css" media="screen"><link rel="stylesheet" href="/api/projects/other/raw/private.css"></head><body><section class="slide"><h1>Title</h1></section><script defer src="assets/runtime.js"></script></body></html>';
+ const files: Record<string, string> = {
+   'deck/index.html': source,
+   'deck/assets/base.css': '@import "../theme/colors.css"; /* url(missing.svg) */ .slide{display:none}',
+   'deck/theme/colors.css': '.slide{color:blue}',
+   'deck/style.css': '.slide.is-active{display:block}',
+   'deck/assets/runtime.js': 'window.slideRuntime = true;',
+ };
+ vi.mocked(fetchProjectFileText).mockImplementation(async (_id,name) => files[name] ?? null);
+ const deck = await loadNativeDeck('p','deck/index.html');
+ expect(deck.source).toBe(source);
+ const preview = new DOMParser().parseFromString(nativeDeckSrcdoc(deck,'p',0),'text/html');
+ const styles = Array.from(preview.querySelectorAll('link[rel="stylesheet"]'));
+ const decode = (url: string) => decodeURIComponent(url.slice(url.indexOf(',')+1));
+ const base = decode(styles[0]!.getAttribute('href')!);
+ expect(base).toContain('data:text/css;charset=utf-8,'+encodeURIComponent(files['deck/theme/colors.css']!));
+ expect(base).toContain('.slide{display:none}');
+ expect(decode(styles[1]!.getAttribute('href')!)).toBe(files['deck/style.css']);
+ expect(styles[1]!.getAttribute('media')).toBe('screen');
+ expect(styles[2]!.getAttribute('href')).toBe('/api/projects/other/raw/private.css');
+ const script = preview.querySelector('script[src]')!;
+ expect(script.hasAttribute('defer')).toBe(true);
+ expect(decode(script.getAttribute('src')!)).toBe(files['deck/assets/runtime.js']);
+ expect(vi.mocked(fetchProjectFileText).mock.calls.map(([,name]) => name).sort()).toEqual(Object.keys(files).sort());
+});
+
+it('reports a missing local stylesheet before showing an unstyled deck', async () => {
+ vi.mocked(fetchProjectFileText).mockImplementation(async (_id,name) => name === 'index.html'
+   ? '<link rel="stylesheet" href="style.css"><section class="slide"><h1>Title</h1></section>'
+   : null);
+ await expect(loadNativeDeck('p','index.html')).rejects.toThrow('Could not load presentation assets');
+});
+
 it('identifies an unfinished entry separately from read and wrapper failures',async()=>{
  vi.mocked(fetchProjectFileText).mockResolvedValue('<html><body></body></html>');
  await expect(loadNativeDeck('p','index.html')).rejects.toBeInstanceOf(NativeDeckPendingError);

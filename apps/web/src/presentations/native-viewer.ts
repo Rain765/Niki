@@ -8,11 +8,90 @@ export class NativeDeckPendingError extends Error {
 
 export interface NativeDeckDocument {
   source: string;
+  previewSource?: string;
   name: string;
   titles: string[];
   width: number;
   height: number;
   moduleImports?: Record<string, string>;
+}
+
+function previewDataUrl(mime: string, text: string): string {
+  return `data:${mime};charset=utf-8,${encodeURIComponent(text)}`;
+}
+
+// The opaque viewer cannot use the application's SameSite login cookie.
+// Read only references inside this project from the authenticated host and
+// supply their bytes to the preview, leaving the saved deck untouched.
+async function preparePreviewSource(doc: Document, projectId: string, name: string): Promise<string | undefined> {
+  const root = new URL(projectFileUrl(projectId, ''), window.location.origin);
+  const base = new URL(projectFileUrl(projectId, name), window.location.origin);
+  const files = new Map<string, Promise<string>>();
+  const local = (url: URL) => url.origin === root.origin && url.pathname.startsWith(root.pathname) && url.pathname !== root.pathname;
+  const missing = () => new Error('文稿资源加载失败，请重新加载。 / Could not load presentation assets. Retry.');
+  const fileText = (url: URL) => {
+    const path = decodeURIComponent(url.pathname.slice(root.pathname.length));
+    if (!files.has(path)) files.set(path, fetchProjectFileText(projectId, path, { cache: 'no-store' }).then(text => {
+      if (text === null) throw missing();
+      return text;
+    }));
+    return files.get(path)!;
+  };
+  const media = new Map<string, Promise<string>>();
+  const mediaUrl = (url: URL) => {
+    const hash = url.hash;
+    const path = url.origin + url.pathname;
+    if (!media.has(path)) media.set(path, fetch(path, { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw missing();
+      const blob = await response.blob();
+      if (!/^(?:image|font)\//i.test(blob.type)) return path;
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(missing());
+        reader.readAsDataURL(blob);
+      });
+    }));
+    return media.get(path)!.then(data => data + hash);
+  };
+  const stylesheet = async (url: URL, ancestors = new Set<string>()): Promise<string> => {
+    if (ancestors.has(url.pathname)) return previewDataUrl('text/css', '');
+    const chain = new Set(ancestors).add(url.pathname);
+    const css = await fileText(url);
+    const pattern = /\/\*[\s\S]*?\*\/|(@import\s+)(?:"([^"]*)"|'([^']*)')|(@import\s+)?url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*?))\s*\)/gi;
+    const rewritten = new Map<string, string>();
+    await Promise.all([...css.matchAll(pattern)].map(async match => {
+      const reference = (match[2] ?? match[3] ?? match[5] ?? match[6] ?? match[7] ?? '').trim();
+      if (!reference || reference.startsWith('#') || /^(?:data|blob):/i.test(reference)) return;
+      const dependency = new URL(reference, url);
+      const importPrefix = match[1] ?? match[4];
+      let href = dependency.href;
+      if (local(dependency)) {
+        if (!importPrefix) href = await mediaUrl(dependency);
+        else if (/\.css$/i.test(dependency.pathname)) href = await stylesheet(dependency, chain);
+      }
+      rewritten.set(match[0], `${importPrefix ?? ''}url(${JSON.stringify(href)})`);
+    }));
+    return previewDataUrl('text/css', css.replace(pattern, match => rewritten.get(match) ?? match));
+  };
+  const resources = [...doc.querySelectorAll('link[rel~="stylesheet" i][href],script[src],img[src]')];
+  const replacements = await Promise.all(resources.map(async element => {
+    const attr = element.tagName === 'LINK' ? 'href' : 'src';
+    const url = new URL(element.getAttribute(attr)!, base);
+    if (!local(url)) return false;
+    if (element.tagName === 'LINK') {
+      if (!/\.css$/i.test(url.pathname)) return false;
+      element.setAttribute(attr, await stylesheet(url));
+    } else if (element.tagName === 'IMG') {
+      element.setAttribute(attr, await mediaUrl(url));
+    } else {
+      const type = element.getAttribute('type')?.trim().toLowerCase();
+      if (!/\.[cm]?js$/i.test(url.pathname) || (type && !['text/javascript', 'application/javascript'].includes(type))) return false;
+      element.setAttribute(attr, previewDataUrl('text/javascript', await fileText(url)));
+    }
+    return true;
+  }));
+  if (replacements.some(Boolean)) return '<!doctype html>\n' + doc.documentElement.outerHTML;
 }
 
 // A sandboxed srcdoc has an opaque origin: native module imports cannot send the
@@ -29,7 +108,7 @@ async function originalModuleImports(source: string, projectId: string, name: st
     const text = await fetchProjectFileText(projectId, decodeURIComponent(url.pathname.slice(root.pathname.length)), { cache: 'no-store' });
     // Keep original URL resolution for modules with dependencies or import.meta.
     if (text === null || /\b(?:from\s*['"]|import\s*(?:['".(]))/.test(text)) return;
-    imports[url.href] = `data:text/javascript;charset=utf-8,${encodeURIComponent(text)}`;
+    imports[url.href] = previewDataUrl('text/javascript', text);
   }));
   return imports;
 }
@@ -46,8 +125,11 @@ export async function loadNativeDeck(projectId: string, entry: string): Promise<
     const slides = Array.from(doc.querySelectorAll('#deck > .slide, .deck > .slide, body > .slide'));
     if (slides.length) {
       const portrait = doc.body.classList.contains('tpl-xhs-post');
-      const moduleImports = await originalModuleImports(source, projectId, name);
-      return {source, name, moduleImports, titles:slides.map((slide,i) => (slide.getAttribute('data-title') || slide.querySelector('h1,h2,h3')?.textContent || `Page ${i+1}`).trim().replace(/\s+/g,' ')),width:portrait?960:1280,height:portrait?1280:720};
+      const [moduleImports, previewSource] = await Promise.all([
+        originalModuleImports(source, projectId, name),
+        preparePreviewSource(doc, projectId, name),
+      ]);
+      return {source, previewSource, name, moduleImports, titles:slides.map((slide,i) => (slide.getAttribute('data-title') || slide.querySelector('h1,h2,h3')?.textContent || `Page ${i+1}`).trim().replace(/\s+/g,' ')),width:portrait?960:1280,height:portrait?1280:720};
     }
     const frames = doc.querySelectorAll('iframe[src]');
     if (frames.length !== 1) throw new NativeDeckPendingError();
@@ -64,7 +146,7 @@ export function nativeDeckSrcdoc(deck: NativeDeckDocument, projectId: string, in
   const baseHref = new URL(projectFileUrl(projectId,deck.name), window.location.origin).href;
   const compatibility = `<script data-niki-native-compat>for(const key of ['replaceState','pushState']){const original=history[key].bind(history);history[key]=function(...args){try{return original(...args)}catch(e){if(e.name!=='SecurityError')throw e}}}</script>`;
   const importMap = Object.keys(deck.moduleImports ?? {}).length ? `<script type="importmap">${JSON.stringify({ imports: deck.moduleImports }).replace(/</g,'\\u003c')}</script>` : '';
-  const html = deck.source.replace(/<head\b[^>]*>/i, match => match+compatibility+importMap);
+  const html = (deck.previewSource ?? deck.source).replace(/<head\b[^>]*>/i, match => match+compatibility+importMap);
   const bridge = `<script data-niki-native-viewer>(function(){
     const slides=[...document.querySelectorAll('#deck > .slide, .deck > .slide, body > .slide')];
     const start=${Number.isInteger(initialPage)?Math.max(0,initialPage):0};
