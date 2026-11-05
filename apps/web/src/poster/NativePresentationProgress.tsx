@@ -10,6 +10,7 @@ const labels = {
   planning: ['正在读取资料和规划页面…', 'Reading materials and planning slides…'],
   layout: ['正在排版…', 'Laying out slides…'],
   review: ['正在逐页检查…', 'Reviewing slides…'],
+  rechecking: ['正在复检…', 'Rechecking slides…'],
 } as const;
 
 export type NativePresentationStage = keyof typeof labels;

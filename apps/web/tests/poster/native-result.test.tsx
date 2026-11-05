@@ -119,4 +119,8 @@ it('updates layout and review progress from the current run without counting old
  expect(screen.getByText('已渲染 1 页供检查')).toBeTruthy();
  expect(screen.getByText('已用时 0:05')).toBeTruthy();
  expect(screen.queryByTestId('deck')).toBeNull();
+ files.unshift({name:'native-review/recheck/page-01.png',mtime:start+3001});
+ await act(async()=>{ await vi.advanceTimersByTimeAsync(1500); });
+ expect(screen.getByRole('status',{name:'正在复检…'})).toBeTruthy();
+ expect(screen.getByText('已渲染 1 页供检查')).toBeTruthy();
 });

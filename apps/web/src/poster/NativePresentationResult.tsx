@@ -59,6 +59,7 @@ export function NativePresentationResult({ projectId, requestedAt }: { projectId
           const reviewFolder = screenshots[0]?.name.split('/').slice(0, 2).join('/');
           const checkedPages = reviewFolder ? screenshots.filter(file => file.name.startsWith(reviewFolder + '/')).length : undefined;
           const stage = activeRun.status === 'queued' ? 'queued'
+            : checkedPages && checkedPages < screenshots.length ? 'rechecking'
             : checkedPages ? 'review'
             : files.some(file => file.name === 'content-plan.md' && (!hadEntry.current || file.mtime >= activeRun.createdAt)) ? 'layout'
             : 'planning';
