@@ -1,3 +1,6 @@
+export const NIKI_PASSWORD_MIN_LENGTH = 12;
+export const NIKI_PASSWORD_MAX_LENGTH = 128;
+
 export interface NikiAuthUser {
   id: string;
   name: string;

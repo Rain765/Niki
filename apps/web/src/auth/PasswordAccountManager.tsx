@@ -1,16 +1,21 @@
 'use client';
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import type {
-  NikiManagedUser,
-  NikiManagedUserListResponse,
-  NikiPasswordAccountCreateResponse,
-  NikiPasswordAccountPasswordUpdateResponse,
+import {
+  NIKI_PASSWORD_MAX_LENGTH,
+  NIKI_PASSWORD_MIN_LENGTH,
+  type NikiManagedUser,
+  type NikiManagedUserListResponse,
+  type NikiPasswordAccountCreateResponse,
+  type NikiPasswordAccountPasswordUpdateResponse,
 } from '@open-design/contracts';
 
 function passwordValidationError(password: string, confirmation: string): string {
-  if (password.length < 4 || password.length > 128) {
-    return '密码需为 4–128 个字符';
+  if (
+    password.length < NIKI_PASSWORD_MIN_LENGTH
+    || password.length > NIKI_PASSWORD_MAX_LENGTH
+  ) {
+    return `密码需为 ${NIKI_PASSWORD_MIN_LENGTH}–${NIKI_PASSWORD_MAX_LENGTH} 个字符`;
   }
   if (password !== confirmation) return '两次输入的密码不一致';
   return '';
@@ -289,10 +294,10 @@ export function PasswordAccountManager({
               type="text"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="至少 4 个字符"
+              placeholder={`至少 ${NIKI_PASSWORD_MIN_LENGTH} 个字符`}
               autoComplete="new-password"
-              minLength={4}
-              maxLength={128}
+              minLength={NIKI_PASSWORD_MIN_LENGTH}
+              maxLength={NIKI_PASSWORD_MAX_LENGTH}
               spellCheck={false}
               required
             />
@@ -305,8 +310,8 @@ export function PasswordAccountManager({
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder="再次输入相同密码"
               autoComplete="new-password"
-              minLength={4}
-              maxLength={128}
+              minLength={NIKI_PASSWORD_MIN_LENGTH}
+              maxLength={NIKI_PASSWORD_MAX_LENGTH}
               spellCheck={false}
               required
             />
@@ -422,8 +427,8 @@ export function PasswordAccountManager({
                       type="text"
                       value={replacementPassword}
                       onChange={(event) => setReplacementPassword(event.target.value)}
-                      minLength={4}
-                      maxLength={128}
+                      minLength={NIKI_PASSWORD_MIN_LENGTH}
+                      maxLength={NIKI_PASSWORD_MAX_LENGTH}
                       autoComplete="new-password"
                       spellCheck={false}
                       required
@@ -435,8 +440,8 @@ export function PasswordAccountManager({
                       type="text"
                       value={confirmReplacementPassword}
                       onChange={(event) => setConfirmReplacementPassword(event.target.value)}
-                      minLength={4}
-                      maxLength={128}
+                      minLength={NIKI_PASSWORD_MIN_LENGTH}
+                      maxLength={NIKI_PASSWORD_MAX_LENGTH}
                       autoComplete="new-password"
                       spellCheck={false}
                       required

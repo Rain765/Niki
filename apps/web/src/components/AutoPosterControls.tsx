@@ -27,6 +27,7 @@ interface Props {
   brand: AutoPosterBrand;
   pending?: boolean;
   disabled?: boolean;
+  generateDisabled?: boolean;
   testIdPrefix: string;
   className?: string;
   inlineOnMobile?: boolean;
@@ -55,6 +56,7 @@ export function AutoPosterControls({
   brand,
   pending = false,
   disabled = false,
+  generateDisabled = false,
   testIdPrefix,
   className,
   inlineOnMobile = false,
@@ -68,6 +70,7 @@ export function AutoPosterControls({
 }: Props) {
   const t = useT();
   const controlsDisabled = pending || disabled;
+  const generateActionDisabled = controlsDisabled || generateDisabled;
   const [open, setOpen] = useState(false);
   const [mobileInlineActive, setMobileInlineActive] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -217,7 +220,7 @@ export function AutoPosterControls({
   };
 
   const generate = () => {
-    if (controlsDisabled || !onGenerate) return;
+    if (generateActionDisabled || !onGenerate) return;
     setOpen(false);
     onGenerate();
   };
@@ -300,7 +303,7 @@ export function AutoPosterControls({
             type="button"
             className="auto-poster-filter__generate-action"
             data-testid={`${testIdPrefix}-generate`}
-            disabled={controlsDisabled}
+            disabled={generateActionDisabled}
             onClick={generate}
           >
             <Icon name={pending ? 'spinner' : 'sparkles'} size={18} />

@@ -596,6 +596,7 @@ export const HomeHero = forwardRef<HTMLTextAreaElement, Props>(function HomeHero
           brand={autoPosterBrand}
           pending={autoPosterPending}
           disabled={autoPosterDisabled}
+          generateDisabled={submitDisabled}
           testIdPrefix="home-hero-auto-poster"
           inlineOnMobile
           onOpenChange={setAutoPosterSettingsOpen}

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { NIKI_PASSWORD_MIN_LENGTH } from '@open-design/contracts';
 
 import {
   closeDatabase,
@@ -12,10 +13,12 @@ import {
 } from '../src/db.js';
 import {
   consumeNikiOAuthState,
+  createPasswordUser,
   createNikiOAuthState,
   createNikiSession,
   resolveNikiSession,
   upsertFeishuUser,
+  verifyPasswordUser,
 } from '../src/niki-auth.js';
 import {
   currentNikiSessionToken,
@@ -113,6 +116,28 @@ describe('Niki Feishu authentication persistence', () => {
     expect(stored.tokenHash).not.toBe(session.token);
     expect(resolveNikiSession(db, session.token, now + 30_000)?.id).toBe(user.id);
     expect(resolveNikiSession(db, session.token, now + 60_001)).toBeNull();
+  });
+
+  it('enforces the password length boundary for managed accounts', async () => {
+    const db = openDatabase(tempDir, { dataDir: tempDir });
+
+    await expect(createPasswordUser(db, {
+      username: 'short-password',
+      name: 'Short password',
+      password: 'a'.repeat(NIKI_PASSWORD_MIN_LENGTH - 1),
+    })).rejects.toMatchObject({ code: 'weak-password' });
+
+    const password = 'a'.repeat(NIKI_PASSWORD_MIN_LENGTH);
+    const account = await createPasswordUser(db, {
+      username: 'valid-password',
+      name: 'Valid password',
+      password,
+    });
+
+    expect(account.username).toBe('valid-password');
+    await expect(verifyPasswordUser(db, account.username, password)).resolves.toMatchObject({
+      id: account.user.id,
+    });
   });
 
   it('consumes OAuth state exactly once', () => {

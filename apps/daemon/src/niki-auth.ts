@@ -7,7 +7,11 @@ import {
 } from 'node:crypto';
 import { promisify } from 'node:util';
 import type Database from 'better-sqlite3';
-import type { NikiPasswordAccount } from '@open-design/contracts';
+import {
+  NIKI_PASSWORD_MAX_LENGTH,
+  NIKI_PASSWORD_MIN_LENGTH,
+  type NikiPasswordAccount,
+} from '@open-design/contracts';
 import type { NikiAuthUser, NikiUserRole } from './niki-auth-context.js';
 
 type SqliteDb = Database.Database;
@@ -179,8 +183,14 @@ function normalizeUsername(username: string): string {
 }
 
 function validatePassword(password: string): void {
-  if (password.length < 4 || password.length > 128) {
-    throw new NikiPasswordAccountError('密码需为 4–128 个字符', 'weak-password');
+  if (
+    password.length < NIKI_PASSWORD_MIN_LENGTH
+    || password.length > NIKI_PASSWORD_MAX_LENGTH
+  ) {
+    throw new NikiPasswordAccountError(
+      `密码需为 ${NIKI_PASSWORD_MIN_LENGTH}–${NIKI_PASSWORD_MAX_LENGTH} 个字符`,
+      'weak-password',
+    );
   }
 }
 
@@ -295,7 +305,7 @@ export async function verifyPasswordUser(
   password: string,
 ): Promise<NikiAuthUser | null> {
   const normalized = normalizeUsername(username);
-  if (!normalized || !password || password.length > 128) return null;
+  if (!normalized || !password || password.length > NIKI_PASSWORD_MAX_LENGTH) return null;
   const row = db.prepare(
     `SELECT ${JOINED_USER_COLS}, accounts.password_hash AS passwordHash
        FROM niki_password_accounts accounts

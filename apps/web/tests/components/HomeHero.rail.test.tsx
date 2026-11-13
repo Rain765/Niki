@@ -141,6 +141,25 @@ describe('HomeHero intent rail', () => {
     expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it('keeps the settings generate action disabled when submission is blocked', () => {
+    const onAutoPoster = vi.fn();
+    renderHero({
+      submitDisabled: true,
+      onAutoPoster,
+    });
+
+    fireEvent.click(screen.getByTestId('home-hero-auto-poster-product-zamloan'));
+
+    const generate = screen.getByTestId(
+      'home-hero-auto-poster-generate',
+    ) as HTMLButtonElement;
+    expect(generate.disabled).toBe(true);
+    expect((screen.getByTestId('home-hero-submit') as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(generate);
+    expect(onAutoPoster).not.toHaveBeenCalled();
+  });
+
   it('places product tags above the capsule input', () => {
     renderHero();
 
