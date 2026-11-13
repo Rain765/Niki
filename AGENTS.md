@@ -1,3 +1,41 @@
+# Personal Codex workflow
+
+## Automatic coding-task wrap-up
+
+- For requests that change code, use `$safe-task-commit` when it is available.
+- Record the Git baseline before editing.
+- After repository-required validation passes, automatically stage only task-owned changes and create a scoped commit unless the user explicitly asks not to commit.
+- In a dirty worktree, isolate substantial work on a `codex/<task-slug>` branch or separate worktree. Never mix, discard, reset, or overwrite unrelated user changes.
+- Review the complete staged diff before committing. Never add co-author metadata.
+- Do not push, open a pull request, amend, rebase, or force-push unless the user requests it.
+
+## User-provided copy and visible labels
+
+- Treat user-provided documents and approved copy as the source of truth. When placing them on a website or in another artifact, preserve wording, order, punctuation, spelling, and substantive meaning. Do not silently summarize, correct, omit, rearrange, or supplement the source text unless the user explicitly asks.
+- Do not add visible review or preview notices, approval-status labels, watermarks, source notes, disclaimers, badges, or other editorial marks on your own initiative. Keep business-review concerns in the conversation or internal project notes unless the user requests public-facing copy.
+- Change only the files and text needed for the user's explicit request. Do not make opportunistic copy edits or modify attached source originals. If a source conflicts with an earlier requirement or the intended product, identify the exact conflict and obtain direction before changing the copy; do not invent replacement wording.
+- Before delivery, compare transformed text against its source, inspect every affected page and variant for unrequested additions or omissions, review the complete diff, and run the project's required checks. A technical change is not approval to change business wording.
+
+## Mac mini Codex remote connection ownership
+
+- On `Mac-mini.local` (the Niki host), the ChatGPT/Codex desktop app is the sole provider of Codex remote access. Air and iMac connect to this host. Keep this arrangement unless the user explicitly requests a migration to standalone hosting.
+- Do not use `codex remote-control start` as a status check, enable standalone daemon remote control, or recreate/enable `com.openai.codex.remote-control-proxy-bootstrap` during routine troubleshooting. These operations can compete with the desktop app for the same remote device identity and cause HTTP 409 `Remote app server already online`.
+- Baseline established on 2026-09-07: standalone daemon `remoteControlEnabled` is false; the duplicate launchd bootstrap is persistently disabled. A standalone daemon may remain available for local CLI use without serving remote connections.
+- Diagnose with read-only process inspection, daemon version queries, desktop logs, and remote transport status. Separate connection conflicts from proxy/network failures; do not work around a desktop networking issue by enabling a second remote provider.
+- A future hosting migration must disable the previous remote provider before enabling the replacement. Recheck ownership after changing startup configuration or upgrading either installation.
+- Verify both project listing and historical task access from an actual remote client when available. Local reads plus a Connected transport establish server health only; do not claim remote UI acceptance without observing it.
+
+## Niki worktree and storage lifecycle
+
+- On the Niki Mac mini, apply `/Users/rain/.local/share/niki-runtime/OPERATIONS.md` at task wrap-up, after deployment, and during storage maintenance. The repository copy is `deploy/OPERATIONS.md`.
+- Keep the active deployment and one verified rollback release intact. Temporary worktrees are for active tasks; retire completed, delivered copies after the checks below. The user authorizes routine cleanup that satisfies these checks.
+- Before removal, verify the real path, task completion, delivered commit ancestry, clean tracked/untracked state, ignored files, processes, open files, runtime configuration and startup references. Keep busy, unmerged or uncertain worktrees; confirm task ownership before touching Codex-managed worktrees. Never remove the current task checkout.
+- Preserve source branches and commit records. Archive local databases, uploads, artifacts, environment files, credentials and validation evidence outside the repository with a provenance/restoration manifest. `.tmp` and `.od` are not blanket cache directories. Do not print or commit secret contents.
+- Stop task-owned development services only through `corepack pnpm tools-dev` with the correct namespace. Recheck immediately before `git worktree remove <path>`; do not force it, use `git clean -fdx`, or recursively delete a worktree as a fallback.
+- After cache cleanup, validate daily applications and the actual deployment. Do not reinstall dependencies in every retired copy. If one temporary verification runtime is needed, isolate its namespace, ports and data, then stop and retire it after verification.
+- Before large dependency installs or builds on this host, run `node /Users/rain/.local/share/niki-auth/storage-policy.ts preflight`; stop when it rejects the operation. The existing minute-by-minute monitor now uses 30/20/10 GiB warning/cleanup/critical levels, with 2 GiB recovery headroom. The deployment script also enforces the 10 GiB preflight. Report actual filesystem free space separately from directory sizes; do not automatically purge Time Machine snapshots or user data.
+- The existing host monitor now compares directory growth weekly and performs bounded allowlisted maintenance: old npm logs, idle generated npx caches, and closed monitor logs only. Do not broaden it to worktrees, application databases, artifacts, credentials or archived backups. Worktree retirement still follows the task-end checks above. Archived local data has no automatic expiry. Keep the desktop app as the sole Codex remote provider.
+
 # Directory guide
 
 This file is the single source of truth for agents entering this repository. Read this file first; after entering `apps/`, `packages/`, `tools/`, or `e2e/`, read that layer's `AGENTS.md` for module-level details. Do not copy module details back into the root file; root stays focused on cross-repository boundaries, workflow, and commands.
@@ -40,6 +78,17 @@ This file is the single source of truth for agents entering this repository. Rea
 - New project-owned entrypoints, modules, scripts, tests, reporters, and configs should default to TypeScript.
 - Residual JavaScript is limited to generated output, vendored dependencies, explicitly documented compatibility build artifacts, and the allowlist in `scripts/guard.ts`.
 
+## Codex Cloud development
+
+- Follow `docs/codex-cloud.md` for the repository/ref, installation, isolated web startup, validation, and production handoff. Start new cloud tasks from the latest GitHub `main` after fetching; `codex/cloud-development` is a historical branch with separate product changes, not the current cloud baseline. Preserve cloud changes already on `main`.
+- Cloud workspaces develop and validate changes on Linux. Mac mini storage checks, launch agents, local absolute paths, and desktop remote-provider ownership apply only on that Mac; do not recreate those host services or paths in a cloud workspace.
+- Install Node 24 and the pinned pnpm through Corepack, then run `corepack pnpm install --frozen-lockfile` with lifecycle scripts enabled. Use `tools-dev` for daemon/web startup; do not launch Electron in a headless cloud workspace.
+- Use fresh task-local data through `OD_DATA_DIR`. Production databases, uploads, browser sessions, provider credentials, and the Mac's installed skills do not transfer automatically. If `$safe-task-commit` is unavailable, apply the Git baseline, task-only staging, complete staged-diff review, validation, and scoped-commit requirements in this file directly.
+- The canonical public Feishu URL is `https://niki-work-app.pages.dev/`. The old `niki.tail795f4a.ts.net` address is historical; do not use it for current acceptance or infer that cloud development requires Tailscale. An allowed public domain provides neither host deployment access nor credentials.
+- Cloud validation and publishing a source branch are development delivery only. For a product change, production delivery remains required through the existing Mac mini release workflow. If an authorized connection to that host is unavailable, report the exact commit, validation results, and pending host deployment; never claim the Feishu application updated. Documentation-only cloud setup does not require rebuilding the production application.
+- Before host deployment, compare the intended source against the actual active release. GitHub `main` and the Mac release may have diverged; do not deploy an older product tree over newer host features. Reconcile required product changes in a separate scoped task, preserving both sides, before deploying.
+- Do not enable a second Codex remote provider or migrate production hosting to make cloud development work. Connect to production services only when the task requires it and access is explicitly configured.
+
 ## Windows native
 
 - macOS, Linux, and WSL2 are the primary supported paths. Windows native is best-effort — file an issue if it doesn't work.
@@ -55,6 +104,24 @@ This file is the single source of truth for agents entering this repository. Rea
 - Do not add or restore root lifecycle aliases: `pnpm dev`, `pnpm dev:all`, `pnpm daemon`, `pnpm preview`, or `pnpm start`.
 - Ports are governed by `tools-dev` flags: `--daemon-port` and `--web-port`.
 - `tools-dev` exports `OD_PORT` for the web proxy target and `OD_WEB_PORT` for the web listener; do not use `NEXT_PORT`.
+
+## Delivery target verification
+
+- Before implementing a user-facing change, identify the exact version the user is currently running: entry URL or desktop app, process namespace, source worktree, branch, and `HEAD`. Use read-only lifecycle status, process inspection, and HTTP checks as needed; do not assume the agent's current worktree is the delivery target.
+- A commit on an isolated task branch is implementation evidence, not delivery. Do not tell the user a change is delivered while the runtime they are viewing still points at another worktree, branch, commit, packaged release, or stopped service.
+- After validation, integrate the task commit into the branch that backs the user's active runtime. For this repository, the user grants standing authorization to fast-forward a clean local `main` when it is the active runtime branch. If `main` is dirty, diverged, or the integration is not a fast-forward, stop and ask rather than mixing or rewriting work. This authorization does not include pushing or publishing remote releases.
+- Restart, rebuild, reinstall, or hot-reload the active runtime as appropriate, then verify the actual user-facing URL or desktop instance resolves to the integrated commit. For proxied web URLs, compare the proxy response with the local runtime and perform a real browser refresh when possible.
+- Final handoff must state the active branch and commit, the runtime URL or packaged version verified, and any refresh/restart the user still needs. If the active instance could not be updated or inspected, report that limitation explicitly instead of claiming completion.
+
+### User-requested remote delivery
+
+- **Niki standing development rule:** For a requested Niki fix or implementation, identify the cause, present a concise plan, then implement, validate, commit, and deploy to the active Feishu Niki instance in the same task. Do not ask for another plan/deployment confirmation or wait for a reminder. An explicit request for diagnosis or a plan only remains read-only until the user authorizes implementation. If the user has already approved a plan, continue directly through delivery.
+- **Delivery acceptance:** Local tests, component previews, and a task-branch commit are not proof of delivery. Verify the external URL's release SHA, the actual loaded build assets, and the changed behavior in a freshly loaded browser when possible. Label preview-only checks and unavailable authenticated/mobile checks explicitly; never describe them as production UI verification. Report completion only after the deployed version matches the intended commit.
+- This standing authorization covers the scoped Niki change and its existing Feishu release workflow, not unrelated remote publishing or Git history rewrites. Stop only at a genuine permission, conflicting-work, deployment, or verification blocker; state the exact blocker without repeatedly seeking approval already given.
+- Outside the Niki standing authorization above, a code change request alone does not authorize remote publication. When the user explicitly asks to push, publish, or deploy, complete the full delivery loop in the same task without waiting for a second reminder: validate the scoped commit, push it with tracking, deploy through the active delivery target identified above, wait for the deployment result, and verify the user-facing URL.
+- The Feishu Niki app at `https://niki-work-app.pages.dev` is delivered through the immutable local release workflow. Deploy a clean source worktree with `~/.local/share/niki-auth/deploy.zsh <source-worktree>`; the script builds daemon and web, switches the active release, restarts the launch agent, and performs health checks. Verify the external Pages URL and its loaded build assets before handoff. See `deploy/cloudflare/README.md` for the current ingress; application hosting remains on the Mac mini.
+- Vercel branch builds are previews and are not evidence that the Feishu app updated. Do not substitute a Vercel preview for the active Feishu release or promote another production target unless the user requested it.
+- If credentials, network access, release ancestry, runtime health, or deployment checks block the loop, stop at that boundary and report the exact state. Never claim that Feishu or another hosted app has updated until the active user-facing URL resolves to the delivered build.
 
 ## Root command boundary
 
