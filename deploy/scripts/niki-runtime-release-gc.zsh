@@ -38,22 +38,14 @@ function prune_niki_runtime_releases() {
         ;;
     esac
 
-    if /usr/bin/git -C "${source_dir}" worktree remove --force "${release_real}" >/dev/null 2>&1; then
+    # The first Actions deployment uses a different Git checkout from earlier
+    # manual releases. Never delete another checkout's registered worktree or
+    # bypass Git's dirty/locked-worktree checks.
+    if /usr/bin/git -C "${source_dir}" worktree remove "${release_real}" >/dev/null 2>&1; then
       print -r -- "[niki-deploy] removed old release ${release_real:t}"
       continue
     fi
 
-    # Older deploys may have left a plain checkout that is no longer registered
-    # as a Git worktree. It is safe to remove only inside the dedicated release
-    # store and only when it still looks like an Open Design checkout.
-    if [[ -f "${release_real}/package.json" ]]; then
-      if /bin/rm -rf -- "${release_real}"; then
-        print -r -- "[niki-deploy] removed stale release ${release_real:t}"
-      else
-        print -u2 -- "[niki-deploy] failed to remove stale release ${release_real:t}"
-      fi
-    else
-      print -u2 -- "[niki-deploy] skipped unknown release entry ${release_real:t}"
-    fi
+    print -u2 -- "[niki-deploy] retained release for reviewed maintenance ${release_real:t}"
   done
 }
