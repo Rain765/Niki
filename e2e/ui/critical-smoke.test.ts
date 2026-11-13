@@ -9,8 +9,11 @@ test('home loads the production navigation and poster controls', async ({ page, 
   await page.goto('/');
   const navigation = page.getByRole('navigation', { name: '主导航' });
   await expect(navigation.getByRole('button')).toHaveText([
-    '海报', '视频', 'PPT', '品牌', '文档', '语音', '竞品',
+    '海报', '视频', 'PPT', '品牌', '竞品', '更多',
   ]);
+  await navigation.getByRole('button', { name: '更多', exact: true }).click();
+  await expect(page.getByRole('menuitem')).toHaveText(['文档', '语音']);
+  await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: '海报生成设置' })).toBeVisible();
   await expect(page.getByRole('combobox', { name: '产品', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '生成', exact: true })).toBeEnabled();

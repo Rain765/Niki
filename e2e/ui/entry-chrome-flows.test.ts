@@ -56,9 +56,16 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1024, height: 768 
 test('video, PPT, document and voice navigation retain their deep links', async ({ page }) => {
   await page.goto('/');
   const navigation = page.getByRole('navigation', { name: '主导航' });
-  for (const [name, mode] of [['视频', 'video'], ['PPT', 'ppt'], ['文档', 'documents'], ['语音', 'english']] as const) {
+  for (const [name, mode] of [['视频', 'video'], ['PPT', 'ppt']] as const) {
     await navigation.getByRole('button', { name, exact: true }).click();
     await expect(navigation.getByRole('button', { name, exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveURL(new RegExp(`\\?mode=${mode}$`));
+  }
+  const more = navigation.getByRole('button', { name: '更多', exact: true });
+  for (const [name, mode] of [['文档', 'documents'], ['语音', 'english']] as const) {
+    await more.click();
+    await page.getByRole('menuitem', { name, exact: true }).click();
+    await expect(more).toHaveAttribute('aria-current', 'page');
     await expect(page).toHaveURL(new RegExp(`\\?mode=${mode}$`));
   }
   await navigation.getByRole('button', { name: '品牌', exact: true }).click();
