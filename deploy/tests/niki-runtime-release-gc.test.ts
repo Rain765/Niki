@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -8,7 +8,7 @@ import { test } from 'node:test';
 const helper = path.resolve(import.meta.dirname, '../scripts/niki-runtime-release-gc.zsh');
 
 test('retains foreign, dirty and unknown releases during the first runner deployment', async () => {
-  const root = await mkdtemp(path.join(tmpdir(), 'niki-release-gc-'));
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'niki-release-gc-')));
   const source = path.join(root, 'runner');
   const oldSource = path.join(root, 'manual');
   const releases = path.join(root, 'releases');
