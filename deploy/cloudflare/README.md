@@ -46,8 +46,11 @@ changes with `~/.local/share/niki-auth/deploy.zsh <source-worktree>`, following
 workflow. Read `~/.local/share/niki-runtime/current` and the public
 `/api/version` to identify the live version; the migration records below are
 historical, not the current application version. Verify loaded build assets and
-changed behavior after every product release. Pushing GitHub source does not
-update this runtime or redeploy the Cloudflare ingress.
+changed behavior after every product release. Pushing GitHub source does not by
+itself update this runtime or redeploy the Cloudflare ingress. Once the dedicated
+Mac self-hosted runner is installed and its fail-closed history gate has been
+accepted, the [production auto-deploy workflow](../AUTO_DEPLOY.md) invokes the
+same local release script after CI succeeds.
 
 ## Historical ingress implementation (2026-10-20)
 

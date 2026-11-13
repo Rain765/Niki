@@ -55,6 +55,12 @@ can verify a release but cannot install code or restart the Mac application.
 Direct cloud-to-host deployment would require a separately configured and
 authorized channel; do not invent SSH access from a working website URL.
 
+The supported unattended channel is the repository's dedicated Mac self-hosted
+runner described in [`deploy/AUTO_DEPLOY.md`](../deploy/AUTO_DEPLOY.md). It runs
+the same existing release script only after CI succeeds and release ancestry is
+verified. Until that runner is online, production history is reconciled, and the
+repository enable variable is set, continue to report Mac deployment as pending.
+
 Repository commits cannot change a saved Codex environment. In its settings,
 select the current source ref where available, update the additional domain,
 test, save and publish the configuration, then start a new task. Report draft
@@ -171,6 +177,9 @@ validated, deploy a clean checkout through
 [OPERATIONS.md](../deploy/OPERATIONS.md), including storage preflight, preserving
 the rollback release, and worktree retirement checks. Do not overwrite a dirty
 or diverged `main`, reset release history, or deploy a different preview target.
+When the [production auto-deploy workflow](../deploy/AUTO_DEPLOY.md) is enabled,
+it performs this handoff on the dedicated Mac runner and intentionally refuses a
+target whose history does not contain the current production release.
 
 After deployment, verify the release SHA at the public Pages URL, loaded build
 assets, and changed behavior in a freshly loaded browser. Report unavailable

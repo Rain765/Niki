@@ -1,0 +1,195 @@
+name: Niki production deploy
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: Commit to deploy; defaults to the selected ref
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: niki-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy on Niki Mac mini
+    if: >-
+      github.repository == 'Rain765/Niki' &&
+      vars.NIKI_PRODUCTION_AUTO_DEPLOY == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success')
+    runs-on: [self-hosted, macOS, ARM64, niki-production]
+    timeout-minutes: 60
+
+    steps:
+      - name: Resolve requested commit
+        id: requested
+        env:
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_SHA: ${{ inputs.target_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          requested="${WORKFLOW_RUN_SHA:-${MANUAL_SHA:-$WORKFLOW_SHA}}"
+          if [[ ! "$requested" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "Requested deployment ref is not a full commit SHA: $requested" >&2
+            exit 1
+          fi
+          normalized="$(printf '%s' "$requested" | tr '[:upper:]' '[:lower:]')"
+          echo "sha=$normalized" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout deployment source
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.requested.outputs.sha }}
+
+      - name: Reject stale CI results
+        id: target
+        env:
+          TARGET_SHA: ${{ steps.requested.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked_out="$(git rev-parse HEAD^{commit})"
+          current_main="$(git rev-parse origin/main^{commit})"
+          if [[ "$checked_out" != "$TARGET_SHA" ]]; then
+            echo "Checkout resolved to $checked_out, expected $TARGET_SHA" >&2
+            exit 1
+          fi
+          if [[ "$current_main" != "$TARGET_SHA" ]]; then
+            echo "Skipping stale CI result $TARGET_SHA; main is now $current_main"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Niki production deploy skipped"
+              echo
+              echo "CI completed for \`$TARGET_SHA\`, but current \`main\` is \`$current_main\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+            echo "Deployment checkout is not clean" >&2
+            git status --short >&2
+            exit 1
+          fi
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify host and release ancestry
+        id: preflight
+        if: steps.target.outputs.deploy == 'true'
+        env:
+          PUBLIC_VERSION_URL: https://niki-work-app.pages.dev/api/version
+          TARGET_SHA: ${{ steps.requested.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          deploy_script="$HOME/.local/share/niki-auth/deploy.zsh"
+          storage_policy="$HOME/.local/share/niki-auth/storage-policy.ts"
+          test -x "$deploy_script"
+          test -f "$storage_policy"
+          node "$storage_policy" preflight
+
+          before_json="$RUNNER_TEMP/niki-version-before.json"
+          curl --fail --silent --show-error --max-time 30 \
+            "$PUBLIC_VERSION_URL" > "$before_json"
+          live_sha="$(node -e '
+            const fs = require("node:fs");
+            const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const release = value?.version?.release;
+            if (typeof release !== "string" || !/^[0-9a-f]{40}$/i.test(release)) process.exit(1);
+            process.stdout.write(release.toLowerCase());
+          ' "$before_json")"
+          echo "live_sha=$live_sha" >> "$GITHUB_OUTPUT"
+
+          if [[ "$live_sha" == "$TARGET_SHA" ]]; then
+            echo "Production already serves $TARGET_SHA"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git cat-file -e "$live_sha^{commit}" 2>/dev/null; then
+            echo "Live release $live_sha is absent from the deployment history." >&2
+            echo "Reconcile the Mac production source into main before enabling automatic deployment." >&2
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$live_sha" "$TARGET_SHA"; then
+            echo "Refusing to replace live release $live_sha with unrelated commit $TARGET_SHA." >&2
+            echo "Reconcile both product histories in a reviewed commit first." >&2
+            exit 1
+          fi
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy immutable release
+        if: steps.target.outputs.deploy == 'true' && steps.preflight.outputs.deploy == 'true'
+        env:
+          TARGET_SHA: ${{ steps.requested.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^{commit})" = "$TARGET_SHA"
+          "$HOME/.local/share/niki-auth/deploy.zsh" "$GITHUB_WORKSPACE"
+
+      - name: Verify public release
+        if: steps.target.outputs.deploy == 'true'
+        env:
+          EXPECTED_SHA: ${{ steps.requested.outputs.sha }}
+          DEPLOY_RAN: ${{ steps.preflight.outputs.deploy }}
+          PUBLIC_BASE_URL: https://niki-work-app.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_json="$RUNNER_TEMP/niki-version-after.json"
+          observed=""
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error --max-time 30 \
+              "$PUBLIC_BASE_URL/api/version" > "$version_json"; then
+              observed="$(node -e '
+                const fs = require("node:fs");
+                const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+                process.stdout.write(String(value?.version?.release ?? ""));
+              ' "$version_json")"
+              if [[ "$observed" == "$EXPECTED_SHA" ]]; then
+                break
+              fi
+            fi
+            sleep 3
+          done
+          if [[ "$observed" != "$EXPECTED_SHA" ]]; then
+            echo "Public release is $observed, expected $EXPECTED_SHA" >&2
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --max-time 30 \
+            "$PUBLIC_BASE_URL/api/health" > "$RUNNER_TEMP/niki-health.json"
+          curl --fail --silent --show-error --max-time 30 \
+            "$PUBLIC_BASE_URL/api/auth/config" > "$RUNNER_TEMP/niki-auth-config.json"
+          curl --fail --silent --show-error --max-time 30 \
+            "$PUBLIC_BASE_URL/" > "$RUNNER_TEMP/niki-index.html"
+          node -e '
+            const fs = require("node:fs");
+            const health = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const auth = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+            if (health?.ok !== true) throw new Error("Production health check is not ok");
+            if (auth?.enabled !== true || auth?.provider !== "feishu" || auth?.ready !== true) {
+              throw new Error("Feishu authentication is not ready");
+            }
+          ' "$RUNNER_TEMP/niki-health.json" "$RUNNER_TEMP/niki-auth-config.json"
+          {
+            echo "### Niki production deploy verified"
+            echo
+            echo "- Release: \`$EXPECTED_SHA\`"
+            echo "- Deployment executed: \`$DEPLOY_RAN\`"
+            echo "- Public health: OK"
+            echo "- Feishu authentication: ready"
+          } >> "$GITHUB_STEP_SUMMARY"
