@@ -1,5 +1,6 @@
 import type { Express } from 'express';
 
+import { posterRecoveryJobs } from './poster-recovery-jobs.js';
 import { appendImageNodes } from './canvas-store.js';
 import { currentNikiUser } from './niki-auth-context.js';
 import {
@@ -7,20 +8,140 @@ import {
   NikiQuotaExceededError,
 } from './niki-quota.js';
 import type { RouteDeps } from './server-context.js';
+import {
+  normalizeLoanVideoStoryboard,
+  prepareLoanVideoComposition,
+} from './loan-video.js';
 
 export interface RegisterMediaRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'ids' | 'media' | 'appConfig' | 'orbit' | 'nativeDialogs' | 'projectStore' | 'projectFiles' | 'conversations' | 'research'> {}
+
+function mediaTaskFailure(err: any): {
+  message: string;
+  status: number;
+  code?: string;
+  name: string;
+} {
+  const message = String(err?.message ?? err);
+  const causeMessage = typeof err?.cause?.message === 'string'
+    ? err.cause.message
+    : undefined;
+  const code = typeof err?.code === 'string'
+    ? err.code
+    : typeof err?.cause?.code === 'string'
+      ? err.cause.code
+      : undefined;
+  const isNetworkFailure = err instanceof TypeError && message === 'fetch failed';
+  return {
+    message: causeMessage && causeMessage !== message
+      ? `${message}: ${causeMessage}`
+      : message,
+    status: typeof err?.status === 'number' ? err.status : (isNetworkFailure ? 502 : 400),
+    ...(code ? { code } : {}),
+    name: typeof err?.name === 'string' ? err.name : 'Error',
+  };
+}
+
+function oneLine(value: string, limit = 300): string {
+  return value.replace(/\s+/g, ' ').trim().slice(0, limit);
+}
+
+function isLoanVideoProject(project: any): boolean {
+  return project?.skillId === 'hyperframes'
+    && project?.metadata?.kind === 'video'
+    && project?.metadata?.videoModel === 'hyperframes-html';
+}
+
+function loanVideoPresetKey(project: any): string | null {
+  const preset = project?.metadata?.loanVideoPreset;
+  if (preset?.version === 1 && (preset.brand === 'zamloan' || preset.brand === 'biumoney')) {
+    const purpose = preset.purpose === 'acquisition' || preset.purpose === 'tutorial'
+      ? 'loan-guide'
+      : preset.purpose;
+    if (purpose === 'anti-fraud' || purpose === 'loan-guide' || purpose === 'top-up-guide') {
+      return `${preset.brand}:${purpose}`;
+    }
+    return null;
+  }
+  const brand = String(project?.name ?? '').toLowerCase().includes('biumoney')
+    ? 'biumoney'
+    : 'zamloan';
+  return `${brand}:loan-guide`;
+}
+
+function isVideoFile(file: any): boolean {
+  return file?.kind === 'video' || String(file?.name ?? '').toLowerCase().endsWith('.mp4');
+}
+
+function projectMediaTaskSummary(task: any) {
+  return {
+    taskId: task.id,
+    status: task.status,
+    startedAt: task.startedAt,
+    endedAt: task.endedAt,
+    elapsed: Math.round(((task.endedAt ?? Date.now()) - task.startedAt) / 1000),
+    surface: task.surface,
+    model: task.model,
+    progress: task.progress.slice(-3),
+    progressCount: task.progress.length,
+    nextSince: task.progress.length,
+    ...(task.status === 'done' ? { file: task.file } : {}),
+    ...(task.status === 'failed' || task.status === 'interrupted' ? { error: task.error } : {}),
+  };
+}
+
+interface MediaTaskAdmissionTask {
+  id: string;
+  projectId: string;
+  status: string;
+  startedAt?: number;
+}
+
+export function resolveMediaGenerationTaskAdmission<T extends MediaTaskAdmissionTask>(options: {
+  clientRequestId: unknown;
+  projectId: string;
+  getTask: (taskId: string) => T | null;
+  randomUUID: () => string;
+}): { taskId: string; existingTask: T | null } {
+  if (options.clientRequestId === undefined || options.clientRequestId === null) {
+    return { taskId: options.randomUUID(), existingTask: null };
+  }
+  if (
+    typeof options.clientRequestId !== 'string'
+    || !/^[A-Za-z0-9:_-]{1,160}$/.test(options.clientRequestId)
+  ) {
+    const error = new Error('clientRequestId must be 1-160 safe identifier characters');
+    Object.assign(error, { status: 400, code: 'invalid_client_request_id' });
+    throw error;
+  }
+  const existingTask = options.getTask(options.clientRequestId);
+  if (existingTask && existingTask.projectId !== options.projectId) {
+    const error = new Error('clientRequestId already belongs to another project');
+    Object.assign(error, { status: 409, code: 'client_request_id_conflict' });
+    throw error;
+  }
+  return {
+    taskId: options.clientRequestId,
+    existingTask,
+  };
+}
 
 export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) {
   const { db } = ctx;
   const { sendApiError, requireLocalDaemonRequest, isLocalSameOrigin, resolvedPortRef } = ctx.http;
-  const { PROJECT_ROOT, PROJECTS_DIR, RUNTIME_DATA_DIR } = ctx.paths;
+  const {
+    PROJECT_ROOT,
+    PROJECTS_DIR,
+    RUNTIME_DATA_DIR,
+    DESIGN_TEMPLATES_DIR,
+    OD_BIN,
+  } = ctx.paths;
   const { randomUUID } = ctx.ids;
   const { MEDIA_PROVIDERS, IMAGE_MODELS, VIDEO_MODELS, AUDIO_MODELS_BY_KIND, MEDIA_ASPECTS, VIDEO_LENGTHS_SEC, AUDIO_DURATIONS_SEC, readMaskedConfig, writeConfig, generateMedia, createMediaTask, persistMediaTask, appendTaskProgress, notifyTaskWaiters, getLiveMediaTask, mediaTaskSnapshot, listMediaTasksByProject, reconcileDirectLoanPosterProject, listElevenLabsVoiceOptions } = ctx.media;
   const { readAppConfig, writeAppConfig } = ctx.appConfig;
   const { orbitService } = ctx.orbit;
   const { openNativeFolderDialog } = ctx.nativeDialogs;
-  const { getProject } = ctx.projectStore;
-  const { writeProjectFile } = ctx.projectFiles;
+  const { getProject, listProjects } = ctx.projectStore;
+  const { listFiles, resolveProjectDir, writeProjectFile } = ctx.projectFiles;
   const { insertConversation, upsertMessage } = ctx.conversations;
   const { searchResearch, ResearchError } = ctx.research;
   const getResolvedPort = () => resolvedPortRef.current;
@@ -34,6 +155,55 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       videoLengthsSec: VIDEO_LENGTHS_SEC,
       audioDurationsSec: AUDIO_DURATIONS_SEC,
     });
+  });
+
+  app.get('/api/media/loan-video/restore', async (req, res) => {
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
+      return res.status(403).json({ error: 'cross-origin request rejected' });
+    }
+    try {
+      const candidates = listProjects(db)
+        .filter(isLoanVideoProject)
+        .sort((left: any, right: any) => right.updatedAt - left.updatedAt);
+      const project = candidates[0] ?? null;
+      if (!project) {
+        /** @type {import('@open-design/contracts').LoanVideoRestoreResponse} */
+        const body = { configuredPresetKeys: [], files: [], project: null, task: null };
+        return res.json(body);
+      }
+
+      const projectFileEntries = await Promise.all(candidates.map(async (candidate: any) => ({
+        project: candidate,
+        files: await listFiles(PROJECTS_DIR, candidate.id, { metadata: candidate.metadata })
+          .catch(() => []),
+      })));
+      const files = projectFileEntries.find((entry) => entry.project.id === project.id)?.files ?? [];
+      const configuredPresetKeys = Array.from(new Set(
+        projectFileEntries
+          .filter((entry) => entry.files.some(isVideoFile))
+          .map((entry) => loanVideoPresetKey(entry.project))
+          .filter((key): key is string => key !== null),
+      ));
+      const videoTasks = listMediaTasksByProject(db, project.id, { includeTerminal: true })
+        .filter((task: any) => task.surface === 'video' && task.model === 'hyperframes-html');
+      const requestedTaskId = typeof req.query.taskId === 'string' ? req.query.taskId : null;
+      const task = (
+        requestedTaskId
+          ? videoTasks.find((candidate: any) => candidate.id === requestedTaskId)
+          : null
+      ) ?? videoTasks[0] ?? null;
+
+      /** @type {import('@open-design/contracts').LoanVideoRestoreResponse} */
+      const body = {
+        configuredPresetKeys,
+        files,
+        project,
+        task: task ? projectMediaTaskSummary(task) : null,
+      };
+      return res.json(body);
+    } catch (err: any) {
+      return sendApiError(res, 500, 'LOAN_VIDEO_RESTORE_FAILED', String(err?.message ?? err));
+    }
   });
 
   app.get('/api/media/config', async (_req, res) => {
@@ -145,6 +315,158 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
     }
   });
 
+  const jobs = posterRecoveryJobs(db);
+  function runTask(task: any, project: any, body: any, loanVideoStoryboard: ReturnType<typeof normalizeLoanVideoStoryboard> | null, recoveryOnly = false, legacyCheckpoint = false) {
+    const projectId = project.id;
+    const taskId = task.id;
+    if (recoveryOnly) jobs.begin(taskId, projectId);
+    task.status = 'running';
+    task.error = null;
+    task.endedAt = null;
+    persistMediaTask(task);
+    const prepareComposition = loanVideoStoryboard
+      ? prepareLoanVideoComposition({
+          projectDir: resolveProjectDir(PROJECTS_DIR, projectId, project.metadata),
+          projectId,
+          storyboard: loanVideoStoryboard,
+          designTemplatesDir: DESIGN_TEMPLATES_DIR,
+          odBin: OD_BIN,
+          onProgress: (line) => appendTaskProgress(task, line),
+        })
+      : Promise.resolve(null);
+    return prepareComposition
+      .then(async (prepared) => {
+        if (prepared) {
+          appendTaskProgress(
+            task,
+            `Prepared ${prepared.scenes} tutorial scenes at ${prepared.size}`,
+          );
+        }
+        const meta = await generateMedia({
+          projectRoot: PROJECT_ROOT,
+          projectsRoot: PROJECTS_DIR,
+          projectId,
+          posterRecoveryOnly: recoveryOnly,
+          // Only a persisted pre-scope job may resume the legacy cache. Client
+          // bodies cannot choose this flag or borrow another task's candidates.
+          posterGenerationId: recoveryOnly && legacyCheckpoint ? undefined : taskId,
+          surface: body?.surface,
+          model: body?.model,
+          prompt: body?.prompt,
+          output: body?.output,
+          aspect: loanVideoStoryboard?.aspectRatio ?? body?.aspect,
+          quality: body?.quality,
+          loanPosterOutput:
+            project.metadata?.directGeneration?.kind === 'loan-poster',
+          length: loanVideoStoryboard?.durationSeconds
+            ?? (typeof body?.length === 'number' ? body.length : undefined),
+          duration:
+            typeof body?.duration === 'number'
+              ? body.duration
+              : undefined,
+          voice: body?.voice,
+          audioKind: body?.audioKind,
+          language: typeof body?.language === 'string' ? body.language : undefined,
+          loop: typeof body?.loop === 'boolean' ? body.loop : undefined,
+          promptInfluence: typeof body?.promptInfluence === 'number'
+            ? body.promptInfluence
+            : undefined,
+          compositionDir: prepared?.compositionDir
+            ?? body?.compositionDir,
+          image: body?.image,
+          overlayZ: body?.overlayZ,
+          overlayLogo: body?.overlayLogo,
+          overlayLogoAnchor: body?.overlayLogoAnchor,
+          overlayPhoneScreen: body?.overlayPhoneScreen,
+          foregroundPrompt: body?.foregroundPrompt,
+          posterHeadline: body?.posterHeadline,
+          posterSubtitle: body?.posterSubtitle,
+          posterTextAnchor: body?.posterTextAnchor,
+          posterCopyStyle: body?.posterCopyStyle,
+          onProgress: (line: any) => appendTaskProgress(task, line),
+        });
+        if (!prepared?.warnings.length) return meta;
+        return {
+          ...meta,
+          warnings: [...(Array.isArray(meta.warnings) ? meta.warnings : []), ...prepared.warnings],
+        };
+      })
+      .then((meta: any) => {
+        jobs.finish(task.id, 'done');
+        task.status = 'done';
+        task.file = meta;
+        task.endedAt = Date.now();
+        persistMediaTask(task);
+        reconcileDirectLoanPosterProject(projectId);
+        notifyTaskWaiters(task);
+        // Drop generated images onto the project canvas. The canvas store
+        // emits a `node-added` SSE event so an open canvas surface shows the
+        // image live; if the canvas isn't open the node is simply persisted
+        // and appears next time the canvas is opened.
+        try {
+          const kind = typeof meta?.kind === 'string' ? meta.kind : '';
+          const mime = typeof meta?.mime === 'string' ? meta.mime : '';
+          const name = typeof meta?.name === 'string' ? meta.name : '';
+          const isImage = kind === 'image' || mime.startsWith('image/');
+          if (isImage && name) {
+            const src = `/api/projects/${encodeURIComponent(projectId)}/files/${name
+              .split('/')
+              .map((seg: string) => encodeURIComponent(seg))
+              .join('/')}`;
+            appendImageNodes(db, projectId, [{ src, alt: name }]);
+          }
+        } catch (canvasErr) {
+          console.error(
+            `[task ${taskId.slice(0, 8)}] canvas append skipped: ${String(canvasErr)}`,
+          );
+        }
+        console.error(
+          `[task ${taskId.slice(0, 8)}] stage=done size=${meta?.size} mime=${meta?.mime} ` +
+            `provider=${meta?.providerId || 'unknown'} elapsedMs=${task.endedAt - task.startedAt}`,
+        );
+      })
+      .catch((err: any) => {
+        jobs.finish(task.id, 'paused');
+        const failure = mediaTaskFailure(err);
+        if (body?.posterCopyStyle === 'anti-fraud-message' && task.progress.includes('image:checkpoint-saved')
+          && failure.name !== 'PosterHandLayoutError' && failure.code !== 'poster_checkpoint_missing') {
+          failure.code = 'poster_postprocess_pending';
+          failure.message = `Poster local processing pending: saved image can be resumed. ${failure.message}`;
+        }
+        task.status = 'failed';
+        task.error = {
+          message: failure.message,
+          status: failure.status,
+          code: failure.code,
+        };
+        task.endedAt = Date.now();
+        persistMediaTask(task);
+        reconcileDirectLoanPosterProject(projectId);
+        notifyTaskWaiters(task);
+        console.error(
+          `[task ${taskId.slice(0, 8)}] stage=failed elapsedMs=${task.endedAt - task.startedAt} ` +
+            `status=${task.error.status} errorName=${failure.name} ` +
+            `code=${failure.code || 'none'} message=${oneLine(task.error.message || '')}`,
+        );
+      });
+  }
+
+  // Existing admitted jobs resume only local stages. Never duplicate an upstream
+  // request whose result was not received before shutdown.
+  queueMicrotask(async () => {
+    try {
+      for (const job of jobs.pending()) {
+        const project = getProject(db, job.projectId);
+        const task = getLiveMediaTask(job.taskId);
+        if (!project || !task || !['interrupted', 'failed'].includes(task.status)) continue;
+        appendTaskProgress(task, 'image:resumed');
+        await runTask(task, project, job.request, null, true, !job.taskScopedCheckpoint);
+      }
+    } catch (error) {
+      console.error('[poster recovery] Startup continuation failed:', error instanceof Error ? error.message : 'unknown error');
+    }
+  });
+
   app.post('/api/projects/:id/media/generate', async (req, res) => {
     // Niki's authenticated web UI may run inside an embedded webview that
     // omits the Origin header. The auth middleware has already resolved the
@@ -162,6 +484,28 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       const projectId = req.params.id;
       const project = getProject(db, projectId);
       if (!project) return res.status(404).json({ error: 'project not found' });
+      if (req.body?.resumeTaskId) {
+        const task = getLiveMediaTask(String(req.body.resumeTaskId));
+        const job = jobs.get(String(req.body.resumeTaskId), projectId);
+        if (!job || !task || task.projectId !== projectId) return res.status(404).json({ error: 'No saved poster task in this project' });
+        if (!['running', 'queued', 'done'].includes(task.status)) {
+          appendTaskProgress(task, 'image:resumed');
+          void runTask(task, project, job.request, null, true, !job.taskScopedCheckpoint);
+        }
+        return res.status(202).json({ taskId: task.id, status: task.status, startedAt: task.startedAt });
+      }
+      const loanVideoStoryboard = req.body?.loanVideoStoryboard === undefined
+        ? null
+        : normalizeLoanVideoStoryboard(req.body.loanVideoStoryboard);
+      if (
+        loanVideoStoryboard
+        && (req.body?.surface !== 'video' || req.body?.model !== 'hyperframes-html')
+      ) {
+        return res.status(400).json({
+          error: 'loanVideoStoryboard requires surface=video and model=hyperframes-html',
+          code: 'invalid_loan_video_media_target',
+        });
+      }
       const nikiUser = currentNikiUser();
       if (nikiUser) {
         await assertNikiGenerationAllowed(
@@ -170,99 +514,39 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
           nikiUser.id,
         );
       }
+      // Resolve immediately before the synchronous insert. This keeps two
+      // concurrent retries from both observing a missing task across the
+      // asynchronous quota check above.
+      const admission = resolveMediaGenerationTaskAdmission({
+        clientRequestId: req.body?.clientRequestId,
+        projectId,
+        getTask: getLiveMediaTask,
+        randomUUID,
+      });
+      if (admission.existingTask) {
+        return res.status(202).json({
+          taskId: admission.existingTask.id,
+          status: admission.existingTask.status,
+          startedAt: admission.existingTask.startedAt,
+          idempotentReplay: true,
+        });
+      }
 
-      const taskId = randomUUID();
+      const taskId = admission.taskId;
       const task = createMediaTask(taskId, projectId, {
         surface: req.body?.surface,
         model: req.body?.model,
       });
       console.error(
-        `[task ${taskId.slice(0, 8)}] queued model=${req.body?.model} ` +
+        `[task ${taskId.slice(0, 8)}] stage=queued startedAt=${new Date(task.startedAt).toISOString()} ` +
+          `model=${req.body?.model} ` +
           `surface=${req.body?.surface} ` +
           `image=${req.body?.image ? 'yes' : 'no'} ` +
           `compositionDir=${req.body?.compositionDir ? 'yes' : 'no'}`,
       );
 
-      task.status = 'running';
-      persistMediaTask(task);
-      generateMedia({
-        projectRoot: PROJECT_ROOT,
-        projectsRoot: PROJECTS_DIR,
-        projectId,
-        surface: req.body?.surface,
-        model: req.body?.model,
-        prompt: req.body?.prompt,
-        output: req.body?.output,
-        aspect: req.body?.aspect,
-        quality: req.body?.quality,
-        loanPosterOutput:
-          project.metadata?.directGeneration?.kind === 'loan-poster',
-        length:
-          typeof req.body?.length === 'number' ? req.body.length : undefined,
-        duration:
-          typeof req.body?.duration === 'number'
-            ? req.body.duration
-            : undefined,
-        voice: req.body?.voice,
-        audioKind: req.body?.audioKind,
-        language: typeof req.body?.language === 'string' ? req.body.language : undefined,
-        loop: typeof req.body?.loop === 'boolean' ? req.body.loop : undefined,
-        promptInfluence: typeof req.body?.promptInfluence === 'number'
-          ? req.body.promptInfluence
-          : undefined,
-        compositionDir: req.body?.compositionDir,
-        image: req.body?.image,
-        onProgress: (line: any) => appendTaskProgress(task, line),
-      })
-        .then((meta: any) => {
-          task.status = 'done';
-          task.file = meta;
-          task.endedAt = Date.now();
-          persistMediaTask(task);
-          reconcileDirectLoanPosterProject(projectId);
-          notifyTaskWaiters(task);
-          // Drop generated images onto the project canvas. The canvas store
-          // emits a `node-added` SSE event so an open canvas surface shows the
-          // image live; if the canvas isn't open the node is simply persisted
-          // and appears next time the canvas is opened.
-          try {
-            const kind = typeof meta?.kind === 'string' ? meta.kind : '';
-            const mime = typeof meta?.mime === 'string' ? meta.mime : '';
-            const name = typeof meta?.name === 'string' ? meta.name : '';
-            const isImage = kind === 'image' || mime.startsWith('image/');
-            if (isImage && name) {
-              const src = `/api/projects/${encodeURIComponent(projectId)}/files/${name
-                .split('/')
-                .map((seg: string) => encodeURIComponent(seg))
-                .join('/')}`;
-              appendImageNodes(db, projectId, [{ src, alt: name }]);
-            }
-          } catch (canvasErr) {
-            console.error(
-              `[task ${taskId.slice(0, 8)}] canvas append skipped: ${String(canvasErr)}`,
-            );
-          }
-          console.error(
-            `[task ${taskId.slice(0, 8)}] done size=${meta?.size} mime=${meta?.mime} ` +
-              `elapsed=${Math.round((task.endedAt - task.startedAt) / 1000)}s`,
-          );
-        })
-        .catch((err: any) => {
-          task.status = 'failed';
-          task.error = {
-            message: String(err && err.message ? err.message : err),
-            status: typeof err?.status === 'number' ? err.status : 400,
-            code: err?.code,
-          };
-          task.endedAt = Date.now();
-          persistMediaTask(task);
-          reconcileDirectLoanPosterProject(projectId);
-          notifyTaskWaiters(task);
-          console.error(
-            `[task ${taskId.slice(0, 8)}] failed status=${task.error.status} ` +
-              `message=${(task.error.message || '').slice(0, 240)}`,
-          );
-        });
+      if (project.metadata?.directGeneration?.kind === 'loan-poster' && req.body?.posterCopyStyle === 'anti-fraud-message' && req.body?.surface === 'image') jobs.save(taskId, projectId, req.body);
+      void runTask(task, project, req.body, loanVideoStoryboard);
 
       res.status(202).json({
         taskId,
@@ -322,12 +606,15 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   });
 
   app.post('/api/media/tasks/:id/wait', async (req, res) => {
-    if (!isLocalSameOrigin(req, getResolvedPort())) {
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
       return res.status(403).json({ error: 'cross-origin request rejected' });
     }
     const taskId = req.params.id;
     const task = getLiveMediaTask(taskId);
     if (!task) return res.status(404).json({ error: 'task not found' });
+    if (currentNikiUser() && !getProject(db, task.projectId)) {
+      return res.status(404).json({ error: 'task not found' });
+    }
 
     const since = Number.isFinite(req.body?.since) ? Number(req.body.since) : 0;
     const requestedTimeout = Number.isFinite(req.body?.timeoutMs)
@@ -363,27 +650,18 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
   });
 
   app.get('/api/projects/:id/media/tasks', (req, res) => {
-    if (!isLocalSameOrigin(req, getResolvedPort())) {
+    if (!currentNikiUser() && !isLocalSameOrigin(req, getResolvedPort())) {
       return res.status(403).json({ error: 'cross-origin request rejected' });
     }
     const projectId = req.params.id;
+    if (!getProject(db, projectId)) {
+      return res.status(404).json({ error: 'project not found' });
+    }
     const includeDone =
       req.query.includeDone === '1' || req.query.includeDone === 'true';
     const tasks = listMediaTasksByProject(db, projectId, {
       includeTerminal: includeDone,
-    }).map((t: any) => ({
-        taskId: t.id,
-        status: t.status,
-        startedAt: t.startedAt,
-        endedAt: t.endedAt,
-        elapsed: Math.round(((t.endedAt ?? Date.now()) - t.startedAt) / 1000),
-        surface: t.surface,
-        model: t.model,
-        progress: t.progress.slice(-3),
-        progressCount: t.progress.length,
-        ...(t.status === 'done' ? { file: t.file } : {}),
-        ...(t.status === 'failed' || t.status === 'interrupted' ? { error: t.error } : {}),
-      }));
+    }).map(projectMediaTaskSummary);
     res.json({ tasks });
   });
 

@@ -50,6 +50,12 @@ beforeEach(() => {
         headers: { 'content-type': 'image/png' },
       });
     }
+    if (url === '/brand/zambia-support/zamloan-logo.svg') {
+      return new Response(new Blob(['zamloan-logo'], { type: 'image/svg+xml' }), {
+        status: 200,
+        headers: { 'content-type': 'image/svg+xml' },
+      });
+    }
     throw new Error(`unexpected fetch ${url}`);
   }));
   mockedUploadProjectFiles.mockResolvedValue({
@@ -391,4 +397,18 @@ describe('ChatComposer automatic poster controls', () => {
     expect((screen.getByTestId('chat-auto-poster-count') as HTMLSelectElement).value).toBe('3');
     expect((screen.getByTestId('chat-auto-poster-size') as HTMLSelectElement).value).toBe('1:1');
   });
+});
+
+// Deck creation must never fall through to the poster generator on an empty send.
+it('keeps deck conversations free of poster controls and empty generation actions', () => {
+  const onSend = vi.fn();
+  render(<ChatComposer projectId="deck-1" projectMetadata={{ kind: 'deck' }} projectFiles={[]} streaming={false} onEnsureProject={async () => 'deck-1'} onSend={onSend} onStop={vi.fn()} />);
+  expect(screen.queryByTestId('chat-auto-poster-product-biumoney')).toBeNull();
+  const send = screen.getByTestId('chat-send') as HTMLButtonElement;
+  expect(send.disabled).toBe(true);
+  fireEvent.click(send);
+  expect(onSend).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Refine slide 2' } });
+  expect(send.disabled).toBe(false);
+  expect(send.dataset.action).toBe('send');
 });

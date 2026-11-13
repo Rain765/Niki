@@ -1,3 +1,4 @@
+import { useNativePresentationQuestions } from '../poster/use-native-presentation-questions';
 import {
   Suspense,
   lazy,
@@ -993,13 +994,18 @@ export function ProjectView({
     (async () => {
       const state = await loadTabs(project.id);
       if (cancelled) return;
-      setOpenTabsState(state);
+      // Direct poster projects have their own chat-first surface. A stale
+      // image tab from the legacy file viewer must not win the initial route
+      // sync and reopen `/files/...` when the user selects a poster project
+      // from the sidebar. Keep the tab history available for an explicit
+      // Edit action, but always enter the project with no file active.
+      setOpenTabsState(directLoanPosterProject ? { ...state, active: null } : state);
       tabsLoadedRef.current = true;
     })();
     return () => {
       cancelled = true;
     };
-  }, [project.id]);
+  }, [directLoanPosterProject, project.id]);
 
   const persistTabsState = useCallback(
     (next: OpenTabsState) => {
@@ -1345,6 +1351,15 @@ export function ProjectView({
     if (!routeFileName) return;
     requestOpenFile(routeFileName);
   }, [routeFileName, requestOpenFile]);
+
+  // Selecting a direct poster project from the sidebar can reuse the same
+  // ProjectView instance while changing the URL from `/files/...` back to
+  // the project route. Clear the legacy file tab in that transition too;
+  // the initial hydration guard above only covers a fresh project mount.
+  useEffect(() => {
+    if (!directLoanPosterProject || routeFileName || !openTabsState.active) return;
+    persistTabsState({ ...openTabsState, active: null });
+  }, [directLoanPosterProject, openTabsState, persistTabsState, routeFileName]);
 
   // Sync the URL when the active tab changes, so reload + share-link both
   // land back on the same view. Replace (not push) on tab activation so the
@@ -1802,6 +1817,10 @@ export function ProjectView({
         const needsTerminalReplay =
           message.runStatus === 'succeeded' &&
           (!message.content.trim() || producedFileCount === 0);
+        // Native presentations may finish a turn with a saved plan and no files.
+        // The plan remains actionable after the daemon forgets the completed run.
+        const hasSavedPresentationReply = message.runStatus === 'succeeded' &&
+          Boolean(project.metadata?.nativePresentation && message.content.trim());
         const needsFullReplay = needsTerminalReplay || isActiveRunStatus(message.runStatus);
         if (!isActiveRunStatus(message.runStatus) && !needsTerminalReplay) continue;
         const fallbackRun = !message.runId
@@ -1816,6 +1835,7 @@ export function ProjectView({
         // output — Working 24m+" UI the user reported. Mark it failed so
         // the composer is interactive again and the user can re-send.
         if (!runId) {
+          if (hasSavedPresentationReply) continue;
           updateMessageById(
             message.id,
             (prev) => ({
@@ -1841,12 +1861,13 @@ export function ProjectView({
         const status = fallbackRun ?? await fetchChatRunStatus(runId);
         if (cancelled) return;
         if (!status) {
+          completedReattachRunsRef.current.add(runId);
+          if (hasSavedPresentationReply) continue;
           updateMessageById(
             message.id,
             (prev) => ({ ...prev, runStatus: 'failed', endedAt: prev.endedAt ?? Date.now() }),
             true,
           );
-          completedReattachRunsRef.current.add(runId);
           continue;
         }
         updateMessageById(
@@ -2100,6 +2121,7 @@ export function ProjectView({
     streaming,
     messages,
     project.id,
+    project.metadata?.nativePresentation,
     updateMessageById,
     persistMessageById,
     auditDesignSystemWorkspaceAfterRun,
@@ -3676,6 +3698,13 @@ export function ProjectView({
     setCompetitorGalleryOpen(true);
   }, []);
 
+  useNativePresentationQuestions({
+    projectId: project.id, enabled: Boolean(project.metadata?.nativePresentation), messages,
+    canSend: !currentConversationActionDisabled && !currentConversationBusy && Boolean(activeConversationId) && messagesConversationIdRef.current === activeConversationId,
+    // Match the original composer: acceptance starts the turn; it must not wait for the entire generation stream.
+    onSend: async text => { void handleSend(text, [], []); },
+  });
+
   return (
     <div
       className={[
@@ -3984,7 +4013,7 @@ export function ProjectView({
             />
           ) : (
             <div className="pane" data-testid="chat-pane-loading">
-              <CenteredLoader />
+              <CenteredLoader variant="chat" />
             </div>
           )}
         </div>
@@ -4005,6 +4034,7 @@ export function ProjectView({
           />
         ) : null}
         <FileWorkspace
+          externalHtmlPreview={Boolean(project.metadata?.nativePresentation)}
           projectId={project.id}
           projectKind={projectKindToTracking(project.metadata?.kind) ?? 'prototype'}
           files={projectFiles}

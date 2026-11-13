@@ -1,3 +1,4 @@
+import { NativePresentationPreview } from './NativePresentationPreview';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAnalytics } from '../analytics/provider';
 import { trackFileManagerClick } from '../analytics/events';
@@ -9,6 +10,7 @@ import type { LiveArtifactWorkspaceEntry, ProjectFile, ProjectFileKind } from '.
 import type { PluginFolderAgentAction } from './design-files/pluginFolderActions';
 import { getPluginFolderCandidates } from './design-files/pluginFolders';
 import { Icon } from './Icon';
+import { ImagePostPreview } from './ImagePostPreview';
 import { LiveArtifactBadges } from './LiveArtifactBadges';
 import { isRenderableSketchJson, SketchPreview } from './SketchPreview';
 
@@ -41,6 +43,7 @@ function opensDirectlyOnSingleTap(file: ProjectFile): boolean {
 }
 
 interface Props {
+  externalHtmlPreview?: boolean;
   projectId: string;
   files: ProjectFile[];
   liveArtifacts: LiveArtifactWorkspaceEntry[];
@@ -102,6 +105,7 @@ const MODIFIED_SECTION_LABEL_KEY: Record<ModifiedSection, keyof Dict> = {
  * preview pane. Triggered as a sticky first tab in FileWorkspace.
  */
 export function DesignFilesPanel({
+  externalHtmlPreview = false,
   projectId,
   files,
   liveArtifacts,
@@ -1299,6 +1303,7 @@ export function DesignFilesPanel({
         // file's contents — only the `src` prop changes but the iframe
         // never actually navigates.
         <DfPreview
+          externalHtmlPreview={externalHtmlPreview}
           key={previewFile.name}
           projectId={projectId}
           file={previewFile}
@@ -1421,6 +1426,7 @@ export function DesignFilesPanel({
 }
 
 function DfPreview({
+  externalHtmlPreview,
   projectId,
   file,
   onOpen,
@@ -1430,6 +1436,7 @@ function DfPreview({
   onDelete,
   simplifiedImageActions,
 }: {
+  externalHtmlPreview: boolean;
   projectId: string;
   file: ProjectFile;
   onOpen: () => void;
@@ -1450,6 +1457,8 @@ function DfPreview({
           <SketchPreview projectId={projectId} file={file} />
         ) : file.kind === 'image' || file.kind === 'sketch' ? (
           <img src={`${url}?v=${Math.round(file.mtime)}`} alt={file.name} />
+        ) : file.kind === 'html' && externalHtmlPreview ? (
+          <NativePresentationPreview projectId={projectId} name={file.name} />
         ) : file.kind === 'html' ? (
           <iframe title={file.name} src={url} sandbox="allow-scripts" />
         ) : file.kind === 'video' ? (
@@ -1535,14 +1544,20 @@ function DfImagePreviewModal({
 }) {
   const t = useT();
   const url = projectFileUrl(projectId, file.name);
+  const [postPreviewOpen, setPostPreviewOpen] = useState(false);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (postPreviewOpen) {
+        setPostPreviewOpen(false);
+        return;
+      }
+      onClose();
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [onClose, postPreviewOpen]);
 
   return (
     <div
@@ -1558,6 +1573,14 @@ function DfImagePreviewModal({
         <div className="df-image-modal-header">
           <span>{file.name}</span>
           <div className="df-image-modal-actions">
+            <button
+              type="button"
+              onClick={() => setPostPreviewOpen(true)}
+              title={t('common.preview')}
+            >
+              <Icon name="eye" size={17} />
+              <span>{t('common.preview')}</span>
+            </button>
             <a
               href={projectFileDownloadUrl(projectId, file.name)}
               title={t('designFiles.download')}
@@ -1584,6 +1607,14 @@ function DfImagePreviewModal({
           />
         </div>
       </div>
+      {postPreviewOpen ? (
+        <ImagePostPreview
+          imageUrl={`${url}?v=${Math.round(file.mtime)}`}
+          imageAlt={file.name}
+          fileName={file.name}
+          onClose={() => setPostPreviewOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

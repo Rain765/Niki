@@ -1,0 +1,1345 @@
+{
+  "id": "02-dense-table",
+  "title": "培训项目清单与验收数据",
+  "split": "development",
+  "provenance": "synthetic",
+  "tags": [
+    "dense-table",
+    "42-rows",
+    "row-association"
+  ],
+  "sourceSha256": "9326067fde7af2e0002b566f991c61e172324beaffaf7a7cc2622f60718fca38",
+  "brief": "将本文制作成可编辑 PPT。完整保留关键事实、数字、条件、例外和关系；按内容选择编排。容量不足请明确指出，不得用备注代替正文。",
+  "settings": {
+    "ratio": "4:3",
+    "palette": "blue",
+    "pageCount": 15,
+    "style": "swiss",
+    "density": "complete"
+  },
+  "checks": [
+    {
+      "id": "02-dense-table-C01",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T01的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T01 | 25 | 24 | 71 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T01"
+        ],
+        [
+          "25"
+        ],
+        [
+          "24"
+        ],
+        [
+          "71"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C02",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T02的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T02 | 32 | 30 | 74 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T02"
+        ],
+        [
+          "32"
+        ],
+        [
+          "30"
+        ],
+        [
+          "74"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C03",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T03的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T03 | 39 | 36 | 77 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T03"
+        ],
+        [
+          "39"
+        ],
+        [
+          "36"
+        ],
+        [
+          "77"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C04",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T04的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T04 | 23 | 23 | 80 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T04"
+        ],
+        [
+          "23"
+        ],
+        [
+          "23"
+        ],
+        [
+          "80"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C05",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T05的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T05 | 30 | 29 | 83 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T05"
+        ],
+        [
+          "30"
+        ],
+        [
+          "29"
+        ],
+        [
+          "83"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C06",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T06的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T06 | 37 | 35 | 86 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T06"
+        ],
+        [
+          "37"
+        ],
+        [
+          "35"
+        ],
+        [
+          "86"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C07",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T07的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T07 | 21 | 18 | 89 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T07"
+        ],
+        [
+          "21"
+        ],
+        [
+          "18"
+        ],
+        [
+          "89"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C08",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T08的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T08 | 28 | 28 | 92 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T08"
+        ],
+        [
+          "28"
+        ],
+        [
+          "28"
+        ],
+        [
+          "92"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C09",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T09的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T09 | 35 | 34 | 95 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T09"
+        ],
+        [
+          "35"
+        ],
+        [
+          "34"
+        ],
+        [
+          "95"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C10",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T10的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T10 | 19 | 17 | 98 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T10"
+        ],
+        [
+          "19"
+        ],
+        [
+          "17"
+        ],
+        [
+          "98"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C11",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T11的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T11 | 26 | 23 | 70 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T11"
+        ],
+        [
+          "26"
+        ],
+        [
+          "23"
+        ],
+        [
+          "70"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C12",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T12的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T12 | 33 | 33 | 73 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T12"
+        ],
+        [
+          "33"
+        ],
+        [
+          "33"
+        ],
+        [
+          "73"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C13",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T13的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T13 | 40 | 39 | 76 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T13"
+        ],
+        [
+          "40"
+        ],
+        [
+          "39"
+        ],
+        [
+          "76"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C14",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T14的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T14 | 24 | 22 | 79 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T14"
+        ],
+        [
+          "24"
+        ],
+        [
+          "22"
+        ],
+        [
+          "79"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C15",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T15的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T15 | 31 | 28 | 82 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T15"
+        ],
+        [
+          "31"
+        ],
+        [
+          "28"
+        ],
+        [
+          "82"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C16",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T16的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T16 | 38 | 38 | 85 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T16"
+        ],
+        [
+          "38"
+        ],
+        [
+          "38"
+        ],
+        [
+          "85"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C17",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T17的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T17 | 22 | 21 | 88 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T17"
+        ],
+        [
+          "22"
+        ],
+        [
+          "21"
+        ],
+        [
+          "88"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C18",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T18的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T18 | 29 | 27 | 91 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T18"
+        ],
+        [
+          "29"
+        ],
+        [
+          "27"
+        ],
+        [
+          "91"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C19",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T19的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T19 | 36 | 33 | 94 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T19"
+        ],
+        [
+          "36"
+        ],
+        [
+          "33"
+        ],
+        [
+          "94"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C20",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T20的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T20 | 20 | 20 | 97 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T20"
+        ],
+        [
+          "20"
+        ],
+        [
+          "20"
+        ],
+        [
+          "97"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C21",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T21的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T21 | 27 | 26 | 69 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T21"
+        ],
+        [
+          "27"
+        ],
+        [
+          "26"
+        ],
+        [
+          "69"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C22",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T22的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T22 | 34 | 32 | 72 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T22"
+        ],
+        [
+          "34"
+        ],
+        [
+          "32"
+        ],
+        [
+          "72"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C23",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T23的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T23 | 18 | 15 | 75 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T23"
+        ],
+        [
+          "18"
+        ],
+        [
+          "15"
+        ],
+        [
+          "75"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C24",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T24的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T24 | 25 | 25 | 78 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T24"
+        ],
+        [
+          "25"
+        ],
+        [
+          "25"
+        ],
+        [
+          "78"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C25",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T25的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T25 | 32 | 31 | 81 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T25"
+        ],
+        [
+          "32"
+        ],
+        [
+          "31"
+        ],
+        [
+          "81"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C26",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T26的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T26 | 39 | 37 | 84 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T26"
+        ],
+        [
+          "39"
+        ],
+        [
+          "37"
+        ],
+        [
+          "84"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C27",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T27的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T27 | 23 | 20 | 87 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T27"
+        ],
+        [
+          "23"
+        ],
+        [
+          "20"
+        ],
+        [
+          "87"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C28",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T28的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T28 | 30 | 30 | 90 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T28"
+        ],
+        [
+          "30"
+        ],
+        [
+          "30"
+        ],
+        [
+          "90"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C29",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T29的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T29 | 37 | 36 | 93 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T29"
+        ],
+        [
+          "37"
+        ],
+        [
+          "36"
+        ],
+        [
+          "93"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C30",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T30的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T30 | 21 | 19 | 96 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T30"
+        ],
+        [
+          "21"
+        ],
+        [
+          "19"
+        ],
+        [
+          "96"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C31",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T31的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T31 | 28 | 25 | 68 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T31"
+        ],
+        [
+          "28"
+        ],
+        [
+          "25"
+        ],
+        [
+          "68"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C32",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T32的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T32 | 35 | 35 | 71 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T32"
+        ],
+        [
+          "35"
+        ],
+        [
+          "35"
+        ],
+        [
+          "71"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C33",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T33的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T33 | 19 | 18 | 74 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T33"
+        ],
+        [
+          "19"
+        ],
+        [
+          "18"
+        ],
+        [
+          "74"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C34",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T34的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T34 | 26 | 24 | 77 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T34"
+        ],
+        [
+          "26"
+        ],
+        [
+          "24"
+        ],
+        [
+          "77"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C35",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T35的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T35 | 33 | 30 | 80 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T35"
+        ],
+        [
+          "33"
+        ],
+        [
+          "30"
+        ],
+        [
+          "80"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C36",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T36的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T36 | 40 | 40 | 83 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T36"
+        ],
+        [
+          "40"
+        ],
+        [
+          "40"
+        ],
+        [
+          "83"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C37",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T37的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T37 | 24 | 23 | 86 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T37"
+        ],
+        [
+          "24"
+        ],
+        [
+          "23"
+        ],
+        [
+          "86"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C38",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T38的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T38 | 31 | 29 | 89 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T38"
+        ],
+        [
+          "31"
+        ],
+        [
+          "29"
+        ],
+        [
+          "89"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C39",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T39的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T39 | 38 | 35 | 92 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T39"
+        ],
+        [
+          "38"
+        ],
+        [
+          "35"
+        ],
+        [
+          "92"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C40",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T40的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T40 | 22 | 22 | 95 | 12 | 待补训 |"
+      ],
+      "groups": [
+        [
+          "班级 T40"
+        ],
+        [
+          "22"
+        ],
+        [
+          "22"
+        ],
+        [
+          "95"
+        ],
+        [
+          "12"
+        ],
+        [
+          "待补训"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C41",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T41的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T41 | 29 | 28 | 98 | 18 | 暂停 |"
+      ],
+      "groups": [
+        [
+          "班级 T41"
+        ],
+        [
+          "29"
+        ],
+        [
+          "28"
+        ],
+        [
+          "98"
+        ],
+        [
+          "18"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-C42",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "班级 T42的记录仍可在正文找到。",
+      "evidence": [
+        "| 班级 T42 | 36 | 34 | 70 | 6 | 通过 |"
+      ],
+      "groups": [
+        [
+          "班级 T42"
+        ],
+        [
+          "36"
+        ],
+        [
+          "34"
+        ],
+        [
+          "70"
+        ],
+        [
+          "6"
+        ],
+        [
+          "通过"
+        ]
+      ]
+    },
+    {
+      "id": "02-dense-table-V01",
+      "kind": "manual",
+      "critical": true,
+      "question": "42 行 × 6 列逐格对照；数字必须与正确班级及列头对应，跨行同值命中不算正确。",
+      "evidence": [
+        "| 班级 T01 | 25 | 24 | 71 | 12 | 待补训 |"
+      ]
+    },
+    {
+      "id": "02-dense-table-V02",
+      "kind": "manual",
+      "critical": true,
+      "question": "续表重复列头、学时单位及班级编号，完整覆盖且没有重复计入行。",
+      "evidence": [
+        "| 班级 T42 | 36 | 34 | 70 | 6 | 通过 |"
+      ]
+    },
+    {
+      "id": "02-dense-table-V03",
+      "kind": "manual",
+      "critical": true,
+      "question": "正文在实际渲染页可读，无重叠、裁切、超出画布；不能只依据可提取文字判定。",
+      "evidence": [
+        "# 培训项目清单与验收数据"
+      ]
+    },
+    {
+      "id": "02-dense-table-V04",
+      "kind": "manual",
+      "critical": true,
+      "question": "整体采用专业简洁的排版；层级、留白、对齐一致，连续页面没有机械重复同一种卡片布局。",
+      "evidence": [
+        "# 培训项目清单与验收数据"
+      ]
+    },
+    {
+      "id": "02-dense-table-V05",
+      "kind": "manual",
+      "critical": true,
+      "question": "关键内容出现在放映页；备注只能补充，不可代替表格、条件、例外与结论。",
+      "evidence": [
+        "# 培训项目清单与验收数据"
+      ]
+    },
+    {
+      "id": "02-dense-table-V06",
+      "kind": "manual",
+      "critical": true,
+      "question": "主要文字、表格和图形可编辑；打开最终 PPTX 后与预览对照，无字体替换或错位。",
+      "evidence": [
+        "# 培训项目清单与验收数据"
+      ]
+    },
+    {
+      "id": "02-dense-table-V07",
+      "kind": "manual",
+      "critical": true,
+      "question": "所选主题色、比例和页数策略得到遵守；容量不足时明确说明，不能删事实或无限缩小字号。",
+      "evidence": [
+        "# 培训项目清单与验收数据"
+      ]
+    }
+  ]
+}

@@ -1,9 +1,19 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
-import '../src/index.css';
-import '../src/styles/home/index.css';
-import '../src/styles/ndesign-system.css';
+import {
+  NIKI_POSTER_COLOR_CSS,
+  NIKI_POSTER_COLOR_VALUES,
+  NIKI_POSTER_LEGACY_ACCENT_COLORS,
+  NIKI_POSTER_MASK_ICON_COLOR,
+  NIKI_POSTER_THEME_COLOR,
+} from '../src/poster/color-tokens';
+import './poster.css';
+import './account-manager.css';
+import '../src/styles/ui-controls.css';
+import '../src/styles/home/loan-video.css';
+import '../src/styles/home/logo-studio.css';
+import '../src/styles/home/competitor-gallery.css';
 
 export const metadata: Metadata = {
   title: 'Niki',
@@ -12,18 +22,22 @@ export const metadata: Metadata = {
     // Safari pinned-tab mask icon — Next.js's Metadata API doesn't have a
     // dedicated `mask` field, so we surface it via the generic `other`
     // bucket which renders as a raw <link rel="mask-icon" ...>.
-    other: [{ rel: 'mask-icon', url: '/app-icon.svg?v=20260527', color: '#363636' }],
+    other: [{
+      rel: 'mask-icon',
+      url: '/app-icon.svg?v=20260527',
+      color: NIKI_POSTER_MASK_ICON_COLOR,
+    }],
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#08090b',
+  themeColor: NIKI_POSTER_THEME_COLOR,
 };
 
 /**
  * Critical first-paint styles stay inline so a slow public connection cannot
  * leave mobile users staring at the browser's default white canvas while the
- * hashed application stylesheets download. The full rules in `src/index.css`
+ * hashed application stylesheets download. The full rules in `poster.css`
  * take over as soon as they arrive because every selector here has zero
  * specificity through `:where()`.
  */
@@ -31,15 +45,34 @@ const firstPaintStyle = `
 :where(html, body) {
   min-height: 100%;
   margin: 0;
-  background: #08090b;
-  color: #f7f7f8;
+  background: var(--poster-bg);
+  color: var(--poster-text);
 }
-:where(.niki-auth, .locale-bootstrap) {
+:where(.niki-auth, .poster-app) {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #08090b;
-  color: #f7f7f8;
+  background: var(--poster-bg);
+  color: var(--poster-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+:where(.locale-bootstrap) {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--poster-bg);
+}
+:where(.locale-bootstrap__spinner) {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
+  border-top-color: var(--poster-accent);
+  border-radius: 50%;
+  animation: niki-first-paint-spin 700ms linear infinite;
 }
 :where(.niki-auth) {
   display: grid;
@@ -50,9 +83,9 @@ const firstPaintStyle = `
   width: min(100%, 440px);
   box-sizing: border-box;
   padding: 36px;
-  border: 1px solid #2a2e35;
-  border-radius: 24px;
-  background: #111318;
+  border: 0;
+  border-radius: var(--od-surface-radius, 12px);
+  background: var(--poster-panel);
 }
 :where(.niki-auth__logo) {
   width: 52px;
@@ -60,27 +93,20 @@ const firstPaintStyle = `
 }
 :where(.niki-auth h1) {
   margin: 24px 0 10px;
-  font-size: 30px;
+  font-size: 26px;
   line-height: 1.2;
 }
-:where(.niki-auth__loading, .locale-bootstrap) {
+:where(.niki-auth__loading) {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-:where(.locale-bootstrap) {
-  justify-content: center;
-}
-:where(.locale-bootstrap__logo) {
-  width: 32px;
-  height: 32px;
-}
-:where(.niki-auth__spinner, .locale-bootstrap__spinner) {
+:where(.niki-auth__spinner) {
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid rgb(255 255 255 / 18%);
-  border-top-color: #fe5200;
+  border: 2px solid color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
+  border-top-color: var(--poster-accent);
   border-radius: 50%;
   animation: niki-first-paint-spin 700ms linear infinite;
 }
@@ -97,12 +123,18 @@ const firstPaintStyle = `
  * Keep the accent variable mix ratios in sync with `accentVars()` in
  * `src/state/appearance.ts`; this script cannot import application modules.
  */
-const themeInitScript = `(function(){try{var c=JSON.parse(localStorage.getItem('open-design:config')||'{}');var t=c.theme;if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():'#fe5200';if(a==='#c96442'||a==='#ff5f53')a='#fe5200';if(a==='#fe5200')return;var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 86%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 22%, var(--bg-panel))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 12%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 90%, var(--text-strong))');}catch(e){}})();`;
+const defaultAccentColor = NIKI_POSTER_COLOR_VALUES.accent;
+const [legacyAccentColor, legacyAlternateAccentColor] = NIKI_POSTER_LEGACY_ACCENT_COLORS;
+const themeInitScript = `(function(){try{var c=JSON.parse(localStorage.getItem('open-design:config')||'{}');var t=c.theme;if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);var a=typeof c.accentColor==='string'&&/^#[0-9a-fA-F]{6}$/.test(c.accentColor.trim())?c.accentColor.trim().toLowerCase():'${defaultAccentColor}';if(a==='${legacyAccentColor}'||a==='${legacyAlternateAccentColor}')a='${defaultAccentColor}';if(a==='${defaultAccentColor}')return;var s=document.documentElement.style;s.setProperty('--accent',a);s.setProperty('--accent-strong','color-mix(in srgb, '+a+' 86%, var(--text-strong))');s.setProperty('--accent-soft','color-mix(in srgb, '+a+' 22%, var(--bg-panel))');s.setProperty('--accent-tint','color-mix(in srgb, '+a+' 12%, var(--bg-panel))');s.setProperty('--accent-hover','color-mix(in srgb, '+a+' 90%, var(--text-strong))');}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang='en' suppressHydrationWarning>
       <head>
+        <style
+          id='niki-color-tokens'
+          dangerouslySetInnerHTML={{ __html: NIKI_POSTER_COLOR_CSS }}
+        />
         <style
           id='niki-first-paint'
           dangerouslySetInnerHTML={{ __html: firstPaintStyle }}

@@ -93,6 +93,17 @@ function migrate(db: SqliteDb): void {
     CREATE INDEX IF NOT EXISTS idx_niki_auth_sessions_user
       ON niki_auth_sessions(user_id, expires_at);
 
+    CREATE TABLE IF NOT EXISTS niki_feishu_credentials (
+      user_id TEXT PRIMARY KEY,
+      access_token TEXT NOT NULL,
+      refresh_token TEXT,
+      access_token_expires_at INTEGER NOT NULL,
+      refresh_token_expires_at INTEGER,
+      scope TEXT NOT NULL DEFAULT '',
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES niki_users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS niki_password_accounts (
       user_id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -134,6 +145,16 @@ function migrate(db: SqliteDb): void {
 
     CREATE INDEX IF NOT EXISTS idx_niki_security_events_user
       ON niki_security_events(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS english_practice_progress (
+      user_id TEXT PRIMARY KEY,
+      listened_line_ids_json TEXT NOT NULL DEFAULT '[]',
+      favorites_json TEXT NOT NULL DEFAULT '[]',
+      sentence_order_completed INTEGER NOT NULL DEFAULT 0,
+      shadowing_completed INTEGER NOT NULL DEFAULT 0,
+      role_play_completed INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    );
 
     CREATE TABLE IF NOT EXISTS templates (
       id TEXT PRIMARY KEY,

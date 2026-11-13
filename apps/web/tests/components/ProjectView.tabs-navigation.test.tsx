@@ -138,10 +138,10 @@ const conversation: Conversation = {
   updatedAt: 1,
 };
 
-function renderProjectView() {
+function renderProjectView(projectOverride: Project = project) {
   return render(
     <ProjectView
-      project={project}
+      project={projectOverride}
       routeFileName={null}
       config={config}
       agents={[] as AgentInfo[]}
@@ -245,5 +245,36 @@ describe('ProjectView tab URL hydration', () => {
         { replace: true },
       );
     });
+  });
+
+  it('opens direct poster projects in chat instead of restoring an old image file route', async () => {
+    const directPosterProject: Project = {
+      ...project,
+      id: 'direct-poster-project',
+      skillId: 'loan-poster-skill-v1-1',
+      metadata: { kind: 'image' },
+    };
+    mockedLoadTabs.mockResolvedValue({
+      tabs: ['zamloan-poster-01.png'],
+      active: 'zamloan-poster-01.png',
+    });
+
+    renderProjectView(directPosterProject);
+
+    await waitFor(() => {
+      expect(mockedNavigate).toHaveBeenCalledWith(
+        {
+          kind: 'project',
+          projectId: directPosterProject.id,
+          conversationId: 'conv-1',
+          fileName: null,
+        },
+        { replace: true },
+      );
+    });
+    expect(mockedNavigate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ fileName: 'zamloan-poster-01.png' }),
+      expect.anything(),
+    );
   });
 });

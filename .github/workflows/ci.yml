@@ -440,7 +440,7 @@ jobs:
     name: Playwright critical (${{ matrix.group }})
     needs: [change_scopes]
     if: ${{ needs.change_scopes.outputs.workspace_validation_required == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false

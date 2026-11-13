@@ -9,6 +9,7 @@ import { runDesignSystemsToolCli } from './tools-design-systems-cli.js';
 import { runLiveArtifactsToolCli } from './tools-live-artifacts-cli.js';
 import { splitResearchSubcommand } from './research/cli-args.js';
 import { resolveDaemonUrl } from './daemon-url.js';
+import { runPresentationCli } from './presentation-cli.js';
 
 const argv = process.argv.slice(2);
 const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -50,6 +51,14 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'surface',
   'model',
   'prompt',
+  'prompt-file',
+  'foreground-prompt',
+  'foreground-prompt-file',
+  'poster-headline',
+  'poster-subtitle',
+  'poster-text-anchor',
+  'poster-copy-style',
+  'resume-task',
   'output',
   'aspect',
   'quality',
@@ -59,7 +68,12 @@ const MEDIA_GENERATE_STRING_FLAGS = new Set([
   'voice',
   'audio-kind',
   'composition-dir',
+  'storyboard-file',
   'image',
+  'overlay-z',
+  'overlay-logo',
+  'overlay-logo-anchor',
+  'overlay-phone-screen',
   'daemon-url',
   'language',
 ]);
@@ -77,8 +91,33 @@ const CANVAS_STRING_FLAGS = new Set([
 ]);
 const CANVAS_BOOLEAN_FLAGS = new Set(['json', 'help', 'h']);
 
+const LOGO_STRING_FLAGS = new Set([
+  'daemon-url',
+  'project',
+  'direction',
+  'brand',
+  'industry',
+  'audience',
+  'personality',
+  'architecture',
+  'palette',
+  'applications',
+  'avoid',
+  'notes',
+  'prompt-file',
+  'agent',
+  'model',
+]);
+const LOGO_BOOLEAN_FLAGS = new Set(['json', 'help', 'h', 'run', 'follow']);
+
 const MCP_STRING_FLAGS = new Set([
   'daemon-url',
+]);
+const DOCUMENT_STRING_FLAGS = new Set([
+  'daemon-url', 'query', 'url', 'prompt-file',
+]);
+const DOCUMENT_BOOLEAN_FLAGS = new Set([
+  'json', 'help', 'h',
 ]);
 const MCP_BOOLEAN_FLAGS = new Set([
   'help',
@@ -222,11 +261,15 @@ const PLUGIN_LIST_BOOLEAN_FLAGS = new Set([
 ]);
 
 const SUBCOMMAND_MAP = {
+  ppt: runPresentationCli,
   artifacts: runArtifacts,
   media: runMedia,
   canvas: runCanvas,
+  logo: runLogo,
   mcp: runMcp,
   research: runResearch,
+  documents: runDocuments,
+  english: runEnglish,
   plugin: runPlugin,
   ui: runUi,
   marketplace: runMarketplace,
@@ -250,6 +293,173 @@ const SUBCOMMAND_MAP = {
   doctor: runDoctor,
   config: runConfig,
 };
+
+async function runEnglish(args) {
+  const sub = args.find((arg) => !arg.startsWith('-'));
+  if (!sub || sub === 'help' || args.includes('--help') || args.includes('-h')) {
+    printEnglishHelp();
+    process.exit(sub === 'help' || args.includes('--help') || args.includes('-h') ? 0 : 2);
+  }
+  if (!['lessons', 'lesson', 'progress', 'vocabulary'].includes(sub)) {
+    console.error(`unknown subcommand: od english ${sub}`);
+    printEnglishHelp();
+    process.exit(2);
+  }
+  const flags = parseFlags(args.slice(1), {
+    string: new Set(['daemon-url']),
+    boolean: new Set(['json', 'help', 'h']),
+  });
+  const base = (await cliDaemonUrl(flags)).replace(/\/$/, '');
+  const positional = args.filter((arg, index) => (
+    index > 0
+    && !arg.startsWith('-')
+    && arg !== flags['daemon-url']
+  ));
+  const lessonId = positional[0];
+  if (sub === 'lesson' && !lessonId) {
+    console.error('Usage: od english lesson <lesson-id> [--json]');
+    process.exit(2);
+  }
+  const path = sub === 'lessons'
+    ? '/api/english-practice/catalog'
+    : sub === 'lesson'
+      ? `/api/english-practice/lessons/${encodeURIComponent(lessonId)}`
+      : '/api/english-practice/progress';
+  let response;
+  try {
+    response = await fetch(`${base}${path}`);
+  } catch (error) {
+    surfaceFetchError(error, base);
+    process.exit(3);
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error(`daemon ${response.status}: ${JSON.stringify(body)}`);
+    process.exit(4);
+  }
+  const output = sub === 'vocabulary'
+    ? { favorites: body.progress?.favorites ?? [] }
+    : body;
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    return;
+  }
+  if (sub === 'lessons') {
+    for (const lesson of output.scenarios ?? []) {
+      console.log(`${lesson.id}\t${lesson.level}\t${lesson.available ? 'available' : 'coming-soon'}\t${lesson.title}\t${lesson.englishTitle}`);
+    }
+    return;
+  }
+  if (sub === 'lesson') {
+    console.log(`${output.lesson.title} · ${output.lesson.englishTitle}`);
+    for (const line of output.lesson.dialogue ?? []) {
+      console.log(`${line.speaker}\t${line.english}\t${line.chinese}`);
+    }
+    return;
+  }
+  if (sub === 'vocabulary') {
+    for (const word of output.favorites) console.log(word);
+    return;
+  }
+  const progress = output.progress;
+  console.log(`listened\t${progress.listenedLineIds?.length ?? 0}`);
+  console.log(`favorites\t${progress.favorites?.length ?? 0}`);
+  console.log(`shadowing\t${progress.shadowingCompleted ? 'complete' : 'pending'}`);
+  console.log(`role-play\t${progress.rolePlayCompleted ? 'complete' : 'pending'}`);
+  console.log(`sentence-order\t${progress.sentenceOrderCompleted ? 'complete' : 'pending'}`);
+}
+
+function printEnglishHelp() {
+  console.log(`Usage:
+  od english lessons [--json] [--daemon-url <url>]
+  od english lesson <lesson-id> [--json] [--daemon-url <url>]
+  od english progress [--json] [--daemon-url <url>]
+  od english vocabulary [--json] [--daemon-url <url>]
+
+Reads the same stable lesson catalog, bilingual dialogue, progress, and saved
+vocabulary used by Daily English Practice in the Niki web UI. Set
+OD_NIKI_SESSION_TOKEN when calling an authenticated remote daemon.`);
+}
+
+async function runDocuments(args) {
+  const sub = args.find((arg) => !arg.startsWith('-'));
+  if (!sub || sub === 'help' || args.includes('--help') || args.includes('-h')) {
+    printDocumentsHelp();
+    process.exit(sub === 'help' || args.includes('--help') || args.includes('-h') ? 0 : 2);
+  }
+  if (sub !== 'search' && sub !== 'read') {
+    console.error(`unknown subcommand: od documents ${sub}`);
+    printDocumentsHelp();
+    process.exit(2);
+  }
+  const rest = args.filter((arg, index) => index !== args.indexOf(sub));
+  let flags;
+  try {
+    flags = parseFlags(rest, {
+      string: DOCUMENT_STRING_FLAGS,
+      boolean: DOCUMENT_BOOLEAN_FLAGS,
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exit(2);
+  }
+  const input = (
+    typeof flags[sub === 'read' ? 'url' : 'query'] === 'string'
+      && flags[sub === 'read' ? 'url' : 'query'].trim()
+      ? flags[sub === 'read' ? 'url' : 'query']
+      : await readPromptFromFlags({ 'prompt-file': flags['prompt-file'] })
+  )?.trim();
+  if (!input) {
+    console.error(`${sub === 'read' ? '--url' : '--query'} or --prompt-file required`);
+    process.exit(2);
+  }
+  const daemonUrl = await cliDaemonUrl(flags);
+  let response;
+  try {
+    response = await fetch(`${daemonUrl.replace(/\/$/, '')}/api/feishu/documents/${sub}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(sub === 'read'
+        ? { url: input }
+        : { query: input, pageSize: 20 }),
+    });
+  } catch (error) {
+    surfaceFetchError(error, daemonUrl);
+    process.exit(3);
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error(`daemon ${response.status}: ${JSON.stringify(body)}`);
+    process.exit(4);
+  }
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(body, null, 2)}\n`);
+    return;
+  }
+  if (sub === 'read') {
+    console.log(`${body.title}\n${body.url}\n\n${body.content}`);
+    if (body.truncated) console.log('\n[Preview truncated]');
+    return;
+  }
+  if (!Array.isArray(body.results) || body.results.length === 0) {
+    console.log(`No Feishu documents found for "${input}".`);
+    return;
+  }
+  for (const item of body.results) {
+    console.log(`${item.title}\n${item.url}${item.ownerName ? `\nOwner: ${item.ownerName}` : ''}\n`);
+  }
+}
+
+function printDocumentsHelp() {
+  console.log(`Usage:
+  od documents search (--query <text> | --prompt-file <path|->)
+                      [--json] [--daemon-url <url>]
+  od documents read (--url <feishu-url> | --prompt-file <path|->)
+                    [--json] [--daemon-url <url>]
+
+Searches or reads Feishu documents visible to the signed-in user. Set
+OD_NIKI_SESSION_TOKEN when calling a Feishu-authenticated remote daemon.`);
+}
 
 async function runAuth(args) {
   if (args.length === 0 || args[0] === 'help' || args.includes('--help') || args.includes('-h')) {
@@ -463,7 +673,7 @@ if (first && SUBCOMMAND_MAP[first]) {
   const idx = argv.indexOf(first);
   const rest = [...argv.slice(0, idx), ...argv.slice(idx + 1)];
   await SUBCOMMAND_MAP[first](rest);
-  process.exit(0);
+  process.exit(process.exitCode ?? 0);
 }
 
 if (argv[0] === 'tools' && argv[1] === 'live-artifacts') {
@@ -523,6 +733,12 @@ function printRootHelp() {
   od research search --query <text> [--max-sources 5] [--daemon-url <url>]
       Run agent-callable Tavily research through the local daemon.
 
+  od english <lessons|lesson|progress|vocabulary> [args]
+      Read the same Daily English lessons, progress, and vocabulary as the web UI.
+
+  od ppt <models|templates|generate|continue|repair|check|review|list|status|edit|download|preview> [args]
+      Turn uploaded documents into editable presentations. Run od ppt help for options.
+
   od plugin <list|info|install|uninstall|apply|doctor|replay|trust> [args]
       Discover, install, and apply plugins through the local daemon.
 
@@ -559,6 +775,14 @@ function printRootHelp() {
       Drive the project's Lovart-style design canvas headlessly. Images
       and text nodes share one infinite space the web tldraw editor also
       renders, so an external agent can compose a canvas without the UI.
+
+  od logo create --brand <name> --industry <category> [options]
+      Create a structured Logo Studio project through the same brief and
+      project APIs used by the web UI. Supports --json and --prompt-file.
+
+  od logo finalize --project <id> --direction <1|2|3|4> [--mode faithful|refine] [options]
+      Faithfully vectorize one saved direction by default, or explicitly run
+      design refinement into a versioned SVG-first brand kit.
 
   od mcp [--daemon-url <url>]
       Run a stdio MCP server that proxies project tool calls to a
@@ -762,20 +986,35 @@ async function runMediaGenerate(rawArgs) {
     process.exit(2);
   }
 
-  const surface = flags.surface;
+  const surface = flags.surface || (flags['resume-task'] ? 'image' : undefined);
   if (!surface || !['image', 'video', 'audio'].includes(surface)) {
     console.error('--surface must be one of: image | video | audio');
     process.exit(2);
   }
-  if (!flags.model) {
+  if (!flags.model && !flags['resume-task']) {
     console.error('--model required (see http://<daemon>/api/media/models)');
     process.exit(2);
   }
 
+  const prompt = await readPromptFromFlags(flags);
+  const foregroundPrompt = await readPromptFromFlags({
+    prompt: flags['foreground-prompt'],
+    'prompt-file': flags['foreground-prompt-file'],
+  });
+  let loanVideoStoryboard;
+  if (flags['storyboard-file']) {
+    try {
+      loanVideoStoryboard = JSON.parse(await readSecretFile(flags['storyboard-file']));
+    } catch (error) {
+      console.error(`could not read --storyboard-file: ${error instanceof Error ? error.message : String(error)}`);
+      process.exit(2);
+    }
+  }
   const body = {
+    resumeTaskId: flags['resume-task'],
     surface,
     model: flags.model,
-    prompt: flags.prompt,
+    prompt,
     output: flags.output,
     aspect: flags.aspect,
     quality: flags.quality,
@@ -783,7 +1022,17 @@ async function runMediaGenerate(rawArgs) {
     audioKind: flags['audio-kind'],
     compositionDir: flags['composition-dir'],
     image: flags.image,
+    overlayZ: flags['overlay-z'],
+    overlayLogo: flags['overlay-logo'],
+    overlayLogoAnchor: flags['overlay-logo-anchor'],
+    overlayPhoneScreen: flags['overlay-phone-screen'],
+    foregroundPrompt,
+    posterHeadline: flags['poster-headline'],
+    posterSubtitle: flags['poster-subtitle'],
+    posterTextAnchor: flags['poster-text-anchor'],
+    posterCopyStyle: flags['poster-copy-style'],
     language: flags.language,
+    ...(loanVideoStoryboard ? { loanVideoStoryboard } : {}),
   };
   if (flags.length != null) body.length = Number(flags.length);
   if (flags.duration != null) body.duration = Number(flags.duration);
@@ -814,9 +1063,7 @@ async function runMediaGenerate(rawArgs) {
     process.exit(4);
   }
   console.error(`task ${taskId} queued (${accepted.status || 'queued'})`);
-  await pollUntilDoneOrBudget(daemonUrl, taskId, 0, {
-    stillRunningExitCode: 0,
-  });
+  await pollUntilDoneOrBudget(daemonUrl, taskId, 0);
 }
 
 async function runMediaWait(rawArgs) {
@@ -965,6 +1212,234 @@ async function runCanvas(args) {
   }
 }
 
+// ---------- od logo … ----------
+
+async function runLogo(args) {
+  const sub = args.find((value) => !value.startsWith('-')) || '';
+  if (!sub || sub === 'help' || args.includes('--help') || args.includes('-h')) {
+    printLogoHelp();
+    return;
+  }
+  if (!['create', 'finalize'].includes(sub)) {
+    console.error(`unknown subcommand: od logo ${sub}`);
+    printLogoHelp();
+    process.exit(2);
+  }
+
+  const index = args.indexOf(sub);
+  const rawArgs = [...args.slice(0, index), ...args.slice(index + 1)];
+  let flags;
+  try {
+    flags = parseFlags(rawArgs, { string: LOGO_STRING_FLAGS, boolean: LOGO_BOOLEAN_FLAGS });
+  } catch (error) {
+    console.error(error.message);
+    printLogoHelp();
+    process.exit(2);
+  }
+
+  if (sub === 'finalize') {
+    await runLogoFinalize(flags);
+    return;
+  }
+
+  if (!flags.brand || !flags.industry) {
+    console.error('--brand <name> and --industry <category> are required');
+    process.exit(2);
+  }
+
+  const notes = await readPromptFromFlags({
+    prompt: flags.notes,
+    'prompt-file': flags['prompt-file'],
+  });
+  const list = (value) => typeof value === 'string'
+    ? value.split(',').map((item) => item.trim()).filter(Boolean)
+    : [];
+  const base = await cliDaemonBaseUrl(flags);
+  const briefResponse = await fetch(`${base}/api/logo/brief`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      brandName: flags.brand,
+      industry: flags.industry,
+      audience: flags.audience,
+      personality: list(flags.personality),
+      architecture: flags.architecture,
+      palette: list(flags.palette),
+      applications: list(flags.applications),
+      avoid: list(flags.avoid),
+      notes: notes || '',
+    }),
+  });
+  const briefData = await briefResponse.json().catch(() => ({}));
+  if (!briefResponse.ok) {
+    console.error(`POST /api/logo/brief failed: ${briefResponse.status} ${JSON.stringify(briefData)}`);
+    process.exit(1);
+  }
+
+  const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+  const projectResponse = await fetch(`${base}/api/projects`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id, ...briefData.project }),
+  });
+  const projectData = await projectResponse.json().catch(() => ({}));
+  if (!projectResponse.ok) {
+    console.error(`POST /api/projects failed: ${projectResponse.status} ${JSON.stringify(projectData)}`);
+    process.exit(1);
+  }
+
+  let runData = null;
+  if (flags.run || flags.follow) {
+    const agentId = await resolveLogoAgentId(base, flags.agent);
+    const runResponse = await fetch(`${base}/api/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        projectId: projectData.project?.id ?? id,
+        conversationId: projectData.conversationId,
+        message: briefData.project?.pendingPrompt,
+        appliedPluginSnapshotId: projectData.appliedPluginSnapshotId,
+        agentId,
+        ...(flags.model ? { model: flags.model } : {}),
+      }),
+    });
+    runData = await runResponse.json().catch(() => ({}));
+    if (!runResponse.ok) {
+      console.error(`POST /api/runs failed: ${runResponse.status} ${JSON.stringify(runData)}`);
+      process.exit(1);
+    }
+  }
+
+  const output = {
+    ...projectData,
+    brief: briefData.brief,
+    ...(runData ? { run: runData } : {}),
+  };
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+    if (flags.follow && runData?.runId) await streamRunEvents(base, runData.runId);
+    return;
+  }
+  console.log(`[logo] created ${projectData.project?.name ?? flags.brand} (${projectData.project?.id ?? id})`);
+  if (runData?.runId) {
+    console.log(`[logo] generation started ${runData.runId}`);
+    if (flags.follow) await streamRunEvents(base, runData.runId);
+  } else {
+    console.log(`[logo] four directions are ready to run in conversation ${projectData.conversationId ?? '-'}`);
+  }
+}
+
+async function resolveLogoAgentId(base, requestedAgentId) {
+  if (requestedAgentId) return requestedAgentId;
+  const response = await fetch(`${base}/api/agents`);
+  const data = await response.json().catch(() => ({}));
+  const available = Array.isArray(data.agents)
+    ? data.agents.filter((agent) => agent?.available && typeof agent.id === 'string')
+    : [];
+  const agent = available.find((candidate) => candidate.id === 'codex')
+    ?? available.find((candidate) => candidate.id === 'claude')
+    ?? available[0];
+  if (!response.ok || !agent) {
+    throw new Error('no local coding agent is available; pass --agent after configuring one');
+  }
+  return agent.id;
+}
+
+async function runLogoFinalize(flags) {
+  if (!flags.project || !flags.direction) {
+    console.error('--project <id> and --direction <1|2|3|4> are required');
+    process.exit(2);
+  }
+  const direction = Number(flags.direction);
+  if (!Number.isInteger(direction) || direction < 1 || direction > 4) {
+    console.error('--direction must be an integer from 1 to 4');
+    process.exit(2);
+  }
+  const mode = flags.mode || 'faithful';
+  if (mode !== 'faithful' && mode !== 'refine') {
+    console.error('--mode must be faithful or refine');
+    process.exit(2);
+  }
+  const notes = await readPromptFromFlags({
+    prompt: flags.notes,
+    'prompt-file': flags['prompt-file'],
+  });
+  const base = await cliDaemonBaseUrl(flags);
+  const response = await fetch(`${base}/api/logo/finalize`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      projectId: flags.project,
+      direction,
+      mode,
+      notes: notes || '',
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.error(`POST /api/logo/finalize failed: ${response.status} ${JSON.stringify(data)}`);
+    process.exit(1);
+  }
+
+  let runData = null;
+  if (mode === 'refine' && (flags.run || flags.follow)) {
+    const agentId = await resolveLogoAgentId(base, flags.agent);
+    const runResponse = await fetch(`${base}/api/runs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        projectId: data.finalization.projectId,
+        conversationId: data.finalization.conversationId,
+        assistantMessageId: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2),
+        clientRequestId: data.finalization.clientRequestId,
+        agentId,
+        message: data.prompt,
+        skillId: 'logo-generator',
+        attachments: [data.finalization.sourceFile],
+        ...(flags.model ? { model: flags.model } : {}),
+      }),
+    });
+    runData = await runResponse.json().catch(() => ({}));
+    if (!runResponse.ok) {
+      console.error(`POST /api/runs failed: ${runResponse.status} ${JSON.stringify(runData)}`);
+      process.exit(1);
+    }
+  }
+
+  const output = { ...data, ...(runData ? { run: runData } : {}) };
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+  } else {
+    console.log(`[logo] selected direction ${direction} for ${flags.project}`);
+    if (runData?.runId) console.log(`[logo] brand-kit generation started ${runData.runId}`);
+    else console.log(`[logo] refinement saved as ${data.finalization.id}; rerun with --run to build it`);
+  }
+  if (flags.follow && runData?.runId) await streamRunEvents(base, runData.runId);
+}
+
+function printLogoHelp() {
+  console.log(`Usage:
+  od logo create --brand <name> --industry <category>
+                 [--audience <text>]
+                 [--personality precise,warm,bold]
+                 [--architecture symbol|wordmark|combination|monogram]
+                 [--palette '#FF5A1F,#151719,#F4F1EA']
+                 [--applications web,favicon,social,app-icon,print]
+                 [--avoid <comma-separated-list>]
+                 [--notes <text> | --prompt-file <path|->]
+                 [--run] [--agent <id>] [--model <id>] [--follow]
+                 [--daemon-url <url>] [--json]
+
+  od logo finalize --project <id> --direction <1|2|3|4>
+                   [--notes <text> | --prompt-file <path|->]
+                   [--run] [--agent <id>] [--model <id>] [--follow]
+                   [--daemon-url <url>] [--json]`);
+}
+
 function numOr(value, fallback) {
   const n = Number(value);
   return Number.isFinite(n) ? n : fallback;
@@ -1073,13 +1548,9 @@ function printCanvasHelp() {
   --daemon-url <url>   Open Design daemon HTTP base (default OD_DAEMON_URL, OD_SIDECAR_IPC_PATH discovery, or http://127.0.0.1:7456).`);
 }
 
-async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart, options = {}) {
+async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart) {
   const totalBudgetMs = 25_000;
   const perCallTimeoutMs = 4_000;
-  const stillRunningExitCode =
-    typeof options.stillRunningExitCode === 'number'
-      ? options.stillRunningExitCode
-      : 2;
   const startedAt = Date.now();
   const url = `${daemonUrl.replace(/\/$/, '')}/api/media/tasks/${encodeURIComponent(taskId)}/wait`;
 
@@ -1150,7 +1621,7 @@ async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart, options = {}
       process.stdout.write(
         JSON.stringify({ taskId, status: 'failed', error: snap.error || {} }) + '\n',
       );
-      process.exit(snap.error?.status || 5);
+      process.exit(5);
     }
     if (snap.status === 'interrupted') {
       const msg = snap.error?.message || 'task interrupted';
@@ -1158,7 +1629,7 @@ async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart, options = {}
       process.stdout.write(
         JSON.stringify({ taskId, status: 'interrupted', error: snap.error || {} }) + '\n',
       );
-      process.exit(snap.error?.status || 5);
+      process.exit(5);
     }
   }
 
@@ -1169,16 +1640,12 @@ async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart, options = {}
     elapsed: Math.round((Date.now() - startedAt) / 1000),
   };
   process.stdout.write(JSON.stringify(handoff) + '\n');
-  const stillRunningHint =
-    stillRunningExitCode === 0
-      ? 'This is a successful queued/running handoff, not a failure.'
-      : `exit code ${stillRunningExitCode} = still running.`;
   process.stderr.write(
     `task ${taskId} still running after ${handoff.elapsed}s. ` +
       `Run \`"$OD_NODE_BIN" "$OD_BIN" media wait ${taskId} --since ${since}\` to continue in an agent runtime ` +
-      `(${stillRunningHint}).\n`,
+      '(exit code 2 = still running).\n',
   );
-  process.exit(stillRunningExitCode);
+  process.exit(2);
 }
 
 function surfaceFetchError(err, daemonUrl) {
@@ -1276,6 +1743,7 @@ Required:
 
 Common options:
   --prompt "<text>"         Generation prompt. ElevenLabs SFX prompts must stay under 450 characters.
+  --prompt-file <path|->    Read a long generation prompt from a file or stdin.
   --output <filename>       File to write under the project. Auto-named if omitted.
   --aspect 1:1|16:9|9:16|4:3|3:4
   --length <seconds>        Video length.
@@ -1288,12 +1756,37 @@ Common options:
   --composition-dir <path>  hyperframes-html only — project-relative path
                             to the dir containing hyperframes.json /
                             meta.json / index.html. The daemon runs
-                            \`npx hyperframes render\` against it.
+                            its bundled HyperFrames renderer against it.
+  --storyboard-file <path|-> hyperframes-html tutorial mode — read a structured
+                            loan-video storyboard from JSON and let the daemon
+                            build the composition before rendering. Use
+                            backgroundRef plus full/device scene presentations
+                            for intro, fixed background, pages, and outro.
   --image <path>            Project-relative path to a reference image
                             (image-to-video for Seedance i2v models, or
                             future image-edit endpoints). Daemon reads
                             the file from the project, base64-encodes
                             it, and forwards it to the upstream API.
+  --overlay-logo <path>     Project-relative logo to composite onto the
+                            generated image after provider rendering.
+  --overlay-z <path>        Project-relative raster Z silhouette to composite
+                            exactly after provider rendering.
+  --overlay-logo-anchor <left|right>
+                            Align the logo with the matching title column.
+  --overlay-phone-screen <path>
+                            Composite a project image into a magenta phone screen.
+  --foreground-prompt <text>
+                            Model-only foreground prompt for a layered poster;
+                            the daemon removes a local chroma matte.
+  --foreground-prompt-file <path|->
+                            Read the layered foreground prompt from a file or stdin.
+  --poster-headline <text>  Deterministic poster headline rendered above the model.
+  --poster-subtitle <text>  Deterministic poster subtitle rendered above the model.
+  --poster-text-anchor <left|right>
+                            Align deterministic copy with the reserved title column.
+  --poster-copy-style <standard|anti-fraud|anti-fraud-message>
+                            Select the deterministic poster copy treatment.
+  --resume-task <taskId>  Resume a saved poster locally without a new image charge
   --daemon-url <url>
 
 Output: a single line of JSON: {"file": { name, size, kind, mime, ... }}.

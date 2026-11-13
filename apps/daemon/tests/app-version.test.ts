@@ -68,6 +68,13 @@ describe('app version helpers', () => {
     }).channel).toBe('beta');
   });
 
+  it('exposes an immutable runtime release id when the launcher supplies one', () => {
+    expect(resolveAppVersionInfo({
+      packageMetadata: { version: '1.2.3' },
+      env: { NIKI_RELEASE_SHA: '14bcd3f1eef7cc3f3c4b4e0a9221251bf960587c' },
+    }).release).toBe('14bcd3f1eef7cc3f3c4b4e0a9221251bf960587c');
+  });
+
   it('infers prerelease channel from semver metadata', () => {
     expect(resolveAppVersionInfo({
       packageMetadata: { version: '0.1.0-beta.6' },

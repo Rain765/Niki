@@ -749,7 +749,11 @@ export function EntryShell({
   return (
     <div className="entry-shell entry-shell--no-header entry-shell--workspace">
       <div className="entry">
-        <main className="entry-main entry-main--scroll">
+        <main
+          className={`entry-main entry-main--scroll${
+            view === 'home' ? ' entry-main--home' : ''
+          }`}
+        >
           <div
             className={`entry-main__inner${
               view === 'home' ? ' entry-main__inner--home' : ' entry-main__inner--wide'

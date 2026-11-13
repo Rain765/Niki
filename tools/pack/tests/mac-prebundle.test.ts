@@ -75,6 +75,7 @@ describe("mac standalone prebundle policy", () => {
     expect(MAC_PREBUNDLE_RUNTIME_DEPENDENCIES).toEqual({
       "better-sqlite3": "12.9.0",
       "blake3-wasm": "2.1.5",
+      hyperframes: "0.7.108",
     });
     expect(MAC_PREBUNDLED_DAEMON_CLI_RELATIVE_PATH).toBe("app/prebundled/daemon/daemon-cli.mjs");
     expect(MAC_PREBUNDLED_DAEMON_SIDECAR_RELATIVE_PATH).toBe("app/prebundled/daemon/daemon-sidecar.mjs");

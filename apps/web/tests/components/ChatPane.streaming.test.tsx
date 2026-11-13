@@ -188,6 +188,219 @@ Expected output:
     expect(screen.queryByTestId('conversation-history-trigger')).toBeNull();
   });
 
+  it('keeps completed direct poster batches visible when the project has historical messages', () => {
+    render(
+      <ChatPane
+        messages={[{
+          id: 'historical-user-message',
+          role: 'user',
+          content: 'An older poster prompt',
+          createdAt: 1,
+        }]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[{
+          name: 'biumoney-poster-20260803-011.png',
+          size: 1024,
+          mtime: 11,
+          kind: 'image',
+          mime: 'image/png',
+        }]}
+        projectFilesInitialized
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 1,
+            outputPrefix: 'biumoney-poster',
+            status: 'complete',
+            activeBatchId: 'batch-5',
+            batches: [{
+              id: 'batch-5',
+              status: 'complete',
+              requestedAt: 1,
+              completedAt: 2,
+              expectedOutputs: 1,
+              outputNames: ['biumoney-poster-20260803-011.png'],
+            }],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('direct-poster-batch-batch-5').textContent)
+      .toContain('已完成 1 张');
+    expect(
+      screen.getByTestId('direct-poster-result-image-biumoney-poster-20260803-011.png'),
+    ).not.toBeNull();
+    expect(screen.queryByText('An older poster prompt')).toBeNull();
+  });
+
+  it('shows the poster shape immediately while the project file list hydrates', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[]}
+        projectFilesInitialized={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 1,
+            outputPrefix: 'biumoney-poster',
+            status: 'complete',
+            activeBatchId: 'batch-6',
+            batches: [{
+              id: 'batch-6',
+              status: 'complete',
+              requestedAt: 1,
+              completedAt: 2,
+              expectedOutputs: 1,
+              outputNames: ['biumoney-poster-20260803-012.png'],
+              aspectRatio: '1:1',
+            }],
+          },
+        }}
+      />,
+    );
+
+    const skeleton = screen.getByTestId('direct-poster-hydration-skeleton-batch-6');
+    expect(skeleton.classList.contains('is-square')).toBe(true);
+    expect(screen.getByText('第 1 批 · 正在加载海报')).toBeTruthy();
+  });
+
+  it('keeps the poster skeleton visible while an active batch hydrates', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[]}
+        projectFilesInitialized={false}
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 3,
+            outputPrefix: 'zamloan-poster',
+            status: 'queued',
+            activeBatchId: 'batch-active',
+            requestedAt: Date.now(),
+            batches: [{
+              id: 'batch-active',
+              status: 'queued',
+              expectedOutputs: 3,
+              requestedAt: Date.now(),
+              outputNames: [],
+              aspectRatio: '16:9',
+            }],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId('direct-poster-hydration-skeleton-batch-active')).toBeTruthy();
+    expect(screen.queryByText('正在生成贷款海报')).toBeNull();
+  });
+
+  it('keeps an image skeleton visible until the preview loads and offers retry on failure', () => {
+    render(
+      <ChatPane
+        messages={[]}
+        streaming={false}
+        error={null}
+        projectId="project-1"
+        projectFiles={[{
+          name: 'biumoney-poster-20260803-012.png',
+          size: 1024,
+          mtime: 11,
+          kind: 'image',
+          mime: 'image/png',
+        }]}
+        projectFilesInitialized
+        onEnsureProject={async () => 'project-1'}
+        onSend={vi.fn()}
+        onStop={vi.fn()}
+        conversations={conversations}
+        activeConversationId="conv-1"
+        onSelectConversation={vi.fn()}
+        onDeleteConversation={vi.fn()}
+        currentSkillId="loan-poster-skill-v1-1"
+        projectMetadata={{
+          kind: 'image',
+          directGeneration: {
+            kind: 'loan-poster',
+            expectedOutputs: 1,
+            outputPrefix: 'biumoney-poster',
+            status: 'complete',
+            activeBatchId: 'batch-6',
+            batches: [{
+              id: 'batch-6',
+              status: 'complete',
+              requestedAt: 1,
+              completedAt: 2,
+              expectedOutputs: 1,
+              outputNames: ['biumoney-poster-20260803-012.png'],
+              aspectRatio: '1:1',
+            }],
+          },
+        }}
+      />,
+    );
+
+    const image = screen.getByTestId(
+      'direct-poster-result-image-biumoney-poster-20260803-012.png',
+    );
+    const skeleton = screen.getByTestId(
+      'direct-poster-image-skeleton-biumoney-poster-20260803-012.png',
+    );
+    expect(skeleton.classList.contains('is-hidden')).toBe(false);
+    expect(image.getAttribute('loading')).toBe('eager');
+    expect(image.getAttribute('fetchpriority')).toBe('high');
+
+    fireEvent.error(image);
+    expect(screen.getByText('图片加载失败，点击重试')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('direct-poster-open-biumoney-poster-20260803-012.png'));
+    expect(
+      screen.getByTestId('direct-poster-result-image-biumoney-poster-20260803-012.png')
+        .getAttribute('src'),
+    ).toContain('&v=12');
+
+    fireEvent.load(
+      screen.getByTestId('direct-poster-result-image-biumoney-poster-20260803-012.png'),
+    );
+    expect(skeleton.classList.contains('is-hidden')).toBe(true);
+  });
+
   it('shows a minimal centered loading state before the first direct poster arrives', () => {
     render(
       <ChatPane
@@ -272,13 +485,9 @@ Expected output:
       'direct-poster-result-image-zamloan-poster-01.png',
     );
     const result = selectedImage.closest('.direct-poster-result');
-    const info = result?.querySelector('.direct-poster-result-info');
-    expect(info).toBeTruthy();
-    expect(
-      selectedImage.compareDocumentPosition(info as Node) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(info?.firstElementChild?.textContent).toBe('zamloan-poster-01.png');
-    expect(info?.querySelector('.direct-poster-result-actions')?.children).toHaveLength(3);
+    expect(result?.querySelector('.direct-poster-result-overlay-actions')?.children)
+      .toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'common.edit' })).toBeNull();
     expect(screen.queryByLabelText(/海报生成进度/)).toBeNull();
     expect(
       screen.queryByTestId('direct-poster-result-image-zamloan-poster-02.png'),
@@ -312,6 +521,13 @@ Expected output:
       screen.getByRole('button', { name: '查看第 2 张海报' })
         .getAttribute('aria-pressed'),
     ).toBe('true');
+    fireEvent.click(
+      screen.getByTestId('direct-poster-open-zamloan-poster-02.png'),
+    );
+    expect(screen.getByTestId('image-lightbox-image').getAttribute('src')).toBe(
+      '/api/projects/project-1/image-preview/zamloan-poster-02.png?variant=preview&v=2',
+    );
+    expect(screen.getByText('2 / 2')).toBeTruthy();
     expect(screen.queryByText('designFiles.addToCanvas')).toBeNull();
     expect(screen.queryByText('common.rename')).toBeNull();
   });

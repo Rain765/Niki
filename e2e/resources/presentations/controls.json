@@ -1,0 +1,430 @@
+[
+  {
+    "id": "valid-original",
+    "reason": "原值与单位匹配",
+    "expectation": "candidate",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "月费"
+        ],
+        [
+          "45 元"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "月费 45 元"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "valid-formatting",
+    "reason": "全角与空白变化不算错误",
+    "expectation": "candidate",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "月费"
+        ],
+        [
+          "45 元"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "月费：４５\n元"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "valid-approved-paraphrase",
+    "reason": "人工列入词表的等价说法",
+    "expectation": "candidate",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "费用"
+        ],
+        [
+          "每月 45 元",
+          "45 元/月"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "费用为 45 元/月"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "valid-table-row",
+    "reason": "原生表格同一行的标签和值均存在",
+    "expectation": "candidate",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "A-7"
+        ],
+        [
+          "29"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "A-7 | 29 | 暂停",
+          "B-8 | 31 | 通过"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "wrong-number",
+    "reason": "把 45 改为 450，不允许子串命中",
+    "expectation": "flag",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "月费"
+        ],
+        [
+          "45"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "月费 450 元"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "wrong-unit",
+    "reason": "毫秒被改为秒",
+    "expectation": "flag",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "延迟"
+        ],
+        [
+          "85 ms"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "延迟 85 s"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "missing-branch",
+    "reason": "删除了补件分支的文字与节点",
+    "expectation": "flag",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "补件"
+        ],
+        [
+          "资料不全"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "员工提交 → 主管审批 → 财务付款"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "missing-exception",
+    "reason": "省略否定规则",
+    "expectation": "flag",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "超时"
+        ],
+        [
+          "不自动批准"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "超时后通知申请人"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "wrong-row",
+    "reason": "数值从 A-7 错放到 B-8，按同一原生行核对",
+    "expectation": "flag",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "A-7"
+        ],
+        [
+          "29"
+        ],
+        [
+          "暂停"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "A-7 | 31 | 通过",
+          "B-8 | 29 | 暂停"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "split-pages",
+    "reason": "术语分散在不同页面不得拼接为一次命中",
+    "expectation": "flag",
+    "check": {
+      "kind": "literal",
+      "scope": "slide",
+      "groups": [
+        [
+          "RTO"
+        ],
+        [
+          "15 分钟"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "RTO 为 30 分钟"
+        ],
+        "warnings": []
+      },
+      {
+        "page": 2,
+        "blocks": [
+          "RPO 为 15 分钟"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "empty-final-artifact",
+    "reason": "生成空白页，但日志和草稿里有内容，不得算成功",
+    "expectation": "flag",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "验收"
+        ],
+        [
+          "300 张"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "unknown-paraphrase",
+    "reason": "“四十五块一个月”可能等价，词表漏检必须人工裁决",
+    "expectation": "manual",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "月费"
+        ],
+        [
+          "45 元"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "每个月四十五块钱"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "reverse-edge",
+    "reason": "节点与条件齐全但箭头反向，词表无法判断",
+    "expectation": "manual",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "审批"
+        ],
+        [
+          "付款"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "付款 → 审批"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "occluded-text",
+    "reason": "可提取文字被不透明图形遮住，词表无法判断",
+    "expectation": "manual",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "月费"
+        ],
+        [
+          "45 元"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "月费 45 元"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "contradiction",
+    "reason": "同页正确值与错误值并存，命中不等于事实正确",
+    "expectation": "manual",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "月费"
+        ],
+        [
+          "45 元"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [
+          "月费 45 元，实际结算一律按月费 450 元执行"
+        ],
+        "warnings": []
+      }
+    ]
+  },
+  {
+    "id": "image-only",
+    "reason": "事实以图片呈现，未接入 OCR 的规则会漏检",
+    "expectation": "manual",
+    "check": {
+      "kind": "literal",
+      "scope": "block",
+      "groups": [
+        [
+          "月费"
+        ],
+        [
+          "45 元"
+        ]
+      ]
+    },
+    "slides": [
+      {
+        "page": 1,
+        "blocks": [],
+        "warnings": []
+      }
+    ]
+  }
+]

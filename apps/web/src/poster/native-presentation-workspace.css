@@ -1,0 +1,19 @@
+.native-ppt-workspace { height: 100dvh; display: flex; flex-direction: column; background: var(--poster-bg); color: var(--poster-text); }
+.native-ppt-workspace__bar { display: flex; align-items: center; gap: 24px; padding: 12px 20px; border-bottom: 1px solid var(--poster-border); }
+.native-ppt-workspace__bar strong { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.native-ppt-workspace__bar a { color: var(--poster-muted); text-decoration: none; }
+.native-ppt-workspace__body { flex: 1; min-height: 0; display: flex; }
+.native-ppt-workspace__body > * { flex: 1; min-width: 0; }
+.native-ppt-workspace__settings { display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--poster-border); }
+.native-ppt-workspace__settings select { margin-left: 8px; }
+.native-ppt-workspace__settings p { width: 100%; }
+.native-ppt-workspace button, .native-ppt-workspace select { font: inherit; font-weight: var(--od-control-font-weight); }
+
+.native-ppt-workspace .df-preview-thumb:has(.native-player) { height: auto; aspect-ratio: auto; }
+.native-ppt-workspace .viewer-body:has(> .native-player) { overflow-y: auto; display: block; }
+
+.native-ppt-workspace--embedded .split { display: flex; }
+.native-ppt-workspace--embedded .split > .workspace,
+.native-ppt-workspace--embedded .split > .split-resize-handle,
+.native-ppt-workspace--embedded .project-chat-chrome { display: none; }
+.native-ppt-workspace--embedded .split > .split-chat-slot { display: flex; flex: 1; min-width: 0; width: 100%; }

@@ -1,0 +1,28 @@
+import type { Project } from '@open-design/contracts';
+import { afterAll, beforeAll, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
+import type { Server } from 'node:http';
+import { unlink } from 'node:fs/promises';
+import path from 'node:path';
+import { startServer } from '../src/server.js';
+import { PptModels } from '../src/ppt-models.js';
+let server: Server; let base: string;
+const models = new PptModels(process.env.OD_DATA_DIR!,async()=>Response.json({choices:[{}]}));
+beforeAll(async()=>{ const started=await startServer({port:0,returnServer:true}) as {server:Server;url:string};server=started.server;base=started.url; });
+afterAll(async()=>{await unlink(path.join(process.env.OD_DATA_DIR!,'ppt-model-credentials.json')).catch(()=>{});server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));});
+it('canonicalizes provider choice at creation and prevents later mutation or deletion of the binding',async()=>{
+  await models.save('qwen','fake-test-key');await models.test('qwen');await models.setDefault('qwen');
+  const id=randomUUID();
+  const response=await fetch(base+'/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,name:'PPT binding fixture',skillId:'html-ppt',metadata:{kind:'deck',nativePresentation:{version:1,workflow:'html-ppt',resourceVersion:'test',brief:'test'}}})});
+  expect(response.status).toBe(200);
+  const body=await response.json() as {project:Project};const meta=body.project.metadata!;
+  expect(meta.nativePresentation!.modelBinding).toEqual({provider:'qwen',model:'qwen3.8-max'});
+  await models.setDefault('existing');
+  const patch=(metadata:unknown)=>fetch(base+'/api/projects/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({metadata})});
+  expect((await patch(null)).status).toBe(400);
+  expect((await patch({...meta,nativePresentation:{...meta.nativePresentation,modelBinding:{provider:'kimi',model:'kimi-k3'}}})).status).toBe(400);
+  const {modelBinding:_binding,...rest}=meta.nativePresentation!;
+  const preserved=await (await patch({...meta,nativePresentation:rest})).json() as {project:Project};
+  expect(preserved.project.metadata!.nativePresentation!.modelBinding!.provider).toBe('qwen');
+  await fetch(base+'/api/projects/'+id,{method:'DELETE'});
+});

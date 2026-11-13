@@ -1,3 +1,8 @@
+.poster-app__content > .competitor-gallery {
+  --text-soft: var(--poster-muted);
+  min-height: calc(100dvh - var(--poster-topbar-height, 76px));
+}
+
 .app.app--direct-poster > .competitor-gallery {
   grid-row: 2;
   min-width: 0;

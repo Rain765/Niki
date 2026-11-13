@@ -1,4 +1,6 @@
+import type { NativePresentationMetadata } from './native-presentations.js';
 import type { ChatMessage, ChatRunStatus } from './chat.js';
+import type { PresentationJob } from './presentations.js';
 import type {
   ProjectContextConnectorRef,
   ProjectContextMcpServerRef,
@@ -107,13 +109,40 @@ export interface DirectLoanPosterBatch {
   failedAt?: number;
   expectedOutputs: number;
   outputNames: string[];
-  brand?: 'zamloan' | 'biumoney';
+  brand?: 'zamloan' | 'biumoney' | 'zamcash' | 'zammoney' | 'fastako' | 'yangaloan';
+  purpose?: 'acquisition' | 'anti-fraud';
   aspectRatio?: MediaAspect;
   lastError?: string;
 }
 
 export interface ProjectMetadata {
+  nativePresentation?: NativePresentationMetadata;
+  presentation?: PresentationJob;
   kind: ProjectKind;
+  /** Saved deterministic page plan used by Niki's one-click business video flow. */
+  loanVideoPreset?: {
+    version: 1;
+    brand: 'zamloan' | 'biumoney';
+    purpose:
+      | 'anti-fraud'
+      | 'loan-guide'
+      | 'top-up-guide'
+      // Historical values stay readable so existing projects remain visible.
+      | 'acquisition'
+      | 'tutorial'
+      | 'feature'
+      | 'promotion'
+      | 'support';
+  };
+  /**
+   * Marks a project as a Feishu document-query workspace. These projects use
+   * the existing conversation/message persistence model for saved document
+   * summaries and follow-up questions instead of creating design artifacts.
+   */
+  documentWorkspace?: {
+    version: 1;
+    source: 'feishu';
+  };
   /**
    * Marks projects whose first deliverables are started directly through the
    * media API instead of through a chat/agent turn. The web uses this to show

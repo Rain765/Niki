@@ -74,23 +74,29 @@ export function resolveSystemLocale(languages: readonly string[]): Locale | null
   return null;
 }
 
-// First-run defaults to the user's browser/system language when possible.
-// An explicit user pick saved to localStorage always wins; unsupported
-// languages fall back to English.
-function detectInitialLocale(): Locale {
+// An explicit user pick saved to localStorage always wins. Individual app
+// shells may then provide a product default; otherwise first-run follows the
+// browser/system language and unsupported languages fall back to English.
+function detectInitialLocale(
+  defaultLocale?: Locale,
+  supportedLocales: readonly Locale[] = LOCALES,
+): Locale {
   if (typeof window === 'undefined') return 'en';
+  const supports = (candidate: Locale): boolean => supportedLocales.includes(candidate);
   try {
     const stored = window.localStorage.getItem(LS_KEY);
-    if (stored && (LOCALES as string[]).includes(stored)) {
+    if (stored && (LOCALES as string[]).includes(stored) && supports(stored as Locale)) {
       return stored as Locale;
     }
   } catch {
     /* ignore */
   }
+  if (defaultLocale && supports(defaultLocale)) return defaultLocale;
   const detected = resolveSystemLocale(
     navigator.languages?.length ? navigator.languages : [navigator.language],
   );
-  return detected ?? 'en';
+  if (detected && supports(detected)) return detected;
+  return supportedLocales[0] ?? 'en';
 }
 
 interface I18nContextValue {
@@ -103,18 +109,26 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 interface ProviderProps {
   initial?: Locale;
+  defaultLocale?: Locale;
+  supportedLocales?: readonly Locale[];
   deferUntilClient?: boolean;
   children: ReactNode;
 }
 
 const RTL_LOCALES: Locale[] = ['ar', 'fa'];
 
-export function I18nProvider({ initial, deferUntilClient = false, children }: ProviderProps) {
+export function I18nProvider({
+  initial,
+  defaultLocale,
+  supportedLocales = LOCALES,
+  deferUntilClient = false,
+  children,
+}: ProviderProps) {
   // Keep the server render and the browser's first render deterministic.
   // Reading localStorage or navigator in the state initializer makes the
   // browser render a different language than the prerendered HTML, forcing
   // React to discard and rebuild the whole page during hydration.
-  const initialLocale = initial ?? 'en';
+  const initialLocale = initial ?? defaultLocale ?? 'en';
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
   const [dict, setDict] = useState<Dict>(() => SYNC_DICTS[initialLocale] ?? en);
   const [ready, setReady] = useState(initial != null || !deferUntilClient);
@@ -136,7 +150,7 @@ export function I18nProvider({ initial, deferUntilClient = false, children }: Pr
 
   useEffect(() => {
     if (initial != null) return;
-    const detected = detectInitialLocale();
+    const detected = detectInitialLocale(defaultLocale, supportedLocales);
     let active = true;
     setLocaleState(detected);
 
@@ -155,7 +169,7 @@ export function I18nProvider({ initial, deferUntilClient = false, children }: Pr
     return () => {
       active = false;
     };
-  }, [initial]);
+  }, [defaultLocale, initial, supportedLocales]);
 
   // Keep <html lang="…" dir="…"> in sync so screen readers and CSS hooks
   // pick the right language token and direction without each component
@@ -202,8 +216,6 @@ export function I18nProvider({ initial, deferUntilClient = false, children }: Pr
         role="status"
         aria-label="Niki"
       >
-        <img className="locale-bootstrap__logo" src="/logo.svg" alt="" />
-        <span className="locale-bootstrap__name">Niki</span>
         <span className="locale-bootstrap__spinner" aria-hidden="true" />
       </div>
     );

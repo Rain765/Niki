@@ -3,14 +3,43 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { buildLoanPosterScenePromptsMock } = vi.hoisted(() => ({
-  buildLoanPosterScenePromptsMock: vi.fn(() => ['scene one', 'scene two']),
+  buildLoanPosterScenePromptsMock: vi.fn((_options?: unknown) => ['scene one', 'scene two']),
 }));
 
 vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
-  autoPosterBrandLabel: () => 'Zamloan',
-  autoPosterUsesZReference: (brand: string) => brand === 'zamloan',
+  autoPosterBrandLabel: (brand: string) => ({
+    zamloan: 'Zamloan',
+    biumoney: 'BiuMoney',
+    zamcash: 'ZamCash',
+    zammoney: 'ZamMoney',
+    fastako: 'Fastako',
+    yangaloan: 'Yangaloan',
+  }[brand] ?? brand),
+  autoPosterUsesZReference: () => false,
   buildLoanPosterScenePrompts: buildLoanPosterScenePromptsMock,
+  buildLoanPosterScenePlans: (options: { brand?: string; purpose?: string }) => {
+    const antiFraud = options.purpose === 'anti-fraud';
+    return buildLoanPosterScenePromptsMock(options).map((prompt, index) => ({
+      prompt,
+      logoAnchor: antiFraud || index % 2 === 0 ? 'left' : 'right',
+      ...(antiFraud
+        ? {
+          headline: 'Prevent Fraud',
+          subtitle: 'Trust Only Official Customer Service',
+          textAnchor: 'right',
+        }
+        : {}),
+    }));
+  },
   LOAN_POSTER_SKILL_ID: 'loan-poster-skill-v1-1',
+  loadAutoPosterLogo: async (brand: string) => (
+    brand === 'biumoney'
+      ? null
+      : new File(['logo'], `${brand}-logo.svg`, { type: 'image/svg+xml' })
+  ),
+  loadZamloanLogo: async () => new File(['logo'], 'zamloan-logo.svg', {
+    type: 'image/svg+xml',
+  }),
   loadZambiaPosterReference: async () => new File(['reference'], 'reference.png', {
     type: 'image/png',
   }),
@@ -19,6 +48,7 @@ vi.mock('../../../src/components/home-hero/zambia-posters', () => ({
 import {
   DirectLoanPosterRequestError,
   isDirectLoanPosterAuthenticationError,
+  resolveDirectLoanPosterProject,
   startDirectLoanPosterProject,
 } from '../../../src/components/home-hero/direct-loan-posters';
 
@@ -29,10 +59,26 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 describe('startDirectLoanPosterProject', () => {
+  it('does not mistake a failed strict restore for an empty history or clear its pointer', async () => {
+    const key = 'niki:direct-loan-poster:last-project:user-1';
+    window.localStorage.setItem(key, 'existing-project');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
+    await expect(resolveDirectLoanPosterProject('user-1', { strict: true })).rejects.toThrow('HTTP 503');
+    expect(window.localStorage.getItem(key)).toBe('existing-project');
+  });
+
+  it('distinguishes an empty strict restore and propagates its abort signal', async () => {
+    const controller = new AbortController();
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ projects: [] }), { status: 200 })));
+    expect(await resolveDirectLoanPosterProject('user-1', { strict: true, signal: controller.signal })).toBeNull();
+    expect(fetch).toHaveBeenCalledWith('/api/projects', expect.objectContaining({ signal: controller.signal, cache: 'no-store' }));
+  });
+
   const project = {
     id: 'project-1',
     name: 'Zamloan 贷款海报',
@@ -42,7 +88,123 @@ describe('startDirectLoanPosterProject', () => {
     updatedAt: 1,
   };
 
-  it('creates one project and dispatches low-quality image jobs without an agent run', async () => {
+  it('restores the newest server project when this device has no local pointer', async () => {
+    const olderProject = {
+      ...project,
+      id: 'older-project',
+      updatedAt: 10,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: { kind: 'loan-poster' as const },
+      },
+    };
+    const newestProject = {
+      ...olderProject,
+      id: 'newest-project',
+      updatedAt: 20,
+    };
+    window.localStorage.setItem(
+      'niki:direct-loan-poster:last-project:user-1',
+      'older-project',
+    );
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/projects/older-project') {
+        return new Response(JSON.stringify({ project: olderProject }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      expect(String(input)).toBe('/api/projects');
+      return new Response(JSON.stringify({
+        projects: [olderProject, newestProject],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }));
+
+    await expect(resolveDirectLoanPosterProject('user-1')).resolves.toMatchObject({
+      id: 'newest-project',
+    });
+    expect(window.localStorage.getItem(
+      'niki:direct-loan-poster:last-project:user-1',
+    )).toBe('newest-project');
+  });
+
+  it('reuses the newest server project for a scoped mobile session', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    const reusableProject = {
+      ...project,
+      metadata: {
+        kind: 'image' as const,
+        directGeneration: {
+          kind: 'loan-poster' as const,
+          expectedOutputs: 0,
+          outputPrefix: 'biumoney-poster',
+          outputPrefixes: ['biumoney-poster'],
+          batchCount: 0,
+        },
+      },
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify({ projects: [reusableProject] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1/files') {
+        return new Response(JSON.stringify({ files: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { metadata: unknown; updatedAt: number };
+        return new Response(JSON.stringify({
+          project: { ...reusableProject, metadata: body.metadata, updatedAt: body.updatedAt },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1/media/generate') {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        expect(body.quality).toBe('low');
+        expect(body).not.toHaveProperty('posterHeadline');
+        expect(body).not.toHaveProperty('posterSubtitle');
+        expect(body).not.toHaveProperty('posterTextAnchor');
+        expect(body).not.toHaveProperty('posterCopyStyle');
+        expect(body).not.toHaveProperty('overlayPhoneScreen');
+        return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '16:9',
+      brand: 'biumoney',
+      sessionScope: 'user-1',
+    })).resolves.toEqual({ projectId: 'project-1' });
+
+    expect(fetchMock.mock.calls.some(
+      ([input, init]) => String(input) === '/api/projects' && init?.method === 'POST',
+    )).toBe(false);
+  });
+
+  it.each([
+    { brand: 'zamloan' as const, logoName: 'zamloan-logo.svg' },
+    { brand: 'fastako' as const, logoName: 'fastako-logo.svg' },
+  ])('creates one project and dispatches designed $brand anti-fraud jobs', async ({
+    brand,
+    logoName,
+  }) => {
     const today = new Date();
     const compactDate = [
       today.getFullYear(),
@@ -60,17 +222,32 @@ describe('startDirectLoanPosterProject', () => {
         });
       }
       if (url.includes('/upload?visibility=internal')) {
-        return new Response(JSON.stringify({ files: [{ path: '.od-inputs/reference.png' }] }), {
+        expect(init?.keepalive).toBe(true);
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        const file = (init?.body as FormData).get('files') as File;
+        return new Response(JSON.stringify({ files: [{ path: `.od-inputs/${file.name}` }] }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
       }
       if (url.endsWith('/media/generate')) {
         const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        expect(body.quality).toBe('low');
+        expect(init?.keepalive).toBe(true);
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        expect(body.quality).toBe('medium');
         expect(body.model).toBe('gpt-image-2');
+        expect(body.overlayLogo).toBe(`.od-inputs/${logoName}`);
+        expect(body).not.toHaveProperty('overlayPhoneScreen');
+        expect(body).not.toHaveProperty('overlayZ');
+        expect(body).not.toHaveProperty('image');
+        expect(body.overlayLogoAnchor).toMatch(/^(left|right)$/);
+        expect(body).not.toHaveProperty('foregroundPrompt');
+        expect(body.posterHeadline).toBe('Prevent Fraud');
+        expect(body.posterSubtitle).toBe('Trust Only Official Customer Service');
+        expect(body.posterTextAnchor).toBe('right');
+        expect(body.posterCopyStyle).toBe('anti-fraud-message');
         expect(body.output).toMatch(
-          new RegExp(`^zamloan-poster-${compactDate}-00[12]\\.png$`),
+          new RegExp(`^${brand}-poster-${compactDate}-00[12]\\.png$`),
         );
         return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
           status: 202,
@@ -101,7 +278,8 @@ describe('startDirectLoanPosterProject', () => {
     await expect(startDirectLoanPosterProject({
       count: 2,
       aspectRatio: '16:9',
-      brand: 'zamloan',
+      brand,
+      purpose: 'anti-fraud',
     })).resolves.toEqual({ projectId: 'project-1' });
 
     expect(fetchMock).toHaveBeenCalledTimes(6);
@@ -117,7 +295,7 @@ describe('startDirectLoanPosterProject', () => {
       directGeneration: {
         kind: 'loan-poster',
         expectedOutputs: 0,
-        outputPrefix: 'zamloan-poster',
+        outputPrefix: `${brand}-poster`,
         status: 'preparing',
         activeBatchId: 'project-1',
         batches: [{
@@ -125,8 +303,9 @@ describe('startDirectLoanPosterProject', () => {
           status: 'preparing',
           expectedOutputs: 2,
           outputNames: [],
-          brand: 'zamloan',
+          brand,
           aspectRatio: '16:9',
+          purpose: 'anti-fraud',
         }],
       },
     });
@@ -144,15 +323,29 @@ describe('startDirectLoanPosterProject', () => {
         status: 'queued',
         expectedOutputs: 2,
         outputNames: [
-          `zamloan-poster-${compactDate}-001.png`,
-          `zamloan-poster-${compactDate}-002.png`,
+          `${brand}-poster-${compactDate}-001.png`,
+          `${brand}-poster-${compactDate}-002.png`,
         ],
       }),
     ]);
     expect(buildLoanPosterScenePromptsMock).toHaveBeenCalledWith(expect.objectContaining({
+      purpose: 'anti-fraud',
       variationSeed: 'project-1',
       variationOffset: 0,
     }));
+    const mediaBodies = fetchMock.mock.calls
+      .filter(([input]) => String(input).endsWith('/media/generate'))
+      .map(([, init]) => JSON.parse(String(init?.body)) as {
+        clientRequestId?: string;
+        overlayLogoAnchor?: string;
+        overlayZ?: string;
+      });
+    expect(mediaBodies.map((body) => body.clientRequestId)).toEqual([
+      'loan-poster:project-1:0',
+      'loan-poster:project-1:1',
+    ]);
+    expect(mediaBodies.map((body) => body.overlayLogoAnchor)).toEqual(['left', 'left']);
+    expect(mediaBodies.every((body) => body.overlayZ === undefined)).toBe(true);
   });
 
   it('does not upload or pass the Z reference for BiuMoney generation', async () => {
@@ -207,6 +400,68 @@ describe('startDirectLoanPosterProject', () => {
     })).resolves.toEqual({ projectId: 'project-1' });
   });
 
+  it('uploads and overlays the selected additional-brand logo', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify(
+          init?.method === 'POST' ? { project } : { projects: [] },
+        ), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/upload?visibility=internal')) {
+        const file = (init?.body as FormData).get('files') as File;
+        expect(file.name).toBe('zamcash-logo.svg');
+        return new Response(JSON.stringify({
+          files: [{ path: `.od-inputs/${file.name}` }],
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/media/generate')) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        expect(body.overlayLogo).toBe('.od-inputs/zamcash-logo.svg');
+        expect(body.output).toMatch(/^zamcash-poster-\d{8}-001\.png$/);
+        expect(body).not.toHaveProperty('overlayZ');
+        expect(body).not.toHaveProperty('image');
+        return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          metadata: unknown;
+          updatedAt: number;
+        };
+        return new Response(JSON.stringify({
+          project: {
+            ...project,
+            metadata: body.metadata,
+            updatedAt: body.updatedAt,
+          },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'project-1' });
+
+    await expect(startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'zamcash',
+      purpose: 'acquisition',
+    })).resolves.toEqual({ projectId: 'project-1' });
+  });
+
   it('opens the project immediately after creation while media setup continues', async () => {
     buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
     let resolveUpload!: (response: Response) => void;
@@ -224,7 +479,16 @@ describe('startDirectLoanPosterProject', () => {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      if (url.includes('/upload?visibility=internal')) return uploadGate;
+      if (url.includes('/upload?visibility=internal')) {
+        const uploadCalls = fetchMock.mock.calls.filter(([input]) => (
+          String(input).includes('/upload?visibility=internal')
+        ));
+        if (uploadCalls.length === 1) return uploadGate;
+        return new Response(JSON.stringify({ files: [{ path: '.od-inputs/logo.png' }] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       if (url.endsWith('/media/generate')) {
         return new Response(JSON.stringify({ taskId: 'task-1', status: 'running' }), {
           status: 202,
@@ -317,18 +581,16 @@ describe('startDirectLoanPosterProject', () => {
         },
       },
     };
-    const patchedProject = {
-      ...reusableProject,
-      updatedAt: 2,
+    const patchBodies: Array<{
       metadata: {
-        ...reusableProject.metadata,
         directGeneration: {
-          ...reusableProject.metadata.directGeneration,
-          expectedOutputs: 3,
-          batchCount: 2,
-        },
-      },
-    };
+          expectedOutputs: number;
+          batchCount: number;
+          status: string;
+        };
+      };
+      updatedAt: number;
+    }> = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       if (url === '/api/projects') {
@@ -349,25 +611,15 @@ describe('startDirectLoanPosterProject', () => {
               status: string;
             };
           };
+          updatedAt: number;
         };
-        const isPreparing = body.metadata.directGeneration.status === 'preparing';
-        expect(body.metadata.directGeneration).toMatchObject(isPreparing ? {
-          expectedOutputs: 1,
-          batchCount: 1,
-          status: 'preparing',
-        } : {
-          expectedOutputs: 3,
-          batchCount: 2,
-          status: 'queued',
-        });
+        patchBodies.push(body);
         return new Response(JSON.stringify({
-          project: isPreparing
-            ? {
-              ...reusableProject,
-              metadata: body.metadata,
-              updatedAt: 2,
-            }
-            : patchedProject,
+          project: {
+            ...reusableProject,
+            metadata: body.metadata,
+            updatedAt: body.updatedAt,
+          },
         }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -426,6 +678,11 @@ describe('startDirectLoanPosterProject', () => {
     }));
 
     await expect(generation).resolves.toEqual({ projectId: 'project-1' });
+
+    expect(patchBodies.map((body) => body.metadata.directGeneration)).toEqual([
+      expect.objectContaining({ expectedOutputs: 1, batchCount: 1, status: 'preparing' }),
+      expect.objectContaining({ expectedOutputs: 3, batchCount: 2, status: 'queued' }),
+    ]);
 
     expect(buildLoanPosterScenePromptsMock).toHaveBeenCalledWith(expect.objectContaining({
       variationSeed: 'project-1',
@@ -575,6 +832,184 @@ describe('startDirectLoanPosterProject', () => {
     await expect(generation).rejects.toSatisfy(
       (reason: unknown) => isDirectLoanPosterAuthenticationError(reason),
     );
+  });
+
+  it('retries a transient Zamloan logo upload failure before starting generation', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    vi.useFakeTimers();
+    let uploadCallCount = 0;
+    let mediaRequestBody: Record<string, unknown> | undefined;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify(
+          init?.method === 'POST' ? { project } : { projects: [] },
+        ), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/upload?visibility=internal')) {
+        uploadCallCount += 1;
+        if (uploadCallCount === 1) {
+          return new Response('socket hang up', { status: 502 });
+        }
+        return new Response(JSON.stringify({
+          files: [{ path: '.od-inputs/logo.svg' }],
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          metadata: unknown;
+          updatedAt: number;
+        };
+        return new Response(JSON.stringify({
+          project: { ...project, metadata: body.metadata, updatedAt: body.updatedAt },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/media/generate')) {
+        mediaRequestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return new Response(JSON.stringify({ task: { id: 'task-1' } }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'project-1' });
+
+    const generation = startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'zamloan',
+    });
+    await vi.runAllTimersAsync();
+
+    await expect(generation).resolves.toEqual({ projectId: 'project-1' });
+    expect(uploadCallCount).toBe(2);
+    expect(fetchMock.mock.calls.filter(
+      ([input]) => String(input).endsWith('/media/generate'),
+    )).toHaveLength(1);
+    expect(mediaRequestBody?.overlayLogoAnchor).toBe('left');
+    expect(mediaRequestBody?.overlayLogo).toBe('.od-inputs/logo.svg');
+    expect(mediaRequestBody).not.toHaveProperty('overlayZ');
+    expect(mediaRequestBody).not.toHaveProperty('posterHeadline');
+    expect(mediaRequestBody).not.toHaveProperty('posterSubtitle');
+    expect(mediaRequestBody).not.toHaveProperty('posterCopyStyle');
+    expect(mediaRequestBody).not.toHaveProperty('overlayPhoneScreen');
+  });
+
+  it('retries media admission with the same idempotency key', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    vi.useFakeTimers();
+    const mediaBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify(
+          init?.method === 'POST' ? { project } : { projects: [] },
+        ), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as { metadata: unknown; updatedAt: number };
+        return new Response(JSON.stringify({
+          project: { ...project, metadata: body.metadata, updatedAt: body.updatedAt },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/media/generate')) {
+        expect(init?.keepalive).toBe(true);
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
+        mediaBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        if (mediaBodies.length === 1) throw new TypeError('temporary connection loss');
+        return new Response(JSON.stringify({ taskId: 'task-1', status: 'running' }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'project-1' });
+
+    const generation = startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'biumoney',
+    });
+    await vi.runAllTimersAsync();
+
+    await expect(generation).resolves.toEqual({ projectId: 'project-1' });
+    expect(mediaBodies).toHaveLength(2);
+    expect(mediaBodies.map((body) => body.clientRequestId)).toEqual([
+      'loan-poster:project-1:0',
+      'loan-poster:project-1:0',
+    ]);
+  });
+
+  it('identifies a non-retryable Zamloan logo upload failure', async () => {
+    buildLoanPosterScenePromptsMock.mockReturnValueOnce(['scene one']);
+    let uploadCallCount = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') {
+        return new Response(JSON.stringify(
+          init?.method === 'POST' ? { project } : { projects: [] },
+        ), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.includes('/upload?visibility=internal')) {
+        uploadCallCount += 1;
+        return new Response(JSON.stringify({
+          error: 'invalid_file',
+          message: 'Logo file is invalid.',
+        }), {
+          status: 422,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url === '/api/projects/project-1' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          metadata: unknown;
+          updatedAt: number;
+        };
+        return new Response(JSON.stringify({
+          project: { ...project, metadata: body.metadata, updatedAt: body.updatedAt },
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', { randomUUID: () => 'project-1' });
+
+    await expect(startDirectLoanPosterProject({
+      count: 1,
+      aspectRatio: '3:4',
+      brand: 'zamloan',
+    })).rejects.toEqual(expect.objectContaining<Partial<DirectLoanPosterRequestError>>({
+      stage: 'upload-logo',
+      status: 422,
+      code: 'invalid_file',
+      message: '上传品牌 Logo 失败（HTTP 422）：Logo file is invalid.',
+    }));
+    expect(uploadCallCount).toBe(1);
   });
 
   it('includes the API response detail for non-authentication failures', async () => {

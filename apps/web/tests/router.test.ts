@@ -29,6 +29,15 @@ describe('parseRoute / buildPath (issue #1505)', () => {
     expect(parseRoute('')).toEqual({ kind: 'home', view: 'home' });
   });
 
+  it('parses project routes mounted below the public workspace prefix', () => {
+    expect(parseRoute('/workspace/projects/p-1')).toEqual({
+      kind: 'project',
+      projectId: 'p-1',
+      conversationId: null,
+      fileName: null,
+    });
+  });
+
   it('round-trips a bare project route', () => {
     const route: Route = {
       kind: 'project',

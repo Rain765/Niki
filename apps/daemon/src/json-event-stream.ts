@@ -274,7 +274,7 @@ function isRecoverableCodexItemError(message: string): boolean {
   return (
     isRecoverableCodexReconnect(message) ||
     message.includes('Falling back from WebSockets to HTTPS transport') ||
-    message.includes('Skill descriptions were shortened to fit the 2% skills context budget')
+    /^Skill descriptions were shortened to fit the (?:\d+(?:\.\d+)?% )?skills context budget\./.test(message)
   );
 }
 

@@ -84,7 +84,9 @@ describe('SkillsSection', () => {
     ]);
 
     const row = await screen.findByTestId('skill-row-builtin-skill');
+    const filterGrid = screen.getByText('Source').closest('.library-filter-selects');
 
+    expect(filterGrid?.className).toContain('od-filter-grid');
     expect(within(row).queryByTestId('skills-delete')).toBeNull();
     expect(within(row).queryByTestId('skills-delete-confirm')).toBeNull();
   });

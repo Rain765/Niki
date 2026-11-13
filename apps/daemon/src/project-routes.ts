@@ -1,3 +1,4 @@
+import { PptModels, PptModelError } from './ppt-models.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { mkdir, rename, stat, unlink } from 'node:fs/promises';
@@ -6,7 +7,9 @@ import type { Express, Request, Response } from 'express';
 import sharp from 'sharp';
 import {
   defaultScenarioPluginIdForKind,
+  nativePresentationSelectionError,
   type PluginManifest,
+  type ProjectMetadata,
 } from '@open-design/contracts';
 import { createProjectArtifactFile } from './artifact-create.js';
 import { ArtifactRegressionError } from './artifact-stub-guard.js';
@@ -27,18 +30,32 @@ import {
 import { listSkills } from './skills.js';
 import { auditDesignSystemPackage } from './tools-connectors-cli.js';
 
+function projectPresentationSelectionError(metadata: ProjectMetadata | null | undefined, skillId: unknown): string | undefined {
+  const native = metadata?.nativePresentation;
+  if (native?.selection === undefined) return;
+  if (native.workflow !== skillId) return 'Presentation workflow must match the project skill';
+  return nativePresentationSelectionError(native.workflow, native.selection?.template, native.selection?.theme);
+}
+
 export interface RegisterProjectRoutesDeps extends RouteDeps<'db' | 'design' | 'http' | 'paths' | 'projectStore' | 'projectFiles' | 'conversations' | 'templates' | 'status' | 'events' | 'ids' | 'telemetry' | 'validation'> {
+  pptModels?: PptModels;
   plugins?: {
     ensureRegistryInitialized: () => Promise<void>;
   };
 }
 
 /**
- * Direct media jobs already carry complete provider inputs and must not pay
- * the cost of resolving a scenario plugin snapshot during project creation.
+ * Workflows that already own their execution plan must not acquire a generic
+ * scenario plugin at creation or first run. Explicit plugin choices still win.
  */
 export function shouldResolveDefaultScenarioPlugin(metadata: unknown): boolean {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return true;
+  const native = (metadata as { kind?: unknown; nativePresentation?: { version?: unknown; workflow?: unknown } }).nativePresentation;
+  if (
+    (metadata as { kind?: unknown }).kind === 'deck'
+    && native?.version === 1
+    && (native.workflow === 'html-ppt' || native.workflow === 'guizang-ppt-skill')
+  ) return false;
   const directGeneration = (metadata as {
     directGeneration?: unknown;
   }).directGeneration;
@@ -170,6 +187,8 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
       if (typeof name !== 'string' || !name.trim()) {
         return sendApiError(res, 400, 'BAD_REQUEST', 'name required');
       }
+      const selectionError = projectPresentationSelectionError(metadata, skillId);
+      if (selectionError) return sendApiError(res, 400, 'BAD_REQUEST', selectionError);
       // baseDir is privileged: it lets a project root directly inside the
       // user's filesystem. The /api/import/folder endpoint is the only
       // path that's allowed to set it, because that's where realpath() +
@@ -228,6 +247,12 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
           : skipDiscoveryBrief === true
             ? { skipDiscoveryBrief: true }
             : null;
+      if (projectMetadata?.nativePresentation && ctx.pptModels) {
+        try {
+          projectMetadata.nativePresentation = { ...projectMetadata.nativePresentation,
+            modelBinding: await ctx.pptModels.bind(projectMetadata.nativePresentation.modelBinding?.provider, !currentNikiUser() || currentNikiUser()?.role === 'admin') };
+        } catch (error) { return sendApiError(res, error instanceof PptModelError ? error.status : 500, 'BAD_REQUEST', error instanceof PptModelError ? error.message : '模型配置不可用'); }
+      }
       const now = Date.now();
       const project = insertProject(db, {
         id,
@@ -358,6 +383,24 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
   app.patch('/api/projects/:id', async (req, res) => {
     try {
       const patch = req.body || {};
+      if ('metadata' in patch || 'skillId' in patch) {
+        const existing = getProject(db, req.params.id);
+        if (!existing) return sendApiError(res, 404, 'PROJECT_NOT_FOUND', 'not found');
+        const selectionError = projectPresentationSelectionError(
+          'metadata' in patch ? patch.metadata : existing.metadata,
+          'skillId' in patch ? patch.skillId : existing.skillId,
+        );
+        if (selectionError) return sendApiError(res, 400, 'BAD_REQUEST', selectionError);
+      }
+      if ('metadata' in patch && ctx.pptModels) {
+        const previous = getProject(db, req.params.id)?.metadata?.nativePresentation?.modelBinding;
+        const requested = patch.metadata?.nativePresentation?.modelBinding;
+        if (requested && (requested.provider !== previous?.provider || requested.model !== previous?.model)) return sendApiError(res, 400, 'BAD_REQUEST', '文稿创建后不能更换生成模型，请新建文稿');
+        if (previous) {
+          if (!patch.metadata?.nativePresentation) return sendApiError(res, 400, 'BAD_REQUEST', '不能移除文稿的模型配置');
+          patch.metadata.nativePresentation.modelBinding = previous;
+        }
+      }
       // baseDir / folder-import state is privileged: it's set only by the
       // import endpoint and otherwise immutable. Two failure modes to
       // guard against here:
@@ -1071,6 +1114,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
     try {
       const relPath = (req.params as any)[0];
       const project = getProject(db, req.params.id);
+      const forceDownload = req.query.download === '1';
       // PreviewModal loads artifact HTML via srcdoc, giving the iframe Origin: "null".
       // data: URIs, file://, and some sandboxed iframes also send null — all are
       // local-only callers, so this is safe. Real cross-origin sites send a real
@@ -1078,7 +1122,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
       if (req.headers.origin === 'null') {
         res.header('Access-Control-Allow-Origin', '*');
       }
-      if (req.query.download === '1') {
+      if (forceDownload) {
         const filename = String(relPath).split('/').filter(Boolean).pop() || 'download';
         const asciiFallback = filename
           .replace(/[^\x20-\x7E]/g, '_')
@@ -1103,7 +1147,11 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
 
       if (meta.mime.startsWith('video/') || meta.mime.startsWith('audio/')) {
         res.setHeader('Accept-Ranges', 'bytes');
-        res.setHeader('Content-Type', meta.mime);
+        res.setHeader(
+          'Content-Type',
+          forceDownload ? 'application/octet-stream' : meta.mime,
+        );
+        res.setHeader('X-Content-Type-Options', 'nosniff');
 
         if (meta.size === 0) {
           res.setHeader('Content-Length', '0');
@@ -1145,7 +1193,10 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         return;
       }
 
-      res.setHeader('Content-Type', meta.mime);
+      res.setHeader(
+        'Content-Type',
+        forceDownload ? 'application/octet-stream' : meta.mime,
+      );
       res.setHeader('Content-Length', String(meta.size));
       res.setHeader('X-Content-Type-Options', 'nosniff');
       streamResolvedFile(res, meta.filePath);

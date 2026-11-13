@@ -21,6 +21,9 @@ const allowedE2eScripts = new Set([
   "e2e/scripts/playwright.ts",
   "e2e/scripts/release-smoke.ts",
   "e2e/scripts/visual-report.ts",
+  "e2e/scripts/presentation-eval.ts",
+  "e2e/scripts/presentation-benchmark.ts",
+  "e2e/scripts/presentation-acceptance.ts",
 ]);
 
 type GuardCheck = {
@@ -523,6 +526,10 @@ async function checkE2eLayout(): Promise<boolean> {
     }
 
     if (repositoryPath.startsWith("e2e/resources/")) {
+      // Document-to-deck regression inputs must remain actual documents with
+      // independently reviewable answer manifests, rather than executable TS.
+      const presentationFixture = /^e2e\/resources\/presentations\/(?:README\.md|manifest\.json|controls\.json|[a-z0-9-]+\/(?:source\.md|case\.json))$/.test(repositoryPath);
+      if (presentationFixture) continue;
       const relativePath = repositoryPath.slice("e2e/resources/".length);
       if (relativePath.includes("/") || !/\.ts$/.test(repositoryPath)) {
         violations.push(`${repositoryPath} -> e2e resources must be flat TypeScript files under resources/`);
@@ -645,7 +652,12 @@ const stylePolicySkippedDirectories = new Set([
 ]);
 
 const stylePolicySourcePrefixes = ["apps/web/app/", "apps/web/src/"];
-const stylePolicyHardcodedColorEnforcedPrefixes = ["scripts/guard-style-policy-fixtures/"];
+const stylePolicyHardcodedColorEnforcedPrefixes = [
+  "apps/web/app/",
+  "apps/web/src/auth/",
+  "apps/web/src/poster/",
+  "scripts/guard-style-policy-fixtures/",
+];
 const stylePolicyCheckedDirectoryPrefixes = [
   ...new Set([...stylePolicySourcePrefixes, ...stylePolicyHardcodedColorEnforcedPrefixes]),
 ];
@@ -712,6 +724,11 @@ type StylePolicyAllowlistEntry = {
 };
 
 const hardcodedColorAllowlist: StylePolicyAllowlistEntry[] = [
+  {
+    pathPattern: /^apps\/web\/src\/poster\/color-tokens\.ts$/,
+    valuePattern: /^(?:#ffffff|#f7f8fa|#f2f3f5|#e5e6eb|#c9cdd4|#4e5969|#1d2129|#86909c|#fe5200|#ff772e|#dc3b00|#c9353f|#fdf3f4|#3dd43f|#00c853|#c96442|#ff5f53|#000000|#ff0000|#ffff00|#00ff00|#00ffff|#0000ff|#ff00ff)$/i,
+    reason: "Niki poster colors and the logo picker's functional spectrum are defined only in the governed token source",
+  },
   {
     pathPattern: /^apps\/web\/src\/index\.css$/,
     valuePattern: /^(?:#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\))$/,

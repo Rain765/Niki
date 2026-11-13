@@ -62,7 +62,7 @@ describe('static resource mutation routes', () => {
               return [];
             },
             listAllDesignTemplates: async () => [],
-            listAllSkillLikeEntries: async () => [],
+            listAllSkillLikeEntries: async () => [{id:'html-ppt',name:'html-ppt',dir:path.join(tempRoot,'deck')} as any],
             mimeFor: () => 'application/octet-stream',
           },
         });
@@ -84,6 +84,25 @@ describe('static resource mutation routes', () => {
         });
       }),
   );
+
+  it('serves original template bytes and relative dependencies but rejects traversal and symlinks', async () => {
+    const root = path.join(tempRoot,'deck');
+    fs.mkdirSync(path.join(root,'templates','full-decks','demo'),{recursive:true});
+    fs.mkdirSync(path.join(root,'assets'),{recursive:true});
+    const html = '<link href="../../../assets/base.css"><h1>Original</h1>';
+    fs.writeFileSync(path.join(root,'templates','full-decks','demo','index.html'),html);
+    fs.writeFileSync(path.join(root,'assets','base.css'),'body{color:navy}');
+    const prefix = `${baseUrl}/api/native-presentation-resources/html-ppt/`;
+    expect(await (await fetch(prefix+'templates/full-decks/demo/index.html')).text()).toBe(html);
+    expect(await (await fetch(prefix+'assets/base.css')).text()).toBe('body{color:navy}');
+    fs.writeFileSync(path.join(tempRoot,'outside.txt'),'not exposed');
+    fs.symlinkSync(path.join(tempRoot,'outside.txt'),path.join(root,'assets','link.txt'));
+    expect((await fetch(prefix+'assets/link.txt')).status).toBe(400);
+    expect((await fetch(prefix+'SKILL.md')).status).toBe(400);
+    expect((await fetch(prefix+'assets/%2e%2e%2foutside.txt')).status).toBe(400);
+    const catalog = await (await fetch(baseUrl+'/api/native-presentation-templates')).json() as {html: string[]};
+    expect(catalog.html).toHaveLength(15);
+  });
 
   it.each([
     ['POST', '/api/skills/install'],

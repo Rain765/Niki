@@ -50,6 +50,7 @@ import {
   AUTO_POSTER_DEFAULT_BRAND,
   autoPosterUsesZReference,
   buildLoanPosterPrompt,
+  loadZamloanLogo,
   loadZambiaPosterReference,
   LOAN_POSTER_SKILL_ID,
   normalizeZambiaPosterCount,
@@ -778,7 +779,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           throw new Error('Unable to prepare the poster project.');
         }
 
-        let referenceAttachment = null;
+        const referenceAttachments: ChatAttachment[] = [];
         if (referencePromise) {
           const referenceFile = await referencePromise;
           const uploadResult = await uploadProjectFiles(
@@ -786,10 +787,24 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
             [referenceFile],
             { visibility: 'internal' },
           );
-          referenceAttachment = uploadResult.uploaded[0] ?? null;
+          const referenceAttachment = uploadResult.uploaded[0] ?? null;
           if (!referenceAttachment || uploadResult.failed.length > 0) {
             throw new Error(uploadResult.error ?? 'Unable to attach the internal Z reference.');
           }
+          referenceAttachments.push(referenceAttachment);
+        }
+        if (autoPosterBrand === 'zamloan') {
+          const logoFile = await loadZamloanLogo();
+          const uploadResult = await uploadProjectFiles(
+            id,
+            [logoFile],
+            { visibility: 'internal' },
+          );
+          const logoAttachment = uploadResult.uploaded[0] ?? null;
+          if (!logoAttachment || uploadResult.failed.length > 0) {
+            throw new Error(uploadResult.error ?? 'Unable to attach the internal Zamloan logo.');
+          }
+          referenceAttachments.push(logoAttachment);
         }
 
         const patchedProject = await patchProject(id, { skillId: LOAN_POSTER_SKILL_ID });
@@ -800,7 +815,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
         const skillIds = [LOAN_POSTER_SKILL_ID];
         onSend(
           autoPrompt,
-          referenceAttachment ? [referenceAttachment] : [],
+          referenceAttachments,
           [],
           {
             skillIds,
@@ -1192,6 +1207,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           .filter((s) => skillMatchesQuery(s, mentionQuery))
           .sort((a, b) => skillMentionRank(a, mentionQuery) - skillMentionRank(b, mentionQuery))
       : [];
+    const allowPosterShortcuts = projectMetadata?.kind !== 'deck';
     const hasManualSubmission = (
       draft.trim().length > 0
       || staged.length > 0
@@ -1211,7 +1227,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
       >
-        <AutoPosterControls
+        {allowPosterShortcuts && <AutoPosterControls
           count={autoPosterCount}
           aspectRatio={autoPosterAspectRatio}
           brand={autoPosterBrand}
@@ -1225,7 +1241,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
           onCountChange={setAutoPosterCount}
           onAspectRatioChange={setAutoPosterAspectRatio}
           onBrandChange={setAutoPosterBrand}
-        />
+        />}
         <div className="composer-shell composer-shell--capsule">
           {stagedSkills.length > 0 ? (
             <StagedSkills
@@ -1384,7 +1400,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                 // element + subtree entirely.
                 className="ph-no-capture"
                 value={draft}
-                placeholder={t('homeHero.autoPosterPrompt')}
+                placeholder={t(allowPosterShortcuts ? 'homeHero.autoPosterPrompt' : 'homeHero.placeholder')}
                 rows={1}
                 spellCheck={false}
                 onChange={handleChange}
@@ -1665,14 +1681,14 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                 type="button"
                 className="composer-send composer-send--arrow"
                 data-testid="chat-send"
-                data-action={hasManualSubmission ? 'send' : 'generate'}
+                data-action={hasManualSubmission || !allowPosterShortcuts ? 'send' : 'generate'}
                 onClick={() => {
                   trackChatPanelClick(analytics.track, {
                     page_name: 'chat_panel',
                     area: 'chat_panel',
                     element: 'send',
                   });
-                  if (hasManualSubmission) {
+                  if (hasManualSubmission || !allowPosterShortcuts) {
                     void submit();
                     return;
                   }
@@ -1681,11 +1697,12 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
                 disabled={
                   sendDisabled
                   || autoPosterPending
+                  || (!allowPosterShortcuts && !hasManualSubmission)
                 }
-                title={hasManualSubmission ? t('chat.send') : t('homeHero.autoPoster')}
-                aria-label={hasManualSubmission ? t('chat.send') : t('homeHero.autoPoster')}
+                title={hasManualSubmission || !allowPosterShortcuts ? t('chat.send') : t('homeHero.autoPoster')}
+                aria-label={hasManualSubmission || !allowPosterShortcuts ? t('chat.send') : t('homeHero.autoPoster')}
               >
-                <Icon name={hasManualSubmission ? 'arrow-up' : 'sparkles'} size={20} />
+                <Icon name={hasManualSubmission || !allowPosterShortcuts ? 'arrow-up' : 'sparkles'} size={20} />
               </button>
             )}
           </div>

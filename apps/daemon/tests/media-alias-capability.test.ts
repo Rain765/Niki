@@ -24,6 +24,8 @@ import { generateMedia } from '../src/media.js';
 
 const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+X2uoAAAAASUVORK5CYII=';
 
+type RequestInitWithDispatcher = RequestInit & { dispatcher?: unknown };
+
 describe('media alias preserves catalog-keyed capability branching (#1309 review)', () => {
   let root: string;
   let projectRoot: string;
@@ -187,5 +189,53 @@ describe('media alias preserves catalog-keyed capability branching (#1309 review
     // gpt-4o-mini-tts-specific instructions field is still attached.
     expect(capturedBody!.instructions).toBe('warm and slow');
     expect(result.providerNote).toContain('custom-tts-deployment');
+  });
+
+  it('routes OpenAI speech through the same bounded proxy dispatcher as images', async () => {
+    const dispatchers: unknown[] = [];
+    const signals: Array<AbortSignal | null> = [];
+    const fetchMock = vi.fn(async (input: unknown, init?: RequestInit) => {
+      const requestInit = init as RequestInitWithDispatcher | undefined;
+      dispatchers.push(requestInit?.dispatcher);
+      signals.push(requestInit?.signal ?? null);
+
+      if (String(input).includes('/audio/speech')) {
+        return new Response(Buffer.from([1, 2, 3, 4]), {
+          status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ data: [{ b64_json: PNG_BASE64 }] }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'project-openai-image',
+      surface: 'image',
+      model: 'gpt-image-2',
+      prompt: 'A proxy-aware image request.',
+      output: 'proxy-image.png',
+    });
+    await generateMedia({
+      projectRoot,
+      projectsRoot,
+      projectId: 'project-openai-speech',
+      surface: 'audio',
+      audioKind: 'speech',
+      model: 'gpt-4o-mini-tts',
+      prompt: 'A proxy-aware speech request.',
+      output: 'proxy-speech.mp3',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(dispatchers[0]).toBeDefined();
+    expect(dispatchers[1]).toBe(dispatchers[0]);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(signals[1]).toBeInstanceOf(AbortSignal);
   });
 });

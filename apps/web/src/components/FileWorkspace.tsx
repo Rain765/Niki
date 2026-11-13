@@ -69,6 +69,7 @@ interface Props {
   filesRefreshKey?: number;
   onRefreshFiles: () => Promise<void> | void;
   isDeck: boolean;
+  externalHtmlPreview?: boolean;
   onExportAsPptx?: ((fileName: string) => void) | undefined;
   streaming?: boolean;
   openRequest?: { name: string; nonce: number } | null;
@@ -202,6 +203,7 @@ export function FileWorkspace({
   filesRefreshKey = 0,
   onRefreshFiles,
   isDeck,
+  externalHtmlPreview = false,
   onExportAsPptx,
   streaming,
   openRequest,
@@ -996,6 +998,7 @@ export function FileWorkspace({
           />
         ) : activeTab === DESIGN_FILES_TAB ? (
           <DesignFilesPanel
+            externalHtmlPreview={externalHtmlPreview}
             key={projectId}
             projectId={projectId}
             files={visibleFiles}
@@ -1077,6 +1080,7 @@ export function FileWorkspace({
           />
         ) : activeFile ? (
           <FileViewer
+            externalHtmlPreview={externalHtmlPreview}
             projectId={projectId}
             projectKind={projectKind}
             file={activeFile}

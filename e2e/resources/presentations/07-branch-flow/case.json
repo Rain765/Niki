@@ -1,0 +1,386 @@
+{
+  "id": "07-branch-flow",
+  "title": "报销审批流程",
+  "split": "reserved",
+  "provenance": "synthetic",
+  "tags": [
+    "flow",
+    "cycle",
+    "swimlanes",
+    "boundary-condition"
+  ],
+  "sourceSha256": "f6be91143f93640b005830d48705ac4613faaf85392e01637022dc6dc2f29da9",
+  "brief": "将本文制作成可编辑 PPT。完整保留关键事实、数字、条件、例外和关系；按内容选择编排。容量不足请明确指出，不得用备注代替正文。",
+  "settings": {
+    "ratio": "4:3",
+    "palette": "hermes",
+    "pageCount": 5,
+    "style": "swiss",
+    "density": "complete"
+  },
+  "checks": [
+    {
+      "id": "07-branch-flow-C01",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“提交”及端点可检索。",
+      "evidence": [
+        "员工提交 → 完整性校验：提交。"
+      ],
+      "groups": [
+        [
+          "员工提交"
+        ],
+        [
+          "完整性校验"
+        ],
+        [
+          "提交"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C02",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“资料不全”及端点可检索。",
+      "evidence": [
+        "完整性校验 → 员工补件：资料不全。"
+      ],
+      "groups": [
+        [
+          "完整性校验"
+        ],
+        [
+          "员工补件"
+        ],
+        [
+          "资料不全"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C03",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“补件后重新校验”及端点可检索。",
+      "evidence": [
+        "员工补件 → 完整性校验：补件后重新校验。"
+      ],
+      "groups": [
+        [
+          "员工补件"
+        ],
+        [
+          "完整性校验"
+        ],
+        [
+          "补件后重新校验"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C04",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“资料齐全”及端点可检索。",
+      "evidence": [
+        "完整性校验 → 主管审批：资料齐全。"
+      ],
+      "groups": [
+        [
+          "完整性校验"
+        ],
+        [
+          "主管审批"
+        ],
+        [
+          "资料齐全"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C05",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“不批准”及端点可检索。",
+      "evidence": [
+        "主管审批 → 拒绝结束：不批准。"
+      ],
+      "groups": [
+        [
+          "主管审批"
+        ],
+        [
+          "拒绝结束"
+        ],
+        [
+          "不批准"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C06",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“批准”及端点可检索。",
+      "evidence": [
+        "主管审批 → 金额判断：批准。"
+      ],
+      "groups": [
+        [
+          "主管审批"
+        ],
+        [
+          "金额判断"
+        ],
+        [
+          "批准"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C07",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“金额小于等于 5000 元”及端点可检索。",
+      "evidence": [
+        "金额判断 → 财务复核：金额小于等于 5000 元。"
+      ],
+      "groups": [
+        [
+          "金额判断"
+        ],
+        [
+          "财务复核"
+        ],
+        [
+          "金额小于等于 5000 元"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C08",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“金额大于 5000 元”及端点可检索。",
+      "evidence": [
+        "金额判断 → 总监审批：金额大于 5000 元。"
+      ],
+      "groups": [
+        [
+          "金额判断"
+        ],
+        [
+          "总监审批"
+        ],
+        [
+          "金额大于 5000 元"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C09",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“不批准”及端点可检索。",
+      "evidence": [
+        "总监审批 → 拒绝结束：不批准。"
+      ],
+      "groups": [
+        [
+          "总监审批"
+        ],
+        [
+          "拒绝结束"
+        ],
+        [
+          "不批准"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C10",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“批准”及端点可检索。",
+      "evidence": [
+        "总监审批 → 财务复核：批准。"
+      ],
+      "groups": [
+        [
+          "总监审批"
+        ],
+        [
+          "财务复核"
+        ],
+        [
+          "批准"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C11",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“凭证有误”及端点可检索。",
+      "evidence": [
+        "财务复核 → 员工补件：凭证有误。"
+      ],
+      "groups": [
+        [
+          "财务复核"
+        ],
+        [
+          "员工补件"
+        ],
+        [
+          "凭证有误"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C12",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "连接条件“凭证正确”及端点可检索。",
+      "evidence": [
+        "财务复核 → 付款归档：凭证正确。"
+      ],
+      "groups": [
+        [
+          "财务复核"
+        ],
+        [
+          "付款归档"
+        ],
+        [
+          "凭证正确"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C13",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "等号边界与超时规则保留。",
+      "evidence": [
+        "5000 元整走普通财务复核路径"
+      ],
+      "groups": [
+        [
+          "5000 元整"
+        ],
+        [
+          "普通财务复核"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-C14",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "超时不自动通过。",
+      "evidence": [
+        "超时通知申请人和代理主管，不自动批准"
+      ],
+      "groups": [
+        [
+          "2 个工作日"
+        ],
+        [
+          "代理主管"
+        ],
+        [
+          "不自动批准"
+        ]
+      ]
+    },
+    {
+      "id": "07-branch-flow-V01",
+      "kind": "manual",
+      "critical": true,
+      "question": "12 条连接逐条核对方向和条件，两个终点独立，无虚构捷径。",
+      "evidence": [
+        "拒绝结束和付款归档是两个不同终点"
+      ]
+    },
+    {
+      "id": "07-branch-flow-V02",
+      "kind": "manual",
+      "critical": true,
+      "question": "资料不全与凭证有误都保留补件回路；三个角色泳道的节点归属正确。",
+      "evidence": [
+        "财务复核 → 员工补件：凭证有误。"
+      ]
+    },
+    {
+      "id": "07-branch-flow-V03",
+      "kind": "manual",
+      "critical": true,
+      "question": "5000 元整走 ≤ 分支，超时没有被画成自动批准。",
+      "evidence": [
+        "5000 元整走普通财务复核路径"
+      ]
+    },
+    {
+      "id": "07-branch-flow-V04",
+      "kind": "manual",
+      "critical": true,
+      "question": "正文在实际渲染页可读，无重叠、裁切、超出画布；不能只依据可提取文字判定。",
+      "evidence": [
+        "# 报销审批流程"
+      ]
+    },
+    {
+      "id": "07-branch-flow-V05",
+      "kind": "manual",
+      "critical": true,
+      "question": "整体采用专业简洁的排版；层级、留白、对齐一致，连续页面没有机械重复同一种卡片布局。",
+      "evidence": [
+        "# 报销审批流程"
+      ]
+    },
+    {
+      "id": "07-branch-flow-V06",
+      "kind": "manual",
+      "critical": true,
+      "question": "关键内容出现在放映页；备注只能补充，不可代替表格、条件、例外与结论。",
+      "evidence": [
+        "# 报销审批流程"
+      ]
+    },
+    {
+      "id": "07-branch-flow-V07",
+      "kind": "manual",
+      "critical": true,
+      "question": "主要文字、表格和图形可编辑；打开最终 PPTX 后与预览对照，无字体替换或错位。",
+      "evidence": [
+        "# 报销审批流程"
+      ]
+    },
+    {
+      "id": "07-branch-flow-V08",
+      "kind": "manual",
+      "critical": true,
+      "question": "所选主题色、比例和页数策略得到遵守；容量不足时明确说明，不能删事实或无限缩小字号。",
+      "evidence": [
+        "# 报销审批流程"
+      ]
+    }
+  ]
+}

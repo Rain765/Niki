@@ -114,7 +114,11 @@ export function userDailyGenerationCount(
       WHERE projects.owner_user_id = ?
         AND tasks.created_at >= ?`,
   ).get(userId, now - GENERATION_WINDOW_MS) as { count: number } | undefined;
-  return Number(row?.count ?? 0);
+  const presentations = db.prepare(
+    `SELECT COUNT(*) AS count FROM projects
+      WHERE owner_user_id = ? AND json_extract(metadata_json, '$.presentation.createdAt') >= ?`,
+  ).get(userId, now - GENERATION_WINDOW_MS) as { count: number } | undefined;
+  return Number(row?.count ?? 0) + Number(presentations?.count ?? 0);
 }
 
 export async function getNikiQuotaStatus(

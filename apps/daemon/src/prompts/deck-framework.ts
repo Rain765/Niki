@@ -281,6 +281,7 @@ export const DECK_SKELETON_HTML = `<!doctype html>
         try { localStorage.setItem(STORE, String(idx)); } catch (_) {}
       }
       function onKey(e) {
+        if (e.defaultPrevented) return; // Window and document share this capture handler.
         var t = e.target;
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
         if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(idx + 1); }

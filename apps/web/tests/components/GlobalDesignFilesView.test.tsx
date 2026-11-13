@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { GlobalDesignFilesView } from '../../src/components/GlobalDesignFilesView';
@@ -58,9 +58,10 @@ describe('GlobalDesignFilesView', () => {
     expect(screen.getByText(project.name)).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'zamloan-poster-01.png' }));
-    expect(screen.getByRole('dialog', {
+    const previewDialog = screen.getByRole('dialog', {
       name: /预览 zamloan-poster-01\.png/i,
-    })).toBeTruthy();
+    });
+    expect(previewDialog).toBeTruthy();
     expect(screen.getByTestId('global-design-files-preview-image').getAttribute('src'))
       .toContain('/api/projects/project-1/raw/zamloan-poster-01.png');
     expect(screen.getAllByRole('link', { name: /下载 zamloan-poster-01\.png/i }))
@@ -70,11 +71,18 @@ describe('GlobalDesignFilesView', () => {
     expect(screen.getAllByRole('button', { name: /删除 zamloan-poster-01\.png/i }))
       .toHaveLength(2);
 
+    fireEvent.click(within(previewDialog).getByRole('button', {
+      name: /预览 zamloan-poster-01\.png/i,
+    }));
+    expect(screen.getByTestId('image-post-preview-feed')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByTestId('image-post-preview-feed')).toBeNull();
+
     expect(screen.getAllByRole('link', { name: /下载 zamloan-poster-01\.png/i })[0]!
       .getAttribute('href'))
       .toBe('/api/projects/project-1/raw/zamloan-poster-01.png?download=1');
 
-    fireEvent.click(screen.getByRole('button', { name: '关闭' }));
+    fireEvent.click(within(previewDialog).getByRole('button', { name: '关闭' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

@@ -52,7 +52,28 @@ export function DesignCardSkeleton() {
  * Centered overlay used while bootstrap data loads (agents, skills, design
  * systems, project list). Sits inside a flex/grid parent and grows with it.
  */
-export function CenteredLoader({ label }: { label?: string }) {
+export function CenteredLoader({
+  label,
+  variant = 'default',
+}: {
+  label?: string;
+  variant?: 'default' | 'chat';
+}) {
+  if (variant === 'chat') {
+    return (
+      <div className="chat-loading-skeleton" role="status" aria-busy="true">
+        <div className="chat-loading-skeleton__log" aria-hidden="true">
+          <span className="skeleton-block chat-loading-skeleton__line is-short" />
+          <span className="skeleton-block chat-loading-skeleton__line is-medium" />
+          <span className="skeleton-block chat-loading-skeleton__line is-long" />
+        </div>
+        <div className="chat-loading-skeleton__composer" aria-hidden="true">
+          <span className="skeleton-block chat-loading-skeleton__composer-line" />
+          <span className="skeleton-block chat-loading-skeleton__composer-button" />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="centered-loader">
       <Spinner size={20} />

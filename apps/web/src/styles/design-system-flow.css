@@ -1329,9 +1329,11 @@
   font-size: 18px;
   line-height: 1.25;
 }
-.ds-settings-card__head select {
+.ds-settings-card__head select,
+.ds-settings-card__head > .od-control-select {
   width: min(160px, 35vw);
   min-height: 34px;
+  flex: 0 0 min(160px, 35vw);
 }
 .ds-templates-card {
   margin-top: -4px;
@@ -1347,6 +1349,10 @@
 }
 .ds-manager-toolbar > input {
   min-height: 38px;
+}
+.ds-manager-toolbar > .od-control-select {
+  width: min(220px, 100%);
+  flex: 0 1 220px;
 }
 .ds-manager-eyebrow {
   display: block;

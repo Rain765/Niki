@@ -1,0 +1,335 @@
+{
+  "id": "06-architecture",
+  "title": "订单平台架构",
+  "split": "development",
+  "provenance": "synthetic",
+  "tags": [
+    "architecture",
+    "12-nodes",
+    "14-edges",
+    "trust-boundary"
+  ],
+  "sourceSha256": "241265f693e08d1323e8ef050324e7a0fd0404c8c3a6638e07c9f5f94b5739a5",
+  "brief": "将本文制作成可编辑 PPT。完整保留关键事实、数字、条件、例外和关系；按内容选择编排。容量不足请明确指出，不得用备注代替正文。",
+  "settings": {
+    "ratio": "16:9",
+    "palette": "purple",
+    "pageCount": 10,
+    "style": "swiss",
+    "density": "complete"
+  },
+  "checks": [
+    {
+      "id": "06-architecture-C01",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "客户端可见。",
+      "evidence": [
+        "| 客户入口 | 客户端 | 边界外 |"
+      ],
+      "groups": [
+        [
+          "客户端"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C02",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "API 网关可见。",
+      "evidence": [
+        "| 接入层 | API 网关 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "API 网关"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C03",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "身份服务可见。",
+      "evidence": [
+        "| 身份层 | 身份服务 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "身份服务"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C04",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "订单服务可见。",
+      "evidence": [
+        "| 业务层 | 订单服务 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "订单服务"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C05",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "库存服务可见。",
+      "evidence": [
+        "| 业务层 | 库存服务 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "库存服务"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C06",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "支付适配器可见。",
+      "evidence": [
+        "| 业务层 | 支付适配器 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "支付适配器"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C07",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "事件总线可见。",
+      "evidence": [
+        "| 异步层 | 事件总线 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "事件总线"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C08",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "订单数据库可见。",
+      "evidence": [
+        "| 数据层 | 订单数据库 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "订单数据库"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C09",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "缓存可见。",
+      "evidence": [
+        "| 数据层 | 缓存 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "缓存"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C10",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "日志平台可见。",
+      "evidence": [
+        "| 可观测层 | 日志平台 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "日志平台"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C11",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "支付渠道可见。",
+      "evidence": [
+        "| 外部系统 | 支付渠道 | 边界外 |"
+      ],
+      "groups": [
+        [
+          "支付渠道"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C12",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "补偿任务可见。",
+      "evidence": [
+        "| 异步层 | 补偿任务 | 边界内 |"
+      ],
+      "groups": [
+        [
+          "补偿任务"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C13",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "恢复目标没有混淆。",
+      "evidence": [
+        "目标 RTO 为 15 分钟，目标 RPO 为 5 分钟"
+      ],
+      "groups": [
+        [
+          "RTO"
+        ],
+        [
+          "15 分钟"
+        ],
+        [
+          "RPO"
+        ],
+        [
+          "5 分钟"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C14",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "投递语义保留。",
+      "evidence": [
+        "至少一次投递，消费者必须幂等"
+      ],
+      "groups": [
+        [
+          "至少一次"
+        ],
+        [
+          "幂等"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-C15",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "回调安全顺序保留。",
+      "evidence": [
+        "支付回调先验证签名，再更新订单状态"
+      ],
+      "groups": [
+        [
+          "先验证签名"
+        ],
+        [
+          "再更新订单状态"
+        ]
+      ]
+    },
+    {
+      "id": "06-architecture-V01",
+      "kind": "manual",
+      "critical": true,
+      "question": "按有向连接清单逐一核对 14 条边、箭头方向和标签，节点名称命中不等于关系正确。",
+      "evidence": [
+        "有向连接清单"
+      ]
+    },
+    {
+      "id": "06-architecture-V02",
+      "kind": "manual",
+      "critical": true,
+      "question": "同步、异步、信任边界和层级可区分；回调与补偿回路没有被简化成单向直线。",
+      "evidence": [
+        "支付渠道 → 支付适配器：支付回调 / 异步。"
+      ]
+    },
+    {
+      "id": "06-architecture-V03",
+      "kind": "manual",
+      "critical": true,
+      "question": "仅订单服务直接写库；图示没有添加原文未授权的直连。",
+      "evidence": [
+        "只有订单服务直接写订单数据库"
+      ]
+    },
+    {
+      "id": "06-architecture-V04",
+      "kind": "manual",
+      "critical": true,
+      "question": "正文在实际渲染页可读，无重叠、裁切、超出画布；不能只依据可提取文字判定。",
+      "evidence": [
+        "# 订单平台架构"
+      ]
+    },
+    {
+      "id": "06-architecture-V05",
+      "kind": "manual",
+      "critical": true,
+      "question": "整体采用专业简洁的排版；层级、留白、对齐一致，连续页面没有机械重复同一种卡片布局。",
+      "evidence": [
+        "# 订单平台架构"
+      ]
+    },
+    {
+      "id": "06-architecture-V06",
+      "kind": "manual",
+      "critical": true,
+      "question": "关键内容出现在放映页；备注只能补充，不可代替表格、条件、例外与结论。",
+      "evidence": [
+        "# 订单平台架构"
+      ]
+    },
+    {
+      "id": "06-architecture-V07",
+      "kind": "manual",
+      "critical": true,
+      "question": "主要文字、表格和图形可编辑；打开最终 PPTX 后与预览对照，无字体替换或错位。",
+      "evidence": [
+        "# 订单平台架构"
+      ]
+    },
+    {
+      "id": "06-architecture-V08",
+      "kind": "manual",
+      "critical": true,
+      "question": "所选主题色、比例和页数策略得到遵守；容量不足时明确说明，不能删事实或无限缩小字号。",
+      "evidence": [
+        "# 订单平台架构"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,653 @@
+{
+  "id": "01-long-report",
+  "title": "海岚客服平台升级决策报告",
+  "split": "development",
+  "provenance": "synthetic",
+  "tags": [
+    "long-document",
+    "exceptions",
+    "numbers",
+    "source-coverage"
+  ],
+  "sourceSha256": "a718c8fc01f617f6c994f6e99c9c91947eb9877a0a43d4c598a74fe74c79d538",
+  "brief": "将本文制作成可编辑 PPT。完整保留关键事实、数字、条件、例外和关系；按内容选择编排。容量不足请明确指出，不得用备注代替正文。",
+  "settings": {
+    "ratio": "16:9",
+    "palette": "emerald",
+    "pageCount": "auto",
+    "style": "swiss",
+    "density": "complete"
+  },
+  "checks": [
+    {
+      "id": "01-long-report-C01",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "目标与基线的事实、单位和约束得到保留。",
+      "evidence": [
+        "2026 年 8 月，海岚客服平台处理 48,600 张工单，首次响应中位数为 18 分钟；本项目目标为 12 分钟，而非 12 秒。"
+      ],
+      "groups": [
+        [
+          "48,600"
+        ],
+        [
+          "18 分钟"
+        ],
+        [
+          "12 分钟"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C02",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "预算与边界的事实、单位和约束得到保留。",
+      "evidence": [
+        "批准预算为 240 万元，其中软件 95 万元、迁移 65 万元、培训 30 万元、风险预留 50 万元。预留款尚未授权支出。"
+      ],
+      "groups": [
+        [
+          "240 万元"
+        ],
+        [
+          "95 万元"
+        ],
+        [
+          "65 万元"
+        ],
+        [
+          "30 万元"
+        ],
+        [
+          "50 万元"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C03",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "范围约束的事实、单位和约束得到保留。",
+      "evidence": [
+        "一期覆盖在线客服、邮件和知识库；电话录音迁移不在一期范围。外包坐席可查看分配工单，但不能批量导出客户信息。"
+      ],
+      "groups": [
+        [
+          "电话录音"
+        ],
+        [
+          "不在一期"
+        ],
+        [
+          "不能批量导出"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C04",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "阶段计划的事实、单位和约束得到保留。",
+      "evidence": [
+        "试点从 2026-10-12 开始，持续 14 天；通过验收后才能扩大到全量。2026-11-02 是计划全量日期，不是已完成日期。"
+      ],
+      "groups": [
+        [
+          "2026-10-12"
+        ],
+        [
+          "14 天"
+        ],
+        [
+          "2026-11-02"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C05",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "可用性的事实、单位和约束得到保留。",
+      "evidence": [
+        "正式服务月度可用性目标为 99.9%，测试环境不纳入该指标。月度计划维护最多 2 小时，维护时间仍计入可用性口径。"
+      ],
+      "groups": [
+        [
+          "99.9%"
+        ],
+        [
+          "2 小时"
+        ],
+        [
+          "仍计入"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C06",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "数据质量的事实、单位和约束得到保留。",
+      "evidence": [
+        "历史工单共 1,260,000 条，其中 4,200 条缺少归属团队。缺失记录先进入待分配队列，不允许自动丢弃。"
+      ],
+      "groups": [
+        [
+          "1,260,000"
+        ],
+        [
+          "4,200"
+        ],
+        [
+          "不允许自动丢弃"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C07",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "脱敏与审计的事实、单位和约束得到保留。",
+      "evidence": [
+        "导出的邮箱隐藏用户名中段；手机号保留前 3 位和后 4 位。审计日志保留 180 天，工单正文保留 730 天，两者不能混用。"
+      ],
+      "groups": [
+        [
+          "180 天"
+        ],
+        [
+          "730 天"
+        ],
+        [
+          "前 3 位"
+        ],
+        [
+          "后 4 位"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C08",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "回退条件的事实、单位和约束得到保留。",
+      "evidence": [
+        "连续 10 分钟错误率超过 2%，或出现客户信息越权展示，立即停止扩量。越权展示无需等待 10 分钟观察窗口。"
+      ],
+      "groups": [
+        [
+          "10 分钟"
+        ],
+        [
+          "2%"
+        ],
+        [
+          "无需等待"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C09",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "验收条件的事实、单位和约束得到保留。",
+      "evidence": [
+        "抽检 300 张工单，字段完整率至少 99%；关键字段错配数量必须为 0。完整率合格不能抵消关键字段错配。"
+      ],
+      "groups": [
+        [
+          "300"
+        ],
+        [
+          "99%"
+        ],
+        [
+          "必须为 0"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C10",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "经济测算的事实、单位和约束得到保留。",
+      "evidence": [
+        "预计每月节省 420 小时，采用内部测算单价每小时 85 元，对应每月 35,700 元。该数字为预测，不代表已经实现的收入。"
+      ],
+      "groups": [
+        [
+          "420 小时"
+        ],
+        [
+          "85 元"
+        ],
+        [
+          "35,700 元"
+        ],
+        [
+          "预测"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C11",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "权限与责任的事实、单位和约束得到保留。",
+      "evidence": [
+        "业务负责人负责验收签字，运维负责人负责回退执行，安全负责人可以单独触发越权事件停机。供应商不能代替内部负责人批准上线。"
+      ],
+      "groups": [
+        [
+          "业务负责人"
+        ],
+        [
+          "运维负责人"
+        ],
+        [
+          "安全负责人"
+        ],
+        [
+          "不能代替"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C12",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "未决事项的事实、单位和约束得到保留。",
+      "evidence": [
+        "录音存储区域和第三方质检接口仍待确认；未决事项必须保留为待决策，不能在演示中表述为已确定。"
+      ],
+      "groups": [
+        [
+          "录音存储区域"
+        ],
+        [
+          "第三方质检接口"
+        ],
+        [
+          "待确认"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C13",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "在线客服的独有业务约束得到保留。",
+      "evidence": [
+        "咨询高峰集中在工作日 10:00 至 12:00。试点只选择已完成培训的 24 名坐席；其余坐席继续使用原系统。"
+      ],
+      "groups": [
+        [
+          "咨询高峰集中在工作日 10:00 至 12:00"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C14",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "邮件工单的独有业务约束得到保留。",
+      "evidence": [
+        "历史邮件按发送时间排序；同一封邮件的附件与正文必须作为一个迁移单元。超过 20 MB 的附件记录外部存储链接。"
+      ],
+      "groups": [
+        [
+          "历史邮件按发送时间排序；同一封邮件的附件与正文必须作为一个迁移单元"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C15",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "知识库的独有业务约束得到保留。",
+      "evidence": [
+        "先迁移 360 篇已审批文章，120 篇草稿保留在草稿区。草稿不能出现在客户搜索结果中。"
+      ],
+      "groups": [
+        [
+          "先迁移 360 篇已审批文章，120 篇草稿保留在草稿区"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C16",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "企业客户的独有业务约束得到保留。",
+      "evidence": [
+        "合同约定的服务等级优先于普通队列。只有已生效合同可触发优先服务，待签合同不能提前享受同一规则。"
+      ],
+      "groups": [
+        [
+          "合同约定的服务等级优先于普通队列"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C17",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "消费者支持的独有业务约束得到保留。",
+      "evidence": [
+        "匿名咨询在用户提供有效凭证前不得与实名档案合并。相似昵称不能作为合并依据。"
+      ],
+      "groups": [
+        [
+          "匿名咨询在用户提供有效凭证前不得与实名档案合并"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C18",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "退款咨询的独有业务约束得到保留。",
+      "evidence": [
+        "工单系统只呈现业务系统返回的退款状态，不执行资金划转。退款完成与已提交申请是不同状态。"
+      ],
+      "groups": [
+        [
+          "工单系统只呈现业务系统返回的退款状态，不执行资金划转"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C19",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "供应商协作的独有业务约束得到保留。",
+      "evidence": [
+        "外部协作者每天 08:00 至 20:00 可以访问分配任务。权限到期自动撤销，不能以持续合作为由默认续期。"
+      ],
+      "groups": [
+        [
+          "外部协作者每天 08:00 至 20:00 可以访问分配任务"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C20",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "移动端的独有业务约束得到保留。",
+      "evidence": [
+        "移动端一期只支持查看与回复，不支持批量分配和导出。离线回复在网络恢复后重新确认收件人。"
+      ],
+      "groups": [
+        [
+          "移动端一期只支持查看与回复，不支持批量分配和导出"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C21",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "监控值班的独有业务约束得到保留。",
+      "evidence": [
+        "一级告警同时通知值班工程师与客服主管；值班工程师 5 分钟内确认，15 分钟内提供初步处理状态。"
+      ],
+      "groups": [
+        [
+          "一级告警同时通知值班工程师与客服主管；值班工程师 5 分钟内确认，15 分钟内提供初步处理状态"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C22",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "历史检索的独有业务约束得到保留。",
+      "evidence": [
+        "搜索只返回当前用户有权查看的记录。搜索摘要、附件标题和结果数量同样遵循权限过滤。"
+      ],
+      "groups": [
+        [
+          "搜索只返回当前用户有权查看的记录"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C23",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "统计报表的独有业务约束得到保留。",
+      "evidence": [
+        "运营日报以本地时间 00:00 至 24:00 为一个自然日；跨日工单按创建日与结案日分别统计。"
+      ],
+      "groups": [
+        [
+          "运营日报以本地时间 00:00 至 24:00 为一个自然日；跨日工单按创建日与结案日分别统计"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C24",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "归档恢复的独有业务约束得到保留。",
+      "evidence": [
+        "已归档工单可以由授权管理员恢复，恢复操作不修改最初创建时间。恢复后保留完整审计链。"
+      ],
+      "groups": [
+        [
+          "已归档工单可以由授权管理员恢复，恢复操作不修改最初创建时间"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C25",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "质量复核的独有业务约束得到保留。",
+      "evidence": [
+        "每位试点坐席至少复核 8 张工单；抽样应包含长对话、附件与跨部门转派，不能只挑简单咨询。"
+      ],
+      "groups": [
+        [
+          "每位试点坐席至少复核 8 张工单；抽样应包含长对话、附件与跨部门转派，不能只挑简单咨询"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C26",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "团队交接的独有业务约束得到保留。",
+      "evidence": [
+        "交接清单包含未结工单、已承诺回复时间和风险备注。交接完成需要接收方确认，发出通知不等于接收成功。"
+      ],
+      "groups": [
+        [
+          "交接清单包含未结工单、已承诺回复时间和风险备注"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C27",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "节假日支持的独有业务约束得到保留。",
+      "evidence": [
+        "节假日沿用统一知识库，但人工支持时间以公告为准。自动回复必须区分预计响应时间与保证响应时间。"
+      ],
+      "groups": [
+        [
+          "节假日沿用统一知识库，但人工支持时间以公告为准"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C28",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "身份验证的独有业务约束得到保留。",
+      "evidence": [
+        "管理员变更二次验证方式需要第二名管理员复核。复核人不能与申请人是同一个账号。"
+      ],
+      "groups": [
+        [
+          "管理员变更二次验证方式需要第二名管理员复核"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C29",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "数据导出的独有业务约束得到保留。",
+      "evidence": [
+        "批量导出必须指定业务用途和截止时间；任务完成后 24 小时下载链接失效。失效链接不得通过缓存继续访问。"
+      ],
+      "groups": [
+        [
+          "批量导出必须指定业务用途和截止时间；任务完成后 24 小时下载链接失效"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C30",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "客户通知的独有业务约束得到保留。",
+      "evidence": [
+        "系统维护公告至少提前 48 小时发布；紧急安全事件允许先处置后补发说明。紧急例外需记录理由。"
+      ],
+      "groups": [
+        [
+          "系统维护公告至少提前 48 小时发布；紧急安全事件允许先处置后补发说明"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C31",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "项目收尾的独有业务约束得到保留。",
+      "evidence": [
+        "项目结束后清点临时权限、测试账号与供应商访问入口。关闭项目不能直接删除审计证据。"
+      ],
+      "groups": [
+        [
+          "项目结束后清点临时权限、测试账号与供应商访问入口"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-C32",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "改进复盘的独有业务约束得到保留。",
+      "evidence": [
+        "试点结束后 5 个工作日内形成复盘。每项问题记录责任人、截止日和验证方法；完成开发不等于验证通过。"
+      ],
+      "groups": [
+        [
+          "试点结束后 5 个工作日内形成复盘"
+        ]
+      ]
+    },
+    {
+      "id": "01-long-report-V01",
+      "kind": "manual",
+      "critical": true,
+      "question": "32 项事实和业务细则覆盖且可追溯，末章与例外没有因长文截断而丢失。",
+      "evidence": [
+        "试点结束后 5 个工作日内形成复盘。每项问题记录责任人、截止日和验证方法；完成开发不等于验证通过。"
+      ]
+    },
+    {
+      "id": "01-long-report-V02",
+      "kind": "manual",
+      "critical": true,
+      "question": "“计划、预测、已批准、待确认”不能改写为已实现或已决定。",
+      "evidence": [
+        "录音存储区域和第三方质检接口仍待确认；未决事项必须保留为待决策，不能在演示中表述为已确定。"
+      ]
+    },
+    {
+      "id": "01-long-report-V03",
+      "kind": "manual",
+      "critical": true,
+      "question": "正文在实际渲染页可读，无重叠、裁切、超出画布；不能只依据可提取文字判定。",
+      "evidence": [
+        "# 海岚客服平台升级决策报告"
+      ]
+    },
+    {
+      "id": "01-long-report-V04",
+      "kind": "manual",
+      "critical": true,
+      "question": "整体采用专业简洁的排版；层级、留白、对齐一致，连续页面没有机械重复同一种卡片布局。",
+      "evidence": [
+        "# 海岚客服平台升级决策报告"
+      ]
+    },
+    {
+      "id": "01-long-report-V05",
+      "kind": "manual",
+      "critical": true,
+      "question": "关键内容出现在放映页；备注只能补充，不可代替表格、条件、例外与结论。",
+      "evidence": [
+        "# 海岚客服平台升级决策报告"
+      ]
+    },
+    {
+      "id": "01-long-report-V06",
+      "kind": "manual",
+      "critical": true,
+      "question": "主要文字、表格和图形可编辑；打开最终 PPTX 后与预览对照，无字体替换或错位。",
+      "evidence": [
+        "# 海岚客服平台升级决策报告"
+      ]
+    },
+    {
+      "id": "01-long-report-V07",
+      "kind": "manual",
+      "critical": true,
+      "question": "所选主题色、比例和页数策略得到遵守；容量不足时明确说明，不能删事实或无限缩小字号。",
+      "evidence": [
+        "# 海岚客服平台升级决策报告"
+      ]
+    }
+  ]
+}

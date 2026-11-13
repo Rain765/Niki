@@ -46,6 +46,8 @@ import {
   type ToolDevConfig,
   type ToolDevOptions,
 } from "./config.js";
+import { resolveSidecarRuntimeEntry } from "./runtime-entry.js";
+import { resolveForegroundRecoveryPlan } from "./foreground-recovery.js";
 import {
   appendStartupLogDiagnostics,
   createStartupLogDiagnostics,
@@ -386,9 +388,24 @@ async function waitForAppProcessExit(config: ToolDevConfig, appName: ToolDevAppN
   return (await findAppProcessTree(config, appName)).pids;
 }
 
-async function assertNoStaleActiveProcess(config: ToolDevConfig, appName: ToolDevAppName): Promise<void> {
+async function assertNoStaleActiveProcess(
+  config: ToolDevConfig,
+  appName: ToolDevAppName,
+  recoverProductionOrphans = false,
+): Promise<void> {
   const active = await findAppProcessTree(config, appName);
-  if (active.pids.length > 0) {
+  if (active.pids.length > 0 && recoverProductionOrphans) {
+    // launchctl may replace the foreground tools-dev process before its
+    // detached children observe the parent death. Give the parent monitor a
+    // short window, then reap the old release so a deployment can never fail
+    // into an unreachable "starting" limbo.
+    const remaining = await waitForAppProcessExit(config, appName, 2_500);
+    if (remaining.length > 0) await stopProcesses(remaining);
+  }
+  const remaining = recoverProductionOrphans
+    ? await findAppProcessTree(config, appName)
+    : active;
+  if (remaining.pids.length > 0) {
     throw new Error(`${appName} has active stamped processes but no reachable IPC status; run tools-dev stop ${appName} first`);
   }
 }
@@ -398,12 +415,21 @@ async function spawnSidecarRuntime(request: {
   config: ToolDevConfig;
   env: NodeJS.ProcessEnv;
   logHandle: FileHandle;
+  prod: boolean;
 }): Promise<{ pid: number }> {
   const { args: stampArgs, env } = createAppStamp(request.config, request.appName);
   const sidecarConfig = request.config.apps[request.appName];
+  const invocation = resolveSidecarRuntimeEntry({
+    nodePath: process.execPath,
+    prod: request.prod,
+    productionEntryPath: sidecarConfig.productionEntryPath,
+    sourceEntryPath: sidecarConfig.sidecarEntryPath,
+    stampArgs,
+    tsxCliPath: request.config.tsxCliPath,
+  });
   const spawned = await spawnBackgroundProcess({
-    args: [request.config.tsxCliPath, sidecarConfig.sidecarEntryPath, ...stampArgs],
-    command: process.execPath,
+    args: invocation.args,
+    command: invocation.command,
     cwd: request.config.workspaceRoot,
     detached: true,
     env: {
@@ -449,6 +475,7 @@ async function spawnDaemonRuntime(
         ...(spawnOptions.requireDesktopAuth ? { OD_REQUIRE_DESKTOP_AUTH: "1" } : {}),
       },
       logHandle,
+      prod: options.prod === true,
     });
   } finally {
     await logHandle.close();
@@ -456,11 +483,14 @@ async function spawnDaemonRuntime(
 }
 
 async function spawnWebRuntime(config: ToolDevConfig, options: CliOptions): Promise<{ pid: number }> {
-  const daemonStatus = await waitForDaemonRuntime(runtimeLookup(config));
-  if (daemonStatus.url == null) throw new Error("daemon must be running before web starts");
-
   const webPort = parsePortOption(options.webPort, "--web-port");
-  const daemonPort = urlPort(daemonStatus.url);
+  const forcedDaemonPort = parsePortOption(options.daemonPort, "--daemon-port");
+  const daemonPort = options.prod === true && forcedDaemonPort != null
+    ? String(forcedDaemonPort)
+    : await waitForDaemonRuntime(runtimeLookup(config)).then((daemonStatus) => {
+        if (daemonStatus.url == null) throw new Error("daemon must be running before web starts");
+        return urlPort(daemonStatus.url);
+      });
   const logHandle = await openAppLog(config, APP_KEYS.WEB);
 
   try {
@@ -487,6 +517,7 @@ async function spawnWebRuntime(config: ToolDevConfig, options: CliOptions): Prom
           : {}),
       },
       logHandle,
+      prod: options.prod === true,
     });
   } finally {
     await logHandle.close();
@@ -631,13 +662,14 @@ async function startDaemon(
 ) {
   const daemonPort = parsePortOption(options.daemonPort, "--daemon-port");
   const existing = await inspectDaemonRuntime(runtimeLookup(config));
-  if (existing?.url != null && statusMatchesForcedPort(existing.url, daemonPort)) {
+  if (existing?.url != null && options.prod === true) {
+    await stopApp(config, APP_KEYS.DAEMON);
+  } else if (existing?.url != null && statusMatchesForcedPort(existing.url, daemonPort)) {
     return { app: APP_KEYS.DAEMON, created: false, logPath: config.apps.daemon.latestLogPath, status: existing };
-  }
-  if (existing?.url != null) {
+  } else if (existing?.url != null) {
     throw new Error(`${APP_KEYS.DAEMON} is already running in namespace ${config.namespace} at ${existing.url}; stop it or choose another namespace`);
   }
-  await assertNoStaleActiveProcess(config, APP_KEYS.DAEMON);
+  await assertNoStaleActiveProcess(config, APP_KEYS.DAEMON, options.prod === true);
 
   // PR #974 round-4 P1: pin the import-auth gate on the daemon when
   // this spawn is part of a desktop-bundled flow OR a desktop runtime
@@ -669,13 +701,14 @@ async function startDaemon(
 async function startWeb(config: ToolDevConfig, options: CliOptions) {
   const webPort = parsePortOption(options.webPort, "--web-port");
   const existing = await inspectWebRuntime(runtimeLookup(config));
-  if (existing?.url != null && statusMatchesForcedPort(existing.url, webPort)) {
+  if (existing?.url != null && options.prod === true) {
+    await stopApp(config, APP_KEYS.WEB);
+  } else if (existing?.url != null && statusMatchesForcedPort(existing.url, webPort)) {
     return { app: APP_KEYS.WEB, created: false, logPath: config.apps.web.latestLogPath, status: existing };
-  }
-  if (existing?.url != null) {
+  } else if (existing?.url != null) {
     throw new Error(`${APP_KEYS.WEB} is already running in namespace ${config.namespace} at ${existing.url}; stop it or choose another namespace`);
   }
-  await assertNoStaleActiveProcess(config, APP_KEYS.WEB);
+  await assertNoStaleActiveProcess(config, APP_KEYS.WEB, options.prod === true);
 
   const spawned = await spawnWebRuntime(config, options);
   try {
@@ -1017,16 +1050,56 @@ function stopOrderFor(targets: readonly ToolDevAppName[]): ToolDevAppName[] {
 async function runForeground(config: ToolDevConfig, appName: string | undefined, options: CliOptions) {
   const targets = resolveRunApps(appName);
   const foregroundOptions = { ...options, parentPid: process.pid };
-  const started = await runSequential(targets, (target) => startApp(config, target, foregroundOptions, { targets }));
+  const startupTargets = options.prod === true && targets.includes(APP_KEYS.WEB)
+    ? [APP_KEYS.WEB, ...targets.filter((target) => target !== APP_KEYS.WEB)]
+    : targets;
+  const started = await runSequential(startupTargets, (target) => startApp(config, target, foregroundOptions, { targets }));
   printRunForegroundResult(started, options);
 
   let shuttingDown = false;
+  let recoveryRunning = false;
+  let daemonMisses = 0;
+  let webMisses = 0;
   const keepAlive = setInterval(() => undefined, 60_000);
+  const watchdog = options.prod === true
+    ? setInterval(() => {
+        if (shuttingDown || recoveryRunning) return;
+        recoveryRunning = true;
+        void Promise.all([
+          targets.includes(APP_KEYS.DAEMON)
+            ? inspectDaemonRuntime(runtimeLookup(config), 1_000)
+            : Promise.resolve({ state: "running" } as DaemonStatusSnapshot),
+          targets.includes(APP_KEYS.WEB)
+            ? inspectWebRuntime(runtimeLookup(config), 1_000)
+            : Promise.resolve({ state: "running" } as WebStatusSnapshot),
+        ]).then(async ([daemonStatus, webStatus]) => {
+          daemonMisses = daemonStatus?.state === "running" ? 0 : daemonMisses + 1;
+          webMisses = webStatus?.state === "running" ? 0 : webMisses + 1;
+          const plan = resolveForegroundRecoveryPlan({ daemonMisses, webMisses });
+          if (plan == null) return;
+
+          process.stderr.write(
+            `[tools-dev] production watchdog recovering ${plan.start.join("+")} ` +
+            `(daemon misses=${daemonMisses}, web misses=${webMisses})\n`,
+          );
+          await runSequential(plan.stop, (target) => stopApp(config, target));
+          if (shuttingDown) return;
+          await runSequential(plan.start, (target) => startApp(config, target, foregroundOptions, { targets }));
+          daemonMisses = 0;
+          webMisses = 0;
+        }).catch((error: unknown) => {
+          process.stderr.write(`[tools-dev] production watchdog recovery failed: ${formatError(error)}\n`);
+        }).finally(() => {
+          recoveryRunning = false;
+        });
+      }, 2_000)
+    : null;
   await new Promise<void>((resolveDone) => {
     const shutdown = () => {
       if (shuttingDown) return;
       shuttingDown = true;
       clearInterval(keepAlive);
+      if (watchdog != null) clearInterval(watchdog);
       process.stderr.write("\nStopping Open Design dev server...\n");
       void runSequential(stopOrderFor(targets), (target) => stopApp(config, target)).finally(() => {
         for (const sig of ["SIGINT", "SIGTERM"] as const) {

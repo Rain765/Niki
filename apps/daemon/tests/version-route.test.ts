@@ -22,6 +22,7 @@ describe('/api/version', () => {
     const json = await res.json() as unknown;
 
     expect(res.ok).toBe(true);
+    expect(res.headers.get('cache-control')).toBe('no-store, no-cache, must-revalidate');
     expect(json).toEqual({
       version: {
         version: expect.any(String),

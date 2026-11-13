@@ -284,16 +284,8 @@
   font-size: 12px;
 }
 
-.plugins-view__filter select {
-  min-height: 32px;
-  min-width: 180px;
-  max-width: 260px;
-  padding: 7px 34px 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-panel);
-  color: var(--text);
-  font-size: 12px;
+.plugins-view__filter.od-field {
+  min-width: 220px;
 }
 
 .plugins-view__row,
@@ -467,18 +459,7 @@
   flex: 0 0 auto;
 }
 
-.plugins-view__source-actions select,
-.plugins-view__source-row select {
-  min-height: 32px;
-  padding: 7px 34px 7px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-panel);
-  color: var(--text);
-  font-size: 12px;
-}
-
-.plugins-view__source-actions select {
+.plugins-view__source-actions .plugins-view__source-trust {
   min-width: 112px;
 }
 
@@ -516,13 +497,13 @@
   width: auto;
 }
 
-.plugins-view__source-row select {
+.plugins-view__source-row .plugins-view__source-trust {
   flex: 0 0 auto;
   min-width: 140px;
   width: 180px;
 }
 
-.plugins-view__source-row .plugins-view__primary {
+.plugins-view__source-row .od-button {
   flex: 0 0 auto;
   min-width: 104px;
   white-space: nowrap;
@@ -818,9 +799,8 @@
   }
 
   .plugins-view__source-row input,
-  .plugins-view__source-row select,
-  .plugins-view__filter select,
-  .plugins-view__source-row .plugins-view__primary {
+  .plugins-view__source-row .plugins-view__source-trust,
+  .plugins-view__source-row .od-button {
     flex: 0 0 auto;
     width: 100%;
   }

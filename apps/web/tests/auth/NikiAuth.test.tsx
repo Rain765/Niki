@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as testingRender, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
 
 import { NikiAuthGate, useNikiAuth } from '../../src/auth/NikiAuth';
+import { I18nProvider } from '../../src/i18n';
+
+function render(ui: ReactNode) {
+  return testingRender(<I18nProvider initial="zh-CN">{ui}</I18nProvider>);
+}
 
 function UserProbe() {
   const { user } = useNikiAuth();
@@ -73,6 +79,36 @@ describe('NikiAuthGate', () => {
     expect(await screen.findByText('signed in as niki')).toBeTruthy();
   });
 
+  it('keeps the visible bootstrap screen and retries while daemon starts', async () => {
+    let configAttempts = 0;
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === '/api/auth/config') {
+        configAttempts += 1;
+        if (configAttempts === 1) {
+          return Promise.resolve(new Response('starting', { status: 502 }));
+        }
+        return Promise.resolve(new Response(JSON.stringify({
+          enabled: false,
+          provider: null,
+          ready: true,
+        }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({
+        error: 'Authentication required',
+      }), { status: 401 }));
+    }));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    expect(screen.getByText('正在连接 Niki…')).toBeTruthy();
+    expect(await screen.findByText('signed in as niki', {}, { timeout: 1_500 })).toBeTruthy();
+    expect(configAttempts).toBe(2);
+  });
+
   it('shows the Feishu login entry when no browser session exists', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -94,6 +130,84 @@ describe('NikiAuthGate', () => {
     expect(await screen.findByRole('button', { name: '使用飞书登录' }))
       .toBeTruthy();
     expect(screen.queryByText(/signed in as/)).toBeNull();
+  });
+
+  it('shows immediate feedback while the Feishu login redirect is starting', async () => {
+    vi.stubGlobal('requestAnimationFrame', vi.fn(() => 1));
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        provider: 'feishu',
+        ready: true,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401 },
+      )));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    const loginButton = await screen.findByRole('button', { name: '使用飞书登录' });
+    fireEvent.click(loginButton);
+
+    expect(loginButton.getAttribute('aria-busy')).toBe('true');
+    expect((loginButton as HTMLButtonElement).disabled).toBe(true);
+    expect(loginButton.textContent).toContain('正在前往飞书');
+    expect(screen.getByRole('button', { name: '账号密码登录' })).toHaveProperty('disabled', true);
+  });
+
+  it('toggles password visibility and resets it when leaving password login', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        enabled: true,
+        provider: 'feishu',
+        ready: true,
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401 },
+      )));
+
+    render(
+      <NikiAuthGate>
+        <UserProbe />
+      </NikiAuthGate>,
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '账号密码登录' }));
+
+    const passwordInput = screen.getByLabelText('密码') as HTMLInputElement;
+    fireEvent.change(passwordInput, { target: { value: 'secret-value' } });
+
+    const showPassword = screen.getByRole('button', { name: '显示密码' });
+    expect(passwordInput.type).toBe('password');
+    expect(showPassword.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(showPassword);
+
+    expect(passwordInput.type).toBe('text');
+    expect(passwordInput.value).toBe('secret-value');
+    const hidePassword = screen.getByRole('button', { name: '隐藏密码' });
+    expect(hidePassword.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(hidePassword);
+
+    expect(passwordInput.type).toBe('password');
+    expect(passwordInput.value).toBe('secret-value');
+
+    fireEvent.click(screen.getByRole('button', { name: '显示密码' }));
+    expect(passwordInput.type).toBe('text');
+
+    fireEvent.click(screen.getByRole('button', { name: '返回飞书登录' }));
+    fireEvent.click(screen.getByRole('button', { name: '账号密码登录' }));
+
+    expect((screen.getByLabelText('密码') as HTMLInputElement).type).toBe('password');
+    expect(screen.getByRole('button', { name: '显示密码' }).getAttribute('aria-pressed'))
+      .toBe('false');
   });
 
   it('renders the authenticated Feishu identity for the workspace', async () => {

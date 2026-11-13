@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { PptModels } from './ppt-models.js';
+import { PptModelGateway, registerPptModelRoutes } from './ppt-model-routes.js';
 import type { DesktopExportPdfInput, DesktopExportPdfResult } from '@open-design/sidecar-proto';
 import express from 'express';
 import multer from 'multer';
@@ -232,13 +234,13 @@ import {
 } from './media-models.js';
 import { readMaskedConfig, writeConfig } from './media-config.js';
 import {
-  deleteMediaTask,
   getMediaTask,
   insertMediaTask,
   listMediaTasksByProject,
   listRecentMediaTasks,
   reconcileDirectLoanPosterProject,
   reconcileMediaTasksOnBoot,
+  reconcileStaleDirectLoanPosterProjects,
   updateMediaTask,
 } from './media-tasks.js';
 import {
@@ -359,12 +361,16 @@ import { registerConnectorRoutes } from './connectors/routes.js';
 import { registerActiveContextRoutes } from './active-context-routes.js';
 import { registerMcpRoutes } from './mcp-routes.js';
 import { registerXaiRoutes } from './xai-routes.js';
+import { registerFeishuDocumentRoutes } from './feishu-document-routes.js';
+import { registerEnglishPracticeRoutes } from './english-practice-routes.js';
 import { registerLiveArtifactRoutes } from './live-artifact-routes.js';
 import { registerCanvasRoutes } from './canvas-routes.js';
+import { registerLogoRoutes } from './logo-routes.js';
+import { registerPresentationRoutes } from './presentation-routes.js';
 import { registerDesignSystemToolRoutes } from './design-system-tool-routes.js';
 import { registerDeployRoutes, registerDeploymentCheckRoutes } from './deploy-routes.js';
 import { registerMediaRoutes } from './media-routes.js';
-import { registerProjectRoutes, registerProjectArtifactRoutes, registerProjectFileRoutes, registerProjectUploadRoutes } from './project-routes.js';
+import { shouldResolveDefaultScenarioPlugin, registerProjectRoutes, registerProjectArtifactRoutes, registerProjectFileRoutes, registerProjectUploadRoutes } from './project-routes.js';
 import { registerFinalizeRoutes, registerImportRoutes, registerProjectExportRoutes } from './import-export-routes.js';
 import { registerHandoffRoutes } from './handoff-routes.js';
 import { EmptyTranscriptError, synthesizeHandoffPrompt } from './handoff-design.js';
@@ -2591,7 +2597,9 @@ function sendMulterError(res, err) {
 }
 
 const mediaTasks = new Map();
-const TASK_TTL_AFTER_DONE_MS = 10 * 60 * 1000;
+const TASK_TTL_AFTER_DONE_MS = 7 * 24 * 60 * 60 * 1000;
+const DIRECT_LOAN_POSTER_QUEUE_STALE_AFTER_MS = 15 * 60 * 1000;
+const DIRECT_LOAN_POSTER_QUEUE_SWEEP_INTERVAL_MS = 60 * 1000;
 const MEDIA_TERMINAL_STATUSES = new Set(['done', 'failed', 'interrupted']);
 
 function hydrateMediaTask(row) {
@@ -2683,11 +2691,11 @@ function notifyTaskWaiters(db, task) {
   ) {
     task._gcScheduled = true;
     setTimeout(() => {
-      if (task.waiters.size === 0) {
+      task._gcScheduled = false;
+      if (task.waiters.size === 0 && MEDIA_TERMINAL_STATUSES.has(task.status)) {
         mediaTasks.delete(task.id);
-        deleteMediaTask(db, task.id);
       }
-    }, TASK_TTL_AFTER_DONE_MS).unref?.();
+    }, 10 * 60 * 1000).unref?.();
   }
 }
 
@@ -2852,6 +2860,7 @@ export async function startServer({
   }
 
   const app = express();
+  app.use('/api/ppt-model-gateway', express.json({ limit: '64mb' }));
   app.use(express.json({ limit: '4mb' }));
 
   // Plan §3.K1 — bearer-token middleware.
@@ -3235,6 +3244,25 @@ export async function startServer({
         `deleted ${mediaReconcile.deleted} expired terminal task(s)`,
     );
   }
+  const sweepStaleDirectLoanPosterQueues = () => {
+    const interrupted = reconcileStaleDirectLoanPosterProjects(db, {
+      staleAfterMs: DIRECT_LOAN_POSTER_QUEUE_STALE_AFTER_MS,
+    });
+    if (interrupted > 0) {
+      console.warn(
+        `[media] interrupted ${interrupted} expired direct loan-poster queue(s) without active tasks`,
+      );
+    }
+  };
+  sweepStaleDirectLoanPosterQueues();
+  const directLoanPosterQueueSweep = setInterval(() => {
+    try {
+      sweepStaleDirectLoanPosterQueues();
+    } catch (error) {
+      console.error('[media] failed to reconcile expired direct loan-poster queues', error);
+    }
+  }, DIRECT_LOAN_POSTER_QUEUE_SWEEP_INTERVAL_MS);
+  directLoanPosterQueueSweep.unref?.();
   mediaTasks.clear();
   const recentMediaTasks = listRecentMediaTasks(db, {
     terminalTtlMs: TASK_TTL_AFTER_DONE_MS,
@@ -3379,12 +3407,18 @@ export async function startServer({
 
   let resolveNikiRunProjectId: (runId: string) => string | null | undefined =
     () => undefined;
+  const pptModels = new PptModels(RUNTIME_DATA_DIR);
+  const pptModelGateway = new PptModelGateway(pptModels);
+  pptModelGateway.register(app);
   registerNikiAuthRoutes(app, {
     db,
     projectsRoot: PROJECTS_DIR,
     isLocalOperatorRequest: (req) => validateLocalDaemonRequest(req).ok,
     resolveRunProjectId: (runId) => resolveNikiRunProjectId(runId),
   });
+  registerPptModelRoutes(app, pptModels, (req) => validateLocalDaemonRequest(req).ok);
+  registerFeishuDocumentRoutes(app, { db });
+  registerEnglishPracticeRoutes(app, { db });
 
   if (fs.existsSync(STATIC_DIR)) {
     app.use(express.static(STATIC_DIR));
@@ -3397,6 +3431,7 @@ export async function startServer({
 
   app.get('/api/version', async (_req, res) => {
     const version = await readCurrentAppVersionInfo();
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({ version });
   });
 
@@ -4296,6 +4331,7 @@ export async function startServer({
   const uploadDeps = { upload, importUpload, handleProjectUpload };
   const projectStoreDeps = {
     getProject,
+    listProjects,
     insertProject,
     updateProject,
     dbDeleteProject,
@@ -4480,6 +4516,7 @@ export async function startServer({
     projectStore: projectStoreDeps,
   });
   registerProjectRoutes(app, {
+    pptModels,
     db,
     design,
     http: httpDeps,
@@ -4497,6 +4534,16 @@ export async function startServer({
   });
   registerDeviceBridgeRoutes(app, deviceBridge);
   registerCanvasRoutes(app, { db, http: httpDeps });
+  registerPresentationRoutes(app, { db, projectsRoot: PROJECTS_DIR, projectRoot: PROJECT_ROOT });
+  registerLogoRoutes(app, {
+    db,
+    http: httpDeps,
+    ids: idDeps,
+    paths: pathDeps,
+    projectStore: projectStoreDeps,
+    projectFiles: projectFileDeps,
+    conversations: conversationDeps,
+  });
   registerImportRoutes(app, {
     db,
     http: httpDeps,
@@ -8034,6 +8081,7 @@ export async function startServer({
       const relPath = req.params[0];
       const project = getProject(db, req.params.id);
       const file = await readProjectFile(PROJECTS_DIR, req.params.id, relPath, project?.metadata);
+      const forceDownload = req.query.download === '1';
       // PreviewModal loads artifact HTML via srcdoc, giving the iframe Origin: "null".
       // data: URIs, file://, and some sandboxed iframes also send null — all are
       // local-only callers, so this is safe. Real cross-origin sites send a real
@@ -8041,7 +8089,7 @@ export async function startServer({
       if (req.headers.origin === 'null') {
         res.header('Access-Control-Allow-Origin', '*');
       }
-      if (req.query.download === '1') {
+      if (forceDownload) {
         const filename = String(relPath).split('/').filter(Boolean).pop() || 'download';
         const asciiFallback = filename
           .replace(/[^\x20-\x7E]/g, '_')
@@ -8051,7 +8099,9 @@ export async function startServer({
           `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
         );
       }
-      res.type(file.mime).send(file.buffer);
+      res.type(forceDownload ? 'application/octet-stream' : file.mime);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.send(file.buffer);
     } catch (err) {
       const status = err && err.code === 'ENOENT' ? 404 : 400;
       sendApiError(
@@ -8438,6 +8488,15 @@ export async function startServer({
         language: typeof req.body?.language === 'string' ? req.body.language : undefined,
         compositionDir: req.body?.compositionDir,
         image: req.body?.image,
+        overlayZ: req.body?.overlayZ,
+        overlayLogo: req.body?.overlayLogo,
+        overlayLogoAnchor: req.body?.overlayLogoAnchor,
+        overlayPhoneScreen: req.body?.overlayPhoneScreen,
+        foregroundPrompt: req.body?.foregroundPrompt,
+        posterHeadline: req.body?.posterHeadline,
+        posterSubtitle: req.body?.posterSubtitle,
+        posterTextAnchor: req.body?.posterTextAnchor,
+        posterCopyStyle: req.body?.posterCopyStyle,
         onProgress: (line) => appendTaskProgress(db, task, line),
       })
         .then((meta) => {
@@ -9092,6 +9151,13 @@ export async function startServer({
   const startChatRun = async (chatBody, run) => {
     /** @type {Partial<ChatRequest> & { imagePaths?: string[] }} */
     chatBody = chatBody || {};
+    const pptBinding = typeof chatBody.projectId === 'string'
+      ? getProject(db, chatBody.projectId)?.metadata?.nativePresentation?.modelBinding : undefined;
+    if (pptBinding && pptBinding.provider !== 'existing') {
+      chatBody = { ...chatBody, agentId: 'opencode', model: `niki-ppt/${pptBinding.model}`, reasoning: undefined };
+    }
+    let pptLaunch;
+
     const {
       agentId,
       message,
@@ -9793,6 +9859,10 @@ export async function startServer({
         ),
         ...odMediaEnv,
       }, agentLaunch);
+      if (pptBinding && pptBinding.provider !== 'existing') {
+        pptLaunch = await pptModelGateway.launch(pptBinding, daemonUrl, () => !design.runs.isTerminal(run.status));
+        Object.assign(env, pptLaunch.env);
+      }
       spawnedAgentEnv = env;
       const invocation = createCommandInvocation({
         command: agentLaunch.launchPath,
@@ -9810,6 +9880,7 @@ export async function startServer({
         windowsVerbatimArguments: invocation.windowsVerbatimArguments,
       });
       run.child = child;
+      if (pptLaunch) child.once('close', pptLaunch.release);
       if (def.promptViaStdin && child.stdin && def.streamFormat !== 'pi-rpc') {
         // EPIPE from a fast-exiting CLI (bad auth, missing model, exit on
         // launch) would otherwise surface as an unhandled stream error and
@@ -10637,7 +10708,7 @@ export async function startServer({
         const hasPin =
           typeof projectRow?.appliedPluginSnapshotId === 'string'
           && projectRow.appliedPluginSnapshotId.length > 0;
-        if (!hasPin) {
+        if (!hasPin && shouldResolveDefaultScenarioPlugin(projectRow?.metadata)) {
           const fallbackPluginId = defaultScenarioPluginIdForKind(
             projectRow?.metadata?.kind,
           );
@@ -11322,6 +11393,7 @@ export async function startServer({
   return await new Promise((resolve, reject) => {
     let daemonShutdownStarted = false;
     const cleanupDaemonBackgroundWork = () => {
+      clearInterval(directLoanPosterQueueSweep);
       composioConnectorProvider.stopCatalogRefreshLoop();
       orbitService.stop();
       routineService?.stop();

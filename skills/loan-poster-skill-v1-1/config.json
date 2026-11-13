@@ -10,7 +10,7 @@
       "output_prefix": "biumoney-poster"
     }
   },
-  "supported_formats": ["1:1", "16:9"],
+  "supported_formats": ["1:1", "16:9", "3:4"],
   "visual_contract": {
     "require_red_background": true,
     "require_z_symbol": true,

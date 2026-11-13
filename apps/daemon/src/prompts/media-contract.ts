@@ -82,7 +82,10 @@ Run via your shell tool (Bash on Claude Code, exec on Codex/Gemini, etc.):
   --model <model-id> \\
   --output <filename> \\
   --prompt "<full prompt>" \\
+  [--prompt-file <path|->] \\
   [--aspect 1:1|16:9|9:16|4:3|3:4] \\
+  [--overlay-z <project-relative-path>] [--overlay-logo <project-relative-path>] [--overlay-logo-anchor <left|right>] # image only; composite exact brand layers after generation
+  [--foreground-prompt-file <path|->] [--poster-headline <text>] [--poster-subtitle <text>] [--poster-text-anchor <left|right>] # Zamloan layered image only
   [--length <seconds>]              # video only
   [--duration <seconds>]            # audio only
   [--prompt-influence <0-1>]        # audio:sfx only; higher follows the prompt more closely
@@ -92,9 +95,12 @@ Run via your shell tool (Bash on Claude Code, exec on Codex/Gemini, etc.):
   [--language <lang>]               # audio:speech only; language boost (e.g. Chinese,Yue for Cantonese)
 \`\`\`
 
-Always quote the prompt value. Use \`--prompt "<full prompt>"\` (or the
-equivalent safe quoting for your shell) — never splice an unquoted user
-string into the command line.
+Always quote the prompt value. Use \`--prompt "<full prompt>"\` or
+\`--prompt-file <path|->\` — never splice an unquoted user string into the
+command line. Layered Zamloan renders use an environment-only main prompt and
+a chroma-matte model-only \`--foreground-prompt-file\`; the dispatcher isolates
+the model locally, places the exact Z between those layers, and renders the
+supplied copy afterward.
 
 The command prints a single line of JSON describing the written file:
 
@@ -185,12 +191,10 @@ the same turn.
 
 \`media generate\` no longer blocks for the full render. It dispatches
 the task daemon-side and either returns the finished \`{"file":{...}}\`
-or returns a successful queued/running handoff with \`{taskId}\`. You then
+or returns a queued/running handoff with \`{taskId}\`. You then
 drive the render to completion by calling \`media wait <taskId>\` through \`OD_NODE_BIN\` + \`OD_BIN\` in
 a loop — each call long-polls the daemon for up to 25s, well below your
-shell tool's default 30s timeout. \`media generate\` treats the handoff as
-exit \`0\` so the first dispatch does not look like a failed shell call.
-The wait subcommand exits with a distinct code per outcome:
+shell tool's default 30s timeout. Both \`media generate\` and \`media wait\` use the same exit code contract:
 
 - \`exit 0\` — terminal **done**. Final stdout line is \`{"file":{...}}\`.
 - \`exit 5\` — terminal **failed**. Stderr carries the upstream error.
@@ -205,7 +209,7 @@ The pattern in your shell tool:
 \`\`\`bash
 out=$("$OD_NODE_BIN" "$OD_BIN" media generate --surface video --model … --image …)
 ec=$?
-if [ "$ec" -ne 0 ]; then
+if [ "$ec" -ne 0 ] && [ "$ec" -ne 2 ]; then
   echo "$out" >&2; exit "$ec"
 fi
 task_id=$(printf '%s\\n' "$out" | tail -1 | jq -r '.taskId // empty')
@@ -290,10 +294,10 @@ substitution. Do not silently fall back.
    variable.
    For \`hyperframes-html\`, the discovery turn is the last turn before
    you start authoring. Once the user answers, write the composition
-   files into \`.hyperframes-cache/\` and run \`npx hyperframes render\`
-   immediately — do not add a second "plan" or "environment check"
-   message first, and do not call \`"$OD_NODE_BIN" "$OD_BIN" media generate\` (that path is
-   intentionally rejected for this model).
+   files into \`.hyperframes-cache/\` and dispatch \`"$OD_NODE_BIN" "$OD_BIN" media generate\`
+   immediately with \`--model hyperframes-html --composition-dir <path>\` — do not add a
+   second "plan" or "environment check" message first. The daemon owns the
+   bundled HyperFrames render process; never invoke \`npx hyperframes render\` yourself.
 3. **Generate by shell, narrate in chat.** When you actually invoke
    \`"$OD_NODE_BIN" "$OD_BIN" media generate\`, do it inside a clearly-labelled tool call. After
    it returns, write a short reply: what was produced, the filename,
@@ -331,15 +335,13 @@ do **not** narrate a stub as if it were the final result.
    models without a real renderer, and the CLI prints the daemon's
    error message. Set \`OD_MEDIA_ALLOW_STUBS=1\` to write a labelled
    placeholder instead.
-2. **Exit code.** \`"$OD_NODE_BIN" "$OD_BIN" media generate\` exits \`0\` for
-   both immediate completion and successful queued/running handoff; inspect
-   the final stdout JSON for either \`file\` or \`taskId\`. \`"$OD_NODE_BIN"
-   "$OD_BIN" media wait\` exits \`0\` on terminal **done**, \`2\` when the
+2. **Exit code.** Both \`"$OD_NODE_BIN" "$OD_BIN" media generate\` and
+   \`"$OD_NODE_BIN" "$OD_BIN" media wait\` exit \`0\` on terminal **done**, \`2\` when the
    task is still **running** and needs another \`wait\` call (see
    "Long-running renders" above), \`5\` when the daemon accepted the request
    but the provider call failed (key missing / 4xx / network blip), and
    \`1–4\` for client / daemon errors. Always check \`$?\` before describing
-   the output. \`2\` from \`media wait\` is not a failure — it just means
+   the output. \`2\` from either media command is not a failure — it just means
    "keep polling".
 3. **stderr WARN lines.** On exit \`5\` the CLI prints multiple
    \`WARN: …\` lines explaining the failure (provider, reason, the

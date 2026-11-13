@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { Toast } from '../../src/components/Toast';
@@ -11,6 +11,21 @@ afterEach(() => {
 });
 
 describe('Toast', () => {
+  it.each(['success', 'error', 'loading'] as const)('renders an opt-in %s indicator before the message', (indicator) => {
+    render(<Toast message="Status message" indicator={indicator} />);
+    const message = screen.getByText('Status message');
+    const icon = message.previousElementSibling;
+    expect(icon?.getAttribute('data-status')).toBe(indicator);
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.querySelector('svg')).not.toBeNull();
+  });
+
+  it('does not change ordinary toast presentation without opting in', () => {
+    const { container } = render(<Toast message="Existing toast" />);
+    expect(container.querySelector('.od-toast-indicator')).toBeNull();
+    expect(container.querySelector('.has-indicator')).toBeNull();
+  });
+
   it('renders the message and primary line by default', () => {
     render(<Toast message="Folder opened." />);
     expect(screen.getByText('Folder opened.')).not.toBeNull();
@@ -44,8 +59,47 @@ describe('Toast', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 
+  it('uses a three-second success timeout', () => {
+    vi.useFakeTimers();
+    const onDismiss = vi.fn();
+    render(<Toast message="Saved" tone="success" onDismiss={onDismiss} />);
+    vi.advanceTimersByTime(2_999);
+    expect(onDismiss).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps errors and persistent work visible by default', () => {
+    vi.useFakeTimers();
+    const errorDismiss = vi.fn();
+    const workingDismiss = vi.fn();
+    render(
+      <>
+        <Toast message="Failed" tone="error" onDismiss={errorDismiss} />
+        <Toast message="Working" persistent onDismiss={workingDismiss} />
+      </>,
+    );
+    vi.advanceTimersByTime(60_000);
+    expect(errorDismiss).not.toHaveBeenCalled();
+    expect(workingDismiss).not.toHaveBeenCalled();
+  });
+
   it('renders a Dismiss button when both code and onDismiss are present', () => {
     render(<Toast message="manual copy" code="x" onDismiss={() => {}} />);
     expect(screen.getByRole('button', { name: /Dismiss/i })).not.toBeNull();
+  });
+
+  it('supports an explicitly dismissible toast with a custom label', () => {
+    const onDismiss = vi.fn();
+    render(
+      <Toast
+        message="Saved"
+        dismissible
+        dismissLabel="Close feedback"
+        onDismiss={onDismiss}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Close feedback' }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
   });
 });

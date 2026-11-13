@@ -1,6 +1,8 @@
 import type { Dict } from '../types';
+import { loanVideoZhCn } from '../loan-video';
 
 export const zhCN: Dict = {
+  ...loanVideoZhCn,
   'common.cancel': '取消',
   'common.save': '保存',
   'common.close': '关闭',
@@ -9,6 +11,12 @@ export const zhCN: Dict = {
   'common.edit': '编辑',
   'common.preview': '预览',
   'common.share': '分享',
+  'imageViewer.downloadStarted': '图片下载已开始',
+  'imageViewer.imageCopied': '图片已复制',
+  'imageViewer.editUnavailable': '图片编辑功能即将上线',
+  'imageViewer.linkCopied': '图片链接已复制',
+  'imageViewer.actionFailed': '无法完成此操作',
+  'imageViewer.deleteFailed': '图片删除失败',
   'common.search': '搜索',
   'common.searchEllipsis': '搜索…',
   'common.loading': '加载中…',
@@ -62,6 +70,25 @@ export const zhCN: Dict = {
   'app.brandPill': '研究预览版',
   'app.brandSubtitle': '由 Nexu Labs 出品',
   'app.welcomeLoading': '正在加载工作区…',
+
+  'posterNav.primary': '主导航',
+  'posterNav.poster': '海报',
+  'posterNav.video': '视频',
+  'posterNav.documents': '文档',
+  'posterNav.logo': '品牌',
+  'posterNav.english': '语音',
+  'posterNav.language': '界面语言',
+  'posterNav.posterEyebrow': 'NIKI 海报',
+  'posterNav.posterTitle': '生成贷款海报',
+  'posterNav.posterSubtitle': '基于已确认的业务模板，一键生成可直接使用的贷款营销海报。',
+  'posterNav.documentsTitle': '文档搜索',
+  'posterNav.documentsSubtitle': '搜索飞书文档、打开链接，并在一个工作区内整理研究内容。',
+  'posterNav.logoTitle': 'Logo 设计',
+  'posterNav.logoSubtitle': '创建并持续精修可复用的品牌视觉识别系统。',
+  'posterNav.englishTitle': '每日英语练习',
+  'posterNav.englishSubtitle': '练习真实生活对话，并每天复习学习进度。',
+  'posterNav.account': '账户',
+  'posterNav.signOut': '退出登录',
 
   'settings.welcomeKicker': "",
   'settings.welcomeTitle': "欢迎",

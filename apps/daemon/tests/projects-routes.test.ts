@@ -12,6 +12,7 @@
  * than expanding any of them.
  */
 import type http from 'node:http';
+import type { ProjectResponse } from '@open-design/contracts';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -27,6 +28,12 @@ describe('default scenario plugin resolution', () => {
       kind: 'image',
       directGeneration: { kind: 'loan-poster', expectedOutputs: 1 },
     })).toBe(false);
+  });
+
+  it('does not layer a generic deck plugin over an explicitly selected native workflow', () => {
+    expect(shouldResolveDefaultScenarioPlugin({ kind: 'deck', nativePresentation: { version: 1, workflow: 'html-ppt' } })).toBe(false);
+    expect(shouldResolveDefaultScenarioPlugin({ kind: 'deck', nativePresentation: { version: 1, workflow: 'guizang-ppt-skill' } })).toBe(false);
+    expect(shouldResolveDefaultScenarioPlugin({ kind: 'deck' })).toBe(true);
   });
 
   it('keeps the existing default plugin behavior for ordinary projects', () => {
@@ -64,6 +71,24 @@ describe('GET /api/projects/:id resolvedDir', () => {
     tempDirs.push(d);
     return d;
   }
+
+  it('rejects incompatible native palettes on create and patch', async () => {
+    const id = `native-palette-${Date.now()}`;
+    const workflow = 'guizang-ppt-skill';
+    const project = (template: string, theme: string) => ({
+      id, name: 'Native palette fixture', skillId: workflow,
+      metadata: { kind: 'deck', nativePresentation: { version: 1, workflow, brief: '', resourceVersion: 'fixture', selection: { template, theme } } },
+    });
+    const request = (method: string, suffix: string, body: unknown) => fetch(`${baseUrl}/api/projects${suffix}`, {
+      method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    expect((await request('POST', '', project('A', 'Safety Orange'))).status).toBe(400);
+    expect((await request('POST', '', project('B', 'Safety Orange'))).status).toBe(200);
+    expect((await request('PATCH', `/${id}`, project('B', 'Forest Ink'))).status).toBe(400);
+    expect((await request('PATCH', `/${id}`, { skillId: 'html-ppt' })).status).toBe(400);
+    const saved = await (await fetch(`${baseUrl}/api/projects/${id}`)).json() as ProjectResponse;
+    expect(saved.project.metadata?.nativePresentation?.selection).toEqual({ template: 'B', theme: 'Safety Orange' });
+  });
 
   it('returns resolvedDir === metadata.baseDir for an imported-folder project', async () => {
     const folder = makeFolder();
@@ -119,6 +144,36 @@ describe('GET /api/projects/:id resolvedDir', () => {
     const expected = path.join(dataDir, 'projects', projectId);
     expect(detail.resolvedDir).toBe(expected);
     expect(path.isAbsolute(detail.resolvedDir)).toBe(true);
+  });
+
+  it('keeps image previews inline but serves requested downloads as attachments', async () => {
+    const folder = makeFolder();
+    const fileName = '贷款海报.png';
+    await writeFile(path.join(folder, fileName), Buffer.from('png fixture'));
+
+    const importResp = await fetch(`${baseUrl}/api/import/folder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseDir: folder }),
+    });
+    expect(importResp.status).toBe(200);
+    const importBody = (await importResp.json()) as { project: { id: string } };
+    const rawFileUrl =
+      `${baseUrl}/api/projects/${importBody.project.id}/raw/${encodeURIComponent(fileName)}`;
+
+    const previewResp = await fetch(rawFileUrl);
+    expect(previewResp.status).toBe(200);
+    expect(previewResp.headers.get('content-type')).toBe('image/png');
+    expect(previewResp.headers.get('content-disposition')).toBeNull();
+
+    const downloadResp = await fetch(`${rawFileUrl}?download=1`);
+
+    expect(downloadResp.status).toBe(200);
+    expect(downloadResp.headers.get('content-type')).toBe('application/octet-stream');
+    expect(downloadResp.headers.get('content-disposition')).toContain('attachment;');
+    expect(downloadResp.headers.get('content-disposition')).toContain(
+      `filename*=UTF-8''${encodeURIComponent(fileName)}`,
+    );
   });
 
   it('persists skipDiscoveryBrief for batch-created projects', async () => {

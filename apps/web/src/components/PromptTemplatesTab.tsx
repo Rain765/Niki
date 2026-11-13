@@ -5,6 +5,7 @@ import {
   localizePromptTemplateSummary,
 } from '../i18n/content';
 import type { PromptTemplateSource, PromptTemplateSummary } from '../types';
+import { CustomSelect } from './CustomSelect';
 import { Icon } from './Icon';
 
 // Stable, human-readable provider name used by the source filter and the
@@ -97,33 +98,44 @@ export function PromptTemplatesTab({ surface, templates, onPreview }: Props) {
 
   return (
     <div className="tab-panel prompt-templates-panel">
-      <div className="tab-panel-toolbar">
+      <div className="tab-panel-toolbar od-filter-grid">
         <input
+          className="od-filter-grid__item"
           placeholder={t('promptTemplates.searchPlaceholder')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c === 'All' ? t('common.all') : localizePromptTemplateCategory(locale, c)}
-            </option>
-          ))}
-        </select>
+        <CustomSelect
+          ariaLabel={t('pluginsHome.categoryFilterAria')}
+          className="od-control-select od-filter-grid__item"
+          triggerClassName="od-control-select__trigger"
+          menuClassName="od-control-select__menu"
+          menuPlacement="bottom"
+          menuMinWidth={200}
+          value={category}
+          onChange={setCategory}
+          options={categories.map((c) => ({
+            value: c,
+            label: c === 'All' ? t('common.all') : localizePromptTemplateCategory(locale, c),
+          }))}
+        />
         {sources.length > 2 ? (
-          <select
+          <CustomSelect
+            ariaLabel={t('promptTemplates.sourceFilterAria')}
+            className="od-control-select od-filter-grid__item od-filter-grid__wide"
+            triggerClassName="od-control-select__trigger"
+            menuClassName="od-control-select__menu"
+            menuPlacement="bottom"
+            menuMinWidth={200}
             value={source}
-            onChange={(e) => setSource(e.target.value)}
-            aria-label={t('promptTemplates.sourceFilterAria')}
-          >
-            {sources.map((s) => (
-              <option key={s} value={s}>
-                {s === 'All' ? t('promptTemplates.allSources') : s}
-              </option>
-            ))}
-          </select>
+            onChange={setSource}
+            options={sources.map((s) => ({
+              value: s,
+              label: s === 'All' ? t('promptTemplates.allSources') : s,
+            }))}
+          />
         ) : null}
-        <span className="prompt-templates-count">
+        <span className="prompt-templates-count od-filter-grid__meta">
           {t('promptTemplates.countLabel', { n: filtered.length })}
         </span>
       </div>

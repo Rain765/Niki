@@ -40,13 +40,17 @@
 // so the CLI can exit non-zero and the agent can't silently narrate the
 // placeholder as the final result.
 
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, stat, unlink, writeFile } from 'node:fs/promises';
 import { execFile as execFileCb, spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 import { EnvHttpProxyAgent } from 'undici';
+import { createImageRequestRecovery, imageRequestTimeoutMs, isRecoverableImageRequestError } from './image-request-recovery.js';
+import { PosterArmUncertainError } from './poster-arm-integrity.js';
+import type { PosterCopyStyle } from '@open-design/contracts';
 import {
   AUDIO_DURATIONS_SEC,
   type AudioKind,
@@ -59,7 +63,26 @@ import {
   modelsForSurface,
 } from './media-models.js';
 import { assertExternalAssetUrl } from './connectionTest.js';
+import {
+  createHyperFramesRenderCommand,
+  createHyperFramesRenderEnv,
+  resolveHyperFramesBinaryPaths,
+  verifyHyperFramesBinaries,
+} from './hyperframes-binaries.js';
 import { resolveModelAlias, resolveProviderConfig } from './media-config.js';
+import { createPosterHandDetector, PosterDetectorUnavailableError, type PosterHandDetector } from './poster-hand-detector.js';
+import { posterCheckpoint } from './poster-checkpoint.js';
+import { warpAntiFraudMessage } from './poster-message-perspective.js';
+import {
+  placeAntiFraudMessage,
+  PosterHandLayoutError,
+  PosterMessagePlacementError,
+  ANTI_FRAUD_MESSAGE_SPACE_RETRY,
+  ANTI_FRAUD_HAND_RETRY,
+  ANTI_FRAUD_SIMPLE_POSE_RECOVERY,
+  type PosterHandObservation,
+  type AntiFraudMessagePlacement,
+} from './poster-hand-layout.js';
 import {
   ensureProject,
   kindFor,
@@ -72,6 +95,38 @@ type ProviderConfig = { apiKey?: string; baseUrl?: string; model?: string };
 type ProgressFn = (message: string) => void;
 type ImageRef = { path: string; abs: string; mime: string; size: number; dataUrl: string };
 type ImageQuality = 'low' | 'medium' | 'high' | 'auto';
+
+function isZamloanLogoAsset(image: ImageRef): boolean {
+  const stem = path.parse(path.basename(image.path)).name.toLowerCase();
+  return /^(?:[a-z0-9]+-)?zamloan-logo$/u.test(stem);
+}
+
+const LAYERED_FOREGROUND_MATTE_INSTRUCTIONS = `
+CRITICAL COMPOSITING REQUIREMENT: Render the complete subject against one
+uniform chroma green background (#00FF00). The green field must fill every
+background pixel edge-to-edge with flat, even color: no scenery, floor,
+gradient, texture, shadow, or vignette. Keep the subject fully inside the
+canvas with clear green margin on every edge. Do not use green clothing or
+green accessories; the small green phone-screen success checkmark is the only
+exception.`.trim();
+
+const LAYERED_FOREGROUND_MATTE_RETRY_INSTRUCTIONS = `
+CRITICAL MATTE RETRY: The previous foreground could not be separated from its
+background. Use a perfectly flat #00FF00 canvas with an uninterrupted green
+border on all four sides. Keep every part of the subject away from the canvas
+edges and remove all environmental or floor detail.`.trim();
+
+const RASTER_IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+const OVERLAY_IMAGE_MIME_BY_EXTENSION: Readonly<Record<string, string>> = {
+  ...RASTER_IMAGE_MIME_BY_EXTENSION,
+  '.svg': 'image/svg+xml',
+};
 
 export async function optimizeLosslessPng(
   input: Buffer,
@@ -101,9 +156,10 @@ export async function optimizeLosslessPng(
 }
 
 /**
- * Direct loan posters are primarily reviewed on phones. Halving both axes
- * keeps the poster readable while reducing the stored pixel area to 25%.
- * The resized pixels are then encoded as a lossless PNG.
+ * Preserve the provider's full poster resolution while applying lossless PNG
+ * compression. Delivery-sized previews are produced separately by the web
+ * runtime, so the persisted source should remain suitable for download and
+ * close inspection.
  */
 export async function optimizeLoanPosterPng(
   input: Buffer,
@@ -113,41 +169,1431 @@ export async function optimizeLoanPosterPng(
   savedBytes: number;
   pixelScale: number;
 }> {
-  try {
-    const metadata = await sharp(input).metadata();
-    if (!metadata.width || !metadata.height) {
-      const optimized = await optimizeLosslessPng(input);
-      return { ...optimized, pixelScale: 1 };
-    }
-    const targetWidth = Math.max(1, Math.round(metadata.width * 0.5));
-    const targetHeight = Math.max(1, Math.round(metadata.height * 0.5));
-    if (targetWidth === metadata.width && targetHeight === metadata.height) {
-      const optimized = await optimizeLosslessPng(input);
-      return { ...optimized, pixelScale: 1 };
-    }
-    const resized = await sharp(input)
-      .resize({
-        width: targetWidth,
-        height: targetHeight,
-        fit: 'fill',
-        kernel: sharp.kernel.lanczos3,
-      })
-      .png({
-        compressionLevel: 9,
-        adaptiveFiltering: true,
-        palette: false,
-      })
-      .toBuffer();
-    return {
-      bytes: resized,
-      optimized: true,
-      savedBytes: Math.max(0, input.length - resized.length),
-      pixelScale: 0.5,
-    };
-  } catch {
-    const optimized = await optimizeLosslessPng(input);
-    return { ...optimized, pixelScale: 1 };
+  const optimized = await optimizeLosslessPng(input);
+  return { ...optimized, pixelScale: 1 };
+}
+
+export interface ZamloanLogoSafeZoneAnalysis {
+  intrudes: boolean;
+  score: number;
+  neutralLightRatio: number;
+  strongEdgeRatio: number;
+}
+
+/**
+ * Detect title-like or cluttered pixels in the region reserved for the
+ * deterministic Zamloan logo. This runs before the SVG wordmark is composited,
+ * so light neutral runs and strong edges indicate a broken layout contract.
+ */
+export async function analyzeZamloanLogoSafeZone(
+  input: Buffer,
+  options: {
+    anchor?: 'left' | 'right';
+    bottomRatio?: number;
+    allowNeutralLight?: boolean;
+    strongEdgeRatioLimit?: number;
+  } = {},
+): Promise<ZamloanLogoSafeZoneAnalysis> {
+  const image = sharp(input);
+  const metadata = await image.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('generated poster has no readable dimensions');
   }
+
+  const isWidescreen = metadata.width / metadata.height >= 1.5;
+  const top = Math.max(0, Math.round(metadata.height * 0.02));
+  const bottom = Math.min(
+    metadata.height,
+    Math.round(metadata.height * (
+      options.bottomRatio ?? (isWidescreen ? 0.23 : 0.18)
+    )),
+  );
+  const left = Math.max(
+    0,
+    Math.round(metadata.width * (options.anchor === 'right' ? 0.50 : 0.03)),
+  );
+  const right = Math.min(
+    metadata.width,
+    Math.round(metadata.width * (options.anchor === 'right' ? 0.97 : 0.45)),
+  );
+  const { data, info } = await image
+    .extract({
+      left,
+      top,
+      width: Math.max(1, right - left),
+      height: Math.max(1, bottom - top),
+    })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const channels = info.channels;
+  const pixelCount = info.width * info.height;
+  let neutralLightPixels = 0;
+  let strongEdgePixels = 0;
+  const lumaAt = (x: number, y: number): number => {
+    const offset = (y * info.width + x) * channels;
+    const red = data[offset] ?? 0;
+    const green = data[offset + 1] ?? red;
+    const blue = data[offset + 2] ?? green;
+    return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+  };
+
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const offset = (y * info.width + x) * channels;
+      const red = data[offset] ?? 0;
+      const green = data[offset + 1] ?? red;
+      const blue = data[offset + 2] ?? green;
+      const minimum = Math.min(red, green, blue);
+      const maximum = Math.max(red, green, blue);
+      if (minimum >= 205 && maximum - minimum <= 48) {
+        neutralLightPixels += 1;
+      }
+
+      const sampleX = Math.min(info.width - 1, x + 3);
+      const sampleY = Math.min(info.height - 1, y + 3);
+      const luma = lumaAt(x, y);
+      if (
+        Math.abs(luma - lumaAt(sampleX, y)) >= 58
+        || Math.abs(luma - lumaAt(x, sampleY)) >= 58
+      ) {
+        strongEdgePixels += 1;
+      }
+    }
+  }
+
+  const neutralLightRatio = neutralLightPixels / pixelCount;
+  const strongEdgeRatio = strongEdgePixels / pixelCount;
+  const score = (options.allowNeutralLight ? 0 : neutralLightRatio * 2)
+    + strongEdgeRatio;
+  return {
+    intrudes: (
+      (!options.allowNeutralLight && neutralLightRatio >= 0.018)
+      || strongEdgeRatio >= (options.strongEdgeRatioLimit ?? 0.065)
+    ),
+    score,
+    neutralLightRatio,
+    strongEdgeRatio,
+  };
+}
+
+function logoSafeZoneRetryInstruction(anchor: 'left' | 'right'): string {
+  const horizontalRange = anchor === 'right' ? '50% to 97%' : '3% to 45%';
+  return `CRITICAL LOGO SAFE-ZONE RETRY: the previous render placed text or visual detail inside the reserved logo band. Keep the rectangle from ${horizontalRange} of the canvas width and from 2% to 23% of the canvas height completely free of text, people, props, windows, shelves, and high-contrast detail. Use only smooth background color there. Put the headline below 25% of the canvas height and align it with the ${anchor} logo column.`;
+}
+
+export async function renderImageWithLogoSafeZoneRetry<T extends { bytes: Buffer }>(
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+  options: {
+    enabled: boolean;
+    anchor?: 'left' | 'right';
+    maxRetries?: number;
+  },
+): Promise<{
+  result: T;
+  attempts: number;
+  safeZone: ZamloanLogoSafeZoneAnalysis;
+}> {
+  const anchor = options.anchor ?? 'left';
+  const maxRetries = Math.max(0, options.maxRetries ?? 1);
+  let bestResult = await render(prompt);
+  let bestSafeZone = await analyzeZamloanLogoSafeZone(bestResult.bytes, { anchor });
+  let attempts = 1;
+
+  if (!options.enabled || !bestSafeZone.intrudes) {
+    return { result: bestResult, attempts, safeZone: bestSafeZone };
+  }
+
+  for (let retry = 0; retry < maxRetries; retry += 1) {
+    let retryResult: T;
+    try {
+      retryResult = await render(`${prompt}\n\n${logoSafeZoneRetryInstruction(anchor)}`);
+    } catch (error) {
+      if (isRecoverableImageRequestError(error)) break;
+      throw error;
+    }
+    const retrySafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, { anchor });
+    attempts += 1;
+    if (retrySafeZone.score < bestSafeZone.score) {
+      bestResult = retryResult;
+      bestSafeZone = retrySafeZone;
+    }
+    if (!retrySafeZone.intrudes) {
+      return { result: retryResult, attempts, safeZone: retrySafeZone };
+    }
+  }
+
+  return { result: bestResult, attempts, safeZone: bestSafeZone };
+}
+
+export interface AntiFraudLowerRightContinuityAnalysis {
+  intrudes: boolean;
+  score: number;
+  verticalEdgeRatio: number;
+  horizontalEdgeRatio: number;
+}
+
+const ANTI_FRAUD_CONTINUITY_WARNING =
+  'Anti-fraud lower-right background remained visually discontinuous after retry; the clearest render was used.';
+const ANTI_FRAUD_DIAGONAL_WARNING =
+  'Anti-fraud diagonal split remained outside endpoint tolerance after retry; the clearest render was used.';
+
+export async function analyzeAntiFraudLowerRightContinuity(
+  input: Buffer,
+): Promise<AntiFraudLowerRightContinuityAnalysis> {
+  const metadata = await sharp(input).metadata();
+  if (!metadata.width || !metadata.height) {
+    return {
+      intrudes: true,
+      score: Number.POSITIVE_INFINITY,
+      verticalEdgeRatio: 1,
+      horizontalEdgeRatio: 1,
+    };
+  }
+
+  const sampleWidth = 180;
+  const sampleHeight = Math.max(120, Math.round(sampleWidth * metadata.height / metadata.width));
+  const { data, info } = await sharp(input)
+    .resize({ width: sampleWidth, height: sampleHeight, fit: 'fill' })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const channels = info.channels;
+  const colorDelta = (firstX: number, firstY: number, secondX: number, secondY: number) => {
+    const firstOffset = (firstY * info.width + firstX) * channels;
+    const secondOffset = (secondY * info.width + secondX) * channels;
+    return (
+      Math.abs((data[firstOffset] ?? 0) - (data[secondOffset] ?? 0))
+      + Math.abs((data[firstOffset + 1] ?? 0) - (data[secondOffset + 1] ?? 0))
+      + Math.abs((data[firstOffset + 2] ?? 0) - (data[secondOffset + 2] ?? 0))
+    ) / 3;
+  };
+  const edgeThreshold = 24;
+  const xStart = Math.round(info.width * 0.58);
+  const xEnd = Math.round(info.width * 0.86);
+  const yStart = Math.round(info.height * 0.63);
+  const yEnd = Math.round(info.height * 0.98);
+  const horizontalStart = Math.round(info.width * 0.60);
+  const horizontalEnd = Math.round(info.width * 0.98);
+
+  let verticalEdgeRatio = 0;
+  for (let x = xStart; x <= xEnd; x += 1) {
+    let edgePixels = 0;
+    let samples = 0;
+    for (let y = yStart; y <= yEnd; y += 1) {
+      if (x < 2 || x + 2 >= info.width) continue;
+      samples += 1;
+      if (colorDelta(x - 2, y, x + 2, y) >= edgeThreshold) edgePixels += 1;
+    }
+    verticalEdgeRatio = Math.max(verticalEdgeRatio, edgePixels / Math.max(1, samples));
+  }
+
+  let horizontalEdgeRatio = 0;
+  for (let y = yStart; y <= Math.round(info.height * 0.86); y += 1) {
+    let edgePixels = 0;
+    let samples = 0;
+    for (let x = horizontalStart; x <= horizontalEnd; x += 1) {
+      if (y < 2 || y + 2 >= info.height) continue;
+      samples += 1;
+      if (colorDelta(x, y - 2, x, y + 2) >= edgeThreshold) edgePixels += 1;
+    }
+    horizontalEdgeRatio = Math.max(horizontalEdgeRatio, edgePixels / Math.max(1, samples));
+  }
+
+  const score = verticalEdgeRatio + horizontalEdgeRatio;
+  return {
+    intrudes: verticalEdgeRatio >= 0.42 && horizontalEdgeRatio >= 0.42,
+    score,
+    verticalEdgeRatio,
+    horizontalEdgeRatio,
+  };
+}
+
+export interface AntiFraudDiagonalSplitAnalysis {
+  intrudes: boolean;
+  score: number;
+  leftEndpointRatio: number;
+  rightEndpointRatio: number;
+  leftStrength: number;
+  rightStrength: number;
+}
+
+export async function analyzeAntiFraudDiagonalSplit(
+  input: Buffer,
+): Promise<AntiFraudDiagonalSplitAnalysis> {
+  const metadata = await sharp(input).metadata();
+  if (!metadata.width || !metadata.height) {
+    return {
+      intrudes: true,
+      score: Number.POSITIVE_INFINITY,
+      leftEndpointRatio: 0,
+      rightEndpointRatio: 1,
+      leftStrength: 0,
+      rightStrength: 0,
+    };
+  }
+
+  const sampleWidth = 180;
+  const sampleHeight = Math.max(120, Math.round(sampleWidth * metadata.height / metadata.width));
+  const { data, info } = await sharp(input)
+    .resize({ width: sampleWidth, height: sampleHeight, fit: 'fill' })
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const channels = info.channels;
+  const colorDelta = (x: number, firstY: number, secondY: number) => {
+    const firstOffset = (firstY * info.width + x) * channels;
+    const secondOffset = (secondY * info.width + x) * channels;
+    return (
+      Math.abs((data[firstOffset] ?? 0) - (data[secondOffset] ?? 0))
+      + Math.abs((data[firstOffset + 1] ?? 0) - (data[secondOffset + 1] ?? 0))
+      + Math.abs((data[firstOffset + 2] ?? 0) - (data[secondOffset + 2] ?? 0))
+    ) / 3;
+  };
+  const median = (values: number[]) => {
+    const sorted = [...values].sort((first, second) => first - second);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 0
+      ? ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2
+      : (sorted[middle] ?? 0);
+  };
+  const detectEndpoint = (
+    xRatios: number[],
+    endpoint: 'left' | 'right',
+  ): { ratio: number; strength: number } => {
+    const ratios: number[] = [];
+    const strengths: number[] = [];
+    for (const xRatio of xRatios) {
+      const x = Math.min(info.width - 1, Math.max(0, Math.round(xRatio * (info.width - 1))));
+      const expectedYRatio = 1 - (0.92 * xRatio);
+      const startY = Math.max(2, Math.round((expectedYRatio - 0.14) * info.height));
+      const endY = Math.min(info.height - 3, Math.round((expectedYRatio + 0.14) * info.height));
+      let bestY = startY;
+      let bestStrength = 0;
+      for (let y = startY; y <= endY; y += 1) {
+        const strength = colorDelta(x, y - 2, y + 2);
+        if (strength > bestStrength) {
+          bestStrength = strength;
+          bestY = y;
+        }
+      }
+      const detectedYRatio = bestY / Math.max(1, info.height - 1);
+      const endpointRatio = endpoint === 'left'
+        ? detectedYRatio + (0.92 * xRatio)
+        : detectedYRatio - (0.92 * (1 - xRatio));
+      ratios.push(Math.min(1, Math.max(0, endpointRatio)));
+      strengths.push(bestStrength);
+    }
+    return {
+      ratio: median(ratios),
+      strength: median(strengths),
+    };
+  };
+
+  const left = detectEndpoint([0.025, 0.05, 0.075], 'left');
+  const right = detectEndpoint([0.925, 0.95, 0.975], 'right');
+  const minimumBoundaryStrength = 16;
+  const leftError = Math.abs(1 - left.ratio);
+  const rightError = Math.abs(0.08 - right.ratio);
+  const missingBoundaryPenalty = (
+    (left.strength < minimumBoundaryStrength ? 0.20 : 0)
+    + (right.strength < minimumBoundaryStrength ? 0.20 : 0)
+  );
+  return {
+    intrudes: (
+      left.ratio < 0.97
+      || right.ratio < 0.06
+      || right.ratio > 0.10
+      || left.strength < minimumBoundaryStrength
+      || right.strength < minimumBoundaryStrength
+    ),
+    score: leftError + rightError + missingBoundaryPenalty,
+    leftEndpointRatio: left.ratio,
+    rightEndpointRatio: right.ratio,
+    leftStrength: left.strength,
+    rightStrength: right.strength,
+  };
+}
+
+async function antiFraudLowerRightRetryInstruction(input: Buffer): Promise<string> {
+  const metadata = await sharp(input).metadata();
+  const aspect = (metadata.width ?? 1) / (metadata.height ?? 1);
+  const zone = aspect >= 1.5
+    ? 'x=78% to 100% and y=66% to 94%'
+    : aspect >= 0.9
+      ? 'x=71% to 100% and y=69% to 94%'
+      : 'x=73% to 100% and y=72% to 90%';
+  return `CRITICAL LOWER-RIGHT CONTINUITY RETRY: the previous render introduced a separate geometric foreground surface. Re-render the composition so the surrounding base background flows continuously through ${zone} of the canvas. Match the immediately adjacent color, gradient, texture, depth, and lighting with no visible boundary or separate treatment. Keep the person, hands, phone, props, and high-contrast detail outside this zone. The zone must remain ordinary, visually empty surrounding background.`;
+}
+
+function antiFraudDiagonalRetryInstruction(): string {
+  return 'CRITICAL FIXED-DIAGONAL RETRY: use exactly one straight background boundary from the exact bottom-left corner (0%, 100%) to the right edge at (100%, 8%). The left endpoint must touch the final bottom-left canvas pixel, and the right endpoint must touch the right canvas edge 8% below the top. Do not terminate the boundary early, shift either endpoint, bend it, feather it, or introduce another wedge.';
+}
+
+async function antiFraudLogoSafeZoneRules(input: Buffer): Promise<{
+  bottomRatio: number;
+  retryInstruction: (anchor: 'left' | 'right') => string;
+}> {
+  const metadata = await sharp(input).metadata();
+  const widescreen = (metadata.width ?? 1) / (metadata.height ?? 1) >= 1.5;
+  const bottomRatio = widescreen ? 0.20 : 0.17;
+  const headlineRange = widescreen ? '22.5% to 23.5%' : '19% to 20%';
+  return {
+    bottomRatio,
+    retryInstruction: (anchor) => {
+      const horizontalRange = anchor === 'right' ? '50% to 97%' : '3% to 45%';
+      return `CRITICAL LOGO SAFE-ZONE RETRY: keep ${horizontalRange} of the canvas width and 2% to ${Math.round(bottomRatio * 100)}% of the canvas height calm and free of text, people, props, windows, shelves, and high-contrast detail. Use only smooth background color there. Preserve the established type size and place the headline top edge at ${headlineRange} of the canvas height.`;
+    },
+  };
+}
+
+export async function renderImageWithAntiFraudSafeZoneRetry<T extends { bytes: Buffer }>(
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+  options: {
+    anchor?: 'left' | 'right';
+    maxRetries?: number;
+    detectHands?: PosterHandDetector | undefined;
+    preserveLayoutDraft?: (bytes: Buffer, error: PosterHandLayoutError, observation?: PosterHandObservation) => Promise<void>;
+  } = {},
+): Promise<{
+  result: T;
+  attempts: number;
+  logoSafeZone: ZamloanLogoSafeZoneAnalysis;
+  lowerRight: AntiFraudLowerRightContinuityAnalysis;
+  diagonal: AntiFraudDiagonalSplitAnalysis;
+  handObservation?: PosterHandObservation | undefined;
+}> {
+  const anchor = options.anchor ?? 'left';
+  // One correction, then one simpler-pose recovery only if the hands still fail.
+  // An explicit smaller budget is honored; callers cannot create an unbounded loop.
+  const requestedRetries = options.maxRetries ?? 2;
+  const maxRetries = Number.isFinite(requestedRetries)
+    ? Math.min(2, Math.max(0, Math.floor(requestedRetries))) : 2;
+  let bestResult = await render(prompt);
+  const logoRules = await antiFraudLogoSafeZoneRules(bestResult.bytes);
+  let bestLogoSafeZone = await analyzeZamloanLogoSafeZone(bestResult.bytes, {
+    anchor,
+    bottomRatio: logoRules.bottomRatio,
+    allowNeutralLight: true,
+    strongEdgeRatioLimit: 0.025,
+  });
+  let bestLowerRight = await analyzeAntiFraudLowerRightContinuity(bestResult.bytes);
+  let bestDiagonal = await analyzeAntiFraudDiagonalSplit(bestResult.bytes);
+  const inspectHands = async (input: Buffer) => {
+    if (!options.detectHands) return { observation: undefined, error: undefined };
+    let observation: PosterHandObservation | undefined;
+    try {
+      observation = await options.detectHands(input);
+      const metadata = await sharp(input).metadata();
+      placeAntiFraudMessage(metadata.width!, metadata.height!, observation);
+      return { observation, error: undefined };
+    } catch (error) {
+      if (!(error instanceof PosterHandLayoutError) || !error.recoverable) throw error;
+      return { observation, error };
+    }
+  };
+  let bestHands = await inspectHands(bestResult.bytes);
+  let bestScore = bestLogoSafeZone.score + bestLowerRight.score + bestDiagonal.score;
+  let attempts = 1;
+
+  if (!bestHands.error && !bestLogoSafeZone.intrudes && !bestLowerRight.intrudes && !bestDiagonal.intrudes) {
+    return {
+      result: bestResult,
+      attempts,
+      logoSafeZone: bestLogoSafeZone,
+      lowerRight: bestLowerRight,
+      diagonal: bestDiagonal,
+      handObservation: bestHands.observation,
+    };
+  }
+
+  for (let retry = 0; retry < maxRetries; retry += 1) {
+    // Cosmetic background checks retain their existing one-retry budget.
+    // Low confidence already had a local second view: one framing correction,
+    // not a third paid image for the same unresolved evidence.
+    if (retry > 0 && bestHands.error instanceof PosterArmUncertainError) break;
+    if (retry > 0 && !bestHands.error) break;
+    const retryInstructions = [
+      bestHands.error
+        ? bestHands.error instanceof PosterMessagePlacementError
+          ? ANTI_FRAUD_MESSAGE_SPACE_RETRY
+          : retry === 0 ? ANTI_FRAUD_HAND_RETRY : ANTI_FRAUD_SIMPLE_POSE_RECOVERY
+        : '',
+      bestLogoSafeZone.intrudes ? logoRules.retryInstruction(anchor) : '',
+      bestLowerRight.intrudes
+        ? await antiFraudLowerRightRetryInstruction(bestResult.bytes)
+        : '',
+      bestDiagonal.intrudes ? antiFraudDiagonalRetryInstruction() : '',
+    ].filter(Boolean).join('\n\n');
+    let retryResult: T;
+    try {
+      retryResult = await render(`${prompt}\n\n${retryInstructions}`);
+    } catch (error) {
+      // A cosmetic refinement cannot discard a usable, hand-validated image.
+      // Invalid hands and explicit cancellation must still fail closed.
+      if (!bestHands.error && isRecoverableImageRequestError(error)) break;
+      throw error;
+    }
+    const retryLogoSafeZone = await analyzeZamloanLogoSafeZone(retryResult.bytes, {
+      anchor,
+      bottomRatio: logoRules.bottomRatio,
+      allowNeutralLight: true,
+      strongEdgeRatioLimit: 0.025,
+    });
+    const retryLowerRight = await analyzeAntiFraudLowerRightContinuity(retryResult.bytes);
+    const retryDiagonal = await analyzeAntiFraudDiagonalSplit(retryResult.bytes);
+    const retryHands = await inspectHands(retryResult.bytes);
+    const retryScore = retryLogoSafeZone.score + retryLowerRight.score + retryDiagonal.score;
+    attempts += 1;
+    // Hand clearance is mandatory; background scores only rank equally valid layouts.
+    if ((bestHands.error && !retryHands.error)
+      || (Boolean(bestHands.error) === Boolean(retryHands.error) && retryScore < bestScore)) {
+      bestResult = retryResult;
+      bestLogoSafeZone = retryLogoSafeZone;
+      bestLowerRight = retryLowerRight;
+      bestDiagonal = retryDiagonal;
+      bestHands = retryHands;
+      bestScore = retryScore;
+    }
+    if (!retryHands.error && !retryLogoSafeZone.intrudes && !retryLowerRight.intrudes && !retryDiagonal.intrudes) {
+      return {
+        result: retryResult,
+        attempts,
+        logoSafeZone: retryLogoSafeZone,
+        lowerRight: retryLowerRight,
+        diagonal: retryDiagonal,
+        handObservation: retryHands.observation,
+      };
+    }
+  }
+
+  if (bestHands.error) {
+    try {
+      await options.preserveLayoutDraft?.(bestResult.bytes, bestHands.error, bestHands.observation);
+    } catch {
+      // A disk error must not turn a rejected layout into the generic stub fallback.
+      bestHands.error.message += '; could not preserve the layout draft';
+    }
+    throw bestHands.error;
+  }
+  return {
+    result: bestResult,
+    attempts,
+    logoSafeZone: bestLogoSafeZone,
+    lowerRight: bestLowerRight,
+    diagonal: bestDiagonal,
+    handObservation: bestHands.observation,
+  };
+}
+
+type ZamloanTaglineTone = 'black' | 'white';
+
+const ZAMLOAN_TAGLINE_TOP_RATIO = 0.64;
+const NORMAL_TEXT_MINIMUM_CONTRAST = 4.5;
+
+function srgbChannelToLinear(value: number): number {
+  const channel = value / 255;
+  return channel <= 0.04045
+    ? channel / 12.92
+    : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(red: number, green: number, blue: number): number {
+  return (
+    srgbChannelToLinear(red) * 0.2126
+    + srgbChannelToLinear(green) * 0.7152
+    + srgbChannelToLinear(blue) * 0.0722
+  );
+}
+
+function chooseZamloanTaglineTone(
+  data: Buffer,
+  channels: number,
+): ZamloanTaglineTone {
+  let blackPassingPixels = 0;
+  let whitePassingPixels = 0;
+  let blackContrastTotal = 0;
+  let whiteContrastTotal = 0;
+  let pixelCount = 0;
+
+  for (let offset = 0; offset < data.length; offset += channels) {
+    const luminance = relativeLuminance(
+      data[offset] ?? 0,
+      data[offset + 1] ?? 0,
+      data[offset + 2] ?? 0,
+    );
+    const blackContrast = (luminance + 0.05) / 0.05;
+    const whiteContrast = 1.05 / (luminance + 0.05);
+    if (blackContrast >= NORMAL_TEXT_MINIMUM_CONTRAST) blackPassingPixels += 1;
+    if (whiteContrast >= NORMAL_TEXT_MINIMUM_CONTRAST) whitePassingPixels += 1;
+    blackContrastTotal += blackContrast;
+    whiteContrastTotal += whiteContrast;
+    pixelCount += 1;
+  }
+
+  if (blackPassingPixels !== whitePassingPixels) {
+    return blackPassingPixels > whitePassingPixels ? 'black' : 'white';
+  }
+  if (pixelCount === 0) return 'white';
+  return blackContrastTotal >= whiteContrastTotal ? 'black' : 'white';
+}
+
+async function adaptZamloanTaglineToBackground(
+  resizedLogo: Buffer,
+  background: Buffer,
+  options: {
+    left: number;
+    top: number;
+    tone?: ZamloanTaglineTone;
+  },
+): Promise<Buffer> {
+  const { data: logoPixels, info: logoInfo } = await sharp(resizedLogo)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const taglineTop = Math.min(
+    logoInfo.height - 1,
+    Math.max(0, Math.floor(logoInfo.height * ZAMLOAN_TAGLINE_TOP_RATIO)),
+  );
+  const taglineHeight = logoInfo.height - taglineTop;
+  let tone = options.tone;
+  if (!tone) {
+    const { data: backgroundPixels, info: backgroundInfo } = await sharp(background)
+      .extract({
+        left: options.left,
+        top: options.top + taglineTop,
+        width: logoInfo.width,
+        height: taglineHeight,
+      })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    tone = chooseZamloanTaglineTone(
+      backgroundPixels,
+      backgroundInfo.channels,
+    );
+  }
+  const channelValue = tone === 'black' ? 0 : 255;
+
+  for (let y = taglineTop; y < logoInfo.height; y += 1) {
+    for (let x = 0; x < logoInfo.width; x += 1) {
+      const offset = (y * logoInfo.width + x) * logoInfo.channels;
+      if ((logoPixels[offset + 3] ?? 0) === 0) continue;
+      logoPixels[offset] = channelValue;
+      logoPixels[offset + 1] = channelValue;
+      logoPixels[offset + 2] = channelValue;
+    }
+  }
+
+  return sharp(logoPixels, {
+    raw: {
+      width: logoInfo.width,
+      height: logoInfo.height,
+      channels: 4,
+    },
+  }).png().toBuffer();
+}
+
+async function renderImageWithPhoneScreenRetry<T extends { bytes: Buffer }>(
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+): Promise<{ result: T; attempts: number }> {
+  const result = await render(prompt);
+  if (await detectMagentaPhoneScreen(result.bytes)) {
+    return { result, attempts: 1 };
+  }
+  const retried = await render(`${prompt}
+
+CRITICAL PHONE-SCREEN RETRY: The previous image did not provide a usable screen for compositing. Show exactly one large upright smartphone held toward the camera. The phone must be perfectly front-on with its complete bezel visible. Fill the entire interior display with one flat, uniform, fully saturated magenta rectangle (#ff00ff). Keep fingers, glare, icons, text, reflections, gradients, and other objects completely outside that magenta rectangle.`);
+  if (!await detectMagentaPhoneScreen(retried.bytes)) {
+    throw new Error('phone screen marker was not detectable after one retry');
+  }
+  return { result: retried, attempts: 2 };
+}
+
+/**
+ * Add an exact supplied brand mark after image generation so it remains
+ * legible and consistent instead of relying on model-rendered typography.
+ * Zamloan's white tagline may opt into local black/white contrast adaptation.
+ * Anti-fraud layouts may force the tagline black because their logo-safe area
+ * is always light by design.
+ * Every other brand must retain the source asset's original colors.
+ */
+export async function overlayZamloanLogo(
+  input: Buffer,
+  logo: Buffer,
+  options: {
+    anchor?: 'left' | 'right';
+    adaptTaglineContrast?: boolean;
+    taglineTone?: ZamloanTaglineTone;
+  } = {},
+): Promise<Buffer> {
+  const metadata = await sharp(input).metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('generated poster has no readable dimensions');
+  }
+
+  const aspect = metadata.width / metadata.height;
+  const isWidescreen = aspect >= 1.5;
+  const isSquareOrPortrait = aspect <= 1.05;
+  const logoWidth = Math.min(
+    400,
+    Math.max(180, Math.round(metadata.width * 0.24)),
+  );
+  const logoHeight = Math.round(metadata.height * (
+    isWidescreen ? 0.15 : isSquareOrPortrait ? 0.07 : 0.12
+  ));
+  const logoSourceMetadata = await sharp(logo).metadata();
+  const logoImage = logoSourceMetadata.format === 'svg'
+    ? sharp(logo, { density: 384 })
+    : sharp(logo);
+  const resizedLogo = await logoImage
+    .ensureAlpha()
+    .resize({
+      width: logoWidth,
+      height: logoHeight,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .png()
+    .toBuffer();
+  const logoMetadata = await sharp(resizedLogo).metadata();
+  if (!logoMetadata.width || !logoMetadata.height) {
+    throw new Error('Zamloan logo has no readable dimensions');
+  }
+
+  const logoLeft = Math.round(
+    metadata.width * (options.anchor === 'right' ? 0.53 : 0.055),
+  );
+  const logoTop = Math.max(
+    24,
+    Math.round(metadata.height * (isSquareOrPortrait ? 0.035 : 0.05)),
+  );
+  const compositedLogo = options.adaptTaglineContrast === false
+    ? resizedLogo
+    : await adaptZamloanTaglineToBackground(
+      resizedLogo,
+      input,
+      {
+        left: logoLeft,
+        top: logoTop,
+        ...(options.taglineTone ? { tone: options.taglineTone } : {}),
+      },
+    );
+
+  return sharp(input)
+    .composite([{ input: compositedLogo, left: logoLeft, top: logoTop }])
+    .png()
+    .toBuffer();
+}
+
+export interface DetectedPhoneScreen {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+function isMagentaPhoneScreenPixel(data: Buffer, offset: number): boolean {
+  const red = data[offset] ?? 0;
+  const green = data[offset + 1] ?? 0;
+  const blue = data[offset + 2] ?? 0;
+  return red >= 155
+    && blue >= 145
+    && green <= 135
+    && red - green >= 55
+    && blue - green >= 45;
+}
+
+export async function detectMagentaPhoneScreen(
+  input: Buffer,
+): Promise<DetectedPhoneScreen | null> {
+  const { data, info } = await sharp(input)
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let left = info.width;
+  let top = info.height;
+  let right = -1;
+  let bottom = -1;
+  let markerPixels = 0;
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const offset = (y * info.width + x) * info.channels;
+      if (!isMagentaPhoneScreenPixel(data, offset)) continue;
+      markerPixels += 1;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
+    }
+  }
+  if (right < left || bottom < top) return null;
+  const width = right - left + 1;
+  const height = bottom - top + 1;
+  const canvasPixels = Math.max(1, info.width * info.height);
+  const boxPixels = Math.max(1, width * height);
+  const aspect = width / height;
+  if (
+    markerPixels / canvasPixels < 0.002
+    || markerPixels / boxPixels < 0.30
+    || width / info.width < 0.06
+    || width / info.width > 0.34
+    || height / info.height < 0.14
+    || height / info.height > 0.68
+    || aspect < 0.25
+    || aspect > 0.78
+  ) {
+    return null;
+  }
+  return { left, top, width, height };
+}
+
+export async function overlayPhoneScreenReference(
+  input: Buffer,
+  reference: Buffer,
+): Promise<Buffer> {
+  const target = await detectMagentaPhoneScreen(input);
+  if (!target) {
+    throw new Error('generated poster did not contain a detectable magenta phone screen');
+  }
+  const cornerRadius = Math.max(3, Math.round(target.width * 0.075));
+  const mask = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${target.width}" height="${target.height}">
+      <rect width="${target.width}" height="${target.height}" rx="${cornerRadius}" fill="white"/>
+    </svg>
+  `);
+  const screen = await sharp(reference)
+    .resize({ width: target.width, height: target.height, fit: 'fill' })
+    .ensureAlpha()
+    .composite([{ input: mask, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+  return sharp(input)
+    .composite([{ input: screen, left: target.left, top: target.top }])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Composite the exact supplied Zamloan Z silhouette after provider rendering.
+ * Image models are instructed not to draw a Z themselves, which prevents the
+ * branded outline from drifting between generations.
+ */
+export async function overlayZamloanZReference(
+  input: Buffer,
+  zReference: Buffer,
+): Promise<Buffer> {
+  const image = sharp(input);
+  const metadata = await image.metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('generated poster has no readable dimensions');
+  }
+
+  const isWidescreen = metadata.width / metadata.height >= 1.5;
+  const maxWidth = Math.round(metadata.width * (isWidescreen ? 0.62 : 0.82));
+  const maxHeight = Math.round(metadata.height * (isWidescreen ? 0.90 : 0.74));
+  const resized = await sharp(zReference)
+    .ensureAlpha()
+    .resize({
+      width: maxWidth,
+      height: maxHeight,
+      fit: 'inside',
+      withoutEnlargement: false,
+    })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  if (!resized.info.width || !resized.info.height || resized.info.channels !== 4) {
+    throw new Error('Zamloan Z reference has no readable RGBA dimensions');
+  }
+  for (let offset = 3; offset < resized.data.length; offset += 4) {
+    resized.data[offset] = Math.round((resized.data[offset] ?? 0) * 0.14);
+  }
+  const zLayer = await sharp(resized.data, {
+    raw: {
+      width: resized.info.width,
+      height: resized.info.height,
+      channels: 4,
+    },
+  }).png().toBuffer();
+  const left = Math.max(0, Math.round((metadata.width - resized.info.width) / 2));
+  const top = Math.max(0, Math.round((metadata.height - resized.info.height) / 2));
+
+  return image
+    .composite([{ input: zLayer, left, top }])
+    .png()
+    .toBuffer();
+}
+
+export interface LayeredLoanPosterOptions {
+  zReference: Buffer;
+  foreground: Buffer;
+  headline: string;
+  subtitle: string;
+  textAnchor: 'left' | 'right';
+}
+
+function escapeSvgText(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}
+
+function wrapPosterCopy(value: string, maximumCharacters: number): string[] {
+  const words = value.trim().split(/\s+/u).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (current && candidate.length > maximumCharacters) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines.slice(0, 4) : [''];
+}
+
+async function renderLoanPosterCopy(
+  width: number,
+  height: number,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'>,
+): Promise<Buffer> {
+  const widescreen = width / height >= 1.5;
+  const columnLeft = Math.round(width * (options.textAnchor === 'right' ? 0.53 : 0.055));
+  const columnWidth = Math.round(width * (options.textAnchor === 'right' ? 0.41 : 0.39));
+  const headlineSize = Math.round(height * (widescreen ? 0.105 : 0.072));
+  const headlineLineHeight = Math.round(headlineSize * 0.94);
+  const subtitleSize = Math.round(height * (widescreen ? 0.042 : 0.034));
+  const headlineTop = Math.round(height * (widescreen ? 0.28 : 0.22));
+  const maximumHeadlineCharacters = Math.max(
+    9,
+    Math.floor(columnWidth / Math.max(1, headlineSize * 0.58)),
+  );
+  const maximumSubtitleCharacters = Math.max(
+    16,
+    Math.floor(columnWidth / Math.max(1, subtitleSize * 0.52)),
+  );
+  const headlineLines = wrapPosterCopy(options.headline, maximumHeadlineCharacters);
+  const subtitleLines = wrapPosterCopy(options.subtitle, maximumSubtitleCharacters);
+  const headlineTspans = headlineLines.map((line, index) => (
+    `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : headlineLineHeight}">${escapeSvgText(line)}</tspan>`
+  )).join('');
+  const subtitleTop = headlineTop
+    + Math.max(1, headlineLines.length) * headlineLineHeight
+    + Math.round(height * 0.045);
+  const subtitleLineHeight = Math.round(subtitleSize * 1.28);
+  const subtitleTspans = subtitleLines.map((line, index) => (
+    `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : subtitleLineHeight}">${escapeSvgText(line)}</tspan>`
+  )).join('');
+  return Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <defs>
+        <filter id="copy-shadow" x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="${Math.max(2, Math.round(height * 0.004))}" stdDeviation="${Math.max(2, Math.round(height * 0.004))}" flood-color="#200000" flood-opacity="0.42"/>
+        </filter>
+      </defs>
+      <g fill="#ffffff" font-family="Arial, Helvetica, sans-serif" filter="url(#copy-shadow)">
+        <text x="${columnLeft}" y="${headlineTop}" font-size="${headlineSize}" font-weight="800" letter-spacing="-1.2">${headlineTspans}</text>
+        <text x="${columnLeft}" y="${subtitleTop}" font-size="${subtitleSize}" font-weight="600" letter-spacing="0.2">${subtitleTspans}</text>
+      </g>
+    </svg>
+  `);
+}
+
+async function renderAntiFraudPosterCopy(
+  width: number,
+  height: number,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'>,
+): Promise<Buffer> {
+  const widescreen = width / height >= 1.5;
+  const columnLeft = Math.round(width * (options.textAnchor === 'right' ? 0.53 : 0.055));
+  const columnWidth = Math.round(width * (options.textAnchor === 'right' ? 0.41 : 0.43));
+  const headlineSize = Math.round(height * (widescreen ? 0.098 : 0.068));
+  const headlineLineHeight = Math.round(headlineSize * 0.94);
+  const subtitleSize = Math.round(height * (widescreen ? 0.034 : 0.024));
+  const subtitleLineHeight = Math.round(subtitleSize * 1.20);
+  const headlineTop = Math.round(height * (widescreen ? 0.26 : 0.20));
+  const maximumHeadlineCharacters = Math.max(
+    9,
+    Math.floor(columnWidth / Math.max(1, headlineSize * 0.58)),
+  );
+  const maximumSubtitleCharacters = Math.max(
+    16,
+    Math.floor(columnWidth / Math.max(1, subtitleSize * 0.52)),
+  );
+  const headlineLines = options.headline === 'Prevent Fraud'
+    ? ['Prevent', 'Fraud']
+    : wrapPosterCopy(options.headline, maximumHeadlineCharacters);
+  const subtitleLines = options.subtitle === 'Trust Only Official Customer Service'
+    ? ['Trust Only', 'Official Customer Service']
+    : wrapPosterCopy(options.subtitle, maximumSubtitleCharacters);
+  const headlineMarkup = headlineLines.map((line, index) => {
+    const color = options.headline === 'Prevent Fraud' && index === 1
+      ? '#ef5148'
+      : '#202326';
+    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : headlineLineHeight}" fill="${color}">${escapeSvgText(line)}</tspan>`;
+  }).join('');
+  const subtitleTop = headlineTop
+    + Math.max(1, headlineLines.length) * headlineLineHeight
+    + Math.round(height * 0.025);
+  const subtitleMarkup = subtitleLines.map((line, index) => {
+    const color = options.subtitle === 'Trust Only Official Customer Service' && index === 1
+      ? '#176a4d'
+      : '#34383d';
+    return `<tspan x="${columnLeft}" dy="${index === 0 ? 0 : subtitleLineHeight}" fill="${color}">${escapeSvgText(line)}</tspan>`;
+  }).join('');
+  const subtitleBottom = subtitleTop
+    + Math.max(1, subtitleLines.length) * subtitleLineHeight;
+  const messageLeft = columnLeft;
+  const messageTop = Math.max(
+    subtitleBottom + Math.round(height * 0.020),
+    Math.round(height * (widescreen ? 0.54 : 0.43)),
+  );
+  const messageWidth = Math.round(columnWidth * (widescreen ? 0.80 : 0.76));
+  const messageHeight = Math.round(height * (widescreen ? 0.20 : 0.13));
+  const messageRadius = Math.round(messageHeight * 0.12);
+  const messagePaddingX = Math.round(messageWidth * 0.040);
+  const messagePaddingY = Math.round(messageHeight * 0.075);
+  const appIconSize = Math.round(messageHeight * 0.22);
+  const messageHeaderSize = Math.round(height * (widescreen ? 0.017 : 0.012));
+  const senderSize = Math.round(height * (widescreen ? 0.020 : 0.015));
+  const messageBodySize = Math.round(height * (widescreen ? 0.016 : 0.012));
+  const headerBaseline = messageTop + messagePaddingY + Math.round(appIconSize * 0.72);
+  const senderBaseline = messageTop + Math.round(messageHeight * 0.47);
+  const bodyBaseline = messageTop + Math.round(messageHeight * 0.65);
+  const cardDepthX = Math.max(5, Math.round(messageWidth * 0.025));
+  const cardDepthY = Math.max(6, Math.round(messageHeight * 0.065));
+  const contactSize = Math.round(messageWidth * 0.32);
+  const contactLeft = messageLeft + Math.round(messageWidth * 0.07);
+  const contactTop = messageTop
+    + messageHeight
+    + Math.round(height * (widescreen ? 0.035 : 0.040));
+  const contactDepth = Math.max(7, Math.round(contactSize * 0.10));
+  return Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <defs>
+        <linearGradient id="contact-face" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#ff7868"/>
+          <stop offset="100%" stop-color="#ed4039"/>
+        </linearGradient>
+      </defs>
+      <g font-family="Arial Black, Helvetica Neue, Arial, sans-serif">
+        <text x="${columnLeft}" y="${headlineTop}" font-size="${headlineSize}" font-weight="900" letter-spacing="${Math.round(headlineSize * -0.025)}">${headlineMarkup}</text>
+        <text x="${columnLeft}" y="${subtitleTop}" font-size="${subtitleSize}" font-weight="900" letter-spacing="${Math.round(subtitleSize * -0.010)}">${subtitleMarkup}</text>
+      </g>
+      <g transform="translate(${messageLeft} ${messageTop}) skewY(3)">
+        <rect x="${cardDepthX}" y="${cardDepthY}" width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#bfc2c5"/>
+        <rect width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#f0f1f2" stroke="#d0d3d5" stroke-width="${Math.max(1, Math.round(width * 0.0012))}"/>
+        <path d="M ${messageRadius} 1 H ${messageWidth - messageRadius}" stroke="#ffffff" stroke-opacity="0.70" stroke-width="${Math.max(1, Math.round(height * 0.0015))}" stroke-linecap="round"/>
+        <g transform="translate(${messagePaddingX} ${messagePaddingY})">
+          <rect width="${appIconSize}" height="${appIconSize}" rx="${Math.round(appIconSize * 0.25)}" fill="#24cf5f"/>
+          <ellipse cx="${appIconSize * 0.50}" cy="${appIconSize * 0.46}" rx="${appIconSize * 0.31}" ry="${appIconSize * 0.25}" fill="#ffffff"/>
+          <path d="M ${appIconSize * 0.32} ${appIconSize * 0.61} L ${appIconSize * 0.24} ${appIconSize * 0.78} L ${appIconSize * 0.46} ${appIconSize * 0.66} Z" fill="#ffffff"/>
+        </g>
+        <text x="${messagePaddingX + appIconSize + Math.round(messagePaddingX * 0.50)}" y="${headerBaseline - messageTop}" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="600" letter-spacing="${Math.round(messageHeaderSize * 0.025)}" fill="#35383c">MESSAGES</text>
+        <text x="${messageWidth - messagePaddingX}" y="${headerBaseline - messageTop}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="500" fill="#35383c">now</text>
+        <text x="${messagePaddingX}" y="${senderBaseline - messageTop}" font-family="Arial Black, Helvetica Neue, Arial, sans-serif" font-size="${senderSize}" font-weight="900" fill="#16181a">Unknown Sender</text>
+        <text x="${messagePaddingX}" y="${bodyBaseline - messageTop}" font-family="Arial, Helvetica, sans-serif" font-size="${messageBodySize}" font-weight="500" fill="#25282b">
+          <tspan x="${messagePaddingX}">Your loan is approved.</tspan>
+          <tspan x="${messagePaddingX}" dy="${Math.round(messageBodySize * 1.10)}">Pay a processing fee now</tspan>
+          <tspan x="${messagePaddingX}" dy="${Math.round(messageBodySize * 1.10)}">to receive your money.</tspan>
+        </text>
+      </g>
+      <g transform="translate(${contactLeft} ${contactTop}) skewY(3)">
+        <rect x="${contactDepth}" y="${contactDepth}" width="${contactSize}" height="${contactSize}" rx="${Math.round(contactSize * 0.14)}" fill="#c63c35"/>
+        <rect width="${contactSize}" height="${contactSize}" rx="${Math.round(contactSize * 0.14)}" fill="url(#contact-face)" stroke="#ff9485" stroke-width="${Math.max(1, Math.round(contactSize * 0.018))}"/>
+        <circle cx="${contactSize * 0.50}" cy="${contactSize * 0.50}" r="${contactSize * 0.32}" fill="#fff7ed" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(contactSize * 0.025))}"/>
+        <circle cx="${contactSize * 0.50}" cy="${contactSize * 0.39}" r="${contactSize * 0.105}" fill="#ef5148"/>
+        <path d="M ${contactSize * 0.30} ${contactSize * 0.68} C ${contactSize * 0.34} ${contactSize * 0.50}, ${contactSize * 0.66} ${contactSize * 0.50}, ${contactSize * 0.70} ${contactSize * 0.68} Z" fill="#ef5148"/>
+        <path d="M ${contactSize * 0.24} ${contactSize * 0.24} L ${contactSize * 0.76} ${contactSize * 0.76}" stroke="#ef5148" stroke-width="${Math.max(4, Math.round(contactSize * 0.075))}" stroke-linecap="round"/>
+        <path d="M ${contactSize * 0.24} ${contactSize * 0.24} L ${contactSize * 0.76} ${contactSize * 0.76}" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(contactSize * 0.030))}" stroke-linecap="round"/>
+      </g>
+    </svg>
+  `);
+}
+
+async function renderAntiFraudMessageOverlay(
+  width: number,
+  height: number,
+  placement: AntiFraudMessagePlacement,
+): Promise<Buffer> {
+  const aspect = width / height;
+  const widescreen = aspect >= 1.5;
+  const square = !widescreen && aspect >= 0.9;
+  const { width: messageWidth, height: messageHeight } = placement;
+  const badgeSize = Math.round(messageHeight * 0.28);
+  const badgeOverhangX = Math.round(badgeSize * 0.22);
+  const badgeOverhangY = badgeSize - Math.round(badgeSize * 0.72);
+  const tileWidth = messageWidth + badgeOverhangX;
+  const tileHeight = messageHeight + badgeOverhangY;
+  // A transparent gutter captures outer strokes before the projective resample.
+  const messageLeft = badgeOverhangX + 2;
+  const messageTop = 2;
+  const messageRadius = Math.round(messageHeight * 0.12);
+  const messagePaddingX = Math.round(messageWidth * 0.052);
+  const messagePaddingY = Math.round(messageHeight * 0.095);
+  const appIconSize = Math.round(messageHeight * 0.18);
+  const messageHeaderSize = Math.round(height * (widescreen ? 0.015 : square ? 0.0145 : 0.0115));
+  const senderSize = Math.round(height * (widescreen ? 0.019 : square ? 0.018 : 0.0145));
+  const messageBodySize = Math.round(height * (widescreen ? 0.0155 : square ? 0.015 : 0.0115));
+  const headerBaseline = messagePaddingY + Math.round(appIconSize * 0.72);
+  const senderBaseline = Math.round(messageHeight * 0.49);
+  const bodyBaseline = Math.round(messageHeight * 0.69);
+  const badgeLeft = messageLeft - Math.round(badgeSize * 0.22);
+  const badgeTop = messageTop + messageHeight - Math.round(badgeSize * 0.72);
+  const flatTile = Buffer.from(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="${tileWidth + 4}" height="${tileHeight + 4}">
+      <g transform="translate(${messageLeft} ${messageTop})">
+        <rect width="${messageWidth}" height="${messageHeight}" rx="${messageRadius}" fill="#f4f5f6" fill-opacity="0.96" stroke="#c9cdd1" stroke-width="${Math.max(1, Math.round(width * 0.0013))}"/>
+        <g transform="translate(${messagePaddingX} ${messagePaddingY})">
+          <rect width="${appIconSize}" height="${appIconSize}" rx="${Math.round(appIconSize * 0.25)}" fill="#24cf5f"/>
+          <ellipse cx="${appIconSize * 0.50}" cy="${appIconSize * 0.46}" rx="${appIconSize * 0.31}" ry="${appIconSize * 0.25}" fill="#ffffff"/>
+          <path d="M ${appIconSize * 0.32} ${appIconSize * 0.61} L ${appIconSize * 0.24} ${appIconSize * 0.78} L ${appIconSize * 0.46} ${appIconSize * 0.66} Z" fill="#ffffff"/>
+        </g>
+        <text x="${messagePaddingX + appIconSize + Math.round(messagePaddingX * 0.55)}" y="${headerBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${messageHeaderSize}" font-weight="700" letter-spacing="${Math.round(messageHeaderSize * 0.018)}" fill="#30343a">MESSAGES</text>
+        <text x="${messagePaddingX}" y="${senderBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${senderSize}" font-weight="800" fill="#14171a">Unknown Sender</text>
+        <text x="${messagePaddingX}" y="${bodyBaseline}" font-family="Arial, Helvetica, sans-serif" font-size="${messageBodySize}" font-weight="500" fill="#202428">
+          <tspan x="${messagePaddingX}">Your loan is approved.</tspan>
+          <tspan x="${messagePaddingX}" dy="${Math.round(messageBodySize * 1.18)}">Pay a processing fee now.</tspan>
+        </text>
+      </g>
+      <g transform="translate(${badgeLeft} ${badgeTop})">
+        <rect width="${badgeSize}" height="${badgeSize}" rx="${Math.round(badgeSize * 0.24)}" fill="#ef5148" stroke="#ff8178" stroke-width="${Math.max(1, Math.round(badgeSize * 0.035))}"/>
+        <circle cx="${badgeSize * 0.50}" cy="${badgeSize * 0.40}" r="${badgeSize * 0.11}" fill="#ffffff"/>
+        <path d="M ${badgeSize * 0.29} ${badgeSize * 0.70} C ${badgeSize * 0.33} ${badgeSize * 0.51}, ${badgeSize * 0.67} ${badgeSize * 0.51}, ${badgeSize * 0.71} ${badgeSize * 0.70} Z" fill="#ffffff"/>
+        <path d="M ${badgeSize * 0.24} ${badgeSize * 0.24} L ${badgeSize * 0.76} ${badgeSize * 0.76}" stroke="#ef5148" stroke-width="${Math.max(4, Math.round(badgeSize * 0.13))}" stroke-linecap="round"/>
+        <path d="M ${badgeSize * 0.24} ${badgeSize * 0.24} L ${badgeSize * 0.76} ${badgeSize * 0.76}" stroke="#ffffff" stroke-width="${Math.max(2, Math.round(badgeSize * 0.055))}" stroke-linecap="round"/>
+      </g>
+    </svg>
+  `);
+  const tile = await warpAntiFraudMessage(flatTile, tileWidth, tileHeight);
+  // The transformed tile stays wholly inside the exact envelope already checked
+  // by placeAntiFraudMessage, including the red badge. Other pixels are untouched.
+  return sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: tile, left: placement.left - badgeOverhangX, top: placement.top }])
+    .png().toBuffer();
+}
+
+async function renderPosterCopy(
+  width: number,
+  height: number,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'> & {
+    copyStyle?: PosterCopyStyle;
+    messagePlacement?: AntiFraudMessagePlacement;
+  },
+): Promise<Buffer> {
+  if (options.copyStyle === 'anti-fraud') {
+    return renderAntiFraudPosterCopy(width, height, options);
+  }
+  if (options.copyStyle === 'anti-fraud-message') {
+    if (!options.messagePlacement) throw new PosterHandLayoutError('message placement is missing');
+    return renderAntiFraudMessageOverlay(width, height, options.messagePlacement);
+  }
+  return renderLoanPosterCopy(width, height, options);
+}
+
+export async function overlayPosterCopy(
+  input: Buffer,
+  options: Pick<LayeredLoanPosterOptions, 'headline' | 'subtitle' | 'textAnchor'> & {
+    copyStyle?: PosterCopyStyle;
+    handObservation?: PosterHandObservation;
+  },
+): Promise<Buffer> {
+  const metadata = await sharp(input).metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('poster image has no readable dimensions');
+  }
+  const observation = options.copyStyle === 'anti-fraud-message'
+    ? options.handObservation ?? await (await createPosterHandDetector())(input)
+    : undefined;
+  const copy = await renderPosterCopy(metadata.width, metadata.height, {
+    ...options,
+    ...(observation ? { messagePlacement: placeAntiFraudMessage(metadata.width, metadata.height, observation) } : {}),
+  });
+  return sharp(input)
+    .composite([{ input: copy, left: 0, top: 0 }])
+    .png()
+    .toBuffer();
+}
+
+function isChromaGreenPixel(
+  data: Buffer,
+  offset: number,
+): boolean {
+  const red = data[offset] ?? 0;
+  const green = data[offset + 1] ?? 0;
+  const blue = data[offset + 2] ?? 0;
+  return green >= 110 && green - red >= 35 && green - blue >= 35;
+}
+
+function hasAdjacentMaskedPixel(
+  mask: Buffer,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): boolean {
+  for (let deltaY = -1; deltaY <= 1; deltaY += 1) {
+    for (let deltaX = -1; deltaX <= 1; deltaX += 1) {
+      if (deltaX === 0 && deltaY === 0) continue;
+      const nextX = x + deltaX;
+      const nextY = y + deltaY;
+      if (
+        nextX >= 0
+        && nextX < width
+        && nextY >= 0
+        && nextY < height
+        && mask[nextY * width + nextX] === 1
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Accept provider-native alpha when available, otherwise remove an opaque
+ * edge-connected chroma-green matte. Restricting removal to pixels connected
+ * to the canvas boundary preserves enclosed green details such as the phone
+ * success checkmark.
+ */
+export async function prepareLayeredForeground(
+  foreground: Buffer,
+  width: number,
+  height: number,
+): Promise<Buffer> {
+  const { data, info } = await sharp(foreground)
+    .ensureAlpha()
+    .resize({ width, height, fit: 'fill' })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  let transparentPixels = 0;
+  let visiblePixels = 0;
+  for (let offset = 3; offset < data.length; offset += info.channels) {
+    const alpha = data[offset] ?? 255;
+    if (alpha < 250) transparentPixels += 1;
+    if (alpha > 8) visiblePixels += 1;
+  }
+  const pixelCount = Math.max(1, info.width * info.height);
+  if (transparentPixels / pixelCount < 0.05) {
+    const matteMask = Buffer.alloc(pixelCount);
+    const queue = new Int32Array(pixelCount);
+    let queueStart = 0;
+    let queueEnd = 0;
+    const enqueue = (pixelIndex: number) => {
+      if (matteMask[pixelIndex] === 1) return;
+      const offset = pixelIndex * info.channels;
+      if (!isChromaGreenPixel(data, offset)) return;
+      matteMask[pixelIndex] = 1;
+      queue[queueEnd] = pixelIndex;
+      queueEnd += 1;
+    };
+
+    for (let x = 0; x < info.width; x += 1) {
+      enqueue(x);
+      enqueue((info.height - 1) * info.width + x);
+    }
+    for (let y = 1; y < info.height - 1; y += 1) {
+      enqueue(y * info.width);
+      enqueue(y * info.width + info.width - 1);
+    }
+
+    while (queueStart < queueEnd) {
+      const pixelIndex = queue[queueStart] ?? 0;
+      queueStart += 1;
+      const x = pixelIndex % info.width;
+      const y = Math.floor(pixelIndex / info.width);
+      if (x > 0) enqueue(pixelIndex - 1);
+      if (x + 1 < info.width) enqueue(pixelIndex + 1);
+      if (y > 0) enqueue(pixelIndex - info.width);
+      if (y + 1 < info.height) enqueue(pixelIndex + info.width);
+    }
+
+    if (queueEnd / pixelCount < 0.05) {
+      throw new Error(
+        'layered poster foreground did not contain an edge-connected chroma green matte',
+      );
+    }
+
+    visiblePixels = 0;
+    for (let pixelIndex = 0; pixelIndex < pixelCount; pixelIndex += 1) {
+      const offset = pixelIndex * info.channels;
+      if (matteMask[pixelIndex] === 1) {
+        data[offset + 3] = 0;
+        continue;
+      }
+      const x = pixelIndex % info.width;
+      const y = Math.floor(pixelIndex / info.width);
+      if (hasAdjacentMaskedPixel(matteMask, x, y, info.width, info.height)) {
+        const red = data[offset] ?? 0;
+        const green = data[offset + 1] ?? 0;
+        const blue = data[offset + 2] ?? 0;
+        const greenDominance = Math.max(0, green - Math.max(red, blue));
+        const spill = Math.min(1, greenDominance / 120);
+        data[offset + 1] = Math.min(green, Math.max(red, blue) + 18);
+        data[offset + 3] = Math.max(24, Math.round(255 * (1 - spill * 0.82)));
+      }
+      if ((data[offset + 3] ?? 0) > 8) visiblePixels += 1;
+    }
+  }
+  if (visiblePixels / pixelCount < 0.01) {
+    throw new Error('layered poster foreground did not contain a visible model');
+  }
+  return sharp(data, {
+    raw: {
+      width: info.width,
+      height: info.height,
+      channels: info.channels,
+    },
+  }).png().toBuffer();
+}
+
+async function renderLayeredForegroundWithMatteRetry<T extends { bytes: Buffer }>(
+  background: Buffer,
+  prompt: string,
+  render: (resolvedPrompt: string) => Promise<T>,
+): Promise<{ result: T; foreground: Buffer; attempts: number }> {
+  const metadata = await sharp(background).metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('layered poster background has no readable dimensions');
+  }
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const resolvedPrompt = [
+      prompt,
+      LAYERED_FOREGROUND_MATTE_INSTRUCTIONS,
+      attempt > 1 ? LAYERED_FOREGROUND_MATTE_RETRY_INSTRUCTIONS : '',
+    ].filter(Boolean).join('\n\n');
+    const result = await render(resolvedPrompt);
+    try {
+      return {
+        result,
+        foreground: await prepareLayeredForeground(
+          result.bytes,
+          metadata.width,
+          metadata.height,
+        ),
+        attempts: attempt,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  const detail = lastError instanceof Error ? lastError.message : String(lastError);
+  throw new Error(`layered poster foreground matte extraction failed after 2 attempts: ${detail}`);
+}
+
+/**
+ * Build the poster as real pixel layers: background → exact Z → isolated
+ * model → deterministic copy. The Zamloan logo is added by the caller last.
+ */
+export async function composeLayeredLoanPoster(
+  background: Buffer,
+  options: LayeredLoanPosterOptions,
+): Promise<Buffer> {
+  const metadata = await sharp(background).metadata();
+  if (!metadata.width || !metadata.height) {
+    throw new Error('layered poster background has no readable dimensions');
+  }
+  const withZ = await overlayZamloanZReference(background, options.zReference);
+  const foreground = await prepareLayeredForeground(
+    options.foreground,
+    metadata.width,
+    metadata.height,
+  );
+  const copy = await renderLoanPosterCopy(metadata.width, metadata.height, options);
+  return sharp(withZ)
+    .composite([
+      { input: foreground, left: 0, top: 0 },
+      { input: copy, left: 0, top: 0 },
+    ])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Finalize generated PNG pixels before persistence. Lossless optimization runs
+ * before the brand overlay so the logo is rasterized exactly once at its final
+ * poster size.
+ */
+export async function finalizeGeneratedPng(
+  input: Buffer,
+  options: {
+    loanPosterOutput: boolean;
+    overlayZ?: Buffer;
+    foreground?: Buffer;
+    posterHeadline?: string;
+    posterSubtitle?: string;
+    posterTextAnchor?: 'left' | 'right';
+    posterCopyStyle?: PosterCopyStyle;
+    posterHandObservation?: PosterHandObservation;
+    phoneScreen?: Buffer;
+    overlayLogo?: Buffer;
+    overlayLogoAnchor?: 'left' | 'right';
+    adaptZamloanTaglineContrast?: boolean;
+    zamloanTaglineTone?: ZamloanTaglineTone;
+  },
+): Promise<Buffer> {
+  let bytes = (
+    options.loanPosterOutput
+      ? await optimizeLoanPosterPng(input)
+      : await optimizeLosslessPng(input)
+  ).bytes;
+  const hasLayeredPoster = Boolean(
+    options.overlayZ
+    && options.foreground
+    && options.posterHeadline
+    && options.posterSubtitle
+    && options.posterTextAnchor,
+  );
+  if (hasLayeredPoster) {
+    bytes = await composeLayeredLoanPoster(bytes, {
+      zReference: options.overlayZ!,
+      foreground: options.foreground!,
+      headline: options.posterHeadline!,
+      subtitle: options.posterSubtitle!,
+      textAnchor: options.posterTextAnchor!,
+    });
+  } else if (options.overlayZ) {
+    bytes = await overlayZamloanZReference(bytes, options.overlayZ);
+  }
+  if (!hasLayeredPoster && options.posterHeadline && options.posterSubtitle && options.posterTextAnchor) {
+    bytes = await overlayPosterCopy(bytes, {
+      headline: options.posterHeadline,
+      subtitle: options.posterSubtitle,
+      textAnchor: options.posterTextAnchor,
+      ...(options.posterCopyStyle ? { copyStyle: options.posterCopyStyle } : {}),
+      ...(options.posterHandObservation ? { handObservation: options.posterHandObservation } : {}),
+    });
+  }
+  if (options.phoneScreen) {
+    bytes = await overlayPhoneScreenReference(bytes, options.phoneScreen);
+  }
+  if (options.overlayLogo) {
+    bytes = await overlayZamloanLogo(
+      bytes,
+      options.overlayLogo,
+      {
+        ...(options.overlayLogoAnchor ? { anchor: options.overlayLogoAnchor } : {}),
+        adaptTaglineContrast: options.adaptZamloanTaglineContrast ?? true,
+        ...(options.zamloanTaglineTone
+          ? { taglineTone: options.zamloanTaglineTone }
+          : {}),
+      },
+    );
+  }
+  return bytes;
 }
 
 type MediaContext = {
@@ -190,6 +1636,7 @@ type MediaContext = {
   compositionDir: string | null;
   imageRef: ImageRef | null;
   signal?: AbortSignal;
+  imageRecovery?: ReturnType<typeof createImageRequestRecovery>;
 };
 type RenderResult = { bytes: Buffer; providerNote: string; suggestedExt?: string };
 type JsonRecord = Record<string, unknown>;
@@ -245,16 +1692,25 @@ function stubsAllowed() {
 }
 
 /**
- * Resolve a project-relative `--image` path into a base64 data URL the
- * upstream model APIs (Volcengine i2v, OpenAI image-edit, etc.) accept
- * directly. Returns null when no path was supplied.
+ * Resolve a project-relative image input. Provider references default to the
+ * raster formats accepted by upstream model APIs. Post-generation overlays
+ * may additionally use SVG because they are rasterized locally by Sharp and
+ * are never sent to a provider.
  *
  * Security: refuses anything that escapes the project directory.
  * Without this guard, an agent (or a hallucinated arg) could ask the
  * daemon to upload `/etc/passwd` to a paid model.
  */
-async function resolveProjectImage(rel: unknown, projectDir: string): Promise<ImageRef | null> {
+async function resolveProjectImage(
+  rel: unknown,
+  projectDir: string,
+  options: {
+    argumentName?: '--image' | '--overlay-z' | '--overlay-logo' | '--overlay-phone-screen';
+    allowSvg?: boolean;
+  } = {},
+): Promise<ImageRef | null> {
   if (typeof rel !== 'string' || !rel.trim()) return null;
+  const argumentName = options.argumentName ?? '--image';
   const projectRootResolved = path.resolve(projectDir);
   const abs = path.resolve(projectRootResolved, rel.trim());
   if (
@@ -262,17 +1718,17 @@ async function resolveProjectImage(rel: unknown, projectDir: string): Promise<Im
     !abs.startsWith(projectRootResolved + path.sep)
   ) {
     throw new Error(
-      `--image path "${rel}" resolves outside the project directory.`,
+      `${argumentName} path "${rel}" resolves outside the project directory.`,
     );
   }
   let info;
   try {
     info = await stat(abs);
   } catch {
-    throw new Error(`--image not found: ${rel}`);
+    throw new Error(`${argumentName} not found: ${rel}`);
   }
   if (!info.isFile()) {
-    throw new Error(`--image is not a regular file: ${rel}`);
+    throw new Error(`${argumentName} is not a regular file: ${rel}`);
   }
   // Cap at 16 MB. Beyond this, base64 inflation alone (≈4/3) starts
   // hitting body-size limits at the upstream APIs and our own express
@@ -281,23 +1737,21 @@ async function resolveProjectImage(rel: unknown, projectDir: string): Promise<Im
   const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
   if (info.size > MAX_IMAGE_BYTES) {
     throw new Error(
-      `--image too large (${info.size} bytes; max ${MAX_IMAGE_BYTES}).`,
+      `${argumentName} too large (${info.size} bytes; max ${MAX_IMAGE_BYTES}).`,
     );
   }
   const bytes = await readFile(abs);
   const ext = path.extname(abs).toLowerCase();
-  // Tight allowlist: only what i2v / image-edit endpoints actually
-  // consume. Avoids smuggling arbitrary content through as data URLs.
-  const mime = ({
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.webp': 'image/webp',
-    '.gif': 'image/gif',
-  })[ext];
+  const mimeByExtension = options.allowSvg
+    ? OVERLAY_IMAGE_MIME_BY_EXTENSION
+    : RASTER_IMAGE_MIME_BY_EXTENSION;
+  const mime = mimeByExtension[ext];
   if (!mime) {
+    const allowed = options.allowSvg
+      ? 'svg, png, jpg, jpeg, webp, or gif'
+      : 'png, jpg, jpeg, webp, or gif';
     throw new Error(
-      `--image has unsupported extension "${ext}". Use png, jpg, jpeg, webp, or gif.`,
+      `${argumentName} has unsupported extension "${ext}". Use ${allowed}.`,
     );
   }
   return {
@@ -364,12 +1818,24 @@ function clampWithWarning(value: unknown, allowed: number[], flagName: string): 
  * @returns {Promise<{ name: string, size: number, mtime: number, kind: string, mime: string, model: string, surface: string, providerNote: string, providerId: string }>}
  */
 export async function generateMedia(args: {
+  /** Internal continuation: cached provider images only; never charges again. */
+  posterRecoveryOnly?: boolean;
+  /** Server-owned task identity shared only with continuations of that task. */
+  posterGenerationId?: string | undefined;
   projectRoot: string; projectsRoot: string; projectId: string; surface: MediaSurface; model: string;
   prompt?: string; output?: string; aspect?: string; length?: number; duration?: number; voice?: string;
   quality?: ImageQuality;
   loanPosterOutput?: boolean;
   audioKind?: AudioKind; language?: string; loop?: boolean; promptInfluence?: number;
-  compositionDir?: string; image?: string; onProgress?: ProgressFn; signal?: AbortSignal;
+  compositionDir?: string; image?: string; overlayZ?: string; overlayLogo?: string;
+  overlayLogoAnchor?: 'left' | 'right';
+  overlayPhoneScreen?: string;
+  foregroundPrompt?: string;
+  posterHeadline?: string;
+  posterSubtitle?: string;
+  posterTextAnchor?: 'left' | 'right';
+  posterCopyStyle?: PosterCopyStyle;
+  onProgress?: ProgressFn; signal?: AbortSignal;
 }) {
   const {
     projectRoot,
@@ -391,6 +1857,15 @@ export async function generateMedia(args: {
     promptInfluence,
     compositionDir,
     image,
+    overlayZ,
+    overlayLogo,
+    overlayLogoAnchor,
+    overlayPhoneScreen,
+    foregroundPrompt,
+    posterHeadline,
+    posterSubtitle,
+    posterTextAnchor,
+    posterCopyStyle,
   } = args;
 
   if (!projectRoot) throw new Error('projectRoot required');
@@ -472,6 +1947,61 @@ export async function generateMedia(args: {
   // upstream APIs accept directly. Renderers consume `ctx.imageRef`
   // and decide how to splice the data URL into their request.
   const imageRef = await resolveProjectImage(image, dir);
+  const overlayZRef = await resolveProjectImage(overlayZ, dir, {
+    argumentName: '--overlay-z',
+  });
+  const overlayLogoRef = await resolveProjectImage(overlayLogo, dir, {
+    argumentName: '--overlay-logo',
+    allowSvg: true,
+  });
+  const overlayPhoneScreenRef = await resolveProjectImage(overlayPhoneScreen, dir, {
+    argumentName: '--overlay-phone-screen',
+    allowSvg: true,
+  });
+  if (overlayLogoAnchor && !['left', 'right'].includes(overlayLogoAnchor)) {
+    throw new Error('unsupported overlay logo anchor. Allowed: left | right.');
+  }
+  if (posterTextAnchor && !['left', 'right'].includes(posterTextAnchor)) {
+    throw new Error('unsupported poster text anchor. Allowed: left | right.');
+  }
+  if (overlayPhoneScreenRef && surface !== 'image') {
+    throw new Error('phone screen overlay requires an image surface');
+  }
+  if (
+    posterCopyStyle
+    && !['standard', 'anti-fraud', 'anti-fraud-message'].includes(posterCopyStyle)
+  ) {
+    throw new Error(
+      'unsupported poster copy style. Allowed: standard | anti-fraud | anti-fraud-message.',
+    );
+  }
+  const posterCopyValues = [
+    posterHeadline,
+    posterSubtitle,
+    posterTextAnchor,
+  ];
+  const posterCopyRequested = posterCopyValues.some(Boolean);
+  const completePosterCopy = posterCopyValues.every(Boolean);
+  if (posterCopyRequested && !completePosterCopy) {
+    throw new Error(
+      'poster copy requires posterHeadline, posterSubtitle, and posterTextAnchor',
+    );
+  }
+  if (posterCopyStyle && !completePosterCopy) {
+    throw new Error('poster copy style requires complete poster copy');
+  }
+  const layeredPosterRequested = Boolean(foregroundPrompt);
+  if (layeredPosterRequested && !completePosterCopy) {
+    throw new Error(
+      'layered poster requires foregroundPrompt, posterHeadline, posterSubtitle, and posterTextAnchor',
+    );
+  }
+  if (layeredPosterRequested && (!overlayZRef || surface !== 'image')) {
+    throw new Error('layered poster requires an image surface and --overlay-z');
+  }
+  if (layeredPosterRequested && def.provider !== 'openai') {
+    throw new Error('layered poster foregrounds currently require a gpt-image model');
+  }
 
   // Resolve any user-configured model alias BEFORE we hand the id to a
   // dispatcher (issue #1277). Catalog lookup + surface validation above
@@ -507,16 +2037,53 @@ export async function generateMedia(args: {
     // Resolved reference image for i2v / image-edit flows. `null` when
     // the agent didn't pass --image. See resolveProjectImage below.
     imageRef,
+    ...(surface === 'image' && def.provider === 'openai'
+      ? { imageRecovery: createImageRequestRecovery({ signal: args.signal, onProgress: args.onProgress, poster: loanPosterOutput === true }) }
+      : {}),
     ...(args.signal ? { signal: args.signal } : {}),
   };
 
+  if (args.posterRecoveryOnly && !(surface === 'image' && def.provider === 'openai' && loanPosterOutput
+    && posterCopyStyle === 'anti-fraud-message' && !overlayPhoneScreenRef && !layeredPosterRequested)) {
+    throw Object.assign(new Error('Poster recovery only supports saved anti-fraud image stages'), { status: 409, code: 'poster_checkpoint_missing' });
+  }
+  const detectPosterHands = surface === 'image' && posterCopyStyle === 'anti-fraud-message'
+    ? await createPosterHandDetector({ signal: args.signal, onProgress: args.onProgress })
+    : undefined;
+  let posterHandObservation: PosterHandObservation | undefined;
+  const preserveLayoutDraft = async (input: Buffer, error: PosterHandLayoutError, observation?: PosterHandObservation) => {
+    // Drafts are not finished posters and must not overwrite the requested output
+    // or enter the successful-generation gallery. Keep provider bytes unchanged.
+    const draftRoot = path.join(dir, '.poster-layout-drafts');
+    await mkdir(draftRoot, { recursive: true, mode: 0o700 });
+    const draftDir = await mkdtemp(path.join(draftRoot, 'layout-'));
+    await writeFile(path.join(draftDir, 'base.png'), input, { flag: 'wx', mode: 0o600 });
+    const draftPath = path.relative(dir, path.join(draftDir, 'base.png'));
+    const reason = error.message;
+    const { width, height } = await sharp(input).metadata();
+    await writeFile(path.join(draftDir, 'layout.json'), JSON.stringify({
+      output: safeOut, reason, width, height, observation,
+    }, null, 2), { flag: 'wx', mode: 0o600 });
+    error.message = `Poster layout not accepted; base image saved as ${draftPath} (draft, not a finished poster). ${reason}`;
+  };
   const credentials = await resolveProviderConfig(projectRoot, def.provider);
   const customImageCredentials =
     surface === 'image' && def.provider === 'openai'
       ? await resolveProviderConfig(projectRoot, 'custom-image')
       : null;
 
+  const checkpoint = loanPosterOutput && posterCopyStyle === 'anti-fraud-message'
+    ? posterCheckpoint(dir, JSON.stringify({ version: 1, output: safeOut, model: ctx.wireModel, aspect: ctx.aspect, quality: ctx.quality, prompt: ctx.prompt, provider: customImageOverridesOpenAIModel(ctx, customImageCredentials) ? 'custom-image' : def.provider }), args.posterRecoveryOnly, args.posterGenerationId ?? (args.posterRecoveryOnly ? undefined : randomUUID()))
+    : undefined;
+  const renderPoster = async (resolvedPrompt: string, render: () => Promise<RenderResult>) => {
+    const result = checkpoint ? await checkpoint.render(resolvedPrompt, render) : await render();
+    if (checkpoint) args.onProgress?.('image:checkpoint-saved');
+    args.onProgress?.('image:processing');
+    return result;
+  };
+
   let bytes: Buffer;
+  let foregroundBytes: Buffer | undefined;
   let providerNote: string;
   let suggestedExt: string | undefined;
   let providerId = def.provider;
@@ -538,15 +2105,143 @@ export async function generateMedia(args: {
       && customImageOverridesOpenAIModel(ctx, customImageCredentials)
     ) {
       providerId = 'custom-image';
-      const result = await renderCustomOpenAIImage(ctx, customImageCredentials!);
+      const phoneChecked = overlayPhoneScreenRef
+        ? await renderImageWithPhoneScreenRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          ),
+        )
+        : null;
+      const antiFraudChecked = !phoneChecked
+        && loanPosterOutput
+        && posterCopyStyle === 'anti-fraud-message'
+        ? await renderImageWithAntiFraudSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderPoster(resolvedPrompt, () => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          )),
+          {
+            detectHands: detectPosterHands,
+            preserveLayoutDraft,
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const checked = !phoneChecked && !antiFraudChecked && loanPosterOutput && overlayLogoRef
+        ? await renderImageWithLogoSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          ),
+          {
+            enabled: true,
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const result = phoneChecked?.result ?? antiFraudChecked?.result ?? checked?.result
+        ?? await renderCustomOpenAIImage(ctx, customImageCredentials!);
+      if (antiFraudChecked?.lowerRight.intrudes) {
+        warnings.push(ANTI_FRAUD_CONTINUITY_WARNING);
+      }
+      if (antiFraudChecked?.diagonal.intrudes) {
+        warnings.push(ANTI_FRAUD_DIAGONAL_WARNING);
+      }
       bytes = result.bytes;
-      providerNote = result.providerNote;
+      posterHandObservation = antiFraudChecked?.handObservation;
+      if (layeredPosterRequested) {
+        const renderedForeground = await renderLayeredForegroundWithMatteRetry(
+          result.bytes,
+          foregroundPrompt!,
+          (resolvedPrompt) => renderCustomOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            customImageCredentials!,
+          ),
+        );
+        foregroundBytes = renderedForeground.foreground;
+        if (renderedForeground.attempts > 1) {
+          warnings.push('Foreground matte required one retry before compositing.');
+        }
+      }
+      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${antiFraudChecked && antiFraudChecked.attempts > 1 ? ' · anti-fraud safe-zone retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
+      if (checked?.safeZone.intrudes || antiFraudChecked?.logoSafeZone.intrudes) {
+        warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
+      }
     } else if (def.provider === 'openai' && surface === 'image') {
-      const result = await renderOpenAIImage(ctx, credentials);
+      const phoneChecked = overlayPhoneScreenRef
+        ? await renderImageWithPhoneScreenRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          ),
+        )
+        : null;
+      const antiFraudChecked = !phoneChecked
+        && loanPosterOutput
+        && posterCopyStyle === 'anti-fraud-message'
+        ? await renderImageWithAntiFraudSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderPoster(resolvedPrompt, () => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          )),
+          {
+            detectHands: detectPosterHands,
+            preserveLayoutDraft,
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const checked = !phoneChecked && !antiFraudChecked && loanPosterOutput && overlayLogoRef
+        ? await renderImageWithLogoSafeZoneRetry(
+          ctx.prompt,
+          (resolvedPrompt) => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          ),
+          {
+            enabled: true,
+            ...(overlayLogoAnchor ? { anchor: overlayLogoAnchor } : {}),
+          },
+        )
+        : null;
+      const result = phoneChecked?.result
+        ?? antiFraudChecked?.result
+        ?? checked?.result
+        ?? await renderOpenAIImage(ctx, credentials);
+      if (antiFraudChecked?.lowerRight.intrudes) {
+        warnings.push(ANTI_FRAUD_CONTINUITY_WARNING);
+      }
+      if (antiFraudChecked?.diagonal.intrudes) {
+        warnings.push(ANTI_FRAUD_DIAGONAL_WARNING);
+      }
       bytes = result.bytes;
-      providerNote = result.providerNote;
+      posterHandObservation = antiFraudChecked?.handObservation;
+      if (layeredPosterRequested) {
+        const renderedForeground = await renderLayeredForegroundWithMatteRetry(
+          result.bytes,
+          foregroundPrompt!,
+          (resolvedPrompt) => renderOpenAIImage(
+            { ...ctx, prompt: resolvedPrompt },
+            credentials,
+          ),
+        );
+        foregroundBytes = renderedForeground.foreground;
+        if (renderedForeground.attempts > 1) {
+          warnings.push('Foreground matte required one retry before compositing.');
+        }
+      }
+      providerNote = `${result.providerNote}${phoneChecked && phoneChecked.attempts > 1 ? ' · phone-screen retry' : ''}${antiFraudChecked && antiFraudChecked.attempts > 1 ? ' · anti-fraud safe-zone retry' : ''}${checked && checked.attempts > 1 ? ' · logo-safe retry' : ''}${layeredPosterRequested ? ' · layered foreground' : ''}`;
       suggestedExt = result.suggestedExt;
+      if (checked?.safeZone.intrudes || antiFraudChecked?.logoSafeZone.intrudes) {
+        warnings.push('Logo safe-zone remained visually busy after retry; the clearest render was used.');
+      }
     } else if (
       def.provider === 'openai'
       && surface === 'audio'
@@ -631,8 +2326,8 @@ export async function generateMedia(args: {
     } else if (def.provider === 'hyperframes' && surface === 'video') {
       // HyperFrames is templated by the agent (it reads the vendored
       // skill at skills/hyperframes/SKILL.md and writes a composition
-      // HTML based on the user's prompt). But the actual `npx
-      // hyperframes render` step runs HERE in the daemon process, not
+      // HTML based on the user's prompt). But the actual bundled
+      // HyperFrames render step runs HERE in the daemon process, not
       // in the agent's shell. Reason: the agent's shell on macOS
       // (Claude Code in particular) is wrapped in `sandbox-exec`, and
       // puppeteer's Chrome subprocess hangs partway through frame
@@ -680,7 +2375,7 @@ export async function generateMedia(args: {
     // Stub-disabled errors are intentional — propagate so the daemon
     // maps them to 503 and the CLI surfaces a clear "configure a real
     // provider" message rather than writing fake bytes.
-    if (err instanceof StubProviderDisabledError) {
+    if (checkpoint || args.posterRecoveryOnly || err instanceof StubProviderDisabledError || err instanceof PosterHandLayoutError || err instanceof PosterDetectorUnavailableError) {
       throw err;
     }
     // A real provider failed (network blip, 4xx, missing key, …). We
@@ -726,15 +2421,54 @@ export async function generateMedia(args: {
     const stem = dot > 0 ? safeOut.slice(0, dot) : safeOut;
     finalOut = `${stem}${suggestedExt}`;
   }
+  if (
+    surface === 'image'
+    && (overlayZRef || overlayLogoRef || overlayPhoneScreenRef || completePosterCopy)
+  ) {
+    const dot = finalOut.lastIndexOf('.');
+    const stem = dot > 0 ? finalOut.slice(0, dot) : finalOut;
+    finalOut = `${stem}.png`;
+  }
   if (surface === 'image' && /\.png$/i.test(finalOut)) {
-    bytes = (
-      loanPosterOutput
-        ? await optimizeLoanPosterPng(bytes)
-        : await optimizeLosslessPng(bytes)
-    ).bytes;
+    bytes = await finalizeGeneratedPng(bytes, {
+      loanPosterOutput: Boolean(loanPosterOutput),
+      ...(overlayZRef
+        ? { overlayZ: await readFile(overlayZRef.abs) }
+        : {}),
+      ...(foregroundBytes ? { foreground: foregroundBytes } : {}),
+      ...(posterHeadline ? { posterHeadline } : {}),
+      ...(posterSubtitle ? { posterSubtitle } : {}),
+      ...(posterTextAnchor ? { posterTextAnchor } : {}),
+      ...(posterCopyStyle ? { posterCopyStyle } : {}),
+      ...(posterHandObservation ? { posterHandObservation } : {}),
+      ...(overlayPhoneScreenRef
+        ? { phoneScreen: await readFile(overlayPhoneScreenRef.abs) }
+        : {}),
+      ...(overlayLogoRef
+        ? {
+          overlayLogo: await readFile(overlayLogoRef.abs),
+          adaptZamloanTaglineContrast: isZamloanLogoAsset(overlayLogoRef),
+          ...(isZamloanLogoAsset(overlayLogoRef)
+            && (posterCopyStyle === 'anti-fraud'
+              || posterCopyStyle === 'anti-fraud-message')
+            ? { zamloanTaglineTone: 'black' as const }
+            : {}),
+        }
+        : {}),
+      ...(overlayLogoAnchor ? { overlayLogoAnchor } : {}),
+    });
   }
   const finalTarget = path.join(dir, finalOut);
-  await writeFile(finalTarget, bytes);
+  const temporaryTarget = path.join(
+    dir,
+    `.${path.basename(finalOut)}.${process.pid}.${Date.now()}.tmp`,
+  );
+  try {
+    await writeFile(temporaryTarget, bytes);
+    await rename(temporaryTarget, finalTarget);
+  } finally {
+    await unlink(temporaryTarget).catch(() => {});
+  }
   const st = await stat(finalTarget);
   return {
     name: finalOut,
@@ -787,33 +2521,38 @@ function defaultAspectFor(surface: MediaSurface): string | undefined {
 // ---------------------------------------------------------------------------
 
 const AZURE_DEFAULT_API_VERSION = '2024-02-01';
-const OPENAI_IMAGE_CONNECT_TIMEOUT_MS = 3_000;
-const OPENAI_IMAGE_HEADERS_TIMEOUT_MS = 3 * 60 * 1000;
-const OPENAI_IMAGE_BODY_TIMEOUT_MS = 3 * 60 * 1000;
+const OPENAI_CONNECT_TIMEOUT_MS = 3_000;
+const OPENAI_HEADERS_TIMEOUT_MS = imageRequestTimeoutMs();
+const OPENAI_BODY_TIMEOUT_MS = imageRequestTimeoutMs();
 // Honor HTTP(S)_PROXY / NO_PROXY from the daemon's environment. Users in
 // regions that can only reach api.openai.com through a local proxy (e.g.
 // Clash) otherwise hit a connection timeout here — the chat agent has its own
-// proxy wrapper, but this image request previously used a proxy-blind Agent.
+// proxy wrapper, but media requests previously used a proxy-blind Agent.
 // EnvHttpProxyAgent reads the proxy env when present and connects directly
 // when it is not, so it is inert for users without a proxy.
-const openAIImageDispatcher = new EnvHttpProxyAgent({
-  connectTimeout: OPENAI_IMAGE_CONNECT_TIMEOUT_MS,
-  headersTimeout: OPENAI_IMAGE_HEADERS_TIMEOUT_MS,
-  bodyTimeout: OPENAI_IMAGE_BODY_TIMEOUT_MS,
+const openAIHttpDispatcher = new EnvHttpProxyAgent({
+  connectTimeout: OPENAI_CONNECT_TIMEOUT_MS,
+  headersTimeout: OPENAI_HEADERS_TIMEOUT_MS,
+  bodyTimeout: OPENAI_BODY_TIMEOUT_MS,
 });
 
-function openAIImageRequestTimeoutMs(): number {
-  const configured = Number(process.env.OD_OPENAI_IMAGE_TIMEOUT_MS);
-  if (!Number.isFinite(configured)) return 3 * 60 * 1000;
-  return Math.min(10 * 60 * 1000, Math.max(30_000, Math.floor(configured)));
+function openAISpeechRequestTimeoutMs(): number {
+  const configured = Number(process.env.OD_OPENAI_TTS_TIMEOUT_MS);
+  if (!Number.isFinite(configured)) return 2 * 60 * 1000;
+  return Math.min(5 * 60 * 1000, Math.max(30_000, Math.floor(configured)));
 }
 
-function openAIImageRequestSignal(signal?: AbortSignal): AbortSignal {
-  const timeout = AbortSignal.timeout(openAIImageRequestTimeoutMs());
+function openAISpeechRequestSignal(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(openAISpeechRequestTimeoutMs());
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
 async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
+  const recovery = ctx.imageRecovery ?? createImageRequestRecovery({ signal: ctx.signal, poster: false });
+  return recovery.run((signal, stage) => renderOpenAIImageRequest({ ...ctx, signal }, credentials, stage));
+}
+
+async function renderOpenAIImageRequest(ctx: MediaContext, credentials: ProviderConfig, stage: (name: string) => void): Promise<RenderResult> {
   if (!credentials.apiKey) {
     throw new Error('no OpenAI credential — configure an API key in Settings, set OPENAI_API_KEY, or refresh Codex/Hermes OAuth');
   }
@@ -856,19 +2595,21 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     // headers, so this is harmless on the standard endpoint too.
     headers['api-key'] = credentials.apiKey;
   }
-  const signal = openAIImageRequestSignal(ctx.signal);
+  const signal = ctx.signal;
 
   const resp = await fetch(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
-    signal,
-    dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
+    signal: signal ?? null,
+    dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
   });
+  stage('response-headers');
   const text = await resp.text();
+  stage('response-body');
   if (!resp.ok) {
     const tag = azure ? 'azure-openai' : 'openai';
-    throw new Error(`${tag} ${resp.status}: ${truncate(text, 240)}`);
+    throw imageProviderResponseError(resp, `${tag} ${resp.status}: ${truncate(text, 240)}`, text);
   }
   let data: any;
   try {
@@ -882,11 +2623,12 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
   if (entry.b64_json) {
     bytes = Buffer.from(entry.b64_json, 'base64');
   } else if (entry.url) {
+    stage('image-download');
     const imgResp = await fetch(entry.url, {
-      signal,
-      dispatcher: openAIImageDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
+      signal: signal ?? null,
+      dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
     });
-    if (!imgResp.ok) throw new Error(`openai image fetch ${imgResp.status}`);
+    if (!imgResp.ok) throw imageProviderResponseError(imgResp, `openai image fetch ${imgResp.status}`);
     const arr = await imgResp.arrayBuffer();
     bytes = Buffer.from(arr);
   } else {
@@ -899,6 +2641,17 @@ async function renderOpenAIImage(ctx: MediaContext, credentials: ProviderConfig)
     providerNote: `${tag}/${ctx.wireModel} · ${ctx.aspect} · ${bytes.length} bytes`,
     suggestedExt: '.png',
   };
+}
+
+function imageProviderResponseError(response: Response, message: string, body = ''): Error {
+  if (response.status === 429 && /insufficient_quota|credit_balance_too_low|no credits remaining|billing_hard_limit_reached/i.test(body)) {
+    return Object.assign(new Error('Image provider quota exhausted: restore API credits before generating again'), { status: 429, code: 'image_provider_quota_exhausted' });
+  }
+  const value = response.headers.get('retry-after');
+  const seconds = value ? Number(value) : NaN;
+  const retryAfterMs = Number.isFinite(seconds) ? seconds * 1_000
+    : value ? Math.max(0, Date.parse(value) - Date.now()) : undefined;
+  return Object.assign(new Error(message), { status: response.status, retryAfterMs });
 }
 
 async function renderImageRouterImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
@@ -972,6 +2725,13 @@ async function renderImageRouterVideo(ctx: MediaContext, credentials: ProviderCo
 }
 
 async function renderCustomOpenAIImage(ctx: MediaContext, credentials: ProviderConfig): Promise<RenderResult> {
+  if (ctx.imageRecovery) {
+    return ctx.imageRecovery.run((signal, stage) => renderCustomOpenAIImageRequest({ ...ctx, signal }, credentials, stage));
+  }
+  return renderCustomOpenAIImageRequest(ctx, credentials);
+}
+
+async function renderCustomOpenAIImageRequest(ctx: MediaContext, credentials: ProviderConfig, stage: (name: string) => void = () => {}): Promise<RenderResult> {
   const baseUrl = (credentials.baseUrl || '').trim();
   if (!baseUrl) {
     throw new Error(
@@ -1000,14 +2760,21 @@ async function renderCustomOpenAIImage(ctx: MediaContext, credentials: ProviderC
     n: 1,
     size: openaiSizeFor('gpt-image-1', ctx.aspect),
   };
-
   const resp = await fetch(buildOpenAIImageUrl(baseUrl, false), {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal: ctx.signal ?? null,
+    ...(ctx.imageRecovery ? { dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']> } : {}),
   });
+  stage('response-headers');
+  if (!resp.ok && ctx.imageRecovery) {
+    await resp.body?.cancel();
+    throw imageProviderResponseError(resp, `custom image ${resp.status}`);
+  }
   const data = await parseOpenAICompatibleJson(resp, 'custom image');
-  const bytes = await bytesFromOpenAICompatibleData(data, 'custom image');
+  stage('response-body');
+  const bytes = await bytesFromOpenAICompatibleData(data, 'custom image', ctx.signal, stage);
   return {
     bytes,
     providerNote: `custom-image/${wireModel} · ${body.size} · ${bytes.length} bytes`,
@@ -1037,7 +2804,7 @@ async function parseOpenAICompatibleJson(resp: Response, providerTag: string): P
   }
 }
 
-async function bytesFromOpenAICompatibleData(data: any, providerTag: string): Promise<Buffer> {
+async function bytesFromOpenAICompatibleData(data: any, providerTag: string, signal?: AbortSignal, stage: (name: string) => void = () => {}): Promise<Buffer> {
   const entry = data && Array.isArray(data.data) ? data.data[0] : null;
   if (!entry) throw new Error(`${providerTag} response had no data[0]`);
   if (typeof entry.b64_json === 'string' && entry.b64_json) {
@@ -1047,9 +2814,10 @@ async function bytesFromOpenAICompatibleData(data: any, providerTag: string): Pr
     return Buffer.from(raw, 'base64');
   }
   if (typeof entry.url === 'string' && entry.url) {
-    const mediaResp = await fetch(entry.url);
+    stage('image-download');
+    const mediaResp = await fetch(entry.url, signal ? { signal, dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']> } : undefined);
     if (!mediaResp.ok) {
-      throw new Error(`${providerTag} media fetch ${mediaResp.status}`);
+      throw imageProviderResponseError(mediaResp, `${providerTag} media fetch ${mediaResp.status}`);
     }
     const arr = await mediaResp.arrayBuffer();
     return Buffer.from(arr);
@@ -1238,6 +3006,8 @@ async function renderOpenAISpeech(ctx: MediaContext, credentials: ProviderConfig
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal: openAISpeechRequestSignal(ctx.signal),
+    dispatcher: openAIHttpDispatcher as unknown as NonNullable<RequestInit['dispatcher']>,
   });
   if (!resp.ok) {
     const text = await resp.text();
@@ -2581,8 +4351,9 @@ async function renderFishAudioTTS(ctx: MediaContext, credentials: ProviderConfig
 // with a GSAP timeline) into a hidden cache dir under the project, then
 // dispatches here with `--composition-dir <relative-path>`.
 //
-// We run `npx hyperframes render <absolutePath> --output <tmp>/render.mp4`
-// from the daemon process (NOT the agent's shell) for two reasons:
+// We run the pinned daemon-local HyperFrames CLI from the daemon process with
+// the same Node runtime that started it. This path never invokes npx or reaches
+// the network, and it stays outside the agent's shell for two reasons:
 //   1. HyperFrames spawns a puppeteer-controlled Chrome to capture frames.
 //      Claude Code's Bash tool wraps subprocesses in macOS sandbox-exec,
 //      under which Chrome hangs partway through frame capture.
@@ -2594,7 +4365,11 @@ async function renderFishAudioTTS(ctx: MediaContext, credentials: ProviderConfig
 //      under the user-supplied filename.
 // ---------------------------------------------------------------------------
 
-const HYPERFRAMES_RENDER_TIMEOUT_MS = 5 * 60 * 1000;
+// A 30-second 1080x1440 tutorial can take 6-8 minutes on the production
+// Mac mini because every UI interaction is rendered frame by frame. Keep the
+// watchdog comfortably above that normal path while still terminating a
+// genuinely stuck renderer.
+const HYPERFRAMES_RENDER_TIMEOUT_MS = 15 * 60 * 1000;
 
 async function renderHyperFramesViaCli(ctx: MediaContext, projectDir: string, onProgress?: ProgressFn): Promise<RenderResult> {
   const compRel = ctx.compositionDir;
@@ -2670,7 +4445,7 @@ async function renderHyperFramesViaCli(ctx: MediaContext, projectDir: string, on
 }
 
 /**
- * Run `npx hyperframes render` and stream every line of stdout/stderr
+ * Run the bundled HyperFrames CLI and stream every line of stdout/stderr
  * through `onProgress`. Resolves on a clean exit, rejects on non-zero
  * exit (with the stderr tail attached so the dispatcher can surface it).
  *
@@ -2680,25 +4455,21 @@ async function renderHyperFramesViaCli(ctx: MediaContext, projectDir: string, on
  * agent's chat tool shows a long quiet spinner — users can't tell
  * whether anything is happening.
  */
-function runHyperFramesRender(compAbs: string, tmpOutput: string, onProgress?: ProgressFn): Promise<void> {
+async function runHyperFramesRender(compAbs: string, tmpOutput: string, onProgress?: ProgressFn): Promise<void> {
+  const binaries = resolveHyperFramesBinaryPaths();
+  await verifyHyperFramesBinaries(binaries);
+  const renderEnv = createHyperFramesRenderEnv(process.env, binaries);
+  const invocation = createHyperFramesRenderCommand(compAbs, tmpOutput);
+
   return new Promise<void>((resolve, reject) => {
     const child = spawn(
-      'npx',
-      [
-        '-y',
-        'hyperframes',
-        'render',
-        compAbs,
-        '--output',
-        tmpOutput,
-        '--workers',
-        '1',
-      ],
+      invocation.command,
+      invocation.args,
       {
-        // Inherit env so npx can find the cached hyperframes install
-        // and any user-level node config. stdin closed (HF doesn't
-        // read from it), stdout/stderr piped so we can stream.
-        env: process.env,
+        // Keep the daemon environment while pinning FFmpeg/FFprobe to the
+        // static binaries shipped with this daemon release. stdin is closed
+        // (HF doesn't read from it); stdout/stderr are piped for progress.
+        env: renderEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );

@@ -10,6 +10,7 @@ export const APP_VERSION_FALLBACK = '0.0.0';
 // `.js` extensions across that package.
 export interface AppVersionInfo {
   version: string;
+  release?: string;
   channel: string;
   packaged: boolean;
   platform: string;
@@ -109,13 +110,21 @@ export function resolveAppVersionInfo({
   const version = cleanString(env.OD_APP_VERSION)
     ?? cleanString(packageMetadata?.version)
     ?? APP_VERSION_FALLBACK;
+  const release = cleanString(env.NIKI_RELEASE_SHA);
   const prereleaseChannel = version.match(/^\d+\.\d+\.\d+-([0-9A-Za-z-]+)/)?.[1]?.split('.')[0] ?? null;
   const channel = cleanString(env.OD_RELEASE_CHANNEL)
     ?? cleanString(env.OD_APP_CHANNEL)
     ?? prereleaseChannel
     ?? (packaged ? 'stable' : 'development');
 
-  return { version, channel, packaged, platform, arch };
+  return {
+    version,
+    ...(release ? { release } : {}),
+    channel,
+    packaged,
+    platform,
+    arch,
+  };
 }
 
 async function readPackageMetadata(packageJsonUrl: URL): Promise<PackageMetadata | null> {

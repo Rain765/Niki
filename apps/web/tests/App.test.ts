@@ -6,7 +6,7 @@ import {
   persistComposioConfigChange,
   resolveSettingsCloseConfig,
   shouldSyncMediaProvidersOnSave,
-} from '../src/App';
+} from '../src/state/persisted-config';
 import type { AppConfig } from '../src/types';
 
 const baseConfig: AppConfig = {

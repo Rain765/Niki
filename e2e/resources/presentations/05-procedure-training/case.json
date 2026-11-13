@@ -1,0 +1,485 @@
+{
+  "id": "05-procedure-training",
+  "title": "故障响应实操培训",
+  "split": "development",
+  "provenance": "synthetic",
+  "tags": [
+    "training",
+    "18-steps",
+    "rollback",
+    "branching"
+  ],
+  "sourceSha256": "3bf4207763711dc6872fe71a1f48ee59cd5f10bb3ba2d4bd4649b198563a8f8d",
+  "brief": "将本文制作成可编辑 PPT。完整保留关键事实、数字、条件、例外和关系；按内容选择编排。容量不足请明确指出，不得用备注代替正文。",
+  "settings": {
+    "ratio": "16:9",
+    "palette": "blue",
+    "pageCount": 20,
+    "style": "swiss",
+    "density": "complete"
+  },
+  "checks": [
+    {
+      "id": "05-procedure-training-C01",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "确认告警操作和例外保留。",
+      "evidence": [
+        "### 步骤 01：确认告警\n\n操作：查看最近 5 分钟错误率是否高于 3%。\n例外：若只有监控缺数据，先检查监控链路。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "确认告警"
+        ],
+        [
+          "查看最近 5 分钟错误率是否高于 3%"
+        ],
+        [
+          "若只有监控缺数据，先检查监控链路"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C02",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "认领事件操作和例外保留。",
+      "evidence": [
+        "### 步骤 02：认领事件\n\n操作：值班工程师在 3 分钟内认领。\n例外：未认领时升级给备班。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "认领事件"
+        ],
+        [
+          "值班工程师在 3 分钟内认领"
+        ],
+        [
+          "未认领时升级给备班"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C03",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "确定等级操作和例外保留。",
+      "evidence": [
+        "### 步骤 03：确定等级\n\n操作：用户无法下单超过 10 分钟定为 P1。\n例外：仅测试环境异常定为 P3。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "确定等级"
+        ],
+        [
+          "用户无法下单超过 10 分钟定为 P1"
+        ],
+        [
+          "仅测试环境异常定为 P3"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C04",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "保存证据操作和例外保留。",
+      "evidence": [
+        "### 步骤 04：保存证据\n\n操作：记录时间、请求 ID 与脱敏日志。\n例外：禁止复制访问令牌。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "保存证据"
+        ],
+        [
+          "记录时间、请求 ID 与脱敏日志"
+        ],
+        [
+          "禁止复制访问令牌"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C05",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "通知角色操作和例外保留。",
+      "evidence": [
+        "### 步骤 05：通知角色\n\n操作：通知事件指挥、客服联络和技术负责人。\n例外：角色可兼任，但操作人不能自己批准回退。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "通知角色"
+        ],
+        [
+          "通知事件指挥、客服联络和技术负责人"
+        ],
+        [
+          "角色可兼任，但操作人不能自己批准回退"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C06",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "冻结变更操作和例外保留。",
+      "evidence": [
+        "### 步骤 06：冻结变更\n\n操作：暂停与事件相关的发布。\n例外：安全修复例外需指挥批准。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "冻结变更"
+        ],
+        [
+          "暂停与事件相关的发布"
+        ],
+        [
+          "安全修复例外需指挥批准"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C07",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "检查依赖操作和例外保留。",
+      "evidence": [
+        "### 步骤 07：检查依赖\n\n操作：依次检查网关、订单、支付和消息队列。\n例外：不要同时重启全部服务。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "检查依赖"
+        ],
+        [
+          "依次检查网关、订单、支付和消息队列"
+        ],
+        [
+          "不要同时重启全部服务"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C08",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "建立假设操作和例外保留。",
+      "evidence": [
+        "### 步骤 08：建立假设\n\n操作：每次只修改一个主要变量。\n例外：记录被证伪的假设。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "建立假设"
+        ],
+        [
+          "每次只修改一个主要变量"
+        ],
+        [
+          "记录被证伪的假设"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C09",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "执行缓解操作和例外保留。",
+      "evidence": [
+        "### 步骤 09：执行缓解\n\n操作：先切换只读查询或限流。\n例外：不能将失败订单伪装为成功。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "执行缓解"
+        ],
+        [
+          "先切换只读查询或限流"
+        ],
+        [
+          "不能将失败订单伪装为成功"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C10",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "决定回退操作和例外保留。",
+      "evidence": [
+        "### 步骤 10：决定回退\n\n操作：若故障由最近发布引入，申请回退。\n例外：若涉及不可逆数据库迁移，停止常规回退。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "决定回退"
+        ],
+        [
+          "若故障由最近发布引入，申请回退"
+        ],
+        [
+          "若涉及不可逆数据库迁移，停止常规回退"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C11",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "核对快照操作和例外保留。",
+      "evidence": [
+        "### 步骤 11：核对快照\n\n操作：核对快照编号和恢复点时间。\n例外：缺少一致快照时升级数据负责人。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "核对快照"
+        ],
+        [
+          "核对快照编号和恢复点时间"
+        ],
+        [
+          "缺少一致快照时升级数据负责人"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C12",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "双人批准操作和例外保留。",
+      "evidence": [
+        "### 步骤 12：双人批准\n\n操作：技术负责人和事件指挥分别确认。\n例外：两项确认缺一不可。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "双人批准"
+        ],
+        [
+          "技术负责人和事件指挥分别确认"
+        ],
+        [
+          "两项确认缺一不可"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C13",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "开始回退操作和例外保留。",
+      "evidence": [
+        "### 步骤 13：开始回退\n\n操作：回退应用版本并观察 5 分钟。\n例外：保留当前版本的诊断日志。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "开始回退"
+        ],
+        [
+          "回退应用版本并观察 5 分钟"
+        ],
+        [
+          "保留当前版本的诊断日志"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C14",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "业务验收操作和例外保留。",
+      "evidence": [
+        "### 步骤 14：业务验收\n\n操作：执行下单、支付回调与取消三条链路。\n例外：接口返回 200 不能替代业务验收。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "业务验收"
+        ],
+        [
+          "执行下单、支付回调与取消三条链路"
+        ],
+        [
+          "接口返回 200 不能替代业务验收"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C15",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "持续观察操作和例外保留。",
+      "evidence": [
+        "### 步骤 15：持续观察\n\n操作：恢复后观察 30 分钟无同类告警。\n例外：再次告警返回检查依赖步骤。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "持续观察"
+        ],
+        [
+          "恢复后观察 30 分钟无同类告警"
+        ],
+        [
+          "再次告警返回检查依赖步骤"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C16",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "恢复变更操作和例外保留。",
+      "evidence": [
+        "### 步骤 16：恢复变更\n\n操作：事件指挥解除冻结。\n例外：未结数据问题继续保持相关变更冻结。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "恢复变更"
+        ],
+        [
+          "事件指挥解除冻结"
+        ],
+        [
+          "未结数据问题继续保持相关变更冻结"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C17",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "对外说明操作和例外保留。",
+      "evidence": [
+        "### 步骤 17：对外说明\n\n操作：客服联络发布已确认事实和下一次更新时间。\n例外：不要承诺尚未验证的恢复时间。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "对外说明"
+        ],
+        [
+          "客服联络发布已确认事实和下一次更新时间"
+        ],
+        [
+          "不要承诺尚未验证的恢复时间"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C18",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "复盘整改操作和例外保留。",
+      "evidence": [
+        "### 步骤 18：复盘整改\n\n操作：2 个工作日内提交时间线和整改项。\n例外：每项整改必须有责任人与验证方法。\n检查：记录执行人、时间和观察结果，再进入下一步。"
+      ],
+      "groups": [
+        [
+          "复盘整改"
+        ],
+        [
+          "2 个工作日内提交时间线和整改项"
+        ],
+        [
+          "每项整改必须有责任人与验证方法"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-C19",
+      "kind": "literal",
+      "critical": true,
+      "scope": "slide",
+      "question": "不可逆迁移情境不能走常规回退。",
+      "evidence": [
+        "正确处理：停止常规回退并升级数据负责人"
+      ],
+      "groups": [
+        [
+          "不可逆"
+        ],
+        [
+          "停止常规回退"
+        ],
+        [
+          "数据负责人"
+        ]
+      ]
+    },
+    {
+      "id": "05-procedure-training-V01",
+      "kind": "manual",
+      "critical": true,
+      "question": "18 步完整且顺序正确，检查清单可供实际操作；循环观察用连接关系表达。",
+      "evidence": [
+        "2 个工作日内提交时间线和整改项"
+      ]
+    },
+    {
+      "id": "05-procedure-training-V02",
+      "kind": "manual",
+      "critical": true,
+      "question": "双人批准和不可逆迁移是硬前置条件，不能藏在备注或误画成可选路径。",
+      "evidence": [
+        "漏掉双人批准直接判演练不通过"
+      ]
+    },
+    {
+      "id": "05-procedure-training-V03",
+      "kind": "manual",
+      "critical": true,
+      "question": "正文在实际渲染页可读，无重叠、裁切、超出画布；不能只依据可提取文字判定。",
+      "evidence": [
+        "# 故障响应实操培训"
+      ]
+    },
+    {
+      "id": "05-procedure-training-V04",
+      "kind": "manual",
+      "critical": true,
+      "question": "整体采用专业简洁的排版；层级、留白、对齐一致，连续页面没有机械重复同一种卡片布局。",
+      "evidence": [
+        "# 故障响应实操培训"
+      ]
+    },
+    {
+      "id": "05-procedure-training-V05",
+      "kind": "manual",
+      "critical": true,
+      "question": "关键内容出现在放映页；备注只能补充，不可代替表格、条件、例外与结论。",
+      "evidence": [
+        "# 故障响应实操培训"
+      ]
+    },
+    {
+      "id": "05-procedure-training-V06",
+      "kind": "manual",
+      "critical": true,
+      "question": "主要文字、表格和图形可编辑；打开最终 PPTX 后与预览对照，无字体替换或错位。",
+      "evidence": [
+        "# 故障响应实操培训"
+      ]
+    },
+    {
+      "id": "05-procedure-training-V07",
+      "kind": "manual",
+      "critical": true,
+      "question": "所选主题色、比例和页数策略得到遵守；容量不足时明确说明，不能删事实或无限缩小字号。",
+      "evidence": [
+        "# 故障响应实操培训"
+      ]
+    }
+  ]
+}

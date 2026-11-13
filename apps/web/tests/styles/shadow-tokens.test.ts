@@ -54,16 +54,19 @@ describe('home hero light field', () => {
     );
   });
 
-  it('uses clean white occlusion bands over stronger light-mode orange illumination', () => {
+  it('uses plain white and black home backgrounds without decorative backdrops', () => {
     const light = cssBlock(':root');
     const dark = cssBlock("[data-theme='dark']");
 
-    expect(light).toContain('--home-hero-field-opacity: 0.92;');
-    expect(light).toContain('--home-hero-grid-opacity: 0.26;');
-    expect(light).toContain(
-      '--home-hero-occlusion-strong: rgba(255, 255, 255, 0.72);',
-    );
-    expect(dark).toContain('--home-hero-occlusion-strong: rgba(0, 0, 0, 0.27);');
+    expect(light).toContain('--home-hero-background: #fff;');
+    expect(dark).toContain('--home-hero-background: #000;');
+    expect(css).not.toContain('.home-hero__backdrop');
+  });
+
+  it('uses the strong foreground color for the mobile welcome title', () => {
+    const mobileWelcomeTitle = cssBlock('.home-hero__welcome p');
+
+    expect(mobileWelcomeTitle).toContain('color: var(--text-strong);');
   });
 
   it('uses Hermes Orange 6 with white foregrounds on brand-filled controls', () => {

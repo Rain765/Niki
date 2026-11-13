@@ -1,6 +1,8 @@
 import type { Dict } from '../types';
+import { loanVideoEn } from '../loan-video';
 
 export const en: Dict = {
+  ...loanVideoEn,
   'common.cancel': 'Cancel',
   'common.save': 'Save',
   'common.close': 'Close',
@@ -9,6 +11,12 @@ export const en: Dict = {
   'common.edit': 'Edit',
   'common.preview': 'Preview',
   'common.share': 'Share',
+  'imageViewer.downloadStarted': 'Image download started',
+  'imageViewer.imageCopied': 'Image copied',
+  'imageViewer.editUnavailable': 'Image editing is coming soon',
+  'imageViewer.linkCopied': 'Image link copied',
+  'imageViewer.actionFailed': 'Could not complete that action',
+  'imageViewer.deleteFailed': 'Could not delete the image',
   'common.search': 'Search',
   'common.searchEllipsis': 'Search…',
   'common.loading': 'Loading…',
@@ -62,6 +70,25 @@ export const en: Dict = {
   'app.brandPill': 'Research Preview',
   'app.brandSubtitle': 'by Nexu Labs',
   'app.welcomeLoading': 'Loading workspace…',
+
+  'posterNav.primary': 'Primary navigation',
+  'posterNav.poster': 'Posters',
+  'posterNav.video': 'Videos',
+  'posterNav.documents': 'Documents',
+  'posterNav.logo': 'Logo',
+  'posterNav.english': 'Voice',
+  'posterNav.language': 'Interface language',
+  'posterNav.posterEyebrow': 'NIKI POSTER',
+  'posterNav.posterTitle': 'Generate loan posters',
+  'posterNav.posterSubtitle': 'Create campaign-ready loan posters from approved business templates.',
+  'posterNav.documentsTitle': 'Document Search',
+  'posterNav.documentsSubtitle': 'Search Feishu documents, open links, and keep research in one workspace.',
+  'posterNav.logoTitle': 'Logo Studio',
+  'posterNav.logoSubtitle': 'Build and refine a reusable visual identity system.',
+  'posterNav.englishTitle': 'Daily English Practice',
+  'posterNav.englishSubtitle': 'Practice practical conversations and review progress every day.',
+  'posterNav.account': 'Account',
+  'posterNav.signOut': 'Sign out',
 
   'settings.welcomeKicker': "",
   'settings.welcomeTitle': "Welcome",

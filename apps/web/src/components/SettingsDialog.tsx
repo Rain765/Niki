@@ -108,7 +108,7 @@ import {
   normalizeAccentColor,
   resolveAccentColor,
 } from '../state/appearance';
-import { isAutosaveDraftOnlyChange } from '../App';
+import { isAutosaveDraftOnlyChange } from '../state/persisted-config';
 import {
   FAILURE_SOUNDS,
   SUCCESS_SOUNDS,

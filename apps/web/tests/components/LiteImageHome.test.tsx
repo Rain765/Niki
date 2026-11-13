@@ -26,6 +26,21 @@ describe('LiteImageHome', () => {
     expect((screen.getByTestId('lite-image-count') as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByTestId('lite-image-aspect') as HTMLSelectElement).disabled).toBe(false);
     expect((screen.getByTestId('lite-image-brand') as HTMLSelectElement).disabled).toBe(false);
+    fireEvent.click(screen.getByTestId('lite-image-brand'));
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+      'Zamloan',
+      'BiuMoney',
+      'ZamCash',
+      'ZamMoney',
+      'Fastako',
+      'Yangaloan',
+    ]);
+    const composer = screen.getByTestId('lite-image-count').closest('.lite-image-home__composer');
+    expect(composer?.className).toContain('od-filter-grid');
+    expect(screen.getByTestId('lite-image-brand').closest('.od-field')?.className)
+      .toContain('od-filter-grid__wide');
+    expect(screen.getByTestId('lite-image-submit').className)
+      .toContain('od-filter-grid__action');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -33,8 +48,11 @@ describe('LiteImageHome', () => {
     const onProjectCreated = vi.fn();
     const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
-      if (url === '/brand/zambia-support/z-reference.png') {
-        return new Response(new Blob(['reference'], { type: 'image/png' }), { status: 200 });
+      if (url === '/brand/zambia-support/zamloan-logo.svg') {
+        return new Response(new Blob(['logo'], { type: 'image/svg+xml' }), {
+          status: 200,
+          headers: { 'content-type': 'image/svg+xml' },
+        });
       }
       if (url === '/api/projects') {
         expect(init?.method).toBe('POST');
@@ -55,9 +73,9 @@ describe('LiteImageHome', () => {
         expect(init?.method).toBe('POST');
         return json({
           files: [{
-            name: 'loan-poster-z-reference.png',
-            originalName: 'loan-poster-z-reference.png',
-            path: '.od-inputs/loan-poster-z-reference.png',
+            name: 'zamloan-logo.svg',
+            originalName: 'zamloan-logo.svg',
+            path: '.od-inputs/zamloan-logo.svg',
             size: 9,
           }],
         });
@@ -74,13 +92,13 @@ describe('LiteImageHome', () => {
     });
 
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
-      '/brand/zambia-support/z-reference.png',
+      '/brand/zambia-support/zamloan-logo.svg',
       '/api/projects',
       '/api/projects/project-1/upload?visibility=internal',
     ]);
     expect(window.sessionStorage.getItem('od:auto-send-first:project-1')).toBe('1');
     expect(window.sessionStorage.getItem('od:auto-send-attachments:project-1')).toContain(
-      '.od-inputs/loan-poster-z-reference.png',
+      '.od-inputs/zamloan-logo.svg',
     );
   });
 });

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Logo Generator"
+  short_description: "Create production-ready logo directions and brand marks"
+  default_prompt: "Use $logo-generator to turn this brand brief into distinct, scalable logo directions."

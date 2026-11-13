@@ -48,6 +48,7 @@ export type ToolDevAppConfig = {
 export type ToolDevConfig = {
   apps: {
     daemon: ToolDevAppConfig & {
+      productionEntryPath: string;
       sidecarEntryPath: string;
     };
     desktop: ToolDevAppConfig & {
@@ -58,6 +59,7 @@ export type ToolDevConfig = {
     web: ToolDevAppConfig & {
       nextDistDir: string;
       nextTsconfigPath: string;
+      productionEntryPath: string;
       sidecarEntryPath: string;
     };
   };
@@ -167,6 +169,7 @@ export function resolveToolDevConfig(options: ToolDevOptions = {}): ToolDevConfi
     apps: {
       daemon: {
         ...daemon,
+        productionEntryPath: path.join(WORKSPACE_ROOT, "apps/daemon/dist/sidecar/index.js"),
         sidecarEntryPath: path.join(WORKSPACE_ROOT, "apps/daemon/src/sidecar/index.ts"),
       },
       desktop: {
@@ -182,6 +185,7 @@ export function resolveToolDevConfig(options: ToolDevOptions = {}): ToolDevConfi
         ...web,
         nextDistDir: resolveAppRuntimePath({ app: APP_KEYS.WEB, namespaceRoot, fileName: "next", contract: OPEN_DESIGN_SIDECAR_CONTRACT }),
         nextTsconfigPath: resolveAppRuntimePath({ app: APP_KEYS.WEB, namespaceRoot, fileName: "tsconfig.json", contract: OPEN_DESIGN_SIDECAR_CONTRACT }),
+        productionEntryPath: path.join(WORKSPACE_ROOT, "apps/web/dist/sidecar/index.js"),
         sidecarEntryPath: path.join(WORKSPACE_ROOT, "apps/web/sidecar/index.ts"),
       },
     },

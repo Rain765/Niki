@@ -88,7 +88,7 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
       screen.getByRole('dialog', { name: `Preview ${fileName}` }),
     ).toBeTruthy();
     expect(
-      screen.getByTestId('assistant-image-preview').getAttribute('src'),
+      screen.getByTestId('image-lightbox-image').getAttribute('src'),
     ).toBe(
       `/api/projects/proj-1/image-preview/${fileName}?variant=preview&v=1700000000`,
     );
@@ -201,20 +201,20 @@ describe('AssistantMessage feedback gate (issue #1288)', () => {
       '/api/projects/proj-1/image-preview/zambia-support-poster-01.png?variant=thumbnail',
     );
     fireEvent.click(thumbnail.closest('button')!);
-    expect(screen.getByTestId('assistant-image-preview')).toBeTruthy();
+    expect(screen.getByTestId('image-lightbox-image')).toBeTruthy();
     expect(onRequestOpenFile).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     fireEvent.click(screen.getByRole('button', { name: 'zambia-support-poster-01.png' }));
-    expect(screen.getByTestId('assistant-image-preview')).toBeTruthy();
+    expect(screen.getByTestId('image-lightbox-image')).toBeTruthy();
     expect(onRequestOpenFile).not.toHaveBeenCalled();
     const preview = screen.getByRole('dialog', {
       name: 'Preview zambia-support-poster-01.png',
     });
-    expect(within(preview).getByRole('link', { name: 'Download' }).getAttribute('href')).toBe(
-      '/api/projects/proj-1/raw/zambia-support-poster-01.png?download=1',
-    );
-    fireEvent.click(within(preview).getByRole('button', { name: 'Open' }));
-    expect(onRequestOpenFile).toHaveBeenCalledWith('zambia-support-poster-01.png');
+    expect(within(preview).getByTestId('image-lightbox-footer-download').tagName).toBe('BUTTON');
+    expect(within(preview).queryByRole('button', { name: 'Edit' })).toBeNull();
+    expect(within(preview).queryByTestId('image-lightbox-footer-preview')).toBeNull();
+    expect(screen.queryByTestId('image-post-preview-feed')).toBeNull();
+    expect(onRequestOpenFile).not.toHaveBeenCalled();
   });
 
   it('shows the feedback widget after a successful turn that produced files', () => {

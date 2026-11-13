@@ -1,16 +1,18 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from './Button';
+import { SelectField } from './SelectField';
+import { Toast } from './Toast';
 import {
   AUTO_POSTER_ASPECT_RATIOS,
   AUTO_POSTER_BRANDS,
   AUTO_POSTER_DEFAULT_ASPECT_RATIO,
   AUTO_POSTER_DEFAULT_BRAND,
   autoPosterBrandLabel,
-  autoPosterUsesZReference,
   buildLoanPosterPrompt,
   LOAN_POSTER_SKILL_ID,
-  loadZambiaPosterReference,
+  loadAutoPosterLogo,
   normalizeZambiaPosterCount,
   type AutoPosterAspectRatio,
   type AutoPosterBrand,
@@ -19,6 +21,15 @@ import {
 
 const MEDIA_PLUGIN_ID = 'od-media-generation';
 const IMAGE_MODEL = 'gpt-image-2';
+const COUNT_OPTIONS = Array.from({ length: 10 }, (_, index) => ({
+  value: String(index + 1),
+  label: `${index + 1} 张`,
+}));
+const ASPECT_OPTIONS = AUTO_POSTER_ASPECT_RATIOS.map((value) => ({ value, label: value }));
+const BRAND_OPTIONS = AUTO_POSTER_BRANDS.map((value) => ({
+  value,
+  label: autoPosterBrandLabel(value),
+}));
 
 interface LiteImageHomeProps {
   onOpenWorkspace?: () => void;
@@ -68,9 +79,7 @@ export function LiteImageHome({
         ratio: aspectRatio,
       };
 
-      const referencePromise = autoPosterUsesZReference(brand)
-        ? loadZambiaPosterReference()
-        : null;
+      const bundledLogo = await loadAutoPosterLogo(brand);
       const project = await createImageProject({
         id: browserUuid(),
         name: `${brandLabel} 贷款海报`,
@@ -83,8 +92,8 @@ export function LiteImageHome({
         pluginInputs,
         aspectRatio,
       });
-      const attachments = referencePromise
-        ? await uploadInternalReference(project.project.id, await referencePromise)
+      const attachments = bundledLogo
+        ? await uploadInternalReference(project.project.id, bundledLogo)
         : [];
 
       try {
@@ -136,61 +145,59 @@ export function LiteImageHome({
         <h1>一键生成贷款海报</h1>
         <p>选择数量、尺寸和品牌，Niki 会直接创建项目并开始出图。</p>
 
-        <div className="lite-image-home__composer">
-          <label>
-            <span>数量</span>
-            <select
-              data-testid="lite-image-count"
-              value={count}
-              disabled={pending}
-              onChange={(event) => setCount(normalizeZambiaPosterCount(Number(event.target.value)))}
-            >
-              {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
-                <option key={value} value={value}>{value} 张</option>
-              ))}
-            </select>
-          </label>
+        <div className="lite-image-home__composer od-filter-grid">
+          <SelectField
+            className="od-filter-grid__item"
+            label="数量"
+            value={String(count)}
+            options={COUNT_OPTIONS}
+            testId="lite-image-count"
+            disabled={pending}
+            onChange={(value) => setCount(normalizeZambiaPosterCount(Number(value)))}
+          />
 
-          <label>
-            <span>尺寸</span>
-            <select
-              data-testid="lite-image-aspect"
-              value={aspectRatio}
-              disabled={pending}
-              onChange={(event) => setAspectRatio(event.target.value as AutoPosterAspectRatio)}
-            >
-              {AUTO_POSTER_ASPECT_RATIOS.map((value) => (
-                <option key={value} value={value}>{value}</option>
-              ))}
-            </select>
-          </label>
+          <SelectField
+            className="od-filter-grid__item"
+            label="尺寸"
+            value={aspectRatio}
+            options={ASPECT_OPTIONS}
+            testId="lite-image-aspect"
+            disabled={pending}
+            onChange={(value) => setAspectRatio(value as AutoPosterAspectRatio)}
+          />
 
-          <label>
-            <span>品牌</span>
-            <select
-              data-testid="lite-image-brand"
-              value={brand}
-              disabled={pending}
-              onChange={(event) => setBrand(event.target.value as AutoPosterBrand)}
-            >
-              {AUTO_POSTER_BRANDS.map((value) => (
-                <option key={value} value={value}>{autoPosterBrandLabel(value)}</option>
-              ))}
-            </select>
-          </label>
+          <SelectField
+            className="od-filter-grid__item od-filter-grid__wide"
+            label="品牌"
+            value={brand}
+            options={BRAND_OPTIONS}
+            testId="lite-image-brand"
+            disabled={pending}
+            onChange={(value) => setBrand(value as AutoPosterBrand)}
+          />
 
-          <button
-            className="lite-image-home__submit"
+          <Button
+            className="lite-image-home__submit od-filter-grid__action"
             data-testid="lite-image-submit"
-            type="button"
+            variant="primary"
+            loading={pending}
             disabled={pending}
             onClick={() => void submit()}
           >
-            {pending ? '正在启动出图…' : '立即出图'}
-          </button>
+            {pending ? '正在启动出图…' : '生成'}
+          </Button>
         </div>
 
-        {error ? <div className="lite-image-home__error" role="alert">{error}</div> : null}
+        {error ? (
+          <Toast
+            message={error}
+            tone="error"
+            persistent
+            dismissible
+            dismissLabel="关闭错误提示"
+            onDismiss={() => setError(null)}
+          />
+        ) : null}
       </section>
     </main>
   );
