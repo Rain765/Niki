@@ -1,4 +1,6 @@
 import {
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useMemo,
@@ -148,6 +150,10 @@ import { buildContinueInCliToast } from '../lib/build-continue-in-cli-toast';
 import { buildClipboardPrompt } from '../lib/build-clipboard-prompt';
 import { copyToClipboard } from '../lib/copy-to-clipboard';
 import { effectiveMaxTokens } from '../state/maxTokens';
+
+const CompetitorGallery = lazy(() => import('./CompetitorGallery').then((module) => ({
+  default: module.CompetitorGallery,
+})));
 
 interface Props {
   project: Project;
@@ -521,6 +527,7 @@ export function ProjectView({
   const [liveArtifactEvents, setLiveArtifactEvents] = useState<LiveArtifactEventItem[]>([]);
   const [workspaceFocused, setWorkspaceFocused] = useState(false);
   const [workspaceCollapsed, setWorkspaceCollapsed] = useState(directLoanPosterProject);
+  const [competitorGalleryOpen, setCompetitorGalleryOpen] = useState(false);
   // Per-session override for the BYOK SenseAudio chat's generate_image
   // tool. Seeded once from Settings (config.byokImageModel) so the
   // composer dropdown opens on the user's chosen default; subsequent
@@ -3643,14 +3650,16 @@ export function ProjectView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [mobileWorkspaceOpen]);
 
-  const directPosterCanvasOpen =
-    workspaceFocused || mobileWorkspaceOpen || !workspaceCollapsed;
+  const directPosterCanvasOpen = !competitorGalleryOpen
+    && (workspaceFocused || mobileWorkspaceOpen || !workspaceCollapsed);
   const showDirectPosterChat = useCallback(() => {
+    setCompetitorGalleryOpen(false);
     setMobileWorkspaceOpen(false);
     setWorkspaceFocused(false);
     setWorkspaceCollapsed(true);
   }, []);
   const showDirectPosterCanvas = useCallback(() => {
+    setCompetitorGalleryOpen(false);
     setWorkspaceCollapsed(false);
     if (window.matchMedia?.('(max-width: 900px)').matches) {
       setWorkspaceFocused(false);
@@ -3659,6 +3668,12 @@ export function ProjectView({
       setMobileWorkspaceOpen(false);
       setWorkspaceFocused(true);
     }
+  }, []);
+  const showCompetitorGallery = useCallback(() => {
+    setMobileWorkspaceOpen(false);
+    setWorkspaceFocused(false);
+    setWorkspaceCollapsed(true);
+    setCompetitorGalleryOpen(true);
   }, []);
 
   return (
@@ -3678,15 +3693,15 @@ export function ProjectView({
           <div
             className="direct-poster-surface-switch"
             role="tablist"
-            aria-label={`${t('chat.tabChat')} / ${t('workspace.canvas')}`}
+            aria-label={`${t('chat.tabChat')} / ${t('workspace.canvas')} / 竞品`}
             data-testid="project-surface-switch"
           >
             <button
               type="button"
               role="tab"
-              className={!directPosterCanvasOpen ? 'is-active' : ''}
+              className={!directPosterCanvasOpen && !competitorGalleryOpen ? 'is-active' : ''}
               data-testid="project-chat-surface-tab"
-              aria-selected={!directPosterCanvasOpen}
+              aria-selected={!directPosterCanvasOpen && !competitorGalleryOpen}
               onClick={showDirectPosterChat}
             >
               <Icon name="comment" size={15} />
@@ -3703,9 +3718,25 @@ export function ProjectView({
               <Icon name="grid" size={15} />
               <span>{t('workspace.canvas')}</span>
             </button>
+            <button
+              type="button"
+              role="tab"
+              className={competitorGalleryOpen ? 'is-active' : ''}
+              data-testid="project-competitor-surface-tab"
+              aria-selected={competitorGalleryOpen}
+              onClick={showCompetitorGallery}
+            >
+              <Icon name="image" size={15} />
+              <span>竞品</span>
+            </button>
           </div>
         </header>
       ) : null}
+      {competitorGalleryOpen ? (
+        <Suspense fallback={<CenteredLoader />}>
+          <CompetitorGallery />
+        </Suspense>
+      ) : (
       <div
         ref={splitRef}
         className={[
@@ -4013,6 +4044,7 @@ export function ProjectView({
           canvasOnly={false}
         />
       </div>
+      )}
       {projectActionsToast ? (
         <Toast
           message={projectActionsToast.message}

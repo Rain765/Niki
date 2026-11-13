@@ -265,6 +265,23 @@ describe('ProjectView pending prompt seeding', () => {
     );
     expect(screen.getByTestId('project-chat-surface-tab')
       .getAttribute('aria-selected')).toBe('true');
+
+    fireEvent.click(screen.getByTestId('project-competitor-surface-tab'));
+
+    expect(screen.getByTestId('project-competitor-surface-tab')
+      .getAttribute('aria-selected')).toBe('true');
+    await waitFor(() => {
+      expect(screen.getByTestId('competitor-gallery-grid')).toBeTruthy();
+    });
+    expect(view.container.querySelector('.split')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('project-chat-surface-tab'));
+
+    expect(screen.getByTestId('project-chat-surface-tab')
+      .getAttribute('aria-selected')).toBe('true');
+    expect(view.container.querySelector('.split')?.className).toContain(
+      'split-workspace-collapsed',
+    );
   });
 
   it('keeps the secondary file workspace tucked when a poster is shown in chat', async () => {
