@@ -448,10 +448,10 @@ jobs:
         include:
           - group: core
             grep_flag: --grep-invert
-            grep_pattern: home starters|home hero
-          - group: starters
+            grep_pattern: poster controls
+          - group: poster-controls
             grep_flag: --grep
-            grep_pattern: home starters|home hero
+            grep_pattern: poster controls
 
     steps:
       - name: Checkout

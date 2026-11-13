@@ -1,108 +1,50 @@
 import { expect, test } from '@playwright/test';
-import type { Page } from '@playwright/test';
 
-const STORAGE_KEY = 'open-design:config';
-
-test.describe.configure({ timeout: 30_000 });
-
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript((key) => {
-    window.localStorage.setItem(
-      key,
-      JSON.stringify({
-        mode: 'daemon',
-        apiKey: '',
-        baseUrl: 'https://api.anthropic.com',
-        model: 'claude-sonnet-4-5',
-        agentId: 'mock',
-        skillId: null,
-        designSystemId: null,
-        onboardingCompleted: true,
-        agentModels: {},
-        privacyDecisionAt: 1,
-        telemetry: { metrics: false, content: false, artifactManifest: false },
-      }),
-    );
-  }, STORAGE_KEY);
-
-  await page.route('**/api/agents', async (route) => {
-    await route.fulfill({
-      json: {
-        agents: [
-          {
-            id: 'mock',
-            name: 'Mock Agent',
-            bin: 'mock-agent',
-            available: true,
-            version: 'test',
-            models: [{ id: 'default', label: 'Default' }],
-          },
-        ],
-      },
-    });
-  });
-
-  await page.route('**/api/app-config', async (route) => {
-    if (route.request().method() !== 'GET') {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({
-      json: {
-        config: {
-          onboardingCompleted: true,
-          agentId: 'mock',
-          skillId: null,
-          designSystemId: null,
-          agentModels: {},
-          privacyDecisionAt: 1,
-          telemetry: { metrics: false, content: false, artifactManifest: false },
-        },
-      },
-    });
-  });
+// The production entry is PosterApp. The former sidebar/composer shell is no
+// longer an App Router entry; these checks exercise the actual deployed pages.
+test('home loads the production navigation and poster controls', async ({ page, request }) => {
+  const health = await request.get('/api/health');
+  expect(health.ok()).toBe(true);
+  expect(await health.json()).toMatchObject({ ok: true });
+  await page.goto('/');
+  const navigation = page.getByRole('navigation', { name: '主导航' });
+  await expect(navigation.getByRole('button')).toHaveText([
+    '海报', '视频', 'PPT', '品牌', '文档', '语音', '竞品',
+  ]);
+  await expect(page.getByRole('region', { name: '海报生成设置' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '产品', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '生成', exact: true })).toBeEnabled();
 });
 
-test('home loads with the primary entry controls', async ({ page }) => {
-  await gotoEntryHome(page);
-
-  await expect(page.getByTestId('niki-project-sidebar')).toBeVisible();
-  await expect(page.getByTestId('niki-new-project')).toHaveClass(/is-active/);
-  await expect(page.getByTestId('niki-design-files')).toBeVisible();
-  await expect(page.getByTestId('home-hero-input')).toBeVisible();
+test('competitor entry filters, previews, navigates images and restores after reload', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '竞品', exact: true }).click();
+  await expect(page).toHaveURL(/\?mode=competitors$/);
+  const gallery = page.getByRole('region', { name: '竞品截图', exact: true });
+  await expect(gallery).toBeVisible();
+  await expect(gallery.locator('.competitor-gallery__card')).toHaveCount(100);
+  await gallery.getByRole('navigation', { name: '竞品截图分类' }).getByRole('button', { name: /首页与信贷入口/ }).click();
+  await expect(gallery.locator('.competitor-gallery__card')).toHaveCount(10);
+  await gallery.getByRole('searchbox').fill('SuperKwacha');
+  await expect(gallery.locator('.competitor-gallery__card')).toHaveCount(1);
+  await gallery.getByRole('button', { name: '清除搜索', exact: true }).click();
+  await gallery.getByRole('button', { name: /^预览 / }).first().click();
+  const preview = page.getByRole('dialog', { name: /^预览 / });
+  await expect(preview).toBeVisible();
+  await expect(preview.locator('.competitor-gallery__lightbox-counter')).toHaveText('1 / 10');
+  await preview.getByRole('button', { name: '下一张', exact: true }).click();
+  await expect(preview.locator('.competitor-gallery__lightbox-counter')).toHaveText('2 / 10');
+  await page.keyboard.press('Escape');
+  await expect(preview).toHaveCount(0);
+  await page.reload();
+  await expect(gallery).toBeVisible();
+  await expect(gallery.locator('.competitor-gallery__card')).toHaveCount(100);
 });
 
-test('settings menu is reachable from home', async ({ page }) => {
-  await gotoEntryHome(page);
-
-  await page.getByTestId('niki-account-menu-trigger').click();
-  const settingsMenu = page.getByTestId('niki-account-menu-popover');
-  await expect(settingsMenu).toBeVisible();
-  await settingsMenu.getByTestId('niki-account-open-settings').click();
-  await expect(page.getByRole('dialog').first()).toBeVisible();
+test('competitor direct link preserves the poster return path', async ({ page }) => {
+  await page.goto('/?mode=competitors');
+  await expect(page.getByRole('region', { name: '竞品截图', exact: true })).toBeVisible();
+  await page.getByRole('navigation', { name: '主导航' }).getByRole('button', { name: '海报', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('region', { name: '海报生成设置' })).toBeVisible();
 });
-
-test('design files navigation reaches the unified workspace shell', async ({ page }) => {
-  await gotoEntryHome(page);
-  await page.getByTestId('niki-design-files').click();
-  await expect(page).toHaveURL(/\/design-files$/);
-  await expect(page.getByTestId('global-design-files')).toBeVisible();
-  await expect(page.getByTestId('niki-project-sidebar')).toBeVisible();
-});
-
-async function gotoEntryHome(page: Page) {
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await waitForLoadingToClear(page);
-  const privacyDialog = page.getByRole('dialog').filter({ hasText: 'Help us improve Niki' });
-  if (await privacyDialog.isVisible().catch(() => false)) {
-    await privacyDialog.getByRole('button', { name: /not now/i }).click();
-    await expect(privacyDialog).toHaveCount(0);
-  }
-  await expect(page.getByTestId('home-hero')).toBeVisible();
-  await expect(page.getByTestId('home-hero-input')).toBeVisible();
-}
-
-async function waitForLoadingToClear(page: Page) {
-  const loading = page.getByText('Loading Niki…');
-  await loading.waitFor({ state: 'detached', timeout: 10_000 }).catch(() => {});
-}
