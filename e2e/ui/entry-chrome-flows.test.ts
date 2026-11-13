@@ -29,12 +29,12 @@ test('poster controls expose supported quantities and keyboard selection', async
 
 test('poster controls keep history and language selection available', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('tab', { name: '历史生成', exact: true }).click();
-  await expect(page.getByRole('tab', { name: '历史生成', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: /^历史生成\s*\d+$/ }).click();
+  await expect(page.getByRole('tab', { name: /^历史生成\s*\d+$/ })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.getByRole('navigation', { name: 'Primary navigation' })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Product', exact: true })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'History', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /^History\s*\d+$/ })).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('button', { name: '中文', exact: true }).click();
   await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible();
 });
