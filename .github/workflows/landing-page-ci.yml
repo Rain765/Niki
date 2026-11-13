@@ -52,7 +52,8 @@ concurrency:
 jobs:
   validate:
     name: Validate landing page
-    runs-on: ubuntu-latest
+    # Playwright 1.60 does not support the ubuntu-26.04 latest image yet.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
