@@ -77,6 +77,7 @@ export const zhCN: Dict = {
   'posterNav.documents': '文档',
   'posterNav.logo': '品牌',
   'posterNav.english': '语音',
+  'posterNav.more': '更多',
   'posterNav.language': '界面语言',
   'posterNav.posterEyebrow': 'NIKI 海报',
   'posterNav.posterTitle': '生成贷款海报',
