@@ -128,3 +128,20 @@ test('privileged workflow runs trusted code without PR dependencies or artifacts
   assert.match(workflow, /actions: write/);
   assert.doesNotMatch(workflow, /self-hosted|download-artifact|pnpm install|npm install|pull_request_target:/);
 });
+
+test('bot-dispatched main CI explicitly hands off production only after all validation gates', async () => {
+  const workflow = await readFile(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const handoff = workflow.split('\n  niki_production_handoff:\n')[1];
+  assert.ok(handoff, 'Bot main CI must not rely on a subsequent workflow_run event');
+  assert.match(handoff, /needs: \[validate, tools_workspace_tests, runtime_trace\]/);
+  for (const gate of ["github.repository == 'Rain765/Niki'", "github.ref == 'refs/heads/main'",
+    "github.event_name == 'workflow_dispatch'", "github.actor == 'github-actions[bot]'",
+    "needs.validate.result == 'success'", "needs.tools_workspace_tests.result == 'success'",
+    "needs.runtime_trace.result == 'success'", "vars.NIKI_PRODUCTION_AUTO_DEPLOY == 'true'"]) {
+    assert.ok(handoff.includes(gate), `Missing production gate: ${gate}`);
+  }
+  assert.match(handoff, /current_main.*TARGET_SHA/s);
+  assert.match(handoff, /gh workflow run niki-production-deploy.yml/);
+  assert.match(handoff, /target_sha="\$TARGET_SHA"/);
+  assert.doesNotMatch(handoff, /actions\/checkout|self-hosted|--admin/);
+});

@@ -664,3 +664,38 @@ jobs:
               )
             ][]
           ' "$run_json" >> "$GITHUB_STEP_SUMMARY"
+
+  niki_production_handoff:
+    name: Dispatch validated Niki production release
+    needs: [validate, tools_workspace_tests, runtime_trace]
+    if: >-
+      always() &&
+      github.repository == 'Rain765/Niki' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.actor == 'github-actions[bot]' &&
+      vars.NIKI_PRODUCTION_AUTO_DEPLOY == 'true' &&
+      needs.validate.result == 'success' &&
+      needs.tools_workspace_tests.result == 'success' &&
+      needs.runtime_trace.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      # Explicit dispatch is needed for the bot-triggered CI chain. No PR code
+      # runs with this token and every validation dependency has already passed.
+      - name: Dispatch current validated main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          current_main="$(gh api repos/Rain765/Niki/git/ref/heads/main --jq .object.sha)"
+          if [[ "$current_main" != "$TARGET_SHA" ]]; then
+            echo "Main has advanced; skip stale production handoff $TARGET_SHA"
+            exit 0
+          fi
+          gh workflow run niki-production-deploy.yml --repo Rain765/Niki \
+            --ref main -f target_sha="$TARGET_SHA"
