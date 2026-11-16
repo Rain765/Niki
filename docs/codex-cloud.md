@@ -48,8 +48,8 @@ Allowing a host does not supply credentials. Configure test integration secrets
 through the environment's secret/variable controls, never in Git or this file.
 Do not import the Mac's `.od`, `.tmp`, auth files, databases, or browser profiles.
 
-The normal delivery path is **Codex Cloud → GitHub → Codex on the Mac mini →
-the existing local release script → the public Pages URL**. Routine application
+The normal delivery path is **Codex Cloud → GitHub PR and CI → automatic merge →
+main CI → Mac runner and existing release script → the public Pages URL**. Routine application
 changes do not require a Cloudflare API token or cloud VPN. Public HTTP access
 can verify a release but cannot install code or restart the Mac application.
 Direct cloud-to-host deployment would require a separately configured and
@@ -157,6 +157,42 @@ and this source ref. Changes to the install/start configuration require testing
 and republication; updating a task alone does not update the reusable setup.
 
 ## Production handoff
+
+### Unattended cloud delivery
+
+For a requested Niki change, finish local validation and push a task branch named
+`codex/<task-slug>` in `Rain765/Niki`. Create a **ready** PR targeting `main`
+through the cloud task's authorized GitHub connection. New PRs authored by
+`Rain765` after the configured activation timestamp are handled by
+**Niki cloud auto-merge** once their latest commit passes PR CI. The job retains
+main's protection rules and uses an exact head-SHA condition before merging.
+No per-PR Auto-merge click or personal token in the cloud environment is needed.
+Use a draft PR or `no-automerge` label to keep unfinished work from publication.
+Old backlog PRs, forks, other authors and other target branches are excluded.
+
+After merging, the automation explicitly dispatches main CI, whose successful
+completion triggers **Niki production deploy** on the Mac. Wait for that workflow
+and verify `https://niki-work-app.pages.dev/api/version` matches the deployed main
+commit. The merge commit differs from the original PR head; report the actual
+deployed SHA. Verify changed behavior and loaded assets when applicable, and
+label any unavailable authenticated/mobile browser checks.
+
+The task needs permission to push its branch and create the PR, but the GitHub
+workflow supplies the merge permission. Do not diagnose a missing `gh` login
+in the cloud shell as a requirement for the user to click Merge. Use the available
+GitHub connection to create the PR; if that connection cannot create it, report
+that specific access gap. Do not copy a Mac token, SSH key or Cloudflare credential
+into the cloud workspace.
+
+CI failures, conflicts and stale branches need an actual fix and fresh checks.
+If a draft or held PR's CI passed before it became ready, rerun that PR CI or use
+the runbook's recheck action. If merge succeeds but main CI is absent, the
+runbook also describes safe dispatch recovery. Keep failures visible; do not
+disable required checks, bypass protection or claim that a source push updated
+production. See [`deploy/AUTO_DEPLOY.md`](../deploy/AUTO_DEPLOY.md) for the switches,
+eligibility policy, recovery procedure and pause controls.
+
+### Direct Mac handoff when automation is unavailable
 
 Cloud development does not move Niki hosting or enable standalone Codex remote
 control. For a product change, finish the scoped commit and applicable checks,
