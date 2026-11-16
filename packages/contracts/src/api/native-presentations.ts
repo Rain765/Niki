@@ -82,21 +82,38 @@ export function nativePresentationSelectionError(workflow: unknown, template: un
 }
 
 export const NATIVE_SAFETY_ORANGE_INK = '#0a0a0a';
+export const NATIVE_PRESENTATION_DEFAULT_RATIO = '16:9' as const;
+
+const NATIVE_PRESENTATION_DEFAULT_CANVAS_INSTRUCTION =
+  `画布比例固定为 ${NATIVE_PRESENTATION_DEFAULT_RATIO} 横向宽屏。所有页面必须使用相同的 16:9 画布尺寸；不要改为 4:3、16:10、正方形或竖版，也不要通过裁切页面内容模拟 16:9。`;
+
+function nativePresentationCanvasInstruction(workflow: NativePresentationWorkflow, template: string): string {
+  if (workflow === 'html-ppt' && template === 'xhs-post') {
+    return '用户已明确选择小红书图文模板，画布按该模板保持 3:4（810×1080）；不要把这一例外作为其他演示稿的默认比例。';
+  }
+  return NATIVE_PRESENTATION_DEFAULT_CANVAS_INSTRUCTION;
+}
 
 export function nativePresentationDesignInstructions(workflow: NativePresentationWorkflow, template: string, theme = ''): string {
+  const canvas = nativePresentationCanvasInstruction(workflow, template);
   if (workflow === 'html-ppt') {
     const start = !template ? '起点尚未选择，按原流程推荐整稿模板或自由编排，并与用户确认。'
       : template === 'custom' ? '用户选择自由编排，从 templates/deck.html 与 templates/single-page/ 按原流程组织页面。'
       : `用户选择整稿模板 templates/full-decks/${template}/index.html 及同目录 style.css。`;
     return [
+      canvas,
       start,
       template && template !== 'custom' ? '完整保留整稿模板自带主题、字体和样式，不叠加通用主题 CSS。' : theme ? `用户选择主题 assets/themes/${theme}.css。按 references/themes.md 和 references/authoring-guide.md 应用，检查最终计算样式确实使用该主题。` : '保留原始默认主题。',
       '完整使用 html-ppt 的模板、主题、布局、图形与动效能力。背景跟随选定模板与主题的实际样式，不另加模板未提供的背景轮换规则。按原流程保留完整依赖及演讲者运行时。',
     ].join('\n');
   }
   const style = template.startsWith('A') ? 'A' : template.startsWith('B') ? 'B' : '';
-  if (!style) return '按 guizang-ppt-skill 原流程先确认 A/B 风格和对应主题，再读取该风格的模板与参考文件。';
+  if (!style) return [
+    canvas,
+    '按 guizang-ppt-skill 原流程先确认 A/B 风格和对应主题，再读取该风格的模板与参考文件。',
+  ].join('\n');
   return [
+    canvas,
     style === 'A' ? '用户选择 Guizang A：assets/template.html、references/layouts.md、references/themes.md。'
       : '用户选择 Guizang B：assets/template-swiss.html、references/swiss-layout-lock.md、references/layouts-swiss.md、references/themes-swiss.md。',
     theme ? `选定主题：${theme}。` : '主题按所选风格原流程推荐并确认。',
