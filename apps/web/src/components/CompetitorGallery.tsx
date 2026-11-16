@@ -128,9 +128,9 @@ export function CompetitorGallery({
           </div>
           <label className="competitor-gallery__search">
             <Icon name="search" size={16} />
-            <span className="sr-only">搜索竞品截图</span>
             <input
               type="search"
+              aria-label="搜索竞品截图"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索产品、页面或关键词"
