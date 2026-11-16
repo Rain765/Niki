@@ -453,6 +453,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     () => initialMode ?? initialCreationMode(),
   );
   const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video');
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
@@ -487,6 +488,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const observedBatchIdRef = useRef<string | null>(null);
   const generationFeedbackIdRef = useRef(0);
   const videoGenerationStartedRef = useRef(false);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<HTMLElement | null>(null);
   const topbarRef = useRef<HTMLElement | null>(null);
@@ -526,6 +528,28 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
       window.removeEventListener('keydown', dismissMenuWithKeyboard);
     };
   }, [accountMenuOpen]);
+
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    const dismissMenu = (event: PointerEvent) => {
+      if (!moreMenuRef.current?.contains(event.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    const dismissMenuWithKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMoreMenuOpen(false);
+    };
+    window.addEventListener('pointerdown', dismissMenu);
+    window.addEventListener('keydown', dismissMenuWithKeyboard);
+    return () => {
+      window.removeEventListener('pointerdown', dismissMenu);
+      window.removeEventListener('keydown', dismissMenuWithKeyboard);
+    };
+  }, [moreMenuOpen]);
+
+  useEffect(() => {
+    if (presentationLocked) setMoreMenuOpen(false);
+  }, [presentationLocked]);
 
   const posterFiles = useMemo(
     () => files
@@ -1137,28 +1161,6 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             </button>
             <button disabled={presentationLocked}
               type="button"
-              className={creationMode === 'documents' ? 'is-active' : undefined}
-              aria-current={creationMode === 'documents' ? 'page' : undefined}
-              onClick={() => {
-                setCreationMode('documents');
-                updateCreationModeUrl('documents');
-              }}
-            >
-              {t('posterNav.documents')}
-            </button>
-            <button disabled={presentationLocked}
-              type="button"
-              className={creationMode === 'english' ? 'is-active' : undefined}
-              aria-current={creationMode === 'english' ? 'page' : undefined}
-              onClick={() => {
-                setCreationMode('english');
-                updateCreationModeUrl('english');
-              }}
-            >
-              {t('posterNav.english')}
-            </button>
-            <button disabled={presentationLocked}
-              type="button"
               className={creationMode === 'competitors' ? 'is-active' : undefined}
               aria-current={creationMode === 'competitors' ? 'page' : undefined}
               onClick={() => {
@@ -1168,6 +1170,47 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             >
               竞品
             </button>
+            <div className="poster-app__more-wrap" ref={moreMenuRef}>
+              <button
+                disabled={presentationLocked}
+                type="button"
+                className={`poster-app__more-trigger${creationMode === 'documents' || creationMode === 'english' ? ' is-active' : ''}`}
+                aria-haspopup="menu"
+                aria-expanded={moreMenuOpen}
+                aria-current={creationMode === 'documents' || creationMode === 'english' ? 'page' : undefined}
+                onClick={() => setMoreMenuOpen((current) => !current)}
+              >
+                {t('posterNav.more')}
+                <Icon name="chevron-down" size={14} />
+              </button>
+              <div
+                className={`poster-app__more-menu${moreMenuOpen ? ' is-open' : ''}`}
+                role="menu"
+                aria-hidden={!moreMenuOpen}
+              >
+                {([
+                  ['documents', 'posterNav.documents'],
+                  ['english', 'posterNav.english'],
+                ] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    disabled={presentationLocked}
+                    type="button"
+                    role="menuitem"
+                    tabIndex={moreMenuOpen ? 0 : -1}
+                    className={creationMode === mode ? 'is-active' : undefined}
+                    aria-current={creationMode === mode ? 'page' : undefined}
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      setCreationMode(mode);
+                      updateCreationModeUrl(mode);
+                    }}
+                  >
+                    {t(label)}
+                  </button>
+                ))}
+              </div>
+            </div>
           </nav>
           <div className="poster-app__topbar-actions">
             <div

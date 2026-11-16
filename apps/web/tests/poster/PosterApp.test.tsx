@@ -260,6 +260,11 @@ afterEach(() => {
 
 function selectWorkspace(name: 'Posters' | 'Videos' | 'Documents' | 'Logo' | 'Voice' | '竞品') {
   const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
+  if (name === 'Documents' || name === 'Voice') {
+    fireEvent.click(within(navigation).getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name }));
+    return;
+  }
   fireEvent.click(within(navigation).getByRole('button', { name }));
 }
 
@@ -494,12 +499,20 @@ describe('PosterApp mobile-safe flow', () => {
     const navigation = screen.getByRole('navigation', { name: '主导航' });
     expect(within(navigation).getByRole('button', { name: '海报' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '视频' })).toBeTruthy();
-    expect(within(navigation).getByRole('button', { name: '文档' })).toBeTruthy();
     expect(within(navigation).getByRole('button', { name: '品牌' })).toBeTruthy();
-    expect(within(navigation).getByRole('button', { name: '语音' })).toBeTruthy();
-    expect(Array.from(navigation.children).map((item) => item.textContent)).toEqual([
-      '海报', '视频', 'PPT', '品牌', '文档', '语音', '竞品',
+    expect(within(navigation).getByRole('button', { name: '竞品' })).toBeTruthy();
+    expect(within(navigation).getAllByRole('button').map((item) => item.textContent)).toEqual([
+      '海报', '视频', 'PPT', '品牌', '竞品', '更多',
     ]);
+    expect(within(navigation).queryByRole('button', { name: '文档' })).toBeNull();
+    fireEvent.click(within(navigation).getByRole('button', { name: '更多' }));
+    const moreMenu = screen.getByRole('menu');
+    expect(within(moreMenu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      '文档', '语音',
+    ]);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(within(navigation).getByRole('button', { name: '更多' }).getAttribute('aria-expanded'))
+      .toBe('false');
     expect(screen.getByRole('region', { name: '海报生成设置' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '产品' })).toBeTruthy();
     expect(screen.getByRole('combobox', { name: '类型' }).textContent).toContain('防欺诈');
@@ -1076,9 +1089,9 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
-    const documentsTab = within(navigation).getByRole('button', { name: 'Documents' });
-    documentsTab.focus();
-    fireEvent.click(documentsTab);
+    expect(within(navigation).queryByRole('button', { name: 'Documents' })).toBeNull();
+    fireEvent.click(within(navigation).getByRole('button', { name: 'More' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Documents' }));
 
     expect(screen.queryByText('Document Search')).toBeNull();
     expect(screen.getByRole('heading', { name: 'What do you want to find?' })).toBeTruthy();
@@ -1086,9 +1099,24 @@ describe('PosterApp mobile-safe flow', () => {
       name: 'Search Feishu documents or paste a link',
     })).toBeTruthy();
     expect(window.location.search).toBe('?mode=documents');
-    expect(document.activeElement).toBe(documentsTab);
+    expect(within(navigation).getByRole('button', { name: 'More' }).getAttribute('aria-expanded'))
+      .toBe('false');
+    expect(within(navigation).getByRole('button', { name: 'More' }).getAttribute('aria-current'))
+      .toBe('page');
     expect(screen.queryByRole('region', { name: 'Poster generation settings' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Tutorial video generator' })).toBeNull();
+  });
+
+  it('closes the More menu when clicking outside and marks its active workspace', () => {
+    render(<PosterApp initialMode="english" />);
+
+    const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
+    const more = within(navigation).getByRole('button', { name: 'More' });
+    expect(more.getAttribute('aria-current')).toBe('page');
+    fireEvent.click(more);
+    expect(screen.getByRole('menuitem', { name: 'Voice' }).getAttribute('aria-current')).toBe('page');
+    fireEvent.pointerDown(document.body);
+    expect(more.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('opens the competitor gallery from the production navigation and restores its URL', () => {
@@ -1118,15 +1146,20 @@ describe('PosterApp mobile-safe flow', () => {
     render(<PosterApp />);
 
     const navigation = screen.getByRole('navigation', { name: 'Primary navigation' });
-    expect(Array.from(navigation.children).map((item) => item.textContent)).toEqual([
+    expect(within(navigation).getAllByRole('button').map((item) => item.textContent)).toEqual([
       'Posters',
       'Videos',
       'PPT',
       'Logo',
+      '竞品',
+      'More',
+    ]);
+    fireEvent.click(within(navigation).getByRole('button', { name: 'More' }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
       'Documents',
       'Voice',
-      '竞品',
     ]);
+    fireEvent.keyDown(window, { key: 'Escape' });
     selectWorkspace('Logo');
 
     expect(within(navigation).getByRole('button', { name: 'Logo' }).getAttribute('aria-current'))

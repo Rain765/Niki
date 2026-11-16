@@ -108,6 +108,7 @@ export interface Dict {
   'posterNav.documents': string;
   'posterNav.logo': string;
   'posterNav.english': string;
+  'posterNav.more': string;
   'posterNav.language': string;
   'posterNav.posterEyebrow': string;
   'posterNav.posterTitle': string;
