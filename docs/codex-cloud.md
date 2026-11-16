@@ -170,8 +170,9 @@ No per-PR Auto-merge click or personal token in the cloud environment is needed.
 Use a draft PR or `no-automerge` label to keep unfinished work from publication.
 Old backlog PRs, forks, other authors and other target branches are excluded.
 
-After merging, the automation explicitly dispatches main CI, whose successful
-completion triggers **Niki production deploy** on the Mac. Wait for that workflow
+After merging, the automation explicitly dispatches main CI. Its final handoff
+job waits for all validation gates and explicitly triggers **Niki production
+deploy** on the Mac for the checked main commit. Wait for that workflow
 and verify `https://niki-work-app.pages.dev/api/version` matches the deployed main
 commit. The merge commit differs from the original PR head; report the actual
 deployed SHA. Verify changed behavior and loaded assets when applicable, and

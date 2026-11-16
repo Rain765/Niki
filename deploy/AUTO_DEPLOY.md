@@ -59,7 +59,7 @@ checkout, so automatic deployment would correctly refuse to run.
 
 `.github/workflows/niki-cloud-auto-merge.yml` closes the cloud delivery loop:
 
-`ready cloud PR → successful PR ci → merge into main → explicit main ci → Mac deployment`
+`ready cloud PR → successful PR ci → merge into main → explicit main ci → explicit deployment dispatch → Mac deployment`
 
 The GitHub-hosted merge job uses its short-lived `GITHUB_TOKEN` with only
 `contents: write`, `pull-requests: write`, and `actions: write`. The cloud task
@@ -90,14 +90,20 @@ after making it ready, or run **Niki cloud auto-merge** on `main` with its PR nu
 The privileged job executes only the workflow's trusted default-branch revision,
 installs no project dependencies and consumes no PR artifacts. It explicitly
 dispatches `ci.yml` on `main` after merging: a merge made with `GITHUB_TOKEN`
-does not itself trigger a `push` workflow. Only successful main CI then starts
-the existing production deployment. See [GitHub's token trigger rules](https://docs.github.com/en/actions/concepts/security/github_token).
+does not itself trigger a `push` workflow. For bot-dispatched main CI, the final
+**Dispatch validated Niki production release** job waits for workspace validation,
+tool tests and the runtime-summary job to succeed, rechecks the current main SHA,
+then explicitly dispatches production for that exact commit. The live acceptance
+run showed that relying on another `workflow_run` event after bot-dispatched CI
+left deployment untriggered. Ordinary user-triggered main CI retains the existing
+`workflow_run` path. See [GitHub's token trigger rules](https://docs.github.com/en/actions/concepts/security/github_token).
 
 To pause unattended merges, set `NIKI_CLOUD_AUTO_MERGE=false`; the production
 deployment switch is independent. If a merge succeeds but main CI dispatch fails,
 rerun **Niki cloud auto-merge** on `main` with the PR number. It can recover a
 bot-merged PR at the current main tip without merging again or duplicating an
-existing main CI run. Source branches are retained. If main has advanced, the
+existing main CI run. If main CI passed but its production handoff failed, rerun
+that failed CI job; it still checks main before dispatching. Source branches are retained. If main has advanced, the
 newer main delivery owns deployment. Always verify the final public release SHA.
 
 Validate this automation with:
