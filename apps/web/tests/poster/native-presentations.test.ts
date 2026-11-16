@@ -35,6 +35,7 @@ describe('original document handoff', () => {
 it('uses original template files and preserves original background rhythm', async () => {
   const { nativePresentationPrompt } = await import('../../src/poster/native-presentations');
   const prompt = nativePresentationPrompt({...brief,skill:'html-ppt',style:'tech-sharing'});
+  expect(prompt).toContain('画布比例固定为 16:9 横向宽屏');
   expect(prompt).toContain('templates/full-decks/tech-sharing/index.html');
   expect(prompt).toContain('背景跟随选定模板');
   expect(prompt).not.toContain('深浅');
