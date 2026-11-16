@@ -1,0 +1,52 @@
+name: Niki cloud auto-merge
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Recheck a ready cloud PR or recover its post-merge CI dispatch
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: niki-cloud-auto-merge-${{ github.event.workflow_run.head_branch || inputs.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >-
+      github.repository == 'Rain765/Niki' &&
+      vars.NIKI_CLOUD_AUTO_MERGE == 'true' &&
+      (github.event_name == 'workflow_run' || github.ref == 'refs/heads/main') &&
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      # Never execute the PR's code, install its dependencies or consume its artifacts.
+      - name: Checkout trusted workflow revision
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Merge checked cloud PR and dispatch main CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NIKI_CLOUD_AUTO_MERGE: ${{ vars.NIKI_CLOUD_AUTO_MERGE }}
+          NIKI_CLOUD_AUTO_MERGE_SINCE: ${{ vars.NIKI_CLOUD_AUTO_MERGE_SINCE }}
+        run: node deploy/scripts/niki-cloud-auto-merge.ts
