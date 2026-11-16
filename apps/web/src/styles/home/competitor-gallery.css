@@ -26,21 +26,6 @@
   background: var(--bg-panel);
 }
 
-.competitor-gallery__sidebar-head {
-  padding: 0 10px 22px;
-}
-
-.competitor-gallery__eyebrow {
-  display: block;
-  margin-bottom: 7px;
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.12em;
-}
-
-.competitor-gallery__sidebar-head h1,
-.competitor-gallery__sidebar-head p,
 .competitor-gallery__toolbar h2,
 .competitor-gallery__toolbar p,
 .competitor-gallery__card h3,
@@ -48,20 +33,6 @@
 .competitor-gallery__empty h3,
 .competitor-gallery__empty p {
   margin: 0;
-}
-
-.competitor-gallery__sidebar-head h1 {
-  color: var(--text-strong);
-  font-size: 21px;
-  line-height: 1.25;
-  letter-spacing: -0.025em;
-}
-
-.competitor-gallery__sidebar-head p {
-  margin-top: 8px;
-  color: var(--text-soft);
-  font-size: 12px;
-  line-height: 1.55;
 }
 
 .competitor-gallery__categories {
@@ -592,10 +563,6 @@
     overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--border);
-  }
-
-  .competitor-gallery__sidebar-head {
-    display: none;
   }
 
   .competitor-gallery__categories {

@@ -99,11 +99,6 @@ export function CompetitorGallery({
   return (
     <section className="competitor-gallery" aria-label="竞品截图">
       <aside className="competitor-gallery__sidebar" aria-label="截图分类">
-        <div className="competitor-gallery__sidebar-head">
-          <span className="competitor-gallery__eyebrow">灵感库</span>
-          <h1>竞品截图</h1>
-          <p>按页面类型浏览信贷产品设计参考</p>
-        </div>
         <nav className="competitor-gallery__categories" aria-label="竞品截图分类">
           {categories.map((item) => {
             const active = item === category;
