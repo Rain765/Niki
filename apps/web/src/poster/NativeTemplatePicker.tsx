@@ -4,7 +4,7 @@ import { NATIVE_HTML_TEMPLATES, nativePresentationThemes, type NativePresentatio
 import { useI18n } from '../i18n';
 import { SelectField } from '../components/SelectField';
 
-const LABELS = ['融资路演', '产品发布', '技术分享', '周报汇报', '图文分享', '培训课程', '演讲者模式', '白底编辑风', '深色关系图', '架构蓝图', '终端风', '渐变叙事', '测试报告', '柔和卡片', '极简导航'];
+const LABELS = ['融资路演', '产品发布', '技术分享', '周报汇报', '3:4 图文', '培训课程', '演讲者模式', '白底编辑风', '深色关系图', '架构蓝图', '终端风', '渐变叙事', '测试报告', '柔和卡片', '极简导航'];
 const THEME_LABELS: Record<string, string> = {
   'minimal-white':'极简白', 'editorial-serif':'衬线编辑', 'soft-pastel':'柔和粉彩', 'sharp-mono':'黑白利落', 'arctic-cool':'冰川蓝', 'sunset-warm':'暖色日落',
   'catppuccin-latte':'奶咖浅色', 'catppuccin-mocha':'摩卡深色', dracula:'暗夜紫', 'tokyo-night':'都市夜色', nord:'北欧冷色', 'solarized-light':'米白阅读',
