@@ -55,6 +55,60 @@ checkout, so automatic deployment would correctly refuse to run.
 
 ## Operation and rollback
 
+### Cloud PR auto-merge
+
+`.github/workflows/niki-cloud-auto-merge.yml` closes the cloud delivery loop:
+
+`ready cloud PR → successful PR ci → merge into main → explicit main ci → Mac deployment`
+
+The GitHub-hosted merge job uses its short-lived `GITHUB_TOKEN` with only
+`contents: write`, `pull-requests: write`, and `actions: write`. The cloud task
+needs its existing branch-push/PR-creation connection, not a personal token,
+Mac credential, Cloudflare token or permission to bypass protected branches.
+Repository-wide default workflow permissions stay read-only; no review-approval
+permission is enabled. The repository's native auto-merge option may also be
+enabled, but this delivery path does not depend on a cloud agent enabling it
+on every PR.
+
+Enable `NIKI_CLOUD_AUTO_MERGE=true` and set `NIKI_CLOUD_AUTO_MERGE_SINCE` to the
+UTC ISO timestamp at which unattended delivery was authorized. Only PRs created
+at or after that timestamp are eligible; existing backlog PRs are not opted in.
+The PR must be authored by `Rain765`, originate in `Rain765/Niki` on a `codex/`
+branch, target this repository's `main`, and be open and ready for review.
+Drafts, forks, other authors/branches and PRs labelled `no-automerge` are excluded.
+Do not move the activation timestamp backwards to include old work implicitly.
+
+The job re-fetches the current PR and the latest `ci.yml` run for that exact head.
+Only completed, successful `pull_request` CI qualifies. It merges with an exact
+head-SHA condition, retaining both histories and existing branch protection.
+Failed checks, conflicts, stale branches, required reviews and API permission
+errors stop the operation; there is no admin bypass or automatic conflict rewrite.
+Cloud agents should open a ready PR after local validation, or keep unfinished
+work in draft. If CI completed while a PR was still draft or held, rerun PR CI
+after making it ready, or run **Niki cloud auto-merge** on `main` with its PR number.
+
+The privileged job executes only the workflow's trusted default-branch revision,
+installs no project dependencies and consumes no PR artifacts. It explicitly
+dispatches `ci.yml` on `main` after merging: a merge made with `GITHUB_TOKEN`
+does not itself trigger a `push` workflow. Only successful main CI then starts
+the existing production deployment. See [GitHub's token trigger rules](https://docs.github.com/en/actions/concepts/security/github_token).
+
+To pause unattended merges, set `NIKI_CLOUD_AUTO_MERGE=false`; the production
+deployment switch is independent. If a merge succeeds but main CI dispatch fails,
+rerun **Niki cloud auto-merge** on `main` with the PR number. It can recover a
+bot-merged PR at the current main tip without merging again or duplicating an
+existing main CI run. Source branches are retained. If main has advanced, the
+newer main delivery owns deployment. Always verify the final public release SHA.
+
+Validate this automation with:
+
+```sh
+node --test deploy/tests/niki-cloud-auto-merge.test.ts
+corepack pnpm exec tsc -p deploy/tsconfig.cloud-auto-merge.json
+```
+
+### Production deployment
+
 Every successful `ci` run for a new `main` tip triggers the workflow. A stale CI
 completion is skipped if a newer commit is already on `main`. Documentation-only
 commits still pass through the same ancestry and public verification checks; the

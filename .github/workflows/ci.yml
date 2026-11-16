@@ -180,6 +180,11 @@ jobs:
       - name: Check repository layout policies
         run: pnpm guard
 
+      - name: Check cloud merge authorization and delivery
+        run: |
+          node --test deploy/tests/niki-cloud-auto-merge.test.ts
+          pnpm exec tsc -p deploy/tsconfig.cloud-auto-merge.json
+
       - name: Check i18n structure
         run: pnpm i18n:check
 
