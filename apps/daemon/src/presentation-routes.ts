@@ -11,6 +11,7 @@ import type {
   PresentationSummary,
   PresentationUsage,
   NativePresentationInspectionJob,
+  NativePresentationExportRequest,
 } from '@open-design/contracts';
 import { PRESENTATION_PALETTES } from '@open-design/contracts';
 import {
@@ -25,7 +26,8 @@ import {
   assertNikiStorageAllowed,
   NikiQuotaExceededError,
 } from './niki-quota.js';
-import { resolveProjectDir, writeProjectFile } from './projects.js';
+import { readProjectFile, resolveProjectDir, writeProjectFile } from './projects.js';
+import { exportNativeSlides } from './presentations/native-export.js';
 import { inspectNativePresentation, nativeInspectionIsStale } from './presentations/native-inspection.js';
 import {
   MAX_PRESENTATION_FILE_BYTES,
@@ -78,6 +80,7 @@ export function registerPresentationRoutes(
   const activeUsers = new Set<string>();
   const editing = new Set<string>();
   const inspecting = new Set<string>();
+  const exporting = new Set<string>();
   const inspections = new Map<string, NativePresentationInspectionJob>();
   const inspectionEntries = new Map<string, string>();
   app.get('/api/projects/:id/native-presentation/inspections/:inspectionId', async (req, res) => {
@@ -89,6 +92,27 @@ export function registerPresentationRoutes(
       return res.json({...job, report: {...job.report, stale}});
     }
     return res.json(job);
+  });
+  app.post('/api/projects/:id/native-presentation/export', async (req, res) => {
+    const project = getProject(db, req.params.id);
+    const job = inspections.get(req.body?.inspectionId);
+    const format: NativePresentationExportRequest['format'] = req.body?.format;
+    if (format !== 'pptx' && format !== 'pdf') return res.status(400).json({error:'Select PPTX or PDF'});
+    if (!project || !job || job.projectId !== project.id || job.status !== 'completed' || !job.report) return res.status(409).json({error:'Render the current presentation before exporting'});
+    if (exporting.has(project.id)) return res.status(409).json({error:'This presentation is already being exported'});
+    const report = job.report;
+    exporting.add(project.id);
+    try {
+      const dir = resolveProjectDir(projectsRoot, project.id, project.metadata);
+      if (report.failedResources.length || report.blockedResources.length || await nativeInspectionIsStale(dir, report)) return res.status(409).json({error:'Presentation changed or rendering is incomplete; render again'});
+      const images = await Promise.all(report.slides.map(async slide => (await readProjectFile(projectsRoot, project.id, slide.screenshot, project.metadata)).buffer));
+      const bytes = await exportNativeSlides({format, report, images});
+      if (await nativeInspectionIsStale(dir, report)) return res.status(409).json({error:'Presentation changed during export; try again'});
+      res.type(format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+      res.setHeader('Content-Disposition', `attachment; filename="presentation.${format}"; filename*=UTF-8''${encodeURIComponent(project.name)}.${format}`);
+      return res.send(bytes);
+    } catch (error) { return res.status(500).json({error: error instanceof Error ? error.message : 'Export failed'}); }
+    finally { exporting.delete(project.id); }
   });
   app.post('/api/projects/:id/native-presentation/inspect', async (req, res) => {
     const project = getProject(db, req.params.id);

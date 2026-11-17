@@ -1,4 +1,4 @@
-.native-player { container-type: inline-size; width: 100%; min-width: 0; display: flex; flex-direction: column; border-radius: var(--od-surface-radius); background: transparent; color: var(--poster-text); overflow: hidden; }
+.native-player { container-type: inline-size; width: 100%; min-width: 0; display: flex; flex-direction: column; border-radius: var(--od-surface-radius); background: transparent; color: var(--poster-text); overflow: visible; }
 .native-player__toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 0 0 12px; }
 .native-player__title { flex: 1; min-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; }
 .native-player__body { min-height: 0; }
@@ -55,3 +55,15 @@
   .native-player__toolbar .native-player__navigation { grid-row: 3; }
   .native-player__actions { grid-row: 2; grid-column: 1 / -1; gap: 4px; }
 }
+
+.native-player:focus { outline: none; }
+.native-player__loading-overlay { position: absolute; inset: 0; z-index: 1; }
+.native-player__loading-overlay .native-ppt__progress { width: 100%; height: 100%; aspect-ratio: auto; }
+
+.native-player__download { position: relative; }
+.native-player__download summary { list-style: none; cursor: pointer; }
+.native-player__download summary::-webkit-details-marker { display: none; }
+.native-player__download-menu { position: absolute; right: 0; top: 100%; z-index: 20; min-width: 220px; padding: 8px; border: 1px solid var(--poster-border); border-radius: var(--od-control-radius); background: var(--poster-panel); box-shadow: 0 8px 24px color-mix(in srgb, var(--poster-text) 12%, transparent); }
+.native-player__download-menu button { display: block; width: 100%; padding: 10px; border: 0; border-radius: var(--od-control-radius); font: inherit; text-align: left; color: var(--poster-text); background: transparent; cursor: pointer; }
+.native-player__download-menu button:hover { background: var(--poster-control-hover); }
+.native-player__download > [role=alert] { position: absolute; right: 0; width: 280px; z-index: 20; padding: 12px; background: var(--poster-panel); color: var(--poster-danger); }

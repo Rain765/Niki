@@ -9,7 +9,7 @@ import { NativePresentationProgress, type NativePresentationStage } from './Nati
 import type { PresentationQuestionRequest } from './native-presentation-questions';
 
 /** Observe the original workflow; the embedded workspace remains its sole run/confirmation owner. */
-export function NativePresentationResult({ projectId, requestedAt }: { projectId: string; requestedAt?: number }) {
+export function NativePresentationResult({ projectId, requestedAt, portrait = false }: { projectId: string; requestedAt?: number; portrait?: boolean }) {
   const { locale } = useI18n(); const zh = locale.startsWith('zh');
   const [entry, setEntry] = useState<ProjectFile | null>(null);
   const [revision, setRevision] = useState('');
@@ -128,9 +128,9 @@ export function NativePresentationResult({ projectId, requestedAt }: { projectId
     : configurationRequired ? (zh ? '请先完成生成设置' : 'Finish setup to continue')
     : failed ? (zh ? '生成未完成' : 'Generation did not finish')
     : (zh ? '尚未生成文稿' : 'No presentation generated yet');
-  return <div className="native-ppt__result">
+  return <div className="native-ppt__result" style={{'--native-ppt-aspect': portrait ? '3 / 4' : '16 / 9'} as React.CSSProperties}>
     {error && <p role="alert">{error} <Button size="compact" onClick={()=>setRetry(n=>n+1)}>{zh?'重试':'Retry'}</Button></p>}
-    {showProgress && <NativePresentationProgress
+    {showProgress && !entry && <NativePresentationProgress
       stage={progress?.stage ?? (running ? 'planning' : requestedAt !== undefined ? 'starting' : 'preparing')}
       startedAt={progress?.startedAt ?? requestedAt}
       checkedPages={progress?.checkedPages}
@@ -144,7 +144,7 @@ export function NativePresentationResult({ projectId, requestedAt }: { projectId
           : (failed || paused || configurationRequired) && <Button onClick={openWorkspace}>{zh?(configurationRequired?'生成设置':'查看进度'):(configurationRequired?'Generation settings':'View progress')}</Button>}
       </div>
     </div>}
-    {entry && <NativePresentationPreview projectId={projectId} name={entry.name} revision={revision} editingDisabled={running} onRevise={openWorkspace}/>}
+    {entry && <NativePresentationPreview projectId={projectId} name={entry.name} revision={revision} editingDisabled={running} portrait={portrait} loadingOverlay={showProgress ? <NativePresentationProgress stage={progress?.stage ?? 'planning'} startedAt={progress?.startedAt ?? requestedAt} checkedPages={progress?.checkedPages}/> : undefined} onRevise={openWorkspace}/>}
     {entry && activeQuestion && mode !== 'question' && <Button onClick={()=>setMode('question')}>{zh?'回答问题':'Answer questions'}</Button>}
     <dialog ref={dialog} className="native-ppt__dialog" aria-labelledby={`ppt-dialog-title-${projectId}`} onCancel={()=>setMode(null)} onClose={()=>setMode(null)}>
       <header><h2 id={`ppt-dialog-title-${projectId}`}>{zh?(mode==='question'?'确认内容':configurationRequired?'生成设置':'修改文稿'):(mode==='question'?'Confirm details':configurationRequired?'Generation settings':'Revise presentation')}</h2>

@@ -40,7 +40,7 @@
 .native-ppt__history-sidebar button:hover { background: var(--poster-control-hover); }
 .native-ppt__history-sidebar button[aria-current=page] { color: var(--poster-accent); background: var(--poster-control-hover); }
 .native-ppt__history-sidebar button:focus-visible { outline: 2px solid var(--poster-accent); outline-offset: -2px; }
-.native-ppt__history-sidebar strong { overflow-wrap: anywhere; }
+.native-ppt__history-sidebar strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .native-ppt__history-sidebar small { color: var(--poster-muted); }
 .native-ppt__history-content { min-width: 0; }
 @media (max-width: 760px) {
@@ -69,13 +69,13 @@
 .native-ppt__result-tabs { margin-top: 28px; scroll-margin-top: 90px; }
 .native-ppt__result-panel[hidden], .native-ppt__workspace[hidden] { display: none; }
 .native-ppt__result-panel { margin-top: 20px; }
-.native-ppt__pending { position: relative; aspect-ratio: 16 / 9; max-height: 360px; overflow: hidden; border-radius: var(--od-surface-radius); }
+.native-ppt__pending { position: relative; aspect-ratio: var(--native-ppt-aspect, 16 / 9); overflow: hidden; border-radius: var(--od-surface-radius); }
 .native-ppt__empty { text-align: center; color: var(--poster-muted); padding: 32px; }
 .native-ppt__conversation-toggle { margin: 12px 0; }
 
 .native-ppt__workspace { border: 1px solid var(--poster-border); border-radius: var(--od-surface-radius); overflow: hidden; }
 .native-ppt__stage-status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: var(--poster-muted); }
-.native-ppt__progress { display: grid; align-content: center; gap: 16px; min-height: clamp(160px, 24vw, 280px); padding: 24px clamp(16px, 4vw, 48px); border: 1px solid var(--poster-border); border-radius: var(--od-surface-radius); background: var(--poster-panel-raised); }
+.native-ppt__progress { display: grid; align-content: center; gap: 16px; aspect-ratio: var(--native-ppt-aspect, 16 / 9); min-height: 0; padding: 24px clamp(16px, 4vw, 48px); border: 0; border-radius: var(--od-surface-radius); background: var(--poster-panel-raised); }
 .native-ppt__progress.is-compact { min-height: 0; margin-bottom: 12px; padding-block: 14px; gap: 10px; }
 .native-ppt__progress-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; color: var(--poster-text); }
 .native-ppt__progress-heading strong { font-size: 16px; }

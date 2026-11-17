@@ -92,6 +92,8 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     url.searchParams.set('pptPages', pages);
     window.history.replaceState(null, '', url);
   };
+  const latestProject = projects.find(project=>project.id===projectId);
+  const latestPortrait = latestProject ? latestProject.metadata?.nativePresentation?.selection?.template === 'xhs-post' : brief.style === 'xhs-post';
   const selectedHistoryId = projects.find(project=>project.id===historyId)?.id ?? projects[0]?.id;
   const tabKeys = (event: KeyboardEvent<HTMLElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -100,7 +102,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
     event.preventDefault(); tabs[next]?.focus(); tabs[next]?.click();
   };
-  return <section className="native-ppt" aria-label={zh ? '演示文稿工作室' : 'Presentation studio'}>
+  return <section className="native-ppt" style={{'--native-ppt-aspect': brief.style === 'xhs-post' ? '3 / 4' : '16 / 9'} as React.CSSProperties} aria-label={zh ? '演示文稿工作室' : 'Presentation studio'}>
     <form className="native-ppt__form" onSubmit={(event) => { event.preventDefault(); void create(); }}>
       <section className="native-ppt__filters od-generation-toolbar" aria-label={zh ? '创作筛选' : 'Creation settings'}>
         <div className="native-ppt__source od-field">
@@ -127,15 +129,15 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
       <button type="button" id="ppt-tab-history" role="tab" aria-controls="ppt-panel-history" className={view === 'history' ? 'is-active' : undefined} tabIndex={view === 'history' ? 0 : -1} aria-selected={view === 'history'} onClick={() => show('history')}>{zh ? '历史生成' : 'History'} <small>{projects.length}</small></button>
     </div>
     <section id="ppt-panel-latest" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-latest" hidden={view !== 'latest'}>
-      {request?.phase ? <NativePresentationProgress stage={request.phase} startedAt={request.startedAt}/> : projectId ? <NativePresentationResult key={projectId} projectId={projectId} requestedAt={request?.projectId === projectId ? request.startedAt : undefined}/> : <p className="native-ppt__empty">{zh?'生成的文稿会显示在这里':'Your presentation will appear here'}</p>}
+      {request?.phase ? <NativePresentationProgress stage={request.phase} startedAt={request.startedAt}/> : projectId ? <NativePresentationResult key={projectId} projectId={projectId} portrait={latestPortrait} requestedAt={request?.projectId === projectId ? request.startedAt : undefined}/> : <p className="native-ppt__empty">{zh?'生成的文稿会显示在这里':'Your presentation will appear here'}</p>}
     </section>
     <section id="ppt-panel-history" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-history" hidden={view !== 'history'}>
       {!projects.length ? <p className="native-ppt__empty">{zh?'暂无历史生成记录':'No generation history yet'}</p> : <div className="native-ppt__history">
         <nav className="native-ppt__history-sidebar" aria-label={zh?'历史文稿':'Presentation history'}>
-          {projects.map(project=><button type="button" key={project.id} aria-current={project.id === selectedHistoryId ? 'page' : undefined} onClick={()=>setHistoryId(project.id)}><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleDateString(locale)}</small></button>)}
+          {projects.map(project=><button type="button" key={project.id} aria-current={project.id === selectedHistoryId ? 'page' : undefined} onClick={()=>setHistoryId(project.id)}><strong title={project.name}>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleDateString(locale)}</small></button>)}
         </nav>
         <div className="native-ppt__history-content">
-          {view === 'history' && <NativePresentationResult key={selectedHistoryId} projectId={selectedHistoryId!}/>}
+          {view === 'history' && <NativePresentationResult key={selectedHistoryId} projectId={selectedHistoryId!} portrait={projects.find(project=>project.id===selectedHistoryId)?.metadata?.nativePresentation?.selection?.template === 'xhs-post'}/>}
         </div>
       </div>}
 
