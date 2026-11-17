@@ -14,7 +14,7 @@ const HELP = `od ppt providers [--json]
 od ppt provider-save --provider qwen|kimi|deepseek --key-file path|- [--json]
 od ppt provider-test|provider-delete --provider qwen|kimi|deepseek [--json]
 od ppt default-model --provider existing|qwen|kimi|deepseek [--json]
-od ppt inspect-native --project ID --file index.html [--json]\nod ppt native-templates --json\nod ppt native --workflow html-ppt|guizang-ppt-skill --prompt-file brief.md|- [--file source.pdf]
+od ppt export-native --project ID --file index.html --format pptx|pdf --output path [--json]\nod ppt inspect-native --project ID --file index.html [--json]\nod ppt native-templates --json\nod ppt native --workflow html-ppt|guizang-ppt-skill --prompt-file brief.md|- [--file source.pdf]
               [--provider existing|qwen|kimi|deepseek] [--template ID|auto|custom] [--theme ID] [--agent codex] [--model ID] [--json]
 Creates an original-skill project. With --agent, starts its native conversation;
 without --agent, saves the brief for the web workspace. Use od run watch <id> to follow.
@@ -105,7 +105,8 @@ export async function runPresentationCli(args: string[]): Promise<void> {
       const suffix = command === 'default-model' ? '/default' : `/${values.provider}${command === 'provider-test' ? '/test' : ''}`;
       const body = command === 'provider-save' ? { apiKey: (await readInput(values['key-file']!)).trim() } : command === 'default-model' ? { provider: values.provider } : undefined;
       result = await request(`/api/ppt-models${suffix}`, { method: command === 'provider-delete' ? 'DELETE' : command === 'provider-test' ? 'POST' : 'PUT', headers: { 'content-type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) });
-    } else if (command === 'inspect-native') {
+    } else if (command === 'inspect-native' || command === 'export-native') {
+      if (command === 'export-native' && (!values.output || !['pdf','pptx'].includes(values.format ?? ''))) throw new Error('--output and --format pptx|pdf are required');
       if (!id || !values.file) throw new Error('--project and --file are required');
       let inspection = await request<NativePresentationInspectionJob>(`/api/projects/${encodeURIComponent(id)}/native-presentation/inspect`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({entry: values.file}),
@@ -115,7 +116,12 @@ export async function runPresentationCli(args: string[]): Promise<void> {
         inspection = await request<NativePresentationInspectionJob>(`/api/projects/${encodeURIComponent(id)}/native-presentation/inspections/${inspection.id}`);
       }
       if (inspection.status === 'failed') throw new Error(inspection.error || 'Native inspection failed');
-      result = inspection.report;
+      if (command === 'export-native') {
+        const response = await fetch(`${base}/api/projects/${encodeURIComponent(id)}/native-presentation/export`, {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({inspectionId:inspection.id,format:values.format})});
+        if (!response.ok) throw new Error(((await response.json()) as {error?: string}).error || `Export HTTP ${response.status}`);
+        await writeFile(values.output!, Buffer.from(await response.arrayBuffer()));
+        result = {file:values.output,format:values.format,slides:inspection.report?.slides.length};
+      } else result = inspection.report;
     } else if (command === 'native-templates') {
       result = await request('/api/native-presentation-templates');
     } else if (command === 'native') {

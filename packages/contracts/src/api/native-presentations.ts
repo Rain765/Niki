@@ -123,3 +123,8 @@ export function nativePresentationDesignInstructions(workflow: NativePresentatio
     '完整沿用所选风格的原规则、主题节奏、字体、版式、图片和动效流程，A/B 分别使用自己的参考文件。按原流程运行校验器，并对照原始效果参考逐页检查。',
   ].join('\n');
 }
+
+export interface NativePresentationExportRequest {
+  inspectionId: string;
+  format: 'pptx' | 'pdf';
+}
