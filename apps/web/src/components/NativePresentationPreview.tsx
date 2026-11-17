@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Maximize, Minimize, PanelLeft, Presentation, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Maximize, Minimize, PanelLeft, Pencil, Presentation, RefreshCw, SquarePen } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { projectFileUrl } from '../providers/registry';
 import { loadNativeDeck, nativeDeckSrcdoc, NativeDeckPendingError, type NativeDeckDocument } from '../presentations/native-viewer';
 import { NativePresentationEditor } from './NativePresentationEditor';
-import { Button, IconButton } from './Button';
+import { IconButton } from './Button';
 import './native-presentation-player.css';
 
 export function NativePresentationPreview({ projectId, name, revision = 0, editingDisabled = false, onRevise }: { projectId: string; name: string; revision?: number | string; editingDisabled?: boolean; onRevise?: () => void }) {
@@ -120,8 +120,8 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
         <IconButton label={zh?'下一页':'Next slide'} disabled={!ready||editing} onClick={()=>command('next')}><ChevronRight size={20}/></IconButton>
       </div>
       <div className="native-player__actions">
-        <Button disabled={!ready || editing || editingDisabled} onClick={()=>{try{sessionStorage.removeItem(`native-ppt-inspection:${projectId}:${deck?.name??name}`);}catch{/* Optional. */}setEditing(true);}}>{zh?'编辑本页':'Edit slide'}</Button>
-        {onRevise && <Button disabled={editingDisabled} onClick={onRevise}>{zh?'修改文稿':'Revise deck'}</Button>}
+        <IconButton label={zh?'编辑本页':'Edit slide'} disabled={!ready || editing || editingDisabled} onClick={()=>{try{sessionStorage.removeItem(`native-ppt-inspection:${projectId}:${deck?.name??name}`);}catch{/* Optional. */}setEditing(true);}}><Pencil size={18}/></IconButton>
+        {onRevise && <IconButton label={zh?'修改文稿':'Revise deck'} disabled={editingDisabled} onClick={onRevise}><SquarePen size={18}/></IconButton>}
         <a className="od-button od-button--ghost od-icon-button" aria-label={zh?'下载文稿':'Download deck'} title={zh?'下载文稿':'Download deck'} href={`/api/projects/${encodeURIComponent(projectId)}/archive`}><Download size={18}/></a>
         <a className="od-button od-button--ghost od-icon-button" aria-label={zh?'演讲者模式':'Presenter mode'} title={zh?'演讲者模式':'Presenter mode'} href={projectFileUrl(projectId,deck?.name??name)} target="_blank" rel="noopener noreferrer"><Presentation size={18}/></a>
         <button ref={fullscreenButton} type="button" className="od-button od-button--ghost od-icon-button" title={expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')} onClick={expanded?closeFullscreen:openFullscreen} aria-label={expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')}>
