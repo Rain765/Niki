@@ -134,7 +134,6 @@ export function NativePresentationResult({ projectId, requestedAt, portrait = fa
       stage={progress?.stage ?? (running ? 'planning' : requestedAt !== undefined ? 'starting' : 'preparing')}
       startedAt={progress?.startedAt ?? requestedAt}
       checkedPages={progress?.checkedPages}
-      compact={Boolean(entry)}
     />}
     {!entry && !error && !showProgress && <div className="native-ppt__pending" role="status" aria-label={status}>
       <div className="native-ppt__stage-status"><span>{status}</span>

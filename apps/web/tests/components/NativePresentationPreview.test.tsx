@@ -91,3 +91,14 @@ it('places the icon-only presenter link second from the right and omits the bott
  expect(container.querySelector('.native-ppt-inspection')).toBeNull();
  expect(screen.getByRole('spinbutton',{name:'跳转页码'}).closest('.native-player__toolbar')).not.toBeNull();
 });
+
+it('uses the shared canvas loader while the iframe starts, then removes it when ready',async()=>{
+ const {container,frame}=await mount();
+ const stage=container.querySelector('.native-player__stage') as HTMLElement;
+ expect(screen.getByRole('status',{name:'正在加载文稿'}).closest('.native-ppt__progress')).not.toBeNull();
+ expect(container.querySelector('.native-player__skeleton')).toBeNull();
+ expect(stage.style.aspectRatio).toBe('1280 / 720');
+ state(frame,0);
+ expect(screen.queryByRole('status',{name:'正在加载文稿'})).toBeNull();
+ expect(stage.style.aspectRatio).toBe('1280 / 720');
+});

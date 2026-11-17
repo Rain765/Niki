@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Maximize, Minimize, PanelLeft, Pencil, Prese
 import { useI18n } from '../i18n';
 import { projectFileUrl } from '../providers/registry';
 import { loadNativeDeck, nativeDeckSrcdoc, NativeDeckPendingError, type NativeDeckDocument } from '../presentations/native-viewer';
+import { NativePresentationLoading } from './NativePresentationLoading';
 import { NativePresentationDownload } from './NativePresentationDownload';
 import { NativePresentationEditor } from './NativePresentationEditor';
 import { IconButton } from './Button';
@@ -135,7 +136,7 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
       <div ref={stage} className="native-player__stage" style={{aspectRatio: deck ? `${deck.width} / ${deck.height}` : portrait ? '3 / 4' : '16 / 9'}}>
         {loadingOverlay && <div className="native-player__loading-overlay">{loadingOverlay}</div>}
         {deck && <iframe ref={frame} title={zh?'文稿预览':'Presentation preview'} srcDoc={srcDoc} sandbox="allow-scripts" style={{width:deck.width,height:deck.height,transform:`translate(-50%, -50%) scale(${scale})`}} />}
-        {!ready && !error && <div className="native-player__skeleton" role="status" aria-label={zh?'正在加载文稿':'Loading presentation'}><span/><span/><span/></div>}
+        {!ready && !error && !loadingOverlay && <div className="native-player__loading-overlay"><NativePresentationLoading stage="loading"/></div>}
         {error && <div className="native-player__error" role="alert">{error}<IconButton label={zh?'重新加载':'Reload'} onClick={()=>setRetry(n=>n+1)}><RefreshCw size={18}/></IconButton></div>}
       </div>
     </div>}

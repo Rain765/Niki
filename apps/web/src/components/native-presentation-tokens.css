@@ -1,0 +1,8 @@
+/* PPT interface typography only; never applied inside generated slides. */
+:where(.native-ppt, .native-player, .native-ppt__progress) {
+  --native-type-caption: 11px;
+  --native-type-label: 12px;
+  --native-type-body: 13px;
+  --native-type-heading: 14px;
+  --native-type-dialog: 18px;
+}
