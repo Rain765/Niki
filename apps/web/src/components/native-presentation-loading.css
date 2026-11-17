@@ -1,15 +1,12 @@
 @import './native-presentation-tokens.css';
 
-.native-ppt__progress { display: grid; align-content: center; gap: 16px; aspect-ratio: var(--native-ppt-aspect, 16 / 9); min-height: 0; padding: 24px clamp(16px, 4vw, 48px); border: 0; border-radius: var(--od-surface-radius); background: var(--poster-panel-raised); }
-.native-ppt__progress-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; color: var(--poster-text); }
+.native-ppt__progress { display: grid; align-content: center; gap: 16px; aspect-ratio: var(--native-ppt-aspect, 16 / 9); min-height: 0; padding: 24px clamp(16px, 4vw, 48px); border: 0; border-radius: var(--od-surface-radius); background: color-mix(in srgb, var(--poster-panel-raised) 45%, var(--poster-panel)); }
+.native-ppt__progress-heading { display: flex; align-items: center; justify-content: center; gap: 12px; text-align: center; color: var(--poster-text); }
 .native-ppt__progress-heading strong { font-size: var(--native-type-heading); }
 .native-ppt__progress-heading small { font-size: var(--native-type-caption); display: block; margin-top: 4px; color: var(--poster-muted); }
-.native-ppt__elapsed { margin-inline-start: auto; color: var(--poster-muted); font-size: var(--native-type-label); font-variant-numeric: tabular-nums; }
+.native-ppt__elapsed { justify-self: center; text-align: center; color: var(--poster-muted); font-size: var(--native-type-label); font-variant-numeric: tabular-nums; }
 .native-ppt__progress-spinner { flex: none; color: var(--poster-accent); animation: native-ppt-spin 1s linear infinite; }
-.native-ppt__progress-track { overflow: hidden; height: 4px; border-radius: 4px; background: var(--poster-border); }
-.native-ppt__progress-track span { display: block; width: 28%; height: 100%; border-radius: inherit; background: var(--poster-accent); animation: native-ppt-indeterminate 1.6s ease-in-out infinite alternate; }
 @keyframes native-ppt-spin { to { transform: rotate(360deg); } }
-@keyframes native-ppt-indeterminate { to { transform: translateX(257%); } }
 @media (prefers-reduced-motion: reduce) {
-  .native-ppt__progress-spinner, .native-ppt__progress-track span { animation: none; }
+  .native-ppt__progress-spinner { animation: none; }
 }

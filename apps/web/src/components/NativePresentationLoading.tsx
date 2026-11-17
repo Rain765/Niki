@@ -40,8 +40,7 @@ export function NativePresentationLoading({ stage, startedAt, checkedPages }: {
         <strong>{label}</strong>
         {checkedPages !== undefined && <small>{zh ? `已渲染 ${checkedPages} 页供检查` : `${checkedPages} slides rendered for review`}</small>}
       </div>
-      {startedAt !== undefined && <span className="native-ppt__elapsed">{zh ? '已用时' : 'Elapsed'} {elapsed}</span>}
     </div>
-    <div className="native-ppt__progress-track" aria-hidden="true"><span/></div>
+    {startedAt !== undefined && <span className="native-ppt__elapsed">{zh ? '已用时' : 'Elapsed'} {elapsed}</span>}
   </div>;
 }
