@@ -81,7 +81,7 @@ it('keeps incomplete slides in the loader and automatically reads the finished d
 it('places the icon-only presenter link second from the right and omits the bottom panels',async()=>{
  const {container,frame}=await mount();state(frame,0);
  const presenter=screen.getByRole('link',{name:'演讲者模式'});
- const toolbar=container.querySelector('.native-player__toolbar')!;
+ const toolbar=container.querySelector('.native-player__actions')!;
  expect(toolbar.children[toolbar.children.length-2]).toBe(presenter);
  expect(presenter.textContent).toBe('');
  expect(presenter.querySelector('svg')).not.toBeNull();
@@ -89,5 +89,5 @@ it('places the icon-only presenter link second from the right and omits the bott
  expect(presenter.getAttribute('target')).toBe('_blank');
  expect(screen.queryByText('更多操作')).toBeNull();
  expect(container.querySelector('.native-ppt-inspection')).toBeNull();
- expect(screen.getByRole('spinbutton',{name:'跳转页码'})).toBeTruthy();
+ expect(screen.getByRole('spinbutton',{name:'跳转页码'}).closest('.native-player__toolbar')).not.toBeNull();
 });
