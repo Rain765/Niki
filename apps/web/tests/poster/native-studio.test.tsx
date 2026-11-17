@@ -4,19 +4,20 @@ import { afterEach, expect, it, vi } from 'vitest';
 import previewAssets from '../../src/poster/native-preview-assets.json';
 import { NativePresentationStudio } from '../../src/poster/NativePresentationStudio';
 import { prepareNativePresentation } from '../../src/poster/native-presentations';
+import { listProjects } from '../../src/state/projects';
 import { I18nProvider } from '../../src/i18n';
 const auth = vi.hoisted(() => ({ role: 'member' }));
 vi.mock('../../src/auth/NikiAuth', () => ({ useNikiAuth: () => ({user: {role: auth.role}}) }));
 vi.mock('../../src/providers/registry', () => ({ fetchSkills: async () => [{id:'guizang-ppt-skill',hasBody:true}], fetchDesignTemplates: async () => [{id:'html-ppt',hasBody:true}] }));
 vi.mock('../../src/poster/NativePresentationResult', () => ({NativePresentationResult: ({projectId}:{projectId:string}) => <div data-testid={`result-${projectId}`}/> }));
-vi.mock('../../src/state/projects', () => ({ listProjects: async () => [], createProject: vi.fn(), patchProject: vi.fn() }));
+vi.mock('../../src/state/projects', () => ({ listProjects: vi.fn(async () => []), createProject: vi.fn(), patchProject: vi.fn() }));
 vi.mock('../../src/poster/native-presentations', async importOriginal => ({...await importOriginal<typeof import('../../src/poster/native-presentations')>(), prepareNativePresentation:vi.fn()}));
 function choose(label: string, option: string) { fireEvent.click(screen.getByRole('combobox',{name:label})); fireEvent.click(screen.getByRole('option',{name:option})); }
 function chooseTheme(style: string, theme: string) {
   choose('模板与风格', style);
   fireEvent.click(within(screen.getByRole('listbox', { name: '配色与字体' })).getByRole('option', { name: theme }));
 }
-afterEach(() => {auth.role='member';cleanup();vi.clearAllMocks(); window.history.replaceState(null,'','/');});
+afterEach(() => {vi.mocked(listProjects).mockResolvedValue([]);auth.role='member';cleanup();vi.clearAllMocks(); window.history.replaceState(null,'','/');});
 it('combines every original template and both styles in one filter without workflow or recommendation choices', async () => {
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(() => expect(screen.queryByText('模板资源尚未就绪')).toBeNull());
@@ -198,4 +199,26 @@ it('uses the server default without exposing a model selector to administrators'
   fireEvent.click(screen.getByRole('button',{name:'生成'}));
   await waitFor(()=>expect(prepareNativePresentation).toHaveBeenCalledWith(expect.objectContaining({skill:'guizang-ppt-skill',style:'B · 瑞士国际主义'}),null,expect.any(Function)));
   expect(vi.mocked(prepareNativePresentation).mock.calls[0]![0].provider).toBeUndefined();
+});
+
+it('keeps history titles beside the selected batch and switches batches without leaving history', async () => {
+  vi.mocked(listProjects).mockResolvedValue([
+    {id:'newer',name:'新批次',skillId:'html-ppt',updatedAt:200},
+    {id:'older',name:'旧批次',skillId:'html-ppt',updatedAt:100},
+  ] as never);
+  render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
+  await waitFor(()=>expect(screen.getByTestId('result-newer')).toBeTruthy());
+  fireEvent.click(screen.getByRole('tab',{name:/历史生成/}));
+  const history=screen.getByRole('tabpanel',{name:/历史生成/});
+  const sidebar=within(history).getByRole('navigation',{name:'历史文稿'});
+  expect(sidebar.querySelector('svg')).toBeNull();
+  expect(within(sidebar).getByRole('button',{name:/新批次/}).getAttribute('aria-current')).toBe('page');
+  expect(within(history).getByTestId('result-newer')).toBeTruthy();
+  fireEvent.click(within(sidebar).getByRole('button',{name:/旧批次/}));
+  expect(within(history).getByTestId('result-older')).toBeTruthy();
+  expect(within(history).queryByTestId('result-newer')).toBeNull();
+  expect(within(sidebar).getByRole('button',{name:/旧批次/}).getAttribute('aria-current')).toBe('page');
+  fireEvent.click(within(sidebar).getByRole('button',{name:/新批次/}));
+  expect(within(history).getByTestId('result-newer')).toBeTruthy();
+  expect(screen.getByRole('tab',{name:/历史生成/}).getAttribute('aria-selected')).toBe('true');
 });

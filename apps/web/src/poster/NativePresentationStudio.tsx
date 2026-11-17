@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { nativePresentationSelectionError } from '@open-design/contracts';
-import { ArrowLeft, FileText, Paperclip, X } from 'lucide-react';
+import { Paperclip, X } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { fetchDesignTemplates, fetchSkills } from '../providers/registry';
 import { listProjects } from '../state/projects';
 import type { Project, SkillSummary } from '../types';
-import { Button, IconButton } from '../components/Button';
+import { Button } from '../components/Button';
 import { SelectField } from '../components/SelectField';
 import { NativePresentationResult } from './NativePresentationResult';
 import { NativePresentationProgress } from './NativePresentationProgress';
@@ -92,6 +92,7 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     url.searchParams.set('pptPages', pages);
     window.history.replaceState(null, '', url);
   };
+  const selectedHistoryId = projects.find(project=>project.id===historyId)?.id ?? projects[0]?.id;
   const tabKeys = (event: KeyboardEvent<HTMLElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]'));
@@ -129,10 +130,15 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
       {request?.phase ? <NativePresentationProgress stage={request.phase} startedAt={request.startedAt}/> : projectId ? <NativePresentationResult key={projectId} projectId={projectId} requestedAt={request?.projectId === projectId ? request.startedAt : undefined}/> : <p className="native-ppt__empty">{zh?'生成的文稿会显示在这里':'Your presentation will appear here'}</p>}
     </section>
     <section id="ppt-panel-history" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-history" hidden={view !== 'history'}>
-      {historyId ? <><IconButton label={zh?'返回历史':'Back to history'} onClick={()=>setHistoryId(null)}><ArrowLeft size={18}/></IconButton><NativePresentationResult key={historyId} projectId={historyId}/></> : <div className="native-ppt__history">
-        {!projects.length && <p>{zh?'暂无历史生成记录':'No generation history yet'}</p>}
-        {projects.map(project=><button type="button" key={project.id} onClick={()=>{if(project.id===projectId){setView('latest');}else{setHistoryId(project.id);}}}><FileText size={22}/><span><strong>{project.name}</strong><small>{project.skillId==='html-ppt'?(zh?'模板创作':'Template creation'):(zh?'设计创作':'Design creation')} · {new Date(project.updatedAt).toLocaleDateString(locale)}</small></span></button>)}
+      {!projects.length ? <p className="native-ppt__empty">{zh?'暂无历史生成记录':'No generation history yet'}</p> : <div className="native-ppt__history">
+        <nav className="native-ppt__history-sidebar" aria-label={zh?'历史文稿':'Presentation history'}>
+          {projects.map(project=><button type="button" key={project.id} aria-current={project.id === selectedHistoryId ? 'page' : undefined} onClick={()=>setHistoryId(project.id)}><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleDateString(locale)}</small></button>)}
+        </nav>
+        <div className="native-ppt__history-content">
+          {view === 'history' && <NativePresentationResult key={selectedHistoryId} projectId={selectedHistoryId!}/>}
+        </div>
       </div>}
+
     </section>
   </section>;
 }
