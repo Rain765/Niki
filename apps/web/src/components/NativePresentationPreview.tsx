@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, Maximize, Minimize, PanelLeft, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Maximize, Minimize, PanelLeft, Presentation, RefreshCw } from 'lucide-react';
 import { useI18n } from '../i18n';
 import { projectFileUrl } from '../providers/registry';
 import { loadNativeDeck, nativeDeckSrcdoc, NativeDeckPendingError, type NativeDeckDocument } from '../presentations/native-viewer';
 import { NativePresentationEditor } from './NativePresentationEditor';
-import { NativePresentationInspectionPanel } from './NativePresentationInspectionPanel';
 import { Button, IconButton } from './Button';
 import './native-presentation-player.css';
 
@@ -116,6 +115,7 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
       <Button disabled={!ready || editing || editingDisabled} onClick={()=>{try{sessionStorage.removeItem(`native-ppt-inspection:${projectId}:${deck?.name??name}`);}catch{/* Optional. */}setEditing(true);}}>{zh?'编辑本页':'Edit slide'}</Button>
       {onRevise && <Button disabled={editingDisabled} onClick={onRevise}>{zh?'修改文稿':'Revise deck'}</Button>}
       <a className="od-button od-button--ghost od-icon-button" aria-label={zh?'下载文稿':'Download deck'} title={zh?'下载文稿':'Download deck'} href={`/api/projects/${encodeURIComponent(projectId)}/archive`}><Download size={18}/></a>
+      <a className="od-button od-button--ghost od-icon-button" aria-label={zh?'演讲者模式':'Presenter mode'} title={zh?'演讲者模式':'Presenter mode'} href={projectFileUrl(projectId,deck?.name??name)} target="_blank" rel="noopener noreferrer"><Presentation size={18}/></a>
       <button ref={fullscreenButton} type="button" className="od-button od-button--ghost od-icon-button" title={expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')} onClick={expanded?closeFullscreen:openFullscreen} aria-label={expanded?(zh?'退出全屏':'Exit fullscreen'):(zh?'全屏':'Fullscreen')}>
         {expanded?<Minimize size={18}/>:<Maximize size={18}/>}
       </button>
@@ -133,7 +133,5 @@ export function NativePresentationPreview({ projectId, name, revision = 0, editi
       <label><span className="native-player__sr-only">{zh?'跳转页码':'Go to slide'}</span><input type="number" min={1} max={deck?.titles.length??1} value={jump} disabled={!ready||editing} onChange={e=>setJump(e.target.value)} onBlur={go} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();go();}}}/></label><span>/ {deck?.titles.length??'—'}</span>
       <IconButton label={zh?'下一页':'Next slide'} disabled={!ready||editing} onClick={()=>command('next')}><ChevronRight size={20}/></IconButton>
     </div>
-    {!expanded && !editing && ready && <NativePresentationInspectionPanel projectId={projectId} name={deck?.name??name} auto={!editingDisabled} revision={`${revision}:${retry}`}/>}
-    {!expanded && !editing && <details className="native-player__more"><summary>{zh?'更多操作':'More actions'}</summary><a href={projectFileUrl(projectId,deck?.name??name)} target="_blank" rel="noopener noreferrer">{zh?'原生演示 / 演讲者模式 ↗':'Original presentation / presenter mode ↗'}</a></details>}
   </div>;
 }
