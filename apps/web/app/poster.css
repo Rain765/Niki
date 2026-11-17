@@ -470,6 +470,7 @@ button {
   color: var(--poster-text);
   cursor: pointer;
   font: inherit;
+  font-size: var(--od-control-font-size);
   font-weight: var(--od-control-font-weight);
   text-align: left;
 }
