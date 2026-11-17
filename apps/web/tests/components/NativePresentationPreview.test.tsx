@@ -5,7 +5,6 @@ import { NativePresentationPreview } from '../../src/components/NativePresentati
 import { I18nProvider } from '../../src/i18n';
 import { loadNativeDeck, NativeDeckPendingError } from '../../src/presentations/native-viewer';
 vi.mock('../../src/presentations/native-viewer',async importOriginal=>({...await importOriginal<typeof import('../../src/presentations/native-viewer')>(),loadNativeDeck:vi.fn(),nativeDeckSrcdoc:()=>'<html></html>'}));
-vi.mock('../../src/components/NativePresentationInspectionPanel',()=>({NativePresentationInspectionPanel:()=>null}));
 vi.mock('../../src/components/NativePresentationEditor',()=>({NativePresentationEditor:({initialPage,onClose}:{initialPage:number;onClose:()=>void})=><button onClick={onClose}>Editing {initialPage}</button>}));
 beforeEach(()=>{
  vi.stubGlobal('ResizeObserver',class{observe(){} disconnect(){}});
@@ -77,4 +76,18 @@ it('keeps incomplete slides in the loader and automatically reads the finished d
   await vi.advanceTimersByTimeAsync(3000);
   expect(loadNativeDeck).toHaveBeenCalledTimes(2);
  } finally {vi.useRealTimers();}
+});
+
+it('places the icon-only presenter link second from the right and omits the bottom panels',async()=>{
+ const {container,frame}=await mount();state(frame,0);
+ const presenter=screen.getByRole('link',{name:'演讲者模式'});
+ const toolbar=container.querySelector('.native-player__toolbar')!;
+ expect(toolbar.children[toolbar.children.length-2]).toBe(presenter);
+ expect(presenter.textContent).toBe('');
+ expect(presenter.querySelector('svg')).not.toBeNull();
+ expect(presenter.getAttribute('href')).toContain('/api/projects/p/raw/index.html');
+ expect(presenter.getAttribute('target')).toBe('_blank');
+ expect(screen.queryByText('更多操作')).toBeNull();
+ expect(container.querySelector('.native-ppt-inspection')).toBeNull();
+ expect(screen.getByRole('spinbutton',{name:'跳转页码'})).toBeTruthy();
 });

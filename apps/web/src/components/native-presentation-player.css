@@ -6,9 +6,6 @@
 .native-player__stage iframe { position: absolute; top: 50%; left: 50%; border: 0; transform-origin: center; max-width: none; max-height: none; }
 .native-player__navigation { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 10px; font-size: 13px; }
 .native-player__navigation input { width: 56px; height: 36px; border: 0; border-radius: 8px; background: var(--poster-panel); color: var(--poster-text); text-align: center; font: inherit; }
-.native-player__more { padding: 0 16px 12px; font-size: 13px; }
-.native-player__more summary { cursor: pointer; color: var(--poster-muted); padding: 8px 0; }
-.native-player__more a { color: var(--poster-muted); display: inline-block; margin: 8px; }
 .native-ppt-inspection { padding: 8px 0; }
 .native-player.is-expanded { position: fixed; inset: 0; z-index: 9500; width: 100vw; height: 100dvh; border-radius: 0; }
 .native-player.is-expanded .native-player__body { flex: 1; display: grid; grid-template-columns: minmax(0,1fr); }
