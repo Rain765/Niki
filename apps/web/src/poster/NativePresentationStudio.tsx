@@ -95,6 +95,12 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
   const latestProject = projects.find(project=>project.id===projectId);
   const latestPortrait = latestProject ? latestProject.metadata?.nativePresentation?.selection?.template === 'xhs-post' : brief.style === 'xhs-post';
   const selectedHistoryId = projects.find(project=>project.id===historyId)?.id ?? projects[0]?.id;
+  const historyGroups = Array.from(projects.reduce((groups, project) => {
+    const date = new Intl.DateTimeFormat(locale, {timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(project.updatedAt));
+    const group = groups.get(date) ?? [];
+    group.push(project); groups.set(date, group);
+    return groups;
+  }, new Map<string, Project[]>()));
   const tabKeys = (event: KeyboardEvent<HTMLElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role=tab]'));
@@ -134,7 +140,10 @@ export function NativePresentationStudio({ onNavigationLockChange }: { onNavigat
     <section id="ppt-panel-history" className="native-ppt__result-panel" role="tabpanel" aria-labelledby="ppt-tab-history" hidden={view !== 'history'}>
       {!projects.length ? <p className="native-ppt__empty">{zh?'暂无历史生成记录':'No generation history yet'}</p> : <div className="native-ppt__history">
         <nav className="native-ppt__history-sidebar" aria-label={zh?'历史文稿':'Presentation history'}>
-          {projects.map(project=><button type="button" key={project.id} aria-current={project.id === selectedHistoryId ? 'page' : undefined} onClick={()=>setHistoryId(project.id)}><strong title={project.name}>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleDateString(locale)}</small></button>)}
+          {historyGroups.map(([date, items])=><section className="native-ppt__history-group" key={date} aria-label={date}>
+            <h3>{date}</h3>
+            <div className="native-ppt__history-items">{items.map(project=><button type="button" key={project.id} aria-current={project.id === selectedHistoryId ? 'page' : undefined} onClick={()=>setHistoryId(project.id)}><strong title={project.name}>{project.name}</strong></button>)}</div>
+          </section>)}
         </nav>
         <div className="native-ppt__history-content">
           {view === 'history' && <NativePresentationResult key={selectedHistoryId} projectId={selectedHistoryId!} portrait={projects.find(project=>project.id===selectedHistoryId)?.metadata?.nativePresentation?.selection?.template === 'xhs-post'}/>}

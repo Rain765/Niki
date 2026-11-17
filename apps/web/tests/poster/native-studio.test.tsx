@@ -205,6 +205,7 @@ it('keeps history titles beside the selected batch and switches batches without 
   vi.mocked(listProjects).mockResolvedValue([
     {id:'newer',name:'新批次',skillId:'html-ppt',updatedAt:200},
     {id:'older',name:'旧批次',skillId:'html-ppt',updatedAt:100},
+    {id:'previous-day',name:'前一天批次',skillId:'html-ppt',updatedAt:-86400000},
   ] as never);
   render(<I18nProvider defaultLocale="zh-CN"><NativePresentationStudio /></I18nProvider>);
   await waitFor(()=>expect(screen.getByTestId('result-newer')).toBeTruthy());
@@ -212,6 +213,10 @@ it('keeps history titles beside the selected batch and switches batches without 
   const history=screen.getByRole('tabpanel',{name:/历史生成/});
   const sidebar=within(history).getByRole('navigation',{name:'历史文稿'});
   expect(sidebar.querySelector('svg')).toBeNull();
+  expect(sidebar.querySelectorAll('.native-ppt__history-group')).toHaveLength(2);
+  expect(sidebar.querySelectorAll('.native-ppt__history-group')[0]!.querySelectorAll('button')).toHaveLength(2);
+  expect(sidebar.querySelectorAll('.native-ppt__history-group')[1]!.querySelectorAll('button')).toHaveLength(1);
+  expect(sidebar.querySelector('button small,button h3')).toBeNull();
   expect(within(sidebar).getByRole('button',{name:/新批次/}).getAttribute('aria-current')).toBe('page');
   expect(within(history).getByTestId('result-newer')).toBeTruthy();
   fireEvent.click(within(sidebar).getByRole('button',{name:/旧批次/}));
