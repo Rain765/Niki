@@ -794,15 +794,15 @@ export function LogoStudioView() {
             multiple label={copy.personality} value={personality}
             onChange={(values) => setPersonality(values as typeof personality)}
             options={PERSONALITIES.map((value) => ({ value, label: PERSONALITY_LABELS[value][language] }))} />
-          <div className="od-filter-grid__action logo-studio__actions">
-            <div className="logo-studio__utilities">
-              <IconButton label={copy.advanced} className="logo-studio__disclosure-toggle"
+          <div className="od-filter-grid__action od-generation-actions logo-studio__actions">
+            <div className="od-generation-actions__utilities">
+              <IconButton label={copy.advanced}
                 aria-controls="logo-studio-advanced-settings"
                 aria-expanded={advancedOpen}
                 onClick={() => { setAdvancedOpen((current) => !current); setOpenPaletteIndex(null); }}>
                 <Icon name="sliders" size={18} />
               </IconButton>
-              <IconButton label={copy.preview} className="logo-studio__disclosure-toggle"
+              <IconButton label={copy.preview}
                 aria-controls="logo-studio-preview" aria-expanded={previewOpen}
                 onClick={() => setPreviewOpen((current) => !current)}>
                 <Icon name="eye" size={18} />

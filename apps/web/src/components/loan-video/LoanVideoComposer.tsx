@@ -165,7 +165,7 @@ export function LoanVideoComposer({
   const modeToggle = (
     <IconButton
       label={mode === 'quick' ? t('loanVideo.editorMode') : t('loanVideo.backToQuick')}
-      variant="secondary"
+      variant={mode === 'quick' ? 'ghost' : 'secondary'}
       size="compact"
       className="loan-video-composer__mode"
       data-testid="loan-video-editor-mode"
@@ -237,8 +237,8 @@ export function LoanVideoComposer({
               disabled={disabled}
             />
 
-            <div className="od-filter-grid__action loan-video-quick__actions">
-              {modeToggle}
+            <div className="od-filter-grid__action od-generation-actions loan-video-quick__actions">
+              <div className="od-generation-actions__utilities">{modeToggle}</div>
               <Button
                 variant="primary"
                 className="loan-video-quick__generate"
