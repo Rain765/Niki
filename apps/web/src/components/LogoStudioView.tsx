@@ -794,23 +794,23 @@ export function LogoStudioView() {
             multiple label={copy.personality} value={personality}
             onChange={(values) => setPersonality(values as typeof personality)}
             options={PERSONALITIES.map((value) => ({ value, label: PERSONALITY_LABELS[value][language] }))} />
-          <Button className="od-filter-grid__action" variant="primary" type="submit" loading={submitting || generating}>
-            <span>{submitting ? copy.submitting : generating ? copy.generatingButton : copy.submit}</span>
-          </Button>
-        </div>
-        <div className="logo-studio__options">
-          <div className="logo-studio__utilities">
-            <IconButton label={copy.advanced} className="logo-studio__disclosure-toggle"
-              aria-controls="logo-studio-advanced-settings"
-              aria-expanded={advancedOpen}
-              onClick={() => { setAdvancedOpen((current) => !current); setOpenPaletteIndex(null); }}>
-              <Icon name="sliders" size={18} />
-            </IconButton>
-            <IconButton label={copy.preview} className="logo-studio__disclosure-toggle"
-              aria-controls="logo-studio-preview" aria-expanded={previewOpen}
-              onClick={() => setPreviewOpen((current) => !current)}>
-              <Icon name="eye" size={18} />
-            </IconButton>
+          <div className="od-filter-grid__action logo-studio__actions">
+            <div className="logo-studio__utilities">
+              <IconButton label={copy.advanced} className="logo-studio__disclosure-toggle"
+                aria-controls="logo-studio-advanced-settings"
+                aria-expanded={advancedOpen}
+                onClick={() => { setAdvancedOpen((current) => !current); setOpenPaletteIndex(null); }}>
+                <Icon name="sliders" size={18} />
+              </IconButton>
+              <IconButton label={copy.preview} className="logo-studio__disclosure-toggle"
+                aria-controls="logo-studio-preview" aria-expanded={previewOpen}
+                onClick={() => setPreviewOpen((current) => !current)}>
+                <Icon name="eye" size={18} />
+              </IconButton>
+            </div>
+            <Button variant="primary" type="submit" loading={submitting || generating}>
+              <span>{submitting ? copy.submitting : generating ? copy.generatingButton : copy.submit}</span>
+            </Button>
           </div>
         </div>
         <div
