@@ -50,10 +50,10 @@
   gap: 12px;
   color: var(--text-soft);
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--od-control-radius);
   background: transparent;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--od-type-body);
   font-weight: 580;
   text-align: left;
   cursor: pointer;
@@ -66,8 +66,8 @@
 }
 
 .competitor-gallery__categories button.is-active {
-  color: var(--accent);
-  background: var(--accent-tint);
+  color: var(--poster-text-inverse);
+  background: var(--poster-accent);
 }
 
 .competitor-gallery__category-count {
@@ -76,14 +76,14 @@
   border-radius: 999px;
   color: var(--text-muted);
   background: color-mix(in srgb, var(--text-muted) 9%, transparent);
-  font-size: 10.5px;
+  font-size: var(--od-type-caption);
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
 .competitor-gallery__categories button.is-active .competitor-gallery__category-count {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: inherit;
+  background: color-mix(in srgb, var(--poster-text-inverse) 20%, transparent);
 }
 
 .competitor-gallery__content {
@@ -110,7 +110,7 @@
 
 .competitor-gallery__toolbar h2 {
   color: var(--text-strong);
-  font-size: 20px;
+  font-size: var(--od-type-heading);
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
@@ -118,7 +118,7 @@
 .competitor-gallery__toolbar p {
   margin-top: 4px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--od-type-label);
 }
 
 .competitor-gallery__search {
@@ -148,7 +148,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--od-type-body);
 }
 
 .competitor-gallery__search input::placeholder {
@@ -238,14 +238,14 @@
   max-width: 82%;
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--od-type-body);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .competitor-gallery__image-fallback small {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--od-type-caption);
 }
 
 .competitor-gallery__preview:hover img {
@@ -264,7 +264,7 @@
   color: #fff;
   background: rgb(13 15 19 / 78%);
   box-shadow: 0 4px 16px rgb(0 0 0 / 24%);
-  font-size: 11px;
+  font-size: var(--od-type-caption);
   font-weight: 650;
   opacity: 0;
   transform: translateY(4px);
@@ -293,7 +293,7 @@
 .competitor-gallery__card h3 {
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--od-type-body);
   font-weight: 650;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -304,7 +304,7 @@
   margin-top: 3px;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--od-type-label);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -317,7 +317,7 @@
   border-radius: 7px;
   color: var(--text-soft);
   background: var(--bg-subtle);
-  font-size: 10px;
+  font-size: var(--od-type-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -345,13 +345,13 @@
 
 .competitor-gallery__empty h3 {
   color: var(--text-strong);
-  font-size: 16px;
+  font-size: var(--od-type-heading);
 }
 
 .competitor-gallery__empty p {
   max-width: 360px;
   margin-top: 7px;
-  font-size: 12.5px;
+  font-size: var(--od-type-body);
   line-height: 1.6;
 }
 
@@ -363,121 +363,64 @@
   background: var(--accent);
   color: #fff;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--od-type-label);
   font-weight: 650;
   cursor: pointer;
 }
 
 .competitor-gallery__lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 400;
   display: grid;
   place-items: center;
   padding: 22px;
+  background: transparent;
 }
 
 .competitor-gallery__lightbox-backdrop {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  background: rgb(5 7 10 / 82%);
-  cursor: zoom-out;
+  background: color-mix(in srgb, var(--poster-mask-dark) 82%, transparent);
   backdrop-filter: blur(12px);
 }
 
 .competitor-gallery__lightbox-panel {
   position: relative;
   width: min(1180px, 94vw);
-  height: min(880px, 92vh);
-  overflow: hidden;
-  border: 1px solid rgb(255 255 255 / 13%);
-  border-radius: 16px;
-  background: #111318;
-  box-shadow: 0 30px 100px rgb(0 0 0 / 55%);
-}
-
-.competitor-gallery__lightbox-panel > header {
-  height: 60px;
-  padding: 0 14px 0 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  border-bottom: 1px solid rgb(255 255 255 / 9%);
-  color: #f7f7f8;
-}
-
-.competitor-gallery__lightbox-panel > header > div:first-child {
-  min-width: 0;
+  height: min(880px, 92dvh);
   display: grid;
-  gap: 3px;
-}
-
-.competitor-gallery__lightbox-panel header strong,
-.competitor-gallery__lightbox-panel header span {
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border-radius: var(--od-surface-radius);
+  background: var(--poster-bg);
 }
 
-.competitor-gallery__lightbox-panel header strong {
-  font-size: var(--od-type-heading);
-}
-
-.competitor-gallery__lightbox-panel header span {
-  color: #9298a4;
-  font-size: var(--od-type-caption);
-}
-
-.competitor-gallery__lightbox-actions {
-  flex: 0 0 auto;
-  display: flex;
-  gap: 5px;
-}
-
-.competitor-gallery__lightbox-actions a,
-.competitor-gallery__lightbox-actions button,
-.competitor-gallery__lightbox-nav {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: 9px;
-  background: rgb(255 255 255 / 8%);
-  color: #d7dae0;
-  cursor: pointer;
-}
-
-.competitor-gallery__lightbox-actions a:hover,
-.competitor-gallery__lightbox-actions button:hover,
-.competitor-gallery__lightbox-nav:hover {
-  background: rgb(255 255 255 / 15%);
-  color: #fff;
+.competitor-gallery__lightbox-panel > .niki-result-header {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--poster-line-divide);
 }
 
 .competitor-gallery__lightbox-image {
-  height: calc(100% - 60px);
+  position: relative;
   overflow: auto;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 28px 72px 52px;
+  padding: 12px clamp(12px, 4vw, 48px) 24px;
+}
+
+.competitor-gallery__lightbox-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--poster-panel);
 }
 
 .competitor-gallery__lightbox-image img {
   width: auto;
   max-width: 100%;
   height: auto;
-  max-height: none;
-  border-radius: 6px;
-  background: #fff;
-  box-shadow: 0 14px 46px rgb(0 0 0 / 42%);
+  border-radius: var(--od-control-radius);
+  background: var(--poster-bg);
 }
 
 .competitor-gallery__lightbox-fallback {
@@ -489,8 +432,8 @@
   justify-content: center;
   gap: 10px;
   border-radius: 12px;
-  color: #9298a4;
-  background: rgb(255 255 255 / 5%);
+  color: var(--poster-muted);
+  background: var(--poster-panel);
 }
 
 .competitor-gallery__lightbox-image img[hidden] + .competitor-gallery__lightbox-fallback {
@@ -498,44 +441,13 @@
 }
 
 .competitor-gallery__lightbox-fallback strong {
-  color: #f7f7f8;
+  color: var(--poster-text);
   font-size: var(--od-type-heading);
 }
 
 .competitor-gallery__lightbox-fallback a {
-  color: #ff6a24;
+  color: var(--poster-accent);
   font-size: var(--od-type-label);
-}
-
-.competitor-gallery__lightbox-nav {
-  position: absolute;
-  top: 50%;
-  z-index: 2;
-  width: 42px;
-  height: 48px;
-  transform: translateY(-50%);
-}
-
-.competitor-gallery__lightbox-nav.is-previous {
-  left: 14px;
-}
-
-.competitor-gallery__lightbox-nav.is-next {
-  right: 14px;
-}
-
-.competitor-gallery__lightbox-counter {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  color: #d7dae0;
-  background: rgb(0 0 0 / 58%);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  transform: translateX(-50%);
-  backdrop-filter: blur(8px);
 }
 
 @media (max-width: 900px) {
@@ -598,10 +510,6 @@
     backdrop-filter: none;
   }
 
-  .competitor-gallery__toolbar h2 {
-    font-size: 17px;
-  }
-
   .competitor-gallery__search {
     width: min(230px, 55vw);
   }
@@ -622,17 +530,6 @@
     border-radius: 0;
   }
 
-  .competitor-gallery__lightbox-image {
-    padding: 20px 50px 48px;
-  }
-
-  .competitor-gallery__lightbox-nav.is-previous {
-    left: 6px;
-  }
-
-  .competitor-gallery__lightbox-nav.is-next {
-    right: 6px;
-  }
 }
 
 @media (max-width: 560px) {

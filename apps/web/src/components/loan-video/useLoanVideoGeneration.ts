@@ -149,9 +149,8 @@ function projectAspectRatio(project: Project): LoanVideoAspectRatio {
 }
 
 function phaseFromTask(task: MediaTaskSnapshot | null, hasVideo: boolean): LoanVideoGenerationPhase {
+  if (task?.status === 'queued' || task?.status === 'running') return task.status;
   if (hasVideo) return 'succeeded';
-  if (!task) return 'failed';
-  if (task.status === 'queued' || task.status === 'running') return task.status;
   return 'failed';
 }
 
@@ -205,8 +204,21 @@ async function readSavedStoryboard(projectId: string): Promise<LoanVideoStoryboa
   return await response.json() as LoanVideoStoryboard;
 }
 
-export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
+export interface SavedLoanVideo {
+  id: string;
+  projectId: string;
+  file: ProjectFile;
+}
+
+function savedVideo(projectId: string, file: ProjectFile): SavedLoanVideo {
+  return { id: `${projectId}:${file.name}`, projectId, file };
+}
+
+export function useLoanVideoGeneration(sessionScope: string, enabled = true, showHistory = false) {
   const [state, setState] = useState<LoanVideoGenerationState>(INITIAL_STATE);
+  const [history, setHistory] = useState<{ scope: string; videos: SavedLoanVideo[] } | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyFailed, setHistoryFailed] = useState(false);
   const stateRef = useRef(state);
   const startGuardRef = useRef(false);
   const subscriptionRef = useRef<AbortController | null>(null);
@@ -550,33 +562,66 @@ export function useLoanVideoGeneration(sessionScope: string, enabled = true) {
     }
   }, [monitorTask, sessionScope, updateState]);
 
-  const removeVideo = useCallback(async (file: ProjectFile): Promise<boolean> => {
-    const projectId = stateRef.current.projectId;
-    if (!projectId) return false;
+  useEffect(() => {
+    if (!enabled || !showHistory) return;
+    const controller = new AbortController();
+    const options = { strict: true, signal: controller.signal };
+    setHistoryLoading(true);
+    setHistoryFailed(false);
+    void listProjects(options).then(async (projects) => {
+      const otherProjects = projects.filter(project => isTutorialVideoProject(project) && project.id !== state.projectId);
+      const results = await Promise.allSettled(otherProjects.map(async (project) =>
+        videoFiles(await fetchProjectFiles(project.id, options)).map(file => savedVideo(project.id, file))));
+      if (controller.signal.aborted) return;
+      setHistory({
+        scope: sessionScope,
+        videos: results.flatMap(result => result.status === 'fulfilled' ? result.value : []),
+      });
+      setHistoryFailed(results.some(result => result.status === 'rejected'));
+    }).catch(() => {
+      if (!controller.signal.aborted) setHistoryFailed(true);
+    }).finally(() => {
+      if (!controller.signal.aborted) setHistoryLoading(false);
+    });
+    return () => controller.abort();
+  }, [enabled, showHistory, sessionScope, state.projectId]);
+
+  const removeVideo = useCallback(async ({ projectId, file, id }: SavedLoanVideo): Promise<boolean> => {
     const deleted = await deleteProjectFile(projectId, file.name);
     if (!deleted) return false;
-    const nextFiles = await fetchProjectFiles(projectId);
-    const remainingVideos = videoFiles(nextFiles);
-    updateState((current) => ({
-      ...current,
-      files: nextFiles,
-      ...(current.phase === 'succeeded' && remainingVideos.length === 0
-        ? { phase: 'idle', error: null }
-        : {}),
+    setHistory(current => current && ({
+      ...current, videos: current.videos.filter(video => video.id !== id),
     }));
+    updateState((current) => {
+      if (current.projectId !== projectId) return current;
+      const files = current.files.filter(candidate => candidate.name !== file.name);
+      return {
+        ...current,
+        files,
+        ...(current.phase === 'succeeded' && videoFiles(files).length === 0 ? { phase: 'idle', error: null } : {}),
+      };
+    });
     return true;
   }, [updateState]);
 
-  const videos = videoFiles(state.files);
+  const { projectId } = state;
+  const currentVideos = projectId ? videoFiles(state.files).map(file => savedVideo(projectId, file)) : [];
+  const latestVideo = currentVideos[0] ?? null;
+  const historyVideos = [
+    ...currentVideos.slice(activePhase(state.phase) ? 0 : 1),
+    ...(history?.scope === sessionScope ? history.videos.filter(video => video.projectId !== state.projectId) : []),
+  ].sort((a, b) => b.file.mtime - a.file.mtime);
   return {
     active: activePhase(state.phase),
-    latestVideo: videos[0] ?? null,
+    latestVideo,
+    historyVideos,
+    historyLoading,
+    historyFailed,
     regenerate,
     removeVideo,
     refreshFiles,
     restoring: state.phase === 'restoring',
     start,
     state,
-    videos,
   };
 }

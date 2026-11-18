@@ -1,25 +1,28 @@
 'use client';
 
 import {
+  type CSSProperties,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
+import type { MediaAspect } from '@open-design/contracts';
 import { useNikiAuth } from '../auth/NikiAuth';
 import { PptModelSettings } from './PptModelSettings';
 import { PasswordAccountManager } from '../auth/PasswordAccountManager';
-import { Button } from '../components/Button';
+import { Button, IconButton } from '../components/Button';
+import { ResultDialog, ResultHeader, ResultHistory, ResultLoading, ResultNavigation, ResultTabs, type ResultView } from '../components/NikiResultControls';
 import { CompetitorGallery } from '../components/CompetitorGallery';
 import { LoanVideoComposer } from '../components/loan-video/LoanVideoComposer';
+import { LoanVideoResult, videoAspectNumber } from '../components/loan-video/LoanVideoResult';
 import {
   type LoanVideoGenerationPhase,
+  type SavedLoanVideo,
   useLoanVideoGeneration,
 } from '../components/loan-video/useLoanVideoGeneration';
 import type {
-  LoanVideoAspectRatio,
   LoanVideoDraft,
 } from '../components/loan-video/types';
 import {
@@ -55,7 +58,6 @@ import {
   savePreparedImageFile,
   sharePreparedImageFile,
 } from '../lib/image-file-actions';
-import { projectFileDownloadUrl, projectFileUrl } from '../providers/registry';
 import type { Project, ProjectFile } from '../types';
 import { useRuntimeReleaseRefresh } from './useRuntimeReleaseRefresh';
 import { posterLayoutFailureCopy, posterRequestProgress } from './generation-failure-copy';
@@ -64,7 +66,6 @@ import { listProjectMediaTasks, startProjectMediaTask } from '../providers/media
 type Notice = { message: string; tone: 'info' | 'error' };
 type PreparedPreviewImage = { file: File; key: string };
 type CreationMode = 'poster' | 'video' | 'documents' | 'english' | 'logo' | 'ppt' | 'competitors';
-type PosterResultTab = 'latest' | 'history';
 type GenerationFeedback = {
   id: number;
   batchId: string | null;
@@ -162,12 +163,17 @@ const POSTER_COPY = {
     deleteConfirm: (name: string) => `Delete ${name}?`,
     tutorialGenerator: 'Tutorial video generator',
     closeVideoStatus: 'Close video status',
-    latestVideo: 'Latest video',
+    videoResults: 'Video results',
+    noVideoHistory: 'No previous videos yet.',
+    videoHistoryFailed: 'Some saved videos could not be loaded. Reopen History to retry.',
+    previewImage: 'Enlarge image',
+    posterBatch: (number: number) => `Batch ${number}`,
+    legacyPosters: 'Earlier posters',
+    previousImage: 'Previous image',
+    nextImage: 'Next image',
     downloadVideo: 'Download video',
     elapsed: (value: string) => `Elapsed ${value}`,
     videoHistory: 'Video history',
-    expandVideoHistory: 'Expand video history',
-    collapseVideoHistory: 'Collapse video history',
     download: 'Download',
     videoDeleted: 'Video deleted',
     videoDeleteFailed: 'Could not delete the video',
@@ -256,12 +262,17 @@ const POSTER_COPY = {
     deleteConfirm: (name: string) => `确定删除 ${name} 吗？`,
     tutorialGenerator: '教学视频生成器',
     closeVideoStatus: '关闭视频状态提示',
-    latestVideo: '最新视频',
+    videoResults: '视频结果',
+    noVideoHistory: '暂无历史视频。',
+    videoHistoryFailed: '部分历史视频加载失败，重新打开历史生成可重试。',
+    previewImage: '放大图片',
+    posterBatch: (number: number) => `第 ${number} 批`,
+    legacyPosters: '早期海报',
+    previousImage: '上一张',
+    nextImage: '下一张',
     downloadVideo: '下载视频',
     elapsed: (value: string) => `已用时 ${value}`,
     videoHistory: '视频历史',
-    expandVideoHistory: '展开视频历史',
-    collapseVideoHistory: '收起视频历史',
     download: '下载',
     videoDeleted: '视频已删除',
     videoDeleteFailed: '无法删除视频',
@@ -412,10 +423,11 @@ function videoGenerationCopy(
   };
 }
 
-function videoAspectClass(aspectRatio: LoanVideoAspectRatio): string {
+function posterAspectClass(aspectRatio: MediaAspect): string {
   if (aspectRatio === '1:1') return 'is-square';
   if (aspectRatio === '3:4') return 'is-portrait';
   if (aspectRatio === '9:16') return 'is-mobile-portrait';
+  if (aspectRatio === '4:3') return 'is-standard-landscape';
   return 'is-landscape';
 }
 
@@ -452,7 +464,8 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [creationMode, setCreationMode] = useState<CreationMode>(
     () => initialMode ?? initialCreationMode(),
   );
-  const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video');
+  const [videoResultTab, setVideoResultTab] = useState<ResultView>('latest');
+  const videoGeneration = useLoanVideoGeneration(user.id, creationMode === 'video', videoResultTab === 'history');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
@@ -474,15 +487,17 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
   const [previewNotice, setPreviewNotice] = useState<Notice | null>(null);
   const [activeAction, setActiveAction] = useState<'copy' | 'download' | 'share' | null>(null);
   const [rawFallbackNames, setRawFallbackNames] = useState<Set<string>>(() => new Set());
-  const [posterResultTab, setPosterResultTab] = useState<PosterResultTab>('latest');
-  const [showVideoHistory, setShowVideoHistory] = useState(false);
+  const [posterResultTab, setPosterResultTab] = useState<ResultView>('latest');
+  const [posterHistoryId, setPosterHistoryId] = useState<string | null>(null);
+  const [posterSelection, setPosterSelection] = useState<{ batchId: string; fileName: string } | null>(null);
+  const [videoHistoryId, setVideoHistoryId] = useState<string | null>(null);
   const [generationFeedback, setGenerationFeedback] = useState<GenerationFeedback | null>(null);
   const [dismissedStatusKey, setDismissedStatusKey] = useState<string | null>(null);
   const [dismissedVideoStatusKey, setDismissedVideoStatusKey] = useState<string | null>(null);
   const [preparedPreviewImage, setPreparedPreviewImage] = useState<PreparedPreviewImage | null>(null);
   const [failedPreviewKey, setFailedPreviewKey] = useState<string | null>(null);
   const [prepareAttempt, setPrepareAttempt] = useState(0);
-  const [deletingVideoName, setDeletingVideoName] = useState<string | null>(null);
+  const [deletingVideoId, setDeletingVideoId] = useState<string | null>(null);
   const latestBatchRef = useRef<HTMLElement | null>(null);
   const restoredPosterUserRef = useRef<string | null>(null);
   const observedBatchIdRef = useRef<string | null>(null);
@@ -567,22 +582,23 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     [posterFiles, project?.metadata?.directGeneration],
   );
   const latestBatch = batches.at(-1) ?? null;
+  const status = generationCopy(latestBatch, copy);
   // Task status tracks the newest request; the gallery tracks saved outputs.
   // An empty pending/failed request must never replace the last usable image.
-  const savedPosters = useMemo(
-    () => batches
-      .flatMap((batch) => batch.files.map((file) => ({
-        aspectRatio: batch.aspectRatio,
-        file,
-      })))
-      .sort((left, right) => right.file.mtime - left.file.mtime
-        || right.file.name.localeCompare(left.file.name, undefined, { numeric: true })),
-    [batches],
+  const savedBatches = batches.filter(batch => batch.files.length > 0).reverse();
+  const latestSavedBatch = savedBatches[0];
+  const posterIsWorking = generating || status.state === 'working';
+  const pendingPosterCanvas = posterIsWorking && (
+    !latestSavedBatch || latestBatch?.id !== latestSavedBatch.id || (generating && generationFeedback?.batchId === null)
   );
-  const latestPoster = savedPosters[0] ?? null;
-  const latestBatchAspectRatio = latestPoster?.aspectRatio ?? latestBatch?.aspectRatio ?? aspectRatio;
-  const latestBatchCount = latestPoster ? 1 : 0;
-  const historyFiles = savedPosters.slice(1);
+  const historyBatches = pendingPosterCanvas ? savedBatches : savedBatches.slice(1);
+  const historyPosterBatch = historyBatches.find(batch => batch.id === posterHistoryId) ?? historyBatches[0];
+  const pendingPosterRatio = generating ? aspectRatio : latestBatch?.aspectRatio ?? aspectRatio;
+  const latestBatchCount = pendingPosterCanvas ? 0 : latestSavedBatch?.files.length ?? 0;
+  const latestBatchAspectRatio = pendingPosterCanvas ? pendingPosterRatio
+    : latestSavedBatch?.aspectRatio ?? latestBatch?.aspectRatio ?? aspectRatio;
+  const posterBatchTitle = (batch: DirectPosterBatchView) => batch.batchNumber === null
+    ? copy.legacyPosters : copy.posterBatch(batch.batchNumber);
   const aspectRatioByFile = useMemo(() => new Map(
     batches.flatMap((batch) => batch.files.map((file) => [file.name, batch.aspectRatio] as const)),
   ), [batches]);
@@ -599,8 +615,16 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     && preparedPreviewFile === null
     && failedPreviewKey !== previewFileKey;
   const previewAspectRatio = previewFile ? aspectRatioByFile.get(previewFile.name) : undefined;
-  const status = generationCopy(latestBatch, copy);
-  const posterIsWorking = generating || status.state === 'working';
+  const previewBatch = previewFile && savedBatches.find(batch => batch.files.some(file => file.name === previewFile.name));
+  const previewIndex = previewBatch ? previewBatch.files.findIndex(file => file.name === previewName) : 0;
+  const movePreview = (direction: -1 | 1) => {
+    if (!previewBatch || previewBatch.files.length < 2 || activeAction) return;
+    const next = (previewIndex + direction + previewBatch.files.length) % previewBatch.files.length;
+    const name = previewBatch.files[next]!.name;
+    setPosterSelection({ batchId: previewBatch.id, fileName: name });
+    setPreviewNotice(null);
+    setPreviewName(name);
+  };
   const posterRestoring = restoredPosterUserRef.current !== user.id;
   const latestEmptyTitle = posterLoadState === 'failed' ? copy.loadPostersFailed
     : status.state === 'failed' ? copy.latestFailedEmpty
@@ -634,19 +658,19 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     onReloading: showRuntimeReloading,
   });
   const videoElapsed = useVideoElapsed(videoWorking, videoGeneration.state.requestedAt);
-  const videoResultAvailable = videoGeneration.latestVideo !== null
-    && videoGeneration.state.projectId !== null;
+  const latestVideo = videoGeneration.latestVideo;
   const videoStatusKey = [
     videoStatus.state,
     videoGeneration.state.projectId ?? 'none',
     videoGeneration.state.taskId ?? 'none',
-    videoGeneration.latestVideo?.name ?? 'none',
-    videoGeneration.latestVideo?.mtime ?? 0,
+    latestVideo?.file.name ?? 'none',
+    latestVideo?.file.mtime ?? 0,
     videoStatus.title,
     videoStatus.detail,
   ].join(':');
   const videoStatusDismissed = dismissedVideoStatusKey === videoStatusKey;
-  const videoHistory = videoGeneration.videos.slice(1);
+  const videoHistory = videoGeneration.historyVideos;
+  const historyVideo = videoHistory.find(video => video.id === videoHistoryId) ?? videoHistory[0];
 
   useEffect(() => {
     // A restored active job deserves live feedback; terminal history stays silent.
@@ -936,39 +960,26 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     } finally { setGenerating(false); }
   };
 
-  const handlePosterResultTabKeyDown = (
-    event: ReactKeyboardEvent<HTMLButtonElement>,
-  ) => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const nextTab: PosterResultTab = event.key === 'Home'
-      ? 'latest'
-      : event.key === 'End'
-        ? 'history'
-        : posterResultTab === 'latest'
-          ? 'history'
-          : 'latest';
-    setPosterResultTab(nextTab);
-    document.getElementById(`poster-result-tab-${nextTab}`)?.focus();
-  };
-
   const generateVideo = (draft: LoanVideoDraft) => {
     videoGenerationStartedRef.current = true;
     setDismissedVideoStatusKey(null);
+    setVideoResultTab('latest');
     void videoGeneration.start(draft);
   };
 
-  const removeVideo = async (file: ProjectFile) => {
-    if (deletingVideoName || !window.confirm(copy.deleteConfirm(file.name))) return;
-    setDeletingVideoName(file.name);
+  const removeVideo = async (video: SavedLoanVideo) => {
+    if (deletingVideoId || !window.confirm(copy.deleteConfirm(video.file.name))) return;
+    setDeletingVideoId(video.id);
     try {
-      const deleted = await videoGeneration.removeVideo(file);
+      const deleted = await videoGeneration.removeVideo(video);
       setNotice({
         message: deleted ? copy.videoDeleted : copy.videoDeleteFailed,
         tone: deleted ? 'info' : 'error',
       });
+    } catch {
+      setNotice({ message: copy.videoDeleteFailed, tone: 'error' });
     } finally {
-      setDeletingVideoName(null);
+      setDeletingVideoId(null);
     }
   };
 
@@ -1062,54 +1073,78 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
     await refreshProject(projectId, true);
   };
 
-  const renderPoster = (
-    file: ProjectFile,
-    options: { aspectRatio?: string; eager: boolean; index: number },
-  ) => {
+  const renderPosterBatch = (batch: DirectPosterBatchView, eager: boolean) => {
     if (!projectId) return null;
+    const selectedIndex = batch.id === posterSelection?.batchId
+      ? Math.max(0, batch.files.findIndex(file => file.name === posterSelection.fileName)) : 0;
+    const file = batch.files[selectedIndex]!;
+    const ratio = posterAspectClass(batch.aspectRatio ?? '16:9');
     const useRawImage = rawFallbackNames.has(file.name);
-    const aspectClass = options.aspectRatio === '1:1'
-      ? 'is-square'
-      : options.aspectRatio === '3:4'
-        ? 'is-portrait'
-        : 'is-landscape';
+    const moveImage = (direction: -1 | 1) => {
+      const next = (selectedIndex + direction + batch.files.length) % batch.files.length;
+      setPosterSelection({ batchId: batch.id, fileName: batch.files[next]!.name });
+    };
     return (
-      <button
-        type="button"
-        className={`poster-app__poster ${aspectClass}`}
-        key={`${file.name}:${file.mtime}`}
-        onClick={() => {
-          setPreviewNotice(null);
-          setPreviewName(file.name);
-        }}
-      >
-        <picture>
-          {!useRawImage ? (
-            <source media="(max-width: 900px)" srcSet={previewUrl(projectId, file, 'mobile')} />
-          ) : null}
-          <img
-            src={useRawImage
-              ? rawUrl(projectId, file.name)
-              : previewUrl(projectId, file, 'preview')}
-            alt={file.name}
-            loading={options.eager ? 'eager' : 'lazy'}
-            decoding="async"
-            fetchPriority={options.eager && options.index < 2 ? 'high' : 'auto'}
-            onLoad={(event) => {
-              event.currentTarget.closest('.poster-app__poster')?.classList.add('is-loaded');
-            }}
-            onError={(event) => {
-              if (useRawImage) {
-                event.currentTarget.closest('.poster-app__poster')?.classList.add('is-error');
-                return;
-              }
-              setRawFallbackNames((current) => new Set(current).add(file.name));
-            }}
-          />
-        </picture>
-      </button>
+      <div className="niki-poster-result">
+        <ResultHeader title={posterBatchTitle(batch)} details={batch.aspectRatio}
+          navigation={batch.files.length > 1 && <ResultNavigation index={selectedIndex} count={batch.files.length}
+            previousLabel={copy.previousImage} nextLabel={copy.nextImage} onMove={moveImage} />}
+          actions={<IconButton label={copy.previewImage} onClick={() => {
+            setPreviewNotice(null);
+            setPreviewName(file.name);
+          }}><Icon name="zoom-in" size={18} /></IconButton>} />
+        <button
+          type="button"
+          className={`poster-app__poster ${ratio}`}
+          key={`${file.name}:${file.mtime}`}
+          onClick={() => {
+            setPreviewNotice(null);
+            setPreviewName(file.name);
+          }}
+        >
+          <picture>
+            {!useRawImage ? (
+              <source media="(max-width: 900px)" srcSet={previewUrl(projectId, file, 'mobile')} />
+            ) : null}
+            <img
+              src={useRawImage
+                ? rawUrl(projectId, file.name)
+                : previewUrl(projectId, file, 'preview')}
+              alt={file.name}
+              loading={eager ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchPriority={eager ? 'high' : 'auto'}
+              onLoad={(event) => {
+                const image = event.currentTarget;
+                const canvas = image.closest<HTMLButtonElement>('.poster-app__poster');
+                if (!batch.aspectRatio && image.naturalWidth && image.naturalHeight) {
+                  canvas?.style.setProperty('--niki-poster-aspect', String(image.naturalWidth / image.naturalHeight));
+                }
+                canvas?.classList.add('is-loaded');
+              }}
+              onError={(event) => {
+                if (useRawImage) {
+                  event.currentTarget.closest('.poster-app__poster')?.classList.add('is-error');
+                  return;
+                }
+                setRawFallbackNames((current) => new Set(current).add(file.name));
+              }}
+            />
+          </picture>
+          <span className="poster-app__poster-image-loading" aria-hidden="true">
+            <Icon name="spinner" size={20} className="niki-result-loading__spinner" />
+          </span>
+        </button>
+      </div>
     );
   };
+
+  const renderVideo = (video: SavedLoanVideo, latest: boolean) => (
+    <LoanVideoResult key={`${video.id}:${video.file.mtime}`} video={video}
+      expectedAspect={latest ? videoGeneration.state.aspectRatio : undefined} latest={latest}
+      downloadLabel={copy.downloadVideo} deleteLabel={copy.delete} deleting={deletingVideoId === video.id}
+      canDelete={deletingVideoId === null && (latest || !videoGeneration.historyLoading)} onDelete={() => void removeVideo(video)} />
+  );
 
   return (
     <main ref={appRef} className={`poster-app${creationMode === 'documents' ? ' is-documents' : ''}${creationMode === 'english' ? ' is-english' : ''}${creationMode === 'logo' ? ' is-logo' : ''}${creationMode === 'ppt' ? ' is-ppt' : ''}`}>
@@ -1374,66 +1409,21 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         </button>
       ) : null}
 
-      <div className="poster-app__result-tabs" role="tablist" aria-label={copy.posterResults}>
-        <button
-          id="poster-result-tab-latest"
-          type="button"
-          role="tab"
-          className={posterResultTab === 'latest' ? 'is-active' : undefined}
-          aria-controls="poster-result-panel-latest"
-          aria-selected={posterResultTab === 'latest'}
-          tabIndex={posterResultTab === 'latest' ? 0 : -1}
-          onClick={() => setPosterResultTab('latest')}
-          onKeyDown={handlePosterResultTabKeyDown}
-        >
-          <span>{copy.latestBatch}</span>
-          <small>{latestBatchAspectRatio} × {latestBatchCount}</small>
-        </button>
-        <button
-          id="poster-result-tab-history"
-          type="button"
-          role="tab"
-          className={posterResultTab === 'history' ? 'is-active' : undefined}
-          aria-controls="poster-result-panel-history"
-          aria-selected={posterResultTab === 'history'}
-          tabIndex={posterResultTab === 'history' ? 0 : -1}
-          onClick={() => setPosterResultTab('history')}
-          onKeyDown={handlePosterResultTabKeyDown}
-        >
-          <span>{copy.posterHistory}</span>
-          <small>{historyFiles.length}</small>
-        </button>
-      </div>
+      <ResultTabs id="poster-result" label={copy.posterResults} view={posterResultTab} onChange={setPosterResultTab}
+        latest={<><span>{copy.latestBatch}</span>{' '}<small>{latestBatchAspectRatio} × {latestBatchCount}</small></>}
+        history={<><span>{copy.posterHistory}</span>{' '}<small>{historyBatches.length}</small></>} />
 
-      <section
-        id="poster-result-panel-latest"
-        ref={latestBatchRef}
-        className="poster-app__batch-section poster-app__result-panel"
-        role="tabpanel"
-        aria-labelledby="poster-result-tab-latest"
-        hidden={posterResultTab !== 'latest'}
-        tabIndex={-1}
-      >
-        <div className="poster-app__gallery">
-          {latestPoster ? renderPoster(latestPoster.file, {
-            aspectRatio: latestPoster.aspectRatio,
-            eager: true,
-            index: 0,
-          }) : null}
-          {posterIsWorking && !latestPoster ? (
-            <div className={`poster-app__poster-skeleton${latestBatchAspectRatio === '1:1'
-              ? ' is-square'
-              : latestBatchAspectRatio === '3:4'
-                ? ' is-portrait'
-                : ''}`}>
-              <span role="status">{progressMessage ?? copy.generatingImage}</span>
+      <section id="poster-result-panel-latest" ref={latestBatchRef} className="poster-app__result-panel"
+        role="tabpanel" aria-labelledby="poster-result-tab-latest" hidden={posterResultTab !== 'latest'} tabIndex={-1}>
+        {pendingPosterCanvas || (!latestSavedBatch && posterLoadState === 'loading') ? (
+          <>
+            <ResultHeader title={copy.latestBatch} details={latestBatchAspectRatio} />
+            <div className={`poster-app__poster-skeleton ${posterAspectClass(latestBatchAspectRatio)}`}>
+              <ResultLoading>{pendingPosterCanvas ? progressMessage ?? copy.generatingImage : copy.loadingRecentPosters}</ResultLoading>
             </div>
-          ) : null}
-        </div>
-        {latestBatchCount === 0 && !posterIsWorking && posterLoadState === 'loading' ? (
-          <div className="poster-app__history-empty" role="status">{copy.loadingRecentPosters}</div>
-        ) : null}
-        {latestBatchCount === 0 && !posterIsWorking && posterLoadState !== 'loading' ? (
+          </>
+        ) : latestSavedBatch ? renderPosterBatch(latestSavedBatch, true) : null}
+        {!latestSavedBatch && !posterIsWorking && posterLoadState !== 'loading' ? (
           <div className="poster-app__latest-empty" data-testid="poster-app-latest-empty">
             <div className="poster-app__empty-icon" aria-hidden="true"><Icon name="image" size={88} /></div>
             <h3>{latestEmptyTitle}</h3>
@@ -1442,55 +1432,82 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
         ) : null}
       </section>
 
-      <section
-        id="poster-result-panel-history"
-        className="poster-app__batch-section poster-app__result-panel"
-        role="tabpanel"
-        aria-labelledby="poster-result-tab-history"
-        hidden={posterResultTab !== 'history'}
-        tabIndex={0}
-      >
-        {historyFiles.length > 0 ? (
-          <div className="poster-app__gallery poster-app__history-gallery">
-            {historyFiles.map(({ aspectRatio: fileAspectRatio, file }, index) => renderPoster(file, {
-              aspectRatio: fileAspectRatio,
-              eager: false,
-              index,
-            }))}
-          </div>
-        ) : (
-          <div className="poster-app__history-empty">{copy.noPosterHistory}</div>
-        )}
+      <section id="poster-result-panel-history" className="poster-app__result-panel" role="tabpanel"
+        aria-labelledby="poster-result-tab-history" hidden={posterResultTab !== 'history'} tabIndex={0}>
+        {historyPosterBatch ? (
+          <ResultHistory items={historyBatches.map(batch => ({
+            id: batch.id, title: posterBatchTitle(batch), date: batch.requestedAt ?? Math.max(...batch.files.map(file => file.mtime)),
+          }))} locale={locale} label={copy.posterHistory} selectedId={historyPosterBatch.id} onSelect={setPosterHistoryId}>
+            {posterResultTab === 'history' && renderPosterBatch(historyPosterBatch, false)}
+          </ResultHistory>
+        ) : <div className="poster-app__history-empty">{copy.noPosterHistory}</div>}
       </section>
 
       {previewFile && projectId ? (
-        <div className="poster-preview" role="dialog" aria-modal="true" aria-label={previewFile.name}>
-          <header className="poster-preview__header">
-            <button
-              type="button"
-              onClick={() => setPreviewName(null)}
-              aria-label={copy.close}
-              title={copy.close}
-            >
-              <Icon name="close" size={24} />
-            </button>
-            <button
-              type="button"
-              disabled={activeAction !== null || preparedPreviewFile === null}
-              aria-label={activeAction === 'share'
-                ? copy.sharing
-                : preparedPreviewFile
-                  ? copy.share
-                  : copy.preparing}
-              title={copy.share}
-              onClick={() => preparedPreviewFile && void share(previewFile, preparedPreviewFile)}
-            >
-              <Icon
-                name={activeAction === 'share' || preparedPreviewFile === null ? 'spinner' : 'share'}
-                size={22}
-              />
-            </button>
-          </header>
+        <ResultDialog className="poster-preview" label={previewFile.name} onClose={() => setPreviewName(null)} onMove={movePreview}>
+          <ResultHeader title={previewFile.name}
+            navigation={previewBatch && previewBatch.files.length > 1 && (
+              <ResultNavigation index={previewIndex} count={previewBatch.files.length}
+                previousLabel={copy.previousImage} nextLabel={copy.nextImage} onMove={movePreview} />
+            )}
+            actions={<>
+              <IconButton
+                disabled={activeAction !== null || preparedPreviewFile === null}
+                label={activeAction === 'share'
+                  ? copy.sharing
+                  : preparedPreviewFile
+                    ? copy.share
+                    : copy.preparing}
+                onClick={() => preparedPreviewFile && void share(previewFile, preparedPreviewFile)}
+              >
+                <Icon
+                  name={activeAction === 'share' || preparedPreviewFile === null ? 'spinner' : 'share'}
+                  size={18}
+                />
+              </IconButton>
+              <IconButton
+                disabled={activeAction !== null || previewFilePreparing}
+                label={activeAction === 'download'
+                  ? copy.saving
+                  : preparedPreviewFile
+                    ? copy.saveImage
+                    : failedPreviewKey === previewFileKey
+                      ? copy.prepareAgain
+                      : copy.preparingOriginal}
+                onClick={() => {
+                  if (preparedPreviewFile) {
+                    void download(preparedPreviewFile);
+                    return;
+                  }
+                  setPreviewNotice({ message: copy.preparingAgain, tone: 'info' });
+                  setPrepareAttempt((current) => current + 1);
+                }}
+              >
+                <Icon
+                  name={activeAction === 'download' || (previewFilePreparing && preparedPreviewFile === null)
+                    ? 'spinner'
+                    : 'download'}
+                  size={18}
+                />
+              </IconButton>
+              <IconButton
+                disabled={activeAction !== null || preparedPreviewFile === null}
+                label={activeAction === 'copy' ? copy.copying : copy.copyImage}
+                onClick={() => preparedPreviewFile && void copyImage(preparedPreviewFile)}
+              >
+                <Icon name={activeAction === 'copy' ? 'spinner' : 'copy'} size={18} />
+              </IconButton>
+              <IconButton
+                disabled={activeAction !== null}
+                label={copy.delete}
+                onClick={() => void remove(previewFile)}
+              >
+                <Icon name="trash" size={18} />
+              </IconButton>
+              <IconButton label={copy.close} onClick={() => setPreviewName(null)}>
+                <Icon name="close" size={18} />
+              </IconButton>
+            </>} />
           {previewNotice ? (
             <button
               type="button"
@@ -1515,6 +1532,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
                   ? rawUrl(projectId, previewFile.name)
                   : previewUrl(projectId, previewFile, 'preview')}
                 alt={previewFile.name}
+                key={previewFile.name}
                 onError={() => {
                   if (!rawFallbackNames.has(previewFile.name)) {
                     setRawFallbackNames((current) => new Set(current).add(previewFile.name));
@@ -1525,55 +1543,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
               />
             </picture>
           </div>
-          <footer className="poster-preview__footer">
-            <button
-              type="button"
-              disabled={activeAction !== null || previewFilePreparing}
-              aria-label={activeAction === 'download'
-                ? copy.saving
-                : preparedPreviewFile
-                  ? copy.saveImage
-                  : failedPreviewKey === previewFileKey
-                    ? copy.prepareAgain
-                    : copy.preparingOriginal}
-              title={copy.saveImage}
-              onClick={() => {
-                if (preparedPreviewFile) {
-                  void download(preparedPreviewFile);
-                  return;
-                }
-                setPreviewNotice({ message: copy.preparingAgain, tone: 'info' });
-                setPrepareAttempt((current) => current + 1);
-              }}
-            >
-              <Icon
-                name={activeAction === 'download' || (previewFilePreparing && preparedPreviewFile === null)
-                  ? 'spinner'
-                  : 'download'}
-                size={23}
-              />
-            </button>
-            <button
-              type="button"
-              disabled={activeAction !== null || preparedPreviewFile === null}
-              aria-label={activeAction === 'copy' ? copy.copying : copy.copyImage}
-              title={copy.copyImage}
-              onClick={() => preparedPreviewFile && void copyImage(preparedPreviewFile)}
-            >
-              <Icon name={activeAction === 'copy' ? 'spinner' : 'copy'} size={23} />
-            </button>
-            <button
-              type="button"
-              className="is-danger"
-              disabled={activeAction !== null}
-              aria-label={copy.delete}
-              title={copy.delete}
-              onClick={() => void remove(previewFile)}
-            >
-              <Icon name="trash" size={23} />
-            </button>
-          </footer>
-        </div>
+        </ResultDialog>
       ) : null}
         </>
       ) : creationMode === 'video' ? (
@@ -1583,6 +1553,7 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             onQuickGenerate={(options) => {
               videoGenerationStartedRef.current = true;
               setDismissedVideoStatusKey(null);
+              setVideoResultTab('latest');
               void videoGeneration.regenerate(options);
             }}
             configuredPresetKeys={videoGeneration.state.configuredPresetKeys}
@@ -1590,131 +1561,38 @@ export function PosterApp({ initialMode }: { initialMode?: CreationMode } = {}) 
             restoring={videoGeneration.restoring}
           />
 
-          {videoWorking || videoResultAvailable ? (
-            <section
-              className="poster-app__batch-section poster-app__latest-batch"
-              aria-label={copy.latestVideo}
-            >
-              <header className="poster-app__section-header">
-                <div className="poster-app__section-heading">
-                  <h2>{copy.latestVideo}</h2>
-                  <span className="poster-app__section-meta">
-                    {videoGeneration.state.aspectRatio} · MP4
-                  </span>
-                </div>
-                {videoResultAvailable ? (
-                  <div className="poster-app__video-actions">
-                    <a
-                      className="poster-app__video-action od-icon-button" aria-label={copy.downloadVideo} title={copy.downloadVideo}
-                      href={projectFileDownloadUrl(
-                        videoGeneration.state.projectId!,
-                        videoGeneration.latestVideo!.name,
-                      )}
-                      download
-                    >
-                      <Icon name="download" size={18} />
-                    </a>
-                    <button
-                      type="button"
-                      className="poster-app__video-action is-danger od-icon-button" aria-label={copy.delete} title={copy.delete}
-                      disabled={deletingVideoName !== null}
-                      onClick={() => void removeVideo(videoGeneration.latestVideo!)}
-                    >
-                      <Icon name={deletingVideoName === videoGeneration.latestVideo!.name ? 'spinner' : 'trash'} size={18} />
-                    </button>
-                  </div>
-                ) : null}
-              </header>
-              {videoWorking ? (
-                <div
-                  className={[
-                    'poster-app__poster-skeleton',
-                    'poster-app__video-loading',
-                    videoAspectClass(videoGeneration.state.aspectRatio),
-                  ].join(' ')}
-                  data-aspect-ratio={videoGeneration.state.aspectRatio}
-                  data-testid="poster-app-video-loading"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <span className="poster-app__video-loading-copy">
+          <ResultTabs id="video" label={copy.videoResults} view={videoResultTab} onChange={setVideoResultTab}
+            latest={copy.latestBatch} history={<>{copy.posterHistory} <small>{videoHistory.length}</small></>} />
+          <section id="video-panel-latest" className="poster-app__result-panel" role="tabpanel"
+            aria-labelledby="video-tab-latest" hidden={videoResultTab !== 'latest'} tabIndex={0}>
+            {videoResultTab === 'latest' && (videoWorking || videoGeneration.restoring ? (
+              <>
+                <ResultHeader title={copy.latestBatch} details={`${videoGeneration.state.aspectRatio} · MP4`} />
+                <div className="niki-video-stage niki-video-stage--loading"
+                  style={{ '--niki-video-aspect': videoAspectNumber(videoGeneration.state.aspectRatio) } as CSSProperties}
+                  data-aspect-ratio={videoGeneration.state.aspectRatio} data-testid={videoWorking ? "poster-app-video-loading" : undefined}>
+                  <ResultLoading>
                     <strong>{videoStatus.title}</strong>
-                    <span>{videoStatus.detail}</span>
-                    <time>{copy.elapsed(videoElapsed)}</time>
-                  </span>
+                    {videoWorking && <time>{copy.elapsed(videoElapsed)}</time>}
+                  </ResultLoading>
                 </div>
-              ) : videoResultAvailable ? (
-                <video
-                  key={`${videoGeneration.latestVideo!.name}:${videoGeneration.latestVideo!.mtime}`}
-                  data-testid="poster-app-video-result"
-                  src={projectFileUrl(
-                    videoGeneration.state.projectId!,
-                    videoGeneration.latestVideo!.name,
-                  )}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="poster-app__video-result"
-                />
-              ) : null}
-            </section>
-          ) : null}
-
-          {videoHistory.length > 0 && videoGeneration.state.projectId ? (
-            <section className="poster-app__batch-section poster-app__history" aria-label={copy.videoHistory}>
-              <button
-                type="button"
-                className="poster-app__history-toggle"
-                aria-expanded={showVideoHistory}
-                aria-label={showVideoHistory ? copy.collapseVideoHistory : copy.expandVideoHistory} title={showVideoHistory ? copy.collapseVideoHistory : copy.expandVideoHistory}
-                onClick={() => setShowVideoHistory((current) => !current)}
-              >
-                <span className="poster-app__section-heading">
-                  <span className="poster-app__section-title">{copy.videoHistory}</span>
-                  <span className="poster-app__section-meta">({videoHistory.length})</span>
-                </span>
-                <span className="poster-app__history-toggle-icon" aria-hidden="true">
-                  <Icon
-                    name="chevron-down"
-                    size={18}
-                    className={showVideoHistory ? 'is-expanded' : undefined}
-                  />
-                </span>
-              </button>
-              {showVideoHistory ? (
-                <div className="poster-app__video-history-grid">
-                  {videoHistory.map((file) => (
-                    <article className="poster-app__video-card" key={`${file.name}:${file.mtime}`}>
-                      <video
-                        src={projectFileUrl(videoGeneration.state.projectId!, file.name)}
-                        controls
-                        playsInline
-                        preload="metadata"
-                      />
-                      <footer>
-                        <span title={file.name}>{file.name}</span>
-                        <a
-                          className="poster-app__video-action od-icon-button" aria-label={copy.downloadVideo} title={copy.downloadVideo}
-                          href={projectFileDownloadUrl(videoGeneration.state.projectId!, file.name)}
-                          download
-                        >
-                          <Icon name="download" size={18} />
-                        </a>
-                        <button
-                          type="button"
-                          className="poster-app__video-action is-danger od-icon-button" aria-label={copy.delete} title={copy.delete}
-                          disabled={deletingVideoName !== null}
-                          onClick={() => void removeVideo(file)}
-                        >
-                          <Icon name={deletingVideoName === file.name ? 'spinner' : 'trash'} size={18} />
-                        </button>
-                      </footer>
-                    </article>
-                  ))}
-                </div>
-              ) : null}
-            </section>
-          ) : null}
+              </>
+            ) : latestVideo ? renderVideo(latestVideo, true) : (
+              <p className="poster-app__history-empty">{videoStatus.state === 'failed' ? videoStatus.title : copy.readyVideoDetail}</p>
+            ))}
+          </section>
+          <section id="video-panel-history" className="poster-app__result-panel" role="tabpanel"
+            aria-labelledby="video-tab-history" hidden={videoResultTab !== 'history'} tabIndex={0}>
+            {videoGeneration.historyFailed && <p role="alert">{copy.videoHistoryFailed}</p>}
+            {historyVideo ? (
+              <ResultHistory items={videoHistory.map(video => ({
+                id: video.id, title: video.file.name, date: video.file.mtime,
+              }))} locale={locale} label={copy.videoHistory} selectedId={historyVideo.id} onSelect={setVideoHistoryId}>
+                {videoResultTab === 'history' && renderVideo(historyVideo, false)}
+              </ResultHistory>
+            ) : videoGeneration.historyLoading ? <ResultLoading>{copy.videoRestoring[0]}</ResultLoading>
+              : !videoGeneration.historyFailed && <p className="poster-app__history-empty">{copy.noVideoHistory}</p>}
+          </section>
         </section>
       ) : creationMode === 'competitors' ? (
         <CompetitorGallery />

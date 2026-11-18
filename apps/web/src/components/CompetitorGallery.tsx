@@ -4,6 +4,8 @@ import {
   useState,
 } from 'react';
 import { Icon } from './Icon';
+import { IconButton } from './Button';
+import { ResultDialog, ResultHeader, ResultLoading, ResultNavigation } from './NikiResultControls';
 import {
   COMPETITOR_SCREENSHOTS,
   type CompetitorScreenshot,
@@ -45,6 +47,7 @@ export function CompetitorGallery({
   const [category, setCategory] = useState(ALL_CATEGORIES);
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loadedPreview, setLoadedPreview] = useState<string | null>(null);
   const categories = useMemo(() => [
     ALL_CATEGORIES,
     ...Array.from(new Set(screenshots.map((item) => item.category))),
@@ -64,34 +67,18 @@ export function CompetitorGallery({
     setSelectedId(null);
   }, [filtered, selectedId]);
 
-  useEffect(() => {
-    if (!selected) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setSelectedId(null);
-      } else if (event.key === 'ArrowLeft' && filtered.length > 1) {
-        const previous = (selectedIndex - 1 + filtered.length) % filtered.length;
-        setSelectedId(filtered[previous]?.id ?? null);
-      } else if (event.key === 'ArrowRight' && filtered.length > 1) {
-        const next = (selectedIndex + 1) % filtered.length;
-        setSelectedId(filtered[next]?.id ?? null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', onKeyDown);
-    };
-  }, [filtered, selected, selectedIndex]);
-
   const categoryCount = (candidate: string) => candidate === ALL_CATEGORIES
     ? screenshots.length
     : screenshots.filter((item) => item.category === candidate).length;
 
+  function closePreview() {
+    setLoadedPreview(null);
+    setSelectedId(null);
+  }
+
   function moveSelection(direction: -1 | 1) {
     if (filtered.length < 2) return;
+    setLoadedPreview(null);
     const next = (selectedIndex + direction + filtered.length) % filtered.length;
     setSelectedId(filtered[next]?.id ?? null);
   }
@@ -110,7 +97,7 @@ export function CompetitorGallery({
                 aria-current={active ? 'page' : undefined}
                 onClick={() => setCategory(item)}
               >
-                <span>{item}</span>
+                <span title={item}>{item}</span>
                 <span className="competitor-gallery__category-count">
                   {categoryCount(item)}
                 </span>
@@ -208,52 +195,38 @@ export function CompetitorGallery({
       </div>
 
       {selected ? (
-        <div
-          className="competitor-gallery__lightbox"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`预览 ${selected.title}`}
-          data-testid="competitor-gallery-lightbox"
-        >
-          <button
-            type="button"
-            className="competitor-gallery__lightbox-backdrop"
-            onClick={() => setSelectedId(null)}
-            aria-label="关闭预览"
-          />
+        <ResultDialog className="competitor-gallery__lightbox" label={`预览 ${selected.title}`}
+          testId="competitor-gallery-lightbox" onClose={closePreview} onMove={moveSelection}>
+          <div className="competitor-gallery__lightbox-backdrop" aria-hidden="true" onClick={closePreview} />
           <div className="competitor-gallery__lightbox-panel">
-            <header>
-              <div>
-                <strong>{selected.title}</strong>
-                <span>{selected.brand ?? selected.category} · {selected.category}</span>
-              </div>
-              <div className="competitor-gallery__lightbox-actions">
-                {selected.sourcePage ? (
-                  <a
-                    href={selected.sourcePage}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="查看来源页面"
-                    aria-label="查看来源页面"
-                  >
-                    <Icon name="external-link" size={17} />
-                  </a>
-                ) : null}
-                <a href={selected.src} download title="下载原图" aria-label="下载原图">
-                  <Icon name="download" size={17} />
+            <ResultHeader title={selected.title}
+              details={selected.brand ? `${selected.brand} · ${selected.category}` : selected.category}
+              navigation={filtered.length > 1 && <ResultNavigation index={selectedIndex} count={filtered.length}
+                previousLabel="上一张" nextLabel="下一张" onMove={moveSelection} />}
+              actions={<>
+                {selected.sourcePage && <a className="od-button od-button--ghost od-button--compact od-icon-button"
+                  href={selected.sourcePage} target="_blank" rel="noreferrer" title="查看来源页面" aria-label="查看来源页面">
+                  <Icon name="external-link" size={18} />
+                </a>}
+                <a className="od-button od-button--ghost od-button--compact od-icon-button"
+                  href={selected.src} download title="下载原图" aria-label="下载原图">
+                  <Icon name="download" size={18} />
                 </a>
-                <button type="button" onClick={() => setSelectedId(null)} aria-label="关闭预览">
-                  <Icon name="close" size={18} />
-                </button>
-              </div>
-            </header>
+                <IconButton label="关闭预览" onClick={closePreview}><Icon name="close" size={18} /></IconButton>
+              </>} />
             <div className="competitor-gallery__lightbox-image">
+              {loadedPreview !== selected.id && (
+                <div className="competitor-gallery__lightbox-loading"><ResultLoading>正在加载原图</ResultLoading></div>
+              )}
               <img
+                key={selected.id}
                 src={selected.src}
                 alt={selected.alt ?? selected.title}
                 referrerPolicy="no-referrer"
+                onLoad={() => setLoadedPreview(selected.id)}
                 onError={(event) => {
                   event.currentTarget.hidden = true;
+                  setLoadedPreview(selected.id);
                 }}
               />
               <span className="competitor-gallery__lightbox-fallback">
@@ -262,31 +235,8 @@ export function CompetitorGallery({
                 <a href={selected.src} target="_blank" rel="noreferrer">在新窗口打开</a>
               </span>
             </div>
-            {filtered.length > 1 ? (
-              <>
-                <button
-                  type="button"
-                  className="competitor-gallery__lightbox-nav is-previous"
-                  onClick={() => moveSelection(-1)}
-                  aria-label="上一张"
-                >
-                  <Icon name="chevron-left" size={23} />
-                </button>
-                <button
-                  type="button"
-                  className="competitor-gallery__lightbox-nav is-next"
-                  onClick={() => moveSelection(1)}
-                  aria-label="下一张"
-                >
-                  <Icon name="chevron-right" size={23} />
-                </button>
-                <span className="competitor-gallery__lightbox-counter">
-                  {selectedIndex + 1} / {filtered.length}
-                </span>
-              </>
-            ) : null}
           </div>
-        </div>
+        </ResultDialog>
       ) : null}
     </section>
   );

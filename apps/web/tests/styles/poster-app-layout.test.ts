@@ -243,17 +243,17 @@ describe('poster app image layout', () => {
     const poster = rule('.poster-app__poster');
     const posterAndSkeleton = rule('.poster-app__poster,\n.poster-app__poster-skeleton');
     const select = controlRule('.od-control-select__trigger');
-    const square = rule('.poster-app__poster.is-square');
-    const portrait = rule('.poster-app__poster.is-portrait');
+    const square = rule('.poster-app__poster.is-square,\n.poster-app__poster-skeleton.is-square');
+    const portrait = rule('.poster-app__poster.is-portrait,\n.poster-app__poster-skeleton.is-portrait');
     const image = rules('.poster-app__poster img');
 
-    expect(poster).toContain('aspect-ratio: 16 / 9;');
+    expect(posterAndSkeleton).toContain('aspect-ratio: var(--niki-poster-aspect);');
     expect(poster).toContain('cursor: pointer;');
     expect(posterAndSkeleton).toContain('border: 0;');
-    expect(posterAndSkeleton).toContain('border-radius: 0;');
+    expect(posterAndSkeleton).toContain('border-radius: var(--od-surface-radius);');
     expect(select).toContain('border-radius: var(--od-control-radius);');
-    expect(square).toContain('aspect-ratio: 1;');
-    expect(portrait).toContain('aspect-ratio: 3 / 4;');
+    expect(square).toContain('--niki-poster-aspect: 1;');
+    expect(portrait).toContain('--niki-poster-aspect: .75;');
     expect(image).toContain('object-fit: contain;');
     expect(image).not.toContain('aspect-ratio: 16 / 9;');
   });
@@ -280,9 +280,8 @@ describe('poster app image layout', () => {
     const picture = rule('.poster-preview__stage picture');
     const image = rule('.poster-preview__stage img');
 
-    expect(preview).toContain('background: color-mix(in srgb, var(--poster-fill-7) 80%, transparent);');
-    expect(preview).toContain('backdrop-filter: blur(18px) saturate(1.15);');
-    expect(preview).toContain('-webkit-backdrop-filter: blur(18px) saturate(1.15);');
+    expect(preview).toContain('background: var(--poster-bg);');
+    expect(preview).toContain('grid-template-rows: auto minmax(0, 1fr);');
     expect(picture).toContain('width: 100%;');
     expect(picture).toContain('height: 100%;');
     expect(image).toContain('width: auto;');
@@ -292,41 +291,6 @@ describe('poster app image layout', () => {
     expect(image).toContain('max-width: 100%;');
     expect(image).toContain('max-height: 100%;');
     expect(image).toContain('object-fit: contain;');
-  });
-
-  it('uses aligned icon controls with the shared radius in the preview header and footer', () => {
-    const headerButton = rule('.poster-preview__header button');
-    const footer = rules('.poster-preview__footer');
-    const footerButton = rule('.poster-preview__footer button');
-    const controls = rule('.poster-preview__header button,\n.poster-preview__footer button');
-    const hoverControls = rule('.poster-preview__header button:hover:not(:disabled),\n.poster-preview__footer button:hover:not(:disabled)');
-    const pressedControls = rule('.poster-preview__header button:active:not(:disabled),\n.poster-preview__footer button:active:not(:disabled)');
-    const focusedControls = rule('.poster-preview__header button:focus-visible,\n.poster-preview__footer button:focus-visible');
-
-    expect(headerButton).toContain('width: 48px;');
-    expect(headerButton).toContain('height: 48px;');
-    expect(headerButton).toContain('border-radius: var(--od-control-radius);');
-    expect(headerButton).toContain('border: 0;');
-    expect(headerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);');
-    expect(headerButton).toContain('color: var(--poster-fill-7);');
-    expect(footer).toContain('border-top: 0;');
-    expect(footer).toContain('background: transparent;');
-    expect(footer).toContain('gap: 80px;');
-    expect(footer).toContain('gap: 32px;');
-    expect(footerButton).toContain('width: 52px;');
-    expect(footerButton).toContain('height: 52px;');
-    expect(footerButton).toContain('border-radius: var(--od-control-radius);');
-    expect(footerButton).toContain('border: 0;');
-    expect(footerButton).toContain('background: color-mix(in srgb, var(--poster-fill-0) 64%, transparent);');
-    expect(footerButton).toContain('color: var(--poster-fill-7);');
-    expect(controls).toContain('cursor: pointer;');
-    expect(controls).toContain('background-color 140ms');
-    expect(hoverControls).toContain('background: color-mix(in srgb, var(--poster-fill-0) 80%, transparent);');
-    expect(pressedControls).toContain('background: var(--poster-fill-0);');
-    expect(pressedControls).toContain('transform: scale(0.97);');
-    expect(pressedControls).toContain('transition-duration: 80ms;');
-    expect(focusedControls).toContain('outline: none;');
-    expect(focusedControls).toContain('box-shadow: 0 0 0 3px color-mix(in srgb, var(--poster-fill-0) 48%, transparent);');
   });
 
   it('uses a two-column mobile result tab bar with a token-based active state', () => {

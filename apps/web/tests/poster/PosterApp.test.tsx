@@ -734,7 +734,7 @@ describe('PosterApp mobile-safe flow', () => {
     );
   });
 
-  it('shows prior MP4s in collapsible history and deletes them in place', async () => {
+  it('selects MP4s across saved projects and deletes from the owning project', async () => {
     const latestVideo = {
       name: 'zamloan-latest.mp4',
       kind: 'video',
@@ -749,15 +749,13 @@ describe('PosterApp mobile-safe flow', () => {
       size: 1_024,
       mtime: 10,
     };
-    let previousExists = true;
-    fetchProjectFilesMock.mockImplementation(async () => (
-      previousExists ? [latestVideo, previousVideo] : [latestVideo]
-    ));
-    deleteProjectFileMock.mockImplementation(async (_projectId, name) => {
-      if (name !== previousVideo.name) return false;
-      previousExists = false;
-      return true;
-    });
+    listProjectsMock.mockResolvedValue([{
+      ...project, id: 'older-video-project', skillId: 'hyperframes',
+      metadata: { kind: 'video', videoModel: 'hyperframes-html' },
+    }]);
+    fetchProjectFilesMock.mockImplementation(async (id) =>
+      id === 'older-video-project' ? [previousVideo] : [latestVideo]);
+    deleteProjectFileMock.mockResolvedValue(true);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<PosterApp />);
     await fillValidVideoDraft('Video history tutorial');
@@ -765,17 +763,17 @@ describe('PosterApp mobile-safe flow', () => {
     fireEvent.click(screen.getByTestId('loan-video-generate'));
 
     await screen.findByTestId('poster-app-video-result');
-    fireEvent.click(screen.getByRole('button', { name: 'Expand video history' }));
-    const history = screen.getByRole('region', { name: 'Video history' });
-    const previousCard = within(history).getByText(previousVideo.name).closest('article');
-    expect(previousCard).toBeTruthy();
-    fireEvent.click(within(previousCard as HTMLElement).getByRole('button', { name: 'Delete' }));
+    fireEvent.click(screen.getByRole('tab', { name: /^History/ }));
+    const history = await screen.findByRole('navigation', { name: 'Video history' });
+    expect(within(history).getByRole('button', { name: previousVideo.name }).getAttribute('aria-current')).toBe('page');
+    const preview = screen.getByLabelText(previousVideo.name, { selector: 'video' });
+    expect(preview.getAttribute('src')).toBe(`/api/projects/older-video-project/raw/${previousVideo.name}`);
+    const panel = screen.getByRole('tabpanel', { name: /^History/ });
+    expect(within(panel).getByRole('link', { name: 'Download video' }).getAttribute('href')).toContain('/older-video-project/');
+    fireEvent.click(within(panel).getByRole('button', { name: 'Delete' }));
 
-    await waitFor(() => expect(deleteProjectFileMock).toHaveBeenCalledWith(
-      'video-project-1',
-      previousVideo.name,
-    ));
-    await waitFor(() => expect(screen.queryByRole('region', { name: 'Video history' })).toBeNull());
+    await waitFor(() => expect(deleteProjectFileMock).toHaveBeenCalledWith('older-video-project', previousVideo.name));
+    expect(await within(panel).findByText('No previous videos yet.')).toBeTruthy();
   });
 
   it('keeps a failed video task on the page and allows an in-place retry', async () => {
@@ -888,7 +886,7 @@ describe('PosterApp mobile-safe flow', () => {
       .toContain('od-toast--error');
   });
 
-  it('restores an active video shimmer with its saved ratio, phase, and elapsed time', async () => {
+  it('restores an active video canvas with its saved ratio, phase, and elapsed time', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(200_000);
     const restoredProject = {
       ...project,
@@ -932,7 +930,7 @@ describe('PosterApp mobile-safe flow', () => {
     selectWorkspace('Videos');
 
     const loading = await screen.findByTestId('poster-app-video-loading');
-    expect(loading.className).toContain('is-square');
+    expect(loading.style.getPropertyValue('--niki-video-aspect')).toBe('1');
     expect(loading.getAttribute('data-aspect-ratio')).toBe('1:1');
     expect(within(loading).getByText('Generating tutorial video')).toBeTruthy();
     expect(within(loading).getByText('Elapsed 2m 05s')).toBeTruthy();
@@ -1220,12 +1218,12 @@ describe('PosterApp mobile-safe flow', () => {
     expect(await screen.findByRole('dialog', { name: 'Account management' })).toBeTruthy();
   });
 
-  it('keeps the poster gallery free of poster-sized placeholders while restoring history', () => {
+  it('reserves the poster canvas while restoring saved results', () => {
     resolveDirectLoanPosterProjectMock.mockReturnValue(new Promise(() => undefined));
     render(<PosterApp />);
 
     expect(screen.getByText('Loading recent posters…')).toBeTruthy();
-    expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
+    expect(document.querySelector('.poster-app__poster-skeleton.is-portrait')).toBeTruthy();
   });
 
   it('keeps video generation controls interactive while restoring history', () => {
@@ -1638,7 +1636,7 @@ describe('PosterApp mobile-safe flow', () => {
   });
 
   it.each(['preparing', 'queued', 'failed', 'interrupted'] as const)(
-    'restores the last successful poster when the newest batch is %s and empty', async (status) => {
+    'keeps the last successful poster accessible when the newest batch is %s and empty', async (status) => {
       const storedProject = { ...project, metadata: { kind: 'image', directGeneration: {
         kind: 'loan-poster', status, expectedOutputs: 2,
         batches: [
@@ -1654,34 +1652,39 @@ describe('PosterApp mobile-safe flow', () => {
           ? { files: [{ name: 'zamloan-poster-001.png', kind: 'image', mime: 'image/png', size: 100, mtime: 2 }] }
           : { project: storedProject },
       ), { status: 200 }));
-      const view = render(<PosterApp />);
-      await screen.findByRole('img', { name: 'zamloan-poster-001.png' });
-      expect(screen.getByRole('tab', { name: /^Latest batch/ }).textContent).toContain('1:1 × 1');
-      expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
-      expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
-      view.unmount();
       render(<PosterApp />);
-      await screen.findByRole('img', { name: 'zamloan-poster-001.png' });
+      if (status === 'preparing' || status === 'queued') {
+        await waitFor(() => expect(document.querySelector('.poster-app__poster-skeleton.is-landscape')).toBeTruthy());
+        expect(screen.getByRole('tab', { name: /^Latest batch/ }).textContent).toContain('16:9 × 0');
+        fireEvent.click(screen.getByRole('tab', { name: 'History 1' }));
+      } else {
+        await screen.findByRole('img', { name: 'zamloan-poster-001.png' });
+        expect(screen.getByRole('tab', { name: /^Latest batch/ }).textContent).toContain('1:1 × 1');
+        expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
+      }
+      expect(await screen.findByRole('img', { name: 'zamloan-poster-001.png' })).toBeTruthy();
       expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
     },
   );
 
-  it('keeps the displayed poster throughout a new request and its submission failure', async () => {
+  it('keeps the previous poster accessible during a new request and restores it after failure', async () => {
     let rejectRequest!: (reason: Error) => void;
     startDirectLoanPosterProjectMock.mockReturnValue(new Promise((_resolve, reject) => { rejectRequest = reject; }));
     render(<PosterApp />);
     const name = 'biumoney-poster-20260804-001.png';
     await screen.findByRole('img', { name });
     fireEvent.click(await screen.findByRole('button', { name: 'Generate' }));
+    expect(document.querySelector('.poster-app__poster-skeleton.is-portrait')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'History 1' }));
     expect(screen.getByRole('img', { name })).toBeTruthy();
-    expect(document.querySelector('.poster-app__poster-skeleton')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: /^Latest batch/ }));
     await act(async () => rejectRequest(new Error('Request failed')));
     expect(screen.getByRole('img', { name })).toBeTruthy();
     expect(screen.queryByTestId('poster-app-latest-empty')).toBeNull();
     expect(screen.getByTestId('poster-app-generation-status').textContent).toContain('Request failed');
   });
 
-  it('replaces the pinned poster only as saved files arrive, keeping all other outputs in history', async () => {
+  it('lets users navigate saved images as they arrive in the same batch', async () => {
     const outputNames = [1, 2, 3, 4].map(index => `zamloan-poster-${index}.png`);
     const storedProject = { ...project, metadata: { kind: 'image', directGeneration: {
       kind: 'loan-poster', status: 'queued', expectedOutputs: 4,
@@ -1697,19 +1700,19 @@ describe('PosterApp mobile-safe flow', () => {
     ), { status: 200 }));
     render(<PosterApp />);
     await screen.findByRole('img', { name: outputNames[0] });
+    const panel = screen.getByRole('tabpanel', { name: /^Latest batch/ });
     for (savedCount = 2; savedCount <= 4; savedCount++) {
       fireEvent(window, new Event('focus'));
-      await screen.findByRole('img', { name: outputNames[savedCount - 1] });
-      const panel = screen.getByRole('tabpanel', { name: /^Latest batch/ });
+      await waitFor(() => expect(screen.getByRole('tab', { name: /^Latest batch/ }).textContent).toContain(`3:4 × ${savedCount}`));
+      fireEvent.click(within(panel).getByRole('button', { name: 'Next image' }));
+      expect(within(panel).getByRole('img', { name: outputNames[savedCount - 1] })).toBeTruthy();
       expect(within(panel).getAllByRole('img')).toHaveLength(1);
-      expect(screen.getByRole('tab', { name: /^Latest batch/ }).textContent).toContain('3:4 × 1');
-      expect(screen.getByRole('tab', { name: /^History/ }).textContent).toContain(String(savedCount - 1));
     }
-    fireEvent.click(screen.getByRole('tab', { name: /^History/ }));
-    expect(within(screen.getByRole('tabpanel', { name: /^History/ })).getAllByRole('img')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('tab', { name: 'History 0' }));
+    expect(within(screen.getByRole('tabpanel', { name: /^History/ })).queryByRole('img')).toBeNull();
   });
 
-  it('pins the newest successful image above history with its own ratio and count', async () => {
+  it('shows the newest batch and navigates a past batch with its own ratio', async () => {
     const batchedProject = {
       ...project,
       updatedAt: 30,
@@ -1789,7 +1792,7 @@ describe('PosterApp mobile-safe flow', () => {
     expect(latestTab.getAttribute('aria-selected')).toBe('true');
     expect(historyTab.getAttribute('aria-selected')).toBe('false');
     expect(within(latestTab).getByText('1:1 × 1')).toBeTruthy();
-    expect(within(historyTab).getByText('2')).toBeTruthy();
+    expect(within(historyTab).getByText('1')).toBeTruthy();
 
     const latestPanel = screen.getByRole('tabpanel', { name: /Latest batch/ });
     const newestImage = within(latestPanel).getByRole('img', {
@@ -1807,6 +1810,8 @@ describe('PosterApp mobile-safe flow', () => {
     expect(latestTab.getAttribute('aria-selected')).toBe('false');
 
     const historyPanel = screen.getByRole('tabpanel', { name: /History/ });
+    expect(within(historyPanel).getByRole('button', { name: 'Batch 1' }).getAttribute('aria-current')).toBe('page');
+    fireEvent.click(within(historyPanel).getByRole('button', { name: 'Next image' }));
     const olderImage = within(historyPanel).getByRole('img', {
       name: 'biumoney-poster-20260804-002.png',
     });

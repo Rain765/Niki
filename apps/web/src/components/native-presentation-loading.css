@@ -1,12 +1,10 @@
-@import './native-presentation-tokens.css';
-
-.native-ppt__progress { display: grid; align-content: center; gap: 16px; aspect-ratio: var(--native-ppt-aspect, 16 / 9); min-height: 0; padding: 24px clamp(16px, 4vw, 48px); border: 0; border-radius: var(--od-surface-radius); background: color-mix(in srgb, var(--poster-panel-raised) 45%, var(--poster-panel)); }
-.native-ppt__progress-heading { display: flex; align-items: center; justify-content: center; gap: 12px; text-align: center; color: var(--poster-text); }
-.native-ppt__progress-heading strong { font-size: var(--native-type-heading); }
-.native-ppt__progress-heading small { font-size: var(--native-type-caption); display: block; margin-top: 4px; color: var(--poster-muted); }
-.native-ppt__elapsed { justify-self: center; text-align: center; color: var(--poster-muted); font-size: var(--native-type-label); font-variant-numeric: tabular-nums; }
-.native-ppt__progress-spinner { flex: none; color: var(--poster-accent); animation: native-ppt-spin 1s linear infinite; }
-@keyframes native-ppt-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .native-ppt__progress-spinner { animation: none; }
+.native-ppt__progress {
+  display: grid;
+  place-items: center;
+  aspect-ratio: var(--native-ppt-aspect, 16 / 9);
+  min-height: 0;
+  border-radius: var(--od-surface-radius);
+  background: var(--poster-panel);
 }
+
+.native-ppt__elapsed { font-variant-numeric: tabular-nums; }

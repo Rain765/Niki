@@ -245,7 +245,7 @@ describe('LogoStudioView', () => {
     expect(startProjectMediaTaskMock).not.toHaveBeenCalled();
   });
 
-  it('lists multiple persisted batches newest first', async () => {
+  it('selects one saved batch at a time from the newest-first history sidebar', async () => {
     const projects = [
       {
         id: 'older-logo',
@@ -310,10 +310,12 @@ describe('LogoStudioView', () => {
     fireEvent.keyDown(latestTab, { key: 'ArrowRight' });
     expect(screen.getByRole('tab', { name: 'History 2' }).getAttribute('aria-selected')).toBe('true');
     expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'History 2' }));
-    const batches = within(history).getAllByRole('article');
-    expect(batches).toHaveLength(2);
-    expect(batches[0]?.textContent).toContain('AMIZ Logo actual generation');
-    expect(batches[1]?.textContent).toContain('Atlas Logo');
+    const sidebar = within(history).getByRole('navigation', { name: 'History' });
+    expect(within(sidebar).getAllByRole('button').map(button => button.textContent))
+      .toEqual(['AMIZ Logo actual generation', 'Atlas Logo']);
+    expect(within(history).getByRole('article').textContent).toContain('AMIZ Logo actual generation');
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Atlas Logo' }));
+    expect(within(history).getByRole('article').textContent).toContain('Atlas Logo');
     expect(history.textContent).not.toContain('Poster project');
     fireEvent.change(screen.getByLabelText('Brand name'), { target: { value: 'Draft brand' } });
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
@@ -347,11 +349,12 @@ describe('LogoStudioView', () => {
 
     const history = await screen.findByRole('region', { name: 'Generation history' });
     fireEvent.click(await screen.findByRole('tab', { name: 'History 7' }));
-    await waitFor(() => expect(within(history).getAllByRole('article')).toHaveLength(6));
+    const sidebar = await within(history).findByRole('navigation', { name: 'History' });
+    expect(within(sidebar).getAllByRole('button', { name: /^Brand/ })).toHaveLength(6);
     expect(fetchProjectFilesMock).toHaveBeenCalledTimes(6);
 
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
-    await waitFor(() => expect(within(history).getAllByRole('article')).toHaveLength(7));
+    await waitFor(() => expect(within(sidebar).getAllByRole('button', { name: /^Brand/ })).toHaveLength(7));
   });
 
   it('turns a selected history direction into a persisted downloadable brand kit', async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { ResultLoading } from './NikiResultControls';
 import { useI18n } from '../i18n';
 import './native-presentation-loading.css';
 
@@ -34,13 +34,10 @@ export function NativePresentationLoading({ stage, startedAt, checkedPages }: {
   const elapsed = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   const label = labels[stage][zh ? 0 : 1];
   return <div className="native-ppt__progress">
-    <div className="native-ppt__progress-heading">
-      <LoaderCircle className="native-ppt__progress-spinner" size={24} aria-hidden="true"/>
-      <div role="status" aria-label={label}>
-        <strong>{label}</strong>
-        {checkedPages !== undefined && <small>{zh ? `已渲染 ${checkedPages} 页供检查` : `${checkedPages} slides rendered for review`}</small>}
-      </div>
-    </div>
-    {startedAt !== undefined && <span className="native-ppt__elapsed">{zh ? '已用时' : 'Elapsed'} {elapsed}</span>}
+    <ResultLoading label={label}>
+      <strong>{label}</strong>
+      {checkedPages !== undefined && <small>{zh ? `已渲染 ${checkedPages} 页供检查` : `${checkedPages} slides rendered for review`}</small>}
+      {startedAt !== undefined && <time className="native-ppt__elapsed">{zh ? '已用时' : 'Elapsed'} {elapsed}</time>}
+    </ResultLoading>
   </div>;
 }
