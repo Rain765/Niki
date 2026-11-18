@@ -425,12 +425,12 @@
 }
 
 .competitor-gallery__lightbox-panel header strong {
-  font-size: 13px;
+  font-size: var(--od-type-heading);
 }
 
 .competitor-gallery__lightbox-panel header span {
   color: #9298a4;
-  font-size: 11px;
+  font-size: var(--od-type-caption);
 }
 
 .competitor-gallery__lightbox-actions {
@@ -499,12 +499,12 @@
 
 .competitor-gallery__lightbox-fallback strong {
   color: #f7f7f8;
-  font-size: 14px;
+  font-size: var(--od-type-heading);
 }
 
 .competitor-gallery__lightbox-fallback a {
   color: #ff6a24;
-  font-size: 12px;
+  font-size: var(--od-type-label);
 }
 
 .competitor-gallery__lightbox-nav {

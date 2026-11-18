@@ -117,7 +117,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--od-control-font-size);
   text-align: left;
   cursor: pointer;
 }
@@ -355,7 +355,7 @@
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--od-control-font-size);
   text-align: left;
   cursor: pointer;
 }
@@ -445,7 +445,7 @@
   align-items: center;
   gap: 9px;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--od-type-heading);
   font-weight: 650;
 }
 

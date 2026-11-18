@@ -5,7 +5,12 @@
   --od-control-height-compact: 36px;
   --od-control-radius: 8px;
   --od-surface-radius: 12px;
-  --od-control-font-size: 13px;
+  --od-type-caption: 11px;
+  --od-type-label: 12px;
+  --od-type-body: 13px;
+  --od-type-heading: 14px;
+  --od-type-dialog: 18px;
+  --od-control-font-size: var(--od-type-body);
   --od-control-font-weight: 650;
   --od-control-menu-radius: var(--od-surface-radius);
   --od-control-gap: 8px;
@@ -54,7 +59,7 @@
 
 .od-field__label {
   color: var(--od-control-muted);
-  font-size: 12px;
+  font-size: var(--od-type-label);
   font-weight: 650;
 }
 
@@ -204,7 +209,7 @@
   color: var(--od-control-text);
   cursor: pointer;
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--od-control-font-size);
   font-weight: var(--od-control-font-weight);
   text-align: left;
 }
@@ -269,7 +274,7 @@ body:has(.od-select-sheet[open]) { overflow: hidden; }
 .od-select-sheet__header h2 {
   flex: 1;
   margin: 0;
-  font-size: 16px;
+  font-size: var(--od-type-dialog);
   font-weight: var(--od-control-font-weight);
 }
 
@@ -426,7 +431,7 @@ body:has(.od-select-sheet[open]) { overflow: hidden; }
     transparent
   );
   transform: translateX(-50%);
-  font-size: 13px;
+  font-size: var(--od-control-font-size);
   line-height: 1.45;
 }
 
@@ -493,7 +498,7 @@ body:has(.od-select-sheet[open]) { overflow: hidden; }
 .od-toast-details {
   margin-top: 3px;
   color: var(--od-control-muted);
-  font-size: 12px;
+  font-size: var(--od-type-label);
   font-weight: 400;
 }
 
@@ -505,7 +510,7 @@ body:has(.od-select-sheet[open]) { overflow: hidden; }
   border-radius: var(--od-control-radius);
   background: var(--od-control-hover);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--od-type-caption);
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;

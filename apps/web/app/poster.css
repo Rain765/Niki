@@ -1391,6 +1391,7 @@ button {
   font-weight: var(--od-control-font-weight);
   text-align: left;
   transition: background 140ms cubic-bezier(0.23, 1, 0.32, 1);
+  font-size: var(--od-control-font-size);
 }
 
 .poster-app__account-menu button:hover,
@@ -2227,6 +2228,7 @@ button {
   color: var(--poster-text);
   text-align: left;
   box-shadow: 0 12px 34px color-mix(in srgb, var(--poster-mask-dark) 14%, transparent);
+  font-size: var(--od-type-body);
 }
 
 .poster-preview__notice.is-error {
@@ -3306,7 +3308,7 @@ button {
 .english-word-sheet__meaning span,
 .english-word-sheet__context span {
   color: var(--poster-muted);
-  font-size: 11px;
+  font-size: var(--od-type-caption);
   font-weight: 700;
 }
 
@@ -3314,6 +3316,7 @@ button {
 .english-word-sheet__context p {
   margin: 6px 0 0;
   line-height: 1.65;
+  font-size: var(--od-type-body);
 }
 
 /* IELTS speaking chunk coach -------------------------------------------- */

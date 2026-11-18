@@ -366,7 +366,7 @@ describe('poster app image layout', () => {
     expect(portalMenu).toContain('position: fixed;');
     expect(option).toContain('min-height: 44px;');
     expect(option).toContain('display: grid;');
-    expect(option).toContain('font-size: 14px;');
+    expect(option).toContain('font-size: var(--od-control-font-size);');
     expect(optionHover).toContain('background: var(--od-control-hover);');
     expect(optionHover).toContain('color: var(--od-control-text);');
   });

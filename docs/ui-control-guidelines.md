@@ -11,6 +11,10 @@ The rules are application-wide. Existing product pages, generation pages, and li
 - Preserve intentional circles for avatars, color swatches, progress indicators and slider thumbs, and preserve the shape of generated content. Small details may retain radii of 8 px or less.
 - Desktop, mobile sheets, and critical first-paint CSS follow the same scale.
 
+## Typography
+
+Use the shared UI scale for menus, control sheets, and dialogs. Captions use `--od-type-caption` (11 px), secondary labels use `--od-type-label` (12 px), body text and controls use the 13 px body tier, section headings use `--od-type-heading` (14 px), and dialog titles use `--od-type-dialog` (18 px). Menu items and interactive form fields use `--od-control-font-size` (13 px), including menus mounted outside their trigger's container.
+
 ## Selectors
 
 - Use `SelectField` for a labelled form selector and `CustomSelect` only when the surrounding layout already owns the label.
