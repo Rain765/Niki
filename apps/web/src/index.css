@@ -1774,15 +1774,15 @@ code {
   border-bottom: 1px solid var(--border-soft);
   margin-bottom: 4px;
 }
-.avatar-popover-head .who { font-weight: 600; font-size: 13px; }
-.avatar-popover-head .where { font-size: 11.5px; color: var(--text-muted); }
+.avatar-popover-head .who { font-weight: 600; font-size: var(--od-type-heading); }
+.avatar-popover-head .where { font-size: var(--od-type-caption); color: var(--text-muted); }
 .avatar-item {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   padding: 8px 10px;
-  font-size: 12.5px;
+  font-size: var(--od-control-font-size);
   text-align: left;
   background: transparent;
   border: none;

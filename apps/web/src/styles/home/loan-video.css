@@ -255,7 +255,7 @@
   background: transparent;
   color: var(--poster-text, var(--text));
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--od-control-font-size);
   text-align: left;
   cursor: pointer;
   font-weight: var(--od-control-font-weight);
@@ -473,14 +473,14 @@
 .loan-video-drawer__title h2 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 17px;
+  font-size: var(--od-type-dialog);
 }
 
 .loan-video-drawer__title p {
   margin: 4px 0 0;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--od-type-label);
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -523,7 +523,7 @@
 
 .loan-video-drawer__footer-actions > span {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--od-type-label);
 }
 
 .loan-video-drawer__steps {
