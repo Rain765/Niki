@@ -764,6 +764,12 @@ export function LogoStudioView() {
     ? <ResultLoading>{copy.historyLoading}</ResultLoading>
     : <div className="logo-studio__history-empty">{copy.historyEmpty}</div>;
 
+  const moreHistory = historyLimit < historyProjectCount && (
+    <Button loading={historyLoading} onClick={() => setHistoryLimit(limit => limit + HISTORY_PAGE_SIZE)}>
+      {copy.historyMore}
+    </Button>
+  );
+
   return (
     <section className="logo-studio" aria-label={copy.brief}>
       <form className="logo-studio__form" onSubmit={submit}>
@@ -948,14 +954,10 @@ export function LogoStudioView() {
           {resultView === 'history' && (historyEntry ? (
             <ResultHistory items={historyEntries.map(entry => ({ id: entry.projectId, title: entry.name, date: entry.createdAt }))}
               locale={locale} label={copy.historyTab} selectedId={historyEntry.projectId} onSelect={setHistoryId}
-              footer={historyLimit < historyProjectCount && (
-                <Button loading={historyLoading} onClick={() => setHistoryLimit(limit => limit + HISTORY_PAGE_SIZE)}>
-                  {copy.historyMore}
-                </Button>
-              )}>
+              footer={moreHistory}>
               {renderBatch(historyEntry)}
             </ResultHistory>
-          ) : emptyResult)}
+          ) : <>{emptyResult}{moreHistory}</>)}
         </div>
       </section>
     </section>

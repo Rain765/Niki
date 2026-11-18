@@ -357,6 +357,30 @@ describe('LogoStudioView', () => {
     await waitFor(() => expect(within(sidebar).getAllByRole('button', { name: /^Brand/ })).toHaveLength(7));
   });
 
+  it('can load older saved results when the first page contains only empty projects', async () => {
+    listProjectsMock.mockResolvedValue(Array.from({ length: 7 }, (_, index) => ({
+      id: `logo-project-${index + 1}`,
+      name: `Brand ${index + 1} Logo`,
+      skillId: 'logo-generator',
+      designSystemId: null,
+      createdAt: 100 - index,
+      updatedAt: 100 - index,
+    })));
+    listProjectMediaTasksMock.mockResolvedValue({ tasks: [] });
+    fetchProjectFilesMock.mockImplementation(async projectId => projectId === 'logo-project-7' ? [{
+      name: 'logo-direction-01.png', size: 1024, mtime: 1, kind: 'image', mime: 'image/png',
+    }] : []);
+
+    render(<I18nProvider initial="en"><LogoStudioView /></I18nProvider>);
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'History 7' }));
+    const loadMore = await screen.findByRole('button', { name: 'Load more' });
+    await waitFor(() => expect((loadMore as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(loadMore);
+    const history = await screen.findByRole('navigation', { name: 'History' });
+    expect(within(history).getByRole('button', { name: 'Brand 7 Logo' })).toBeTruthy();
+  });
+
   it('turns a selected history direction into a persisted downloadable brand kit', async () => {
     listProjectsMock.mockResolvedValue([{
       id: 'logo-project-1',
