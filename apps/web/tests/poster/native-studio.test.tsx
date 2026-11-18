@@ -213,9 +213,9 @@ it('keeps history titles beside the selected batch and switches batches without 
   const history=screen.getByRole('tabpanel',{name:/历史生成/});
   const sidebar=within(history).getByRole('navigation',{name:'历史文稿'});
   expect(sidebar.querySelector('svg')).toBeNull();
-  expect(sidebar.querySelectorAll('.native-ppt__history-group')).toHaveLength(2);
-  expect(sidebar.querySelectorAll('.native-ppt__history-group')[0]!.querySelectorAll('button')).toHaveLength(2);
-  expect(sidebar.querySelectorAll('.native-ppt__history-group')[1]!.querySelectorAll('button')).toHaveLength(1);
+  expect(sidebar.querySelectorAll('section')).toHaveLength(2);
+  expect(sidebar.querySelectorAll('section')[0]!.querySelectorAll('button')).toHaveLength(2);
+  expect(sidebar.querySelectorAll('section')[1]!.querySelectorAll('button')).toHaveLength(1);
   expect(sidebar.querySelector('button small,button h3')).toBeNull();
   expect(within(sidebar).getByRole('button',{name:/新批次/}).getAttribute('aria-current')).toBe('page');
   expect(within(history).getByTestId('result-newer')).toBeTruthy();

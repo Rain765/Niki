@@ -36,29 +36,6 @@
 .native-ppt__workspace iframe { width: 100%; height: min(70dvh, 700px); min-height: 420px; border: 0; background: var(--poster-panel); }
 .native-ppt__workspace-tools { display: flex; justify-content: flex-end; padding: 14px 0; }
 .native-ppt__workspace-tools a { color: var(--poster-muted); display: flex; align-items: center; gap: 6px; font-size: var(--native-type-label); }
-.native-ppt__history { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; }
-.native-ppt__history-sidebar { display: flex; flex-direction: column; gap: 6px; min-width: 0; max-height: 70dvh; overflow-y: auto; padding-right: 16px; border-right: 1px solid var(--poster-line-divide); }
-.native-ppt__history-sidebar button { display: grid; gap: 8px; width: 100%; text-align: left; border: 0; border-radius: var(--od-control-radius); padding: 14px 12px; color: var(--poster-text); background: transparent; cursor: pointer; font: inherit; }
-.native-ppt__history-sidebar button:hover { background: var(--poster-control-hover); }
-.native-ppt__history-sidebar button[aria-current=page] { color: var(--poster-text-inverse); background: var(--poster-accent); }
-.native-ppt__history-sidebar button:focus-visible { outline: 2px solid var(--poster-accent); outline-offset: -2px; }
-.native-ppt__history-sidebar strong { font-size: var(--native-type-label); font-weight: 600; line-height: 1.5; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.native-ppt__history-group { min-width: 0; margin-bottom: 14px; }
-.native-ppt__history-group h3 { margin: 0 0 8px; padding: 0 12px; text-align: left; font-size: var(--native-type-caption); line-height: 1.4; font-weight: 400; color: var(--poster-muted); }
-.native-ppt__history-items { display: grid; gap: 6px; min-width: 0; }
-.native-ppt__history-content { min-width: 0; }
-@media (max-width: 760px) {
-  .native-ppt__history { grid-template-columns: 120px minmax(0, 1fr); gap: 12px; }
-  .native-ppt__history-sidebar { padding-right: 8px; }
-  .native-ppt__history-sidebar button { padding: 12px 8px; }
-}
-@media (max-width: 520px) {
-  .native-ppt__history { grid-template-columns: minmax(0, 1fr); }
-  .native-ppt__history-sidebar { flex-direction: row; max-height: none; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--poster-line-divide); padding: 0 0 12px; }
-  .native-ppt__history-group { flex: 0 0 auto; margin: 0; }
-  .native-ppt__history-items { display: flex; }
-  .native-ppt__history-sidebar button { flex: 0 0 160px; width: 160px; }
-}
 .native-ppt__error { color: var(--poster-danger); }
 @media (max-width: 900px) {
   .native-ppt__filters.od-generation-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }

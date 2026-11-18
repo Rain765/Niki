@@ -280,15 +280,16 @@ describe('loan video UI', () => {
     expect(manage).toContain('width: 100%;');
   });
 
-  it('reuses the poster shimmer with every video aspect ratio and in-image status copy', () => {
-    const loading = rule(posterCss, '.poster-app__video-loading');
-    const loadingCopy = rule(posterCss, '.poster-app__video-loading-copy');
-    const mobilePortrait = rule(posterCss, '.poster-app__poster-skeleton.is-mobile-portrait');
-    const landscape = rule(posterCss, '.poster-app__poster-skeleton.is-landscape');
+  it('uses the same ratio and dimensions for the video canvas and its loading state', () => {
+    const stage = rule(posterCss, '.niki-video-stage');
+    const loading = rule(posterCss, '.niki-video-stage--loading');
+    const video = rule(posterCss, '.niki-video-stage video');
 
-    expect(loading).toContain('width: min(100%, 720px);');
-    expect(loadingCopy).toContain('display: grid;');
-    expect(mobilePortrait).toContain('aspect-ratio: 9 / 16;');
-    expect(landscape).toContain('aspect-ratio: 16 / 9;');
+    expect(stage).toContain('aspect-ratio: var(--niki-video-aspect);');
+    expect(stage).toContain('width: min(100%, calc(min(72dvh, 760px) * var(--niki-video-aspect)));');
+    expect(loading).toContain('place-items: center;');
+    expect(video).toContain('width: 100%;');
+    expect(video).toContain('height: 100%;');
+    expect(video).toContain('object-fit: contain;');
   });
 });

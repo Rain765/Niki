@@ -1196,13 +1196,14 @@ export async function checkDeploymentLink(
 
 // Project files — all paths are scoped under .od/projects/<id>/ on disk.
 
-export async function fetchProjectFiles(projectId: string): Promise<ProjectFile[]> {
+export async function fetchProjectFiles(projectId: string, options: { strict?: boolean; signal?: AbortSignal } = {}): Promise<ProjectFile[]> {
   try {
-    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/files`);
-    if (!resp.ok) return [];
+    const resp = await fetch(`/api/projects/${encodeURIComponent(projectId)}/files`, { signal: options.signal });
+    if (!resp.ok) throw new Error(`Could not load project files (HTTP ${resp.status})`);
     const json = (await resp.json()) as { files: ProjectFile[] };
     return json.files ?? [];
-  } catch {
+  } catch (error) {
+    if (options.strict) throw error;
     return [];
   }
 }
