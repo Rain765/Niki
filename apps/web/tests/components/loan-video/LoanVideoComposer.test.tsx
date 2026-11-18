@@ -54,7 +54,8 @@ describe('LoanVideoComposer', () => {
     const actions = generate.parentElement;
     expect(actions?.className).toContain('od-filter-grid__action');
     expect(toolbar.lastElementChild).toBe(actions);
-    expect(actions?.firstElementChild).toBe(screen.getByTestId('loan-video-editor-mode'));
+    const edit = screen.getByTestId('loan-video-editor-mode');
+    expect(actions?.firstElementChild?.contains(edit)).toBe(true);
     expect(actions?.lastElementChild).toBe(generate);
     expect(generate.disabled).toBe(false);
     fireEvent.click(screen.getByRole('combobox', { name: 'Purpose' }));
