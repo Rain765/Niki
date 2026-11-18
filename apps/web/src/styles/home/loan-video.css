@@ -108,15 +108,6 @@
     auto;
 }
 
-.loan-video-quick__actions.od-filter-grid__action {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-self: end;
-  gap: 8px;
-  min-width: 0;
-}
-
 .loan-video-quick__generate {
   min-width: 0;
 }

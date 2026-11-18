@@ -383,6 +383,47 @@ body:has(.od-select-sheet[open]) { overflow: hidden; }
   background: var(--od-control-hover);
 }
 
+.od-generation-toolbar > .od-filter-grid__action.od-generation-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-self: end;
+  gap: var(--od-control-gap);
+  min-width: 0;
+}
+
+.od-generation-actions__utilities {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.od-generation-actions__utilities .od-icon-button.od-button--ghost {
+  background: transparent;
+}
+
+.od-generation-actions__utilities .od-icon-button:is(:hover:not(:disabled), [aria-expanded='true']) {
+  color: var(--od-control-accent);
+}
+
+.od-generation-actions__utilities .od-icon-button > svg {
+  width: var(--od-type-label);
+  height: var(--od-type-label);
+}
+
+@media (min-width: 761px) {
+  /* Keep the icon row within the space reserved for field labels. */
+  .od-generation-actions__utilities {
+    height: var(--od-type-label);
+  }
+
+  .od-generation-actions__utilities .od-icon-button {
+    width: 24px;
+    min-width: 24px;
+    min-height: 24px;
+  }
+}
+
 .od-button--danger {
   background: color-mix(in srgb, var(--od-control-danger) 10%, var(--od-control-fill));
   color: var(--od-control-danger);
