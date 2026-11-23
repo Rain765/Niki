@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { migrateCanvas } from './canvas-store.js';
 import { migrateCritique } from './critique/persistence.js';
+import { migrateNikiGenerationUsage } from './niki-generation-usage.js';
 import { migrateMediaTasks } from './media-tasks.js';
 import { migratePlugins } from './plugins/persistence.js';
 import { currentNikiUser } from './niki-auth-context.js';
@@ -384,6 +385,7 @@ function migrate(db: SqliteDb): void {
   }
   migrateCritique(db);
   migrateMediaTasks(db);
+  migrateNikiGenerationUsage(db);
   migrateCanvas(db);
   migratePlugins(db);
 }

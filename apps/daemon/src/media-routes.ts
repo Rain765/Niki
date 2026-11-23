@@ -4,7 +4,8 @@ import { posterRecoveryJobs } from './poster-recovery-jobs.js';
 import { appendImageNodes } from './canvas-store.js';
 import { currentNikiUser } from './niki-auth-context.js';
 import {
-  assertNikiGenerationAllowed,
+  assertNikiStorageAllowed,
+  withNikiGenerationAdmission,
   NikiQuotaExceededError,
 } from './niki-quota.js';
 import type { RouteDeps } from './server-context.js';
@@ -507,13 +508,9 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
         });
       }
       const nikiUser = currentNikiUser();
-      if (nikiUser) {
-        await assertNikiGenerationAllowed(
-          db,
-          PROJECTS_DIR,
-          nikiUser.id,
-        );
-      }
+      const storageStatus = nikiUser
+        ? await assertNikiStorageAllowed(db, PROJECTS_DIR, nikiUser.id)
+        : null;
       // Resolve immediately before the synchronous insert. This keeps two
       // concurrent retries from both observing a missing task across the
       // asynchronous quota check above.
@@ -533,10 +530,13 @@ export function registerMediaRoutes(app: Express, ctx: RegisterMediaRoutesDeps) 
       }
 
       const taskId = admission.taskId;
-      const task = createMediaTask(taskId, projectId, {
+      const createTask = () => createMediaTask(taskId, projectId, {
         surface: req.body?.surface,
         model: req.body?.model,
       });
+      const task = storageStatus
+        ? withNikiGenerationAdmission(db, storageStatus, createTask)
+        : createTask();
       console.error(
         `[task ${taskId.slice(0, 8)}] stage=queued startedAt=${new Date(task.startedAt).toISOString()} ` +
           `model=${req.body?.model} ` +

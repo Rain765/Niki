@@ -108,17 +108,10 @@ export function userDailyGenerationCount(
   now = Date.now(),
 ): number {
   const row = db.prepare(
-    `SELECT COUNT(*) AS count
-       FROM media_tasks tasks
-       JOIN projects ON projects.id = tasks.project_id
-      WHERE projects.owner_user_id = ?
-        AND tasks.created_at >= ?`,
-  ).get(userId, now - GENERATION_WINDOW_MS) as { count: number } | undefined;
-  const presentations = db.prepare(
-    `SELECT COUNT(*) AS count FROM projects
-      WHERE owner_user_id = ? AND json_extract(metadata_json, '$.presentation.createdAt') >= ?`,
-  ).get(userId, now - GENERATION_WINDOW_MS) as { count: number } | undefined;
-  return Number(row?.count ?? 0) + Number(presentations?.count ?? 0);
+    `SELECT COUNT(*) AS count FROM niki_generation_usage
+      WHERE user_id = ? AND created_at >= ?`,
+  ).get(userId, now - GENERATION_WINDOW_MS) as { count: number };
+  return Number(row.count);
 }
 
 export async function getNikiQuotaStatus(
@@ -184,6 +177,36 @@ export async function assertNikiGenerationAllowed(
     );
   }
   return status;
+}
+
+/** Recheck consumption and synchronously create the job in one write transaction.
+ * Storage scanning happens beforehand; its cached generation count is not an
+ * admission decision. The job insert records consumption via SQLite triggers.
+ */
+export function withNikiGenerationAdmission<T>(
+  db: SqliteDb,
+  storageStatus: NikiUserQuotaStatus,
+  createJob: () => T,
+): T {
+  return db.transaction(() => {
+    const row = quotaRow(db, storageStatus.userId);
+    if (!row) throw new Error('Niki user not found');
+    const now = Date.now();
+    const count = userDailyGenerationCount(db, storageStatus.userId, now);
+    if (count >= row.dailyGenerationQuota) {
+      throw new NikiQuotaExceededError(
+        'GENERATION_QUOTA_EXCEEDED',
+        '过去 24 小时的生成额度已用完，请稍后再试或联系管理员提高额度',
+        {
+          ...storageStatus,
+          quota: normalizeQuota(row),
+          usage: { ...storageStatus.usage, dailyGenerations: count, windowStartedAt: now - GENERATION_WINDOW_MS },
+          allowed: { ...storageStatus.allowed, generation: false },
+        },
+      );
+    }
+    return createJob();
+  }).immediate();
 }
 
 function quotaInteger(
