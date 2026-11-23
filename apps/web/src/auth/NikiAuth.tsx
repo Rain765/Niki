@@ -387,25 +387,27 @@ function NikiAuthScreen({
                 {passwordError ? (
                   <div className="niki-auth__error">{passwordError}</div>
                 ) : null}
-                <button type="submit" disabled={submitting}>
-                  {submitting ? copy.signingIn : copy.signIn}
-                </button>
-                <button
-                  type="button"
-                  className="niki-auth__text-button"
-                  onClick={() => {
-                    clearAuthErrorFromLocation();
-                    setPasswordMode(false);
-                    setPasswordVisible(false);
-                    setPasswordError('');
-                  }}
-                  disabled={submitting}
-                >
-                  {copy.backToFeishu}
-                </button>
+                <div className="niki-auth__actions">
+                  <button type="submit" disabled={submitting}>
+                    {submitting ? copy.signingIn : copy.signIn}
+                  </button>
+                  <button
+                    type="button"
+                    className="niki-auth__text-button"
+                    onClick={() => {
+                      clearAuthErrorFromLocation();
+                      setPasswordMode(false);
+                      setPasswordVisible(false);
+                      setPasswordError('');
+                    }}
+                    disabled={submitting}
+                  >
+                    {copy.backToFeishu}
+                  </button>
+                </div>
               </form>
             ) : (
-              <>
+              <div className="niki-auth__actions">
                 <button
                   type="button"
                   className={`niki-auth__primary-button${
@@ -429,7 +431,7 @@ function NikiAuthScreen({
                 >
                   {copy.passwordSignIn}
                 </button>
-              </>
+              </div>
             )}
           </>
         )}
