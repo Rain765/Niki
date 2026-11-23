@@ -223,6 +223,12 @@ For the full tag dictionary, operational playbook (direct merge / duplicate-titl
 
 - `apps/web/src/i18n/types.ts` is the typed `Dict`; every key must be defined in all 18 locale files under `apps/web/src/i18n/locales/*.ts` (`ar`, `de`, `en`, `es-ES`, `fa`, `fr`, `hu`, `id`, `ja`, `ko`, `pl`, `pt-BR`, `ru`, `th`, `tr`, `uk`, `zh-CN`, `zh-TW`). Add the key to `types.ts` first; missing translations produce a typecheck error.
 
+## Primary action placement
+
+- In every horizontal action group, place supporting actions (cancel, back, alternative sign-in) on the left and the single primary action on the right. Apply this to dialogs, forms, and toolbars on desktop and mobile.
+- Render supporting actions before the primary action in DOM order so keyboard focus matches the visible order. Do not use CSS `order` or `row-reverse` to swap them. Loading and disabled states retain the same positions.
+- Follow `docs/ui-control-guidelines.md` for layout details. The login pair is the reference: `账号密码登录` on the left, `飞书登录` on the right; password mode keeps `返回飞书登录` left and `登录` right.
+
 ## UI animation philosophy
 
 - Default ease-out for UI transitions: `cubic-bezier(0.23, 1, 0.32, 1)`. Built-in `ease` is too weak; `ease-in` is forbidden for UI elements because it feels sluggish.

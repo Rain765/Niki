@@ -71,7 +71,7 @@ const AUTH_COPY = {
     signIn: '登录',
     backToFeishu: '返回飞书登录',
     openingFeishu: '正在前往飞书…',
-    feishuSignIn: '使用飞书登录',
+    feishuSignIn: '飞书登录',
     passwordSignIn: '账号密码登录',
   },
 } as const;
@@ -388,9 +388,6 @@ function NikiAuthScreen({
                   <div className="niki-auth__error">{passwordError}</div>
                 ) : null}
                 <div className="niki-auth__actions">
-                  <button type="submit" disabled={submitting}>
-                    {submitting ? copy.signingIn : copy.signIn}
-                  </button>
                   <button
                     type="button"
                     className="niki-auth__text-button"
@@ -404,21 +401,13 @@ function NikiAuthScreen({
                   >
                     {copy.backToFeishu}
                   </button>
+                  <button type="submit" disabled={submitting}>
+                    {submitting ? copy.signingIn : copy.signIn}
+                  </button>
                 </div>
               </form>
             ) : (
               <div className="niki-auth__actions">
-                <button
-                  type="button"
-                  className={`niki-auth__primary-button${
-                    feishuSubmitting ? ' is-loading' : ''
-                  }`}
-                  onClick={login}
-                  disabled={feishuSubmitting}
-                  aria-busy={feishuSubmitting}
-                >
-                  {feishuSubmitting ? copy.openingFeishu : copy.feishuSignIn}
-                </button>
                 <button
                   type="button"
                   className="niki-auth__text-button"
@@ -430,6 +419,17 @@ function NikiAuthScreen({
                   disabled={feishuSubmitting}
                 >
                   {copy.passwordSignIn}
+                </button>
+                <button
+                  type="button"
+                  className={`niki-auth__primary-button${
+                    feishuSubmitting ? ' is-loading' : ''
+                  }`}
+                  onClick={login}
+                  disabled={feishuSubmitting}
+                  aria-busy={feishuSubmitting}
+                >
+                  {feishuSubmitting ? copy.openingFeishu : copy.feishuSignIn}
                 </button>
               </div>
             )}

@@ -31,6 +31,9 @@ Use the shared UI scale for menus, control sheets, and dialogs. Captions use `--
 - Keep these values consistent on desktop and mobile. Page CSS must not override button font size, font weight, or radius, including in editor panels, dialogs, and responsive rules. Existing native action controls must consume the same tokens until migrated to `Button`.
 - `primary` is reserved for the main action in a section. `secondary` is for supporting actions, `ghost` for low-emphasis utilities, and `danger` for destructive actions.
 - Use one primary action per toolbar. Primary actions sit after their required inputs and align to the same control height.
+- In every horizontal action group, the primary button is the rightmost action. Supporting actions such as cancel, back, and alternative sign-in sit to its left. This applies to dialogs, forms, and toolbars at desktop and mobile widths.
+- Put supporting actions first and the primary action last in DOM order so keyboard navigation follows the visual order. Do not reverse them using CSS `order` or `row-reverse`. A group that must stack on a narrow screen retains this sequence, with the primary action last.
+- Login uses two equal columns: `账号密码登录` left and `飞书登录` right. Password mode uses `返回飞书登录` left and `登录` right. Preserve these positions while loading or disabled.
 - Loading buttons remain in place, expose `aria-busy`, and are disabled until the action completes.
 - Main creation actions across poster, video, PPT, brand, and image pages use “生成” (English: “Generate”). Busy states still describe the actual operation; non-creation actions keep their own semantic labels.
 - Name text actions with a concise verb and object; use the same term for the same action and describe the actual busy state. Text actions do not carry decorative icons.
@@ -66,5 +69,6 @@ Use the shared UI scale for menus, control sheets, and dialogs. Captions use `--
 ## Verification
 
 - Check poster, video, PPT, brand, documents, English practice, and account/settings actions when changing shared tokens. Verify the computed radius, font size, and font weight against a `SelectField`, including compact and disabled controls.
+- Check that each horizontal action group places its primary button on the right and that Tab order follows the visible order.
 - Inspect a desktop width and a narrow mobile width, plus any affected editor or dialog. Check for clipping and horizontal overflow without running paid generation or submitting real user data.
 - Keep existing copy, icon meanings, focus states, and action behavior intact. Run the repository guard/typecheck and relevant web tests before delivery.

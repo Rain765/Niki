@@ -127,7 +127,9 @@ describe('NikiAuthGate', () => {
       </NikiAuthGate>,
     );
 
-    expect(await screen.findByRole('button', { name: '使用飞书登录' }))
+    const primary = await screen.findByRole('button', { name: '飞书登录' });
+    const secondary = screen.getByRole('button', { name: '账号密码登录' });
+    expect(secondary.compareDocumentPosition(primary) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
     expect(screen.queryByText(/signed in as/)).toBeNull();
   });
@@ -151,7 +153,7 @@ describe('NikiAuthGate', () => {
       </NikiAuthGate>,
     );
 
-    const loginButton = await screen.findByRole('button', { name: '使用飞书登录' });
+    const loginButton = await screen.findByRole('button', { name: '飞书登录' });
     fireEvent.click(loginButton);
 
     expect(loginButton.getAttribute('aria-busy')).toBe('true');
@@ -180,6 +182,10 @@ describe('NikiAuthGate', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '账号密码登录' }));
 
+    const back = screen.getByRole('button', { name: '返回飞书登录' });
+    const submit = screen.getByRole('button', { name: '登录' });
+    expect(back.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
     const passwordInput = screen.getByLabelText('密码') as HTMLInputElement;
     fireEvent.change(passwordInput, { target: { value: 'secret-value' } });
 
