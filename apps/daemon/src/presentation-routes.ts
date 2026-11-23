@@ -24,6 +24,7 @@ import { currentNikiUser } from './niki-auth-context.js';
 import {
   assertNikiGenerationAllowed,
   assertNikiStorageAllowed,
+  withNikiGenerationAdmission,
   NikiQuotaExceededError,
 } from './niki-quota.js';
 import { readProjectFile, resolveProjectDir, writeProjectFile } from './projects.js';
@@ -506,15 +507,11 @@ export function registerPresentationRoutes(
               req.file.buffer,
             );
             const user = currentNikiUser();
-            if (user) {
-              await assertNikiGenerationAllowed(db, projectsRoot, user.id);
-              await assertNikiStorageAllowed(
-                db,
-                projectsRoot,
-                user.id,
-                req.file.size + 2 * 1024 * 1024,
-              );
-            }
+            const storageStatus = user
+              ? await assertNikiStorageAllowed(
+                db, projectsRoot, user.id, req.file.size + 2 * 1024 * 1024,
+              )
+              : null;
             const id = randomUUID();
             const now = Date.now();
             const job: PresentationJob = {
@@ -531,13 +528,15 @@ export function registerPresentationRoutes(
               updatedAt: now,
               options,
             };
-            insertProject(db, {
+            const createJob = () => insertProject(db, {
               id,
               name: sourceName,
               createdAt: now,
               updatedAt: now,
               metadata: { kind: 'deck', presentation: job },
             });
+            if (storageStatus) withNikiGenerationAdmission(db, storageStatus, createJob);
+            else createJob();
             activeProjects.add(id);
             try {
               await writeProjectFile(
